@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { writeJsonFile } from './json-store'
 
 const settingsPath = resolve(process.cwd(), '.data/search-providers.json')
 export interface SearchSettings { name: string; endpoint: string; apiKey: string }
@@ -9,7 +10,7 @@ export interface SearchResult { title: string; source: string; size: number; see
 const blank = (): SearchSettings => ({ name: 'Torznab', endpoint: '', apiKey: '' })
 function readSettings() { try { return { ...blank(), ...JSON.parse(readFileSync(settingsPath, 'utf8')) } } catch { return blank() } }
 function publicSettings(settings: SearchSettings): PublicSearchSettings { return { name: settings.name, endpoint: settings.endpoint, configured: existsSync(settingsPath) } }
-function writeSettings(settings: SearchSettings) { mkdirSync(dirname(settingsPath), { recursive: true }); const temporary = `${settingsPath}.${process.pid}.tmp`; writeFileSync(temporary, JSON.stringify(settings)); renameSync(temporary, settingsPath) }
+function writeSettings(settings: SearchSettings) { writeJsonFile(settingsPath, settings) }
 
 function validate(input: Partial<SearchSettings>) {
   const settings = { ...readSettings(), ...input }

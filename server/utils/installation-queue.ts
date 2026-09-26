@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { writeJsonFile } from './json-store'
 import { getPackage, getPackageDelivery, markPackageInstalled, readPackageIcon, resetPackageDelivery } from './package-library'
 import { sendPackage, startInstaller } from './ps4-installer'
 
@@ -43,10 +44,7 @@ function readQueue(): InstallationQueue {
 
 function writeQueue(queue: InstallationQueue) {
   queue.updatedAt = Date.now()
-  mkdirSync(dirname(queuePath), { recursive: true })
-  const temporary = `${queuePath}.${process.pid}.tmp`
-  writeFileSync(temporary, JSON.stringify(queue))
-  renameSync(temporary, queuePath)
+  writeJsonFile(queuePath, queue)
 }
 
 function publicQueue(queue: InstallationQueue) {

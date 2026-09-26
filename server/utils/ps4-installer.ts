@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
+import { readJsonFile, writeJsonFile } from './json-store'
 import { createSocket } from 'node:dgram'
 import { createServer, connect, type Server, type Socket } from 'node:net'
 
@@ -31,6 +32,19 @@ async function timeoutFetch(url: string) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 2500)
   try { return await fetch(url, { signal: controller.signal }) } finally { clearTimeout(timer) }
+}
+
+const settingsPath = resolve(process.cwd(), '.data/ps4.json')
+
+/** Last console IP the user connected to; survives page reloads and server restarts. */
+export function getSavedPsIp() {
+  const ip = readJsonFile<{ ip?: string }>(settingsPath, {}).ip || ''
+  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip) ? ip : ''
+}
+
+export function savePsIp(psIp: string) {
+  assertIp(psIp)
+  if (getSavedPsIp() !== psIp) writeJsonFile(settingsPath, { ip: psIp })
 }
 
 export async function getGoldHenStatus(psIp: string) {

@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { writeJsonFile } from './json-store'
 import { dirname, relative, resolve } from 'node:path'
 import { stat } from 'node:fs/promises'
 
@@ -11,10 +12,7 @@ export interface PublicQbitSettings { baseUrl: string; username: string; downloa
 const blankSettings = (): QbitSettings => ({ baseUrl: 'http://127.0.0.1:8080', username: '', password: '', downloadPath: '' })
 
 function writeSettings(settings: QbitSettings) {
-  mkdirSync(dirname(settingsPath), { recursive: true })
-  const temporary = `${settingsPath}.${process.pid}.tmp`
-  writeFileSync(temporary, JSON.stringify(settings))
-  renameSync(temporary, settingsPath)
+  writeJsonFile(settingsPath, settings)
 }
 
 function readSettings(): QbitSettings {

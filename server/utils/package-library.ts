@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
-import { createReadStream, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { createReadStream, existsSync, mkdirSync } from 'node:fs'
 import { open, readdir, readFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
+import { readJsonFile as readJson, writeJsonFile as writeJson } from './json-store'
 
 const PKG_MAGIC = Buffer.from([0x7f, 0x43, 0x4e, 0x54])
 const SFO_MAGIC = Buffer.from([0x00, 0x50, 0x53, 0x46])
@@ -45,23 +46,39 @@ const cacheDirectory = (root: string) => join(root, '.packageflow')
 const cachePath = (root: string) => join(cacheDirectory(root), 'index.json')
 const coversDirectory = (root: string) => join(cacheDirectory(root), 'covers')
 
-function readJson<T>(path: string, fallback: T): T {
-  try { return JSON.parse(readFileSync(path, 'utf8')) as T } catch { return fallback }
-}
+// Delivery progress lives in memory: the PS4 fires many Range requests per
+// package and persisting each one made Windows fail on locked files.
+let deliveryCache: Record<string, DeliveryStatus> | undefined
+let deliveryFlushTimer: ReturnType<typeof setTimeout> | undefined
 
-function writeJson(path: string, value: unknown) {
-  mkdirSync(dirname(path), { recursive: true })
-  const temporary = `${path}.${process.pid}.tmp`
-  writeFileSync(temporary, JSON.stringify(value))
-  renameSync(temporary, path)
-}
-
-function readLibrary() {
+function readLibraryFile() {
   const library = readJson(siteLibraryPath, blankLibrary())
   return library.version === 2 ? library : blankLibrary()
 }
 
-function writeLibrary(library: SiteLibrary) { writeJson(siteLibraryPath, library) }
+function deliveries() {
+  deliveryCache ||= readLibraryFile().deliveries || {}
+  return deliveryCache
+}
+
+function readLibrary() {
+  const library = readLibraryFile()
+  library.deliveries = deliveries()
+  return library
+}
+
+function writeLibrary(library: SiteLibrary) {
+  if (deliveryFlushTimer) { clearTimeout(deliveryFlushTimer); deliveryFlushTimer = undefined }
+  writeJson(siteLibraryPath, { ...library, deliveries: deliveries() })
+}
+
+function scheduleDeliveryFlush() {
+  if (deliveryFlushTimer) return
+  deliveryFlushTimer = setTimeout(() => {
+    deliveryFlushTimer = undefined
+    try { writeLibrary(readLibraryFile()) } catch (error) { console.warn('[PackageFlow] Не удалось сохранить прогресс передачи:', error) }
+  }, 1000)
+}
 function publicItem({ path: _, sourceModifiedAt: __, coverPath: ___, icon: ____, ...item }: StoredPackage): LocalPackage { return item }
 
 async function findSfoOffset(handle: Awaited<ReturnType<typeof open>>, header: Buffer) {
@@ -241,10 +258,9 @@ export function removePackageBranch(titleId: string) {
 }
 
 export function recordPackageDelivery(id: string, start: number, end: number, completed: boolean) {
-  const library = readLibrary()
-  const item = library.packages.find((entry) => entry.id === id)
+  const item = readLibraryFile().packages.find((entry) => entry.id === id)
   if (!item) return
-  const delivery = library.deliveries[id] ||= { requests: 0, bytesSent: 0, ranges: [] }
+  const delivery = deliveries()[id] ||= { requests: 0, bytesSent: 0, ranges: [] }
   delivery.requests += 1
   delivery.startedAt ||= Date.now()
   const ranges = [...delivery.ranges, { start, end }].sort((a, b) => a.start - b.start)
@@ -253,14 +269,13 @@ export function recordPackageDelivery(id: string, start: number, end: number, co
   // GoldHEN/BGFT can request the package from byte 65536 onward: its bootstrap
   // chunk is obtained separately, so range coverage never starts at zero.
   if (completed || end >= item.size - 1 || delivery.bytesSent >= item.size) delivery.completedAt ||= Date.now()
-  writeLibrary(library)
+  scheduleDeliveryFlush()
 }
 
 export function getPackageDelivery(id: string) {
   const item = getPackage(id)
-  const library = readLibrary()
-  const delivery = library.deliveries[id] || { requests: 0, bytesSent: 0, ranges: [] }
+  const delivery = deliveries()[id] || { requests: 0, bytesSent: 0, ranges: [] }
   // Upgrade deliveries recorded before the terminal-range rule was introduced.
-  if (!delivery.completedAt && delivery.ranges.some((range) => range.end >= item.size - 1)) { delivery.completedAt = Date.now(); library.deliveries[id] = delivery; writeLibrary(library) }
+  if (!delivery.completedAt && delivery.ranges.some((range) => range.end >= item.size - 1)) { delivery.completedAt = Date.now(); deliveries()[id] = delivery; scheduleDeliveryFlush() }
   return { ...delivery, size: item.size }
 }
