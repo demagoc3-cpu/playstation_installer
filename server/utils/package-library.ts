@@ -257,11 +257,20 @@ export function removePackageBranch(titleId: string) {
   return { removed: removed.length }
 }
 
+/** Any request from the console (manifest or data) proves it accepted the job. */
+export function recordPackageRequest(id: string) {
+  const delivery = deliveries()[id] ||= { requests: 0, bytesSent: 0, ranges: [] }
+  delivery.requests += 1
+  delivery.startedAt ||= Date.now()
+  scheduleDeliveryFlush()
+}
+
+/** Called repeatedly while a range streams, so large ranges show progress before they finish. */
 export function recordPackageDelivery(id: string, start: number, end: number, completed: boolean) {
+  if (end < start) return
   const item = readLibraryFile().packages.find((entry) => entry.id === id)
   if (!item) return
   const delivery = deliveries()[id] ||= { requests: 0, bytesSent: 0, ranges: [] }
-  delivery.requests += 1
   delivery.startedAt ||= Date.now()
   const ranges = [...delivery.ranges, { start, end }].sort((a, b) => a.start - b.start)
   delivery.ranges = ranges.reduce<Array<{ start: number; end: number }>>((merged, range) => { const previous = merged.at(-1); if (previous && range.start <= previous.end + 1) previous.end = Math.max(previous.end, range.end); else merged.push({ ...range }); return merged }, [])

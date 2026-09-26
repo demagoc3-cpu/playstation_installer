@@ -107,7 +107,11 @@ async function runQueue() {
         item.state = 'receiving'
         item.detail = `PS4 получила ${formatBytes(item.bytesSent)} из ${formatBytes(delivery.size)}`
         writeQueue(queue)
+      } else if (delivery.requests > 0) {
+        // The console fetched the manifest/package but no bytes have streamed yet: keep waiting.
+        if (item.detail !== 'PS4 запросила пакет, начинает скачивание…') { item.detail = 'PS4 запросила пакет, начинает скачивание…'; writeQueue(queue) }
       } else if (item.dispatchedAt && Date.now() - item.dispatchedAt >= ALREADY_INSTALLED_AFTER_MS) {
+        console.log(`[PackageFlow] PS4 не обратилась за «${packageInfo.title}» за 20 с — считаем пакет уже установленным`)
         markPackageInstalled(item.packageId, true)
         item.state = 'installed'
         item.installedAt = Date.now()

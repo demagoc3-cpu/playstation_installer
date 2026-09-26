@@ -1,13 +1,27 @@
 import type { ReadStream } from 'node:fs'
-import { getPackage, getPackageDelivery, getPackageIconStream, getPackageStream, recordPackageDelivery } from '../../utils/package-library'
+import { getPackage, getPackageDelivery, getPackageIconStream, getPackageStream, recordPackageDelivery, recordPackageRequest } from '../../utils/package-library'
 
 const debug = Boolean(process.env.PACKAGEFLOW_DEBUG)
+const PROGRESS_INTERVAL_MS = 500
 
-/** Records a finished range without ever letting bookkeeping errors break the transfer. */
+/**
+ * Tracks progress while the range streams, not only when it ends: BGFT may ask
+ * for one multi-gigabyte range, which would otherwise look like "no download".
+ * Bookkeeping errors never break the transfer.
+ */
 function trackDelivery(stream: ReadStream, id: string, start: number, end: number, completed: boolean) {
-  stream.once('end', () => {
-    try { recordPackageDelivery(id, start, end, completed) } catch (error) { console.warn('[PackageFlow] Не удалось записать прогресс передачи:', error) }
+  const record = (last: number, done: boolean) => {
+    try { recordPackageDelivery(id, start, last, done) } catch (error) { console.warn('[PackageFlow] Не удалось записать прогресс передачи:', error) }
+  }
+  let sent = 0
+  let reportedAt = 0
+  stream.on('data', (chunk: Buffer | string) => {
+    sent += chunk.length
+    const now = Date.now()
+    if (now - reportedAt >= PROGRESS_INTERVAL_MS) { reportedAt = now; record(start + sent - 1, false) }
   })
+  stream.once('end', () => record(end, completed))
+  stream.once('close', () => { if (sent && start + sent - 1 < end) record(start + sent - 1, false) })
   stream.once('error', (error) => console.warn(`[PackageFlow] Ошибка чтения PKG ${id} (${start}-${end}):`, error))
 }
 
@@ -23,6 +37,7 @@ export default defineEventHandler(async (event) => {
 
   const item = getPackage(id)
   const range = getHeader(event, 'range')
+  recordPackageRequest(id)
   if (debug) console.log(`[PackageFlow] GET ${item.fileName} range=${range || 'full'}`)
   setHeader(event, 'Content-Type', 'application/octet-stream')
   setHeader(event, 'Accept-Ranges', 'bytes')
