@@ -1,28 +1,45 @@
+import { Transform } from 'node:stream'
 import type { ReadStream } from 'node:fs'
+import type { H3Event } from 'h3'
 import { getPackage, getPackageDelivery, getPackageIconStream, getPackageStream, recordPackageDelivery, recordPackageRequest } from '../../utils/package-library'
 
 const debug = Boolean(process.env.PACKAGEFLOW_DEBUG)
 const PROGRESS_INTERVAL_MS = 500
+const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(2)} МБ`
 
 /**
- * Tracks progress while the range streams, not only when it ends: BGFT may ask
- * for one multi-gigabyte range, which would otherwise look like "no download".
- * Bookkeeping errors never break the transfer.
+ * Streams a byte range to the console and tracks what was actually handed to
+ * the socket (a counting Transform respects backpressure, unlike a 'data'
+ * listener on the file). Progress is recorded while the range streams, so a
+ * single multi-gigabyte BGFT range is visible before it ends. If the console
+ * drops the connection, it is logged with the byte count. Bookkeeping errors
+ * never break the transfer.
  */
-function trackDelivery(stream: ReadStream, id: string, start: number, end: number, completed: boolean) {
+function streamRange(event: H3Event, file: ReadStream, id: string, fileName: string, start: number, end: number, completed: boolean) {
   const record = (last: number, done: boolean) => {
+    if (last < start) return
     try { recordPackageDelivery(id, start, last, done) } catch (error) { console.warn('[PackageFlow] Не удалось записать прогресс передачи:', error) }
   }
+  const expected = end - start + 1
   let sent = 0
   let reportedAt = 0
-  stream.on('data', (chunk: Buffer | string) => {
-    sent += chunk.length
-    const now = Date.now()
-    if (now - reportedAt >= PROGRESS_INTERVAL_MS) { reportedAt = now; record(start + sent - 1, false) }
+  const counter = new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      sent += chunk.length
+      const now = Date.now()
+      if (now - reportedAt >= PROGRESS_INTERVAL_MS) { reportedAt = now; record(start + sent - 1, false) }
+      callback(null, chunk)
+    }
   })
-  stream.once('end', () => record(end, completed))
-  stream.once('close', () => { if (sent && start + sent - 1 < end) record(start + sent - 1, false) })
-  stream.once('error', (error) => console.warn(`[PackageFlow] Ошибка чтения PKG ${id} (${start}-${end}):`, error))
+  const response = event.node.res
+  response.once('close', () => {
+    if (response.writableFinished) { record(end, completed); return }
+    record(start + sent - 1, false)
+    file.destroy()
+    console.warn(`[PackageFlow] PS4 оборвала загрузку «${fileName}»: диапазон ${start}-${end}, отдано ${mb(sent)} из ${mb(expected)}`)
+  })
+  file.once('error', (error) => { console.warn(`[PackageFlow] Ошибка чтения PKG ${fileName} (${start}-${end}):`, error); counter.destroy(error) })
+  return sendStream(event, file.pipe(counter))
 }
 
 export default defineEventHandler(async (event) => {
@@ -38,16 +55,14 @@ export default defineEventHandler(async (event) => {
   const item = getPackage(id)
   const range = getHeader(event, 'range')
   recordPackageRequest(id)
-  if (debug) console.log(`[PackageFlow] GET ${item.fileName} range=${range || 'full'}`)
+  if (debug) console.log(`[PackageFlow] PS4 запрашивает «${item.fileName}» ${range || 'целиком'}`)
   setHeader(event, 'Content-Type', 'application/octet-stream')
   setHeader(event, 'Accept-Ranges', 'bytes')
   setHeader(event, 'Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(item.fileName)}`)
 
   if (!range) {
     setHeader(event, 'Content-Length', String(item.size))
-    const { stream } = getPackageStream(id)
-    trackDelivery(stream, id, 0, item.size - 1, true)
-    return sendStream(event, stream)
+    return streamRange(event, getPackageStream(id).stream, id, item.fileName, 0, item.size - 1, true)
   }
 
   const match = /^bytes=(\d*)-(\d*)$/i.exec(range.trim())
@@ -64,7 +79,5 @@ export default defineEventHandler(async (event) => {
   setResponseStatus(event, 206)
   setHeader(event, 'Content-Range', `bytes ${start}-${end}/${item.size}`)
   setHeader(event, 'Content-Length', String(end - start + 1))
-  const { stream } = getPackageStream(id, { start, end })
-  trackDelivery(stream, id, start, end, start === 0 && end === item.size - 1)
-  return sendStream(event, stream)
+  return streamRange(event, getPackageStream(id, { start, end }).stream, id, item.fileName, start, end, start === 0 && end === item.size - 1)
 })
