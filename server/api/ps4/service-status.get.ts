@@ -1,8 +1,9 @@
 export default defineEventHandler(async (event) => {
   const ip = String(getQuery(event).ip || '')
   const parts = ip.split('.').map(Number)
+  const [first = -1, second = -1] = parts
   const local = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip) && parts.every((part) => Number.isInteger(part) && part >= 0 && part <= 255) &&
-    (parts[0] === 10 || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || (parts[0] === 192 && parts[1] === 168) || (parts[0] === 169 && parts[1] === 254))
+    (first === 10 || (first === 172 && second >= 16 && second <= 31) || (first === 192 && second === 168) || (first === 169 && second === 254))
   if (!local) throw createError({ statusCode: 400, message: 'Укажите локальный IPv4-адрес PS4' })
 
   try {
