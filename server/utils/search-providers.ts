@@ -15,8 +15,8 @@ function writeSettings(settings: SearchSettings) { writeJsonFile(settingsPath, s
 function validate(input: Partial<SearchSettings>) {
   const settings = { ...readSettings(), ...input }
   let url: URL
-  try { url = new URL(settings.endpoint) } catch { throw createError({ statusCode: 400, statusMessage: 'Укажите URL Torznab-источника' }) }
-  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw createError({ statusCode: 400, statusMessage: 'URL источника должен быть обычным HTTP(S)-адресом без логина и пароля' })
+  try { url = new URL(settings.endpoint) } catch { throw createError({ statusCode: 400, message: 'Укажите URL Torznab-источника' }) }
+  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw createError({ statusCode: 400, message: 'URL источника должен быть обычным HTTP(S)-адресом без логина и пароля' })
   return { ...settings, name: settings.name.trim() || 'Torznab', endpoint: url.toString(), apiKey: settings.apiKey.trim() }
 }
 
@@ -30,15 +30,15 @@ export function saveSearchSettings(input: Partial<SearchSettings>) { const setti
 
 export async function searchPackages(query: string) {
   const settings = readSettings()
-  if (!existsSync(settingsPath)) throw createError({ statusCode: 409, statusMessage: 'Сначала настройте разрешённый Torznab-источник' })
+  if (!existsSync(settingsPath)) throw createError({ statusCode: 409, message: 'Сначала настройте разрешённый Torznab-источник' })
   const verified = validate(settings)
   const request = new URL(verified.endpoint)
   request.searchParams.set('t', 'search'); request.searchParams.set('q', query.trim())
   if (verified.apiKey) request.searchParams.set('apikey', verified.apiKey)
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 12000)
   let response: Response
-  try { response = await fetch(request, { signal: controller.signal }) } catch { throw createError({ statusCode: 502, statusMessage: 'Источник поиска не ответил' }) } finally { clearTimeout(timer) }
-  if (!response.ok) throw createError({ statusCode: 502, statusMessage: `Источник поиска вернул ошибку ${response.status}` })
+  try { response = await fetch(request, { signal: controller.signal }) } catch { throw createError({ statusCode: 502, message: 'Источник поиска не ответил' }) } finally { clearTimeout(timer) }
+  if (!response.ok) throw createError({ statusCode: 502, message: `Источник поиска вернул ошибку ${response.status}` })
   const xml = await response.text()
   return [...xml.matchAll(/<item\b[\s\S]*?<\/item>/gi)].slice(0, 40).map((match) => {
     const block = match[0]

@@ -206,10 +206,10 @@ async function walk(directory: string, root: string, cache: FolderCache, found: 
 }
 
 export async function scanPackageFolder(directory: string, onlyTitleId?: string) {
-  if (!directory?.trim()) throw createError({ statusCode: 400, statusMessage: 'Укажите путь к папке с пакетами' })
+  if (!directory?.trim()) throw createError({ statusCode: 400, message: 'Укажите путь к папке с пакетами' })
   const root = resolve(directory.trim())
   const rootInfo = await stat(root).catch(() => undefined)
-  if (!rootInfo?.isDirectory()) throw createError({ statusCode: 404, statusMessage: 'Папка не найдена или недоступна' })
+  if (!rootInfo?.isDirectory()) throw createError({ statusCode: 404, message: 'Папка не найдена или недоступна' })
   const cache = readJson<FolderCache>(cachePath(root), { version: 1, packages: {} })
   const siteLibrary = readLibrary()
   const oldItems = new Map(siteLibrary.packages.map((item) => [item.id, item]))
@@ -223,9 +223,9 @@ export async function scanPackageFolder(directory: string, onlyTitleId?: string)
 }
 
 export function getLibraryPackages() { return readLibrary().packages.filter((item) => existsSync(item.path)).map(publicItem) }
-export function getPackage(id: string) { const item = readLibrary().packages.find((entry) => entry.id === id); if (!item || !existsSync(item.path)) throw createError({ statusCode: 404, statusMessage: 'Пакет не найден. Просканируйте папку повторно.' }); return item }
+export function getPackage(id: string) { const item = readLibrary().packages.find((entry) => entry.id === id); if (!item || !existsSync(item.path)) throw createError({ statusCode: 404, message: 'Пакет не найден. Просканируйте папку повторно.' }); return item }
 export function getPackageStream(id: string, options?: { start?: number; end?: number }) { const item = getPackage(id); return { item, stream: createReadStream(item.path, options) } }
-export function getPackageIconStream(id: string) { const item = getPackage(id); if (!item.coverPath || !existsSync(item.coverPath)) throw createError({ statusCode: 404, statusMessage: 'Кэш обложки не найден. Пересканируйте папку.' }); return createReadStream(item.coverPath) }
+export function getPackageIconStream(id: string) { const item = getPackage(id); if (!item.coverPath || !existsSync(item.coverPath)) throw createError({ statusCode: 404, message: 'Кэш обложки не найден. Пересканируйте папку.' }); return createReadStream(item.coverPath) }
 export async function readPackageIcon(id: string) { const item = getPackage(id); if (!item.coverPath || !existsSync(item.coverPath)) return undefined; return readFile(item.coverPath) }
 
 // Packages whose installation was cancelled: the console may keep retrying the
@@ -254,18 +254,18 @@ export function blockPackageDelivery(id: string) {
 export function resetPackageDelivery(id: string) {
   blockedDeliveries.delete(id)
   const library = readLibrary()
-  if (!library.packages.some((item) => item.id === id)) throw createError({ statusCode: 404, statusMessage: 'Пакет не найден' })
+  if (!library.packages.some((item) => item.id === id)) throw createError({ statusCode: 404, message: 'Пакет не найден' })
   delete library.deliveries[id]
   writeLibrary(library)
 }
 
-export function markPackageInstalled(id: string, installed: boolean) { const library = readLibrary(); const item = library.packages.find((entry) => entry.id === id); if (!item) throw createError({ statusCode: 404, statusMessage: 'Пакет не найден' }); item.installedAt = installed ? Date.now() : undefined; writeLibrary(library); return publicItem(item) }
+export function markPackageInstalled(id: string, installed: boolean) { const library = readLibrary(); const item = library.packages.find((entry) => entry.id === id); if (!item) throw createError({ statusCode: 404, message: 'Пакет не найден' }); item.installedAt = installed ? Date.now() : undefined; writeLibrary(library); return publicItem(item) }
 
 export function removePackageFromLibrary(id: string) {
   const library = readLibrary()
   const before = library.packages.length
   library.packages = library.packages.filter((item) => item.id !== id)
-  if (library.packages.length === before) throw createError({ statusCode: 404, statusMessage: 'Пакет не найден' })
+  if (library.packages.length === before) throw createError({ statusCode: 404, message: 'Пакет не найден' })
   delete library.deliveries[id]
   writeLibrary(library)
 }
@@ -273,7 +273,7 @@ export function removePackageFromLibrary(id: string) {
 export function removePackageBranch(titleId: string) {
   const library = readLibrary()
   const removed = library.packages.filter((item) => item.titleId === titleId)
-  if (!removed.length) throw createError({ statusCode: 404, statusMessage: 'Ветка игры не найдена' })
+  if (!removed.length) throw createError({ statusCode: 404, message: 'Ветка игры не найдена' })
   library.packages = library.packages.filter((item) => item.titleId !== titleId)
   removed.forEach((item) => delete library.deliveries[item.id])
   writeLibrary(library)

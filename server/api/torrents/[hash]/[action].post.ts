@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
     await setTorrentAutoInstall(hash, body?.enabled === true)
     return { ok: true }
   }
-  if (action !== 'pause' && action !== 'resume' && action !== 'delete') throw createError({ statusCode: 404, statusMessage: 'Неизвестное действие torrent-задачи' })
+  if (action !== 'pause' && action !== 'resume' && action !== 'delete') throw createError({ statusCode: 404, message: 'Неизвестное действие torrent-задачи' })
   await controlTorrent(hash, action)
   if (action === 'delete') forgetTorrentIndex(hash)
   return { ok: true }

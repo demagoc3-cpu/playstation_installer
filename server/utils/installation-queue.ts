@@ -126,9 +126,9 @@ async function runQueue() {
     const queue = readQueue()
     if (queue.status === 'running') {
       const current = queue.currentIndex === undefined ? undefined : queue.items[queue.currentIndex]
-      if (current) { current.state = 'failed'; current.detail = error?.statusMessage || 'Не удалось передать задание' }
+      if (current) { current.state = 'failed'; current.detail = (error?.statusCode && error.message) || 'Не удалось передать задание' }
       queue.status = 'failed'
-      queue.message = error?.statusMessage || 'Не удалось передать очередь установщику'
+      queue.message = (error?.statusCode && error.message) || 'Не удалось передать очередь установщику'
       writeQueue(queue)
     }
   } finally { runner = undefined }
@@ -148,13 +148,13 @@ export function getInstallationQueue() {
 
 export function startInstallationQueue(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string> }) {
   const active = readQueue()
-  if (active.status === 'running') throw createError({ statusCode: 409, statusMessage: 'Очередь уже передаётся на PlayStation' })
+  if (active.status === 'running') throw createError({ statusCode: 409, message: 'Очередь уже передаётся на PlayStation' })
   const packageIds = [...new Set(input.packageIds)]
-  if (!packageIds.length) throw createError({ statusCode: 400, statusMessage: 'Нет пакетов для установки' })
+  if (!packageIds.length) throw createError({ statusCode: 400, message: 'Нет пакетов для установки' })
   const items: InstallationQueueItem[] = packageIds.map((packageId) => {
     const item = getPackage(packageId)
     const url = input.packageUrls[packageId]
-    if (!url || !/^https?:\/\//.test(url)) throw createError({ statusCode: 400, statusMessage: `Не найден PS4 URL для «${item.title}»` })
+    if (!url || !/^https?:\/\//.test(url)) throw createError({ statusCode: 400, message: `Не найден PS4 URL для «${item.title}»` })
     return { packageId, url, state: 'pending', detail: 'Ожидает очереди', bytesSent: 0 }
   })
   const queue: InstallationQueue = { version: 1, status: 'running', psIp: input.psIp, items, createdAt: Date.now(), message: 'Подготавливаем последовательную очередь установки…' }
@@ -196,7 +196,7 @@ export function forgetQueuedPackage(packageId: string) {
   const item = queue.items.find((entry) => entry.packageId === packageId)
   if (!item) return
   if (queue.status === 'running' && item.state !== 'pending' && ACTIVE_STATES.includes(item.state)) {
-    throw createError({ statusCode: 409, statusMessage: 'Пакет сейчас передаётся. Сначала отмените установку.' })
+    throw createError({ statusCode: 409, message: 'Пакет сейчас передаётся. Сначала отмените установку.' })
   }
   queue.items = queue.items.filter((entry) => entry.packageId !== packageId)
   queue.currentIndex = undefined

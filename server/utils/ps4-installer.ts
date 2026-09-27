@@ -25,7 +25,7 @@ export interface PackageJob {
 }
 
 function assertIp(ip: string) {
-  if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip)) throw createError({ statusCode: 400, statusMessage: 'Укажите корректный IPv4-адрес консоли' })
+  if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip)) throw createError({ statusCode: 400, message: 'Укажите корректный IPv4-адрес консоли' })
 }
 
 async function timeoutFetch(url: string) {
@@ -72,7 +72,7 @@ export async function getLocalIp(remoteIp: string) {
 function waitForClient(active: InstallerSession) {
   if (active.client && !active.client.destroyed) return Promise.resolve(active.client)
   return new Promise<Socket>((resolve, reject) => {
-    const timer = setTimeout(() => reject(createError({ statusCode: 504, statusMessage: 'Payload не подключился к серверу за 12 секунд' })), 12000)
+    const timer = setTimeout(() => reject(createError({ statusCode: 504, message: 'Payload не подключился к серверу за 12 секунд' })), 12000)
     active.server.once('connection-ready', (client: Socket) => { clearTimeout(timer); resolve(client) })
   })
 }
@@ -82,7 +82,7 @@ async function loadPayload() {
   for (const file of candidates) {
     try { return await readFile(file) } catch { /* try next location */ }
   }
-  throw createError({ statusCode: 500, statusMessage: 'Не найден payload установщика' })
+  throw createError({ statusCode: 500, message: 'Не найден payload установщика' })
 }
 
 async function sendPayload(psIp: string, payload: Buffer) {
@@ -90,14 +90,14 @@ async function sendPayload(psIp: string, payload: Buffer) {
     const socket = connect({ host: psIp, port: 9090 })
     socket.setTimeout(3500)
     socket.once('connect', () => { socket.end(payload, resolve) })
-    socket.once('timeout', () => { socket.destroy(); reject(createError({ statusCode: 504, statusMessage: 'PyLoader не ответил вовремя' })) })
+    socket.once('timeout', () => { socket.destroy(); reject(createError({ statusCode: 504, message: 'PyLoader не ответил вовремя' })) })
     socket.once('error', reject)
   })
 }
 
 export async function startInstaller(psIp: string) {
   const status = await getGoldHenStatus(psIp)
-  if (!status.ready) throw createError({ statusCode: 502, statusMessage: 'PyLoader/GoldHEN не готов на порту 9090' })
+  if (!status.ready) throw createError({ statusCode: 502, message: 'PyLoader/GoldHEN не готов на порту 9090' })
   if (session?.psIp === psIp && session.client && !session.client.destroyed) return { pcIp: session.pcIp, port: session.port, alreadyRunning: true }
   if (session) { session.client?.destroy(); session.server.close(); session = undefined }
 
@@ -121,7 +121,7 @@ export async function startInstaller(psIp: string) {
 
   const payload = await loadPayload()
   const offset = payload.indexOf(marker)
-  if (offset < 0) throw createError({ statusCode: 500, statusMessage: 'Payload имеет неподдерживаемый формат' })
+  if (offset < 0) throw createError({ statusCode: 500, message: 'Payload имеет неподдерживаемый формат' })
   const patched = Buffer.from(payload)
   Buffer.from(pcIp.split('.').map(Number)).copy(patched, offset)
   patched.writeUInt16BE(active.port, offset + 4)
@@ -136,7 +136,7 @@ function writeText(chunks: Buffer[], value: string) {
 }
 
 export async function sendPackage(job: PackageJob) {
-  if (!session) throw createError({ statusCode: 409, statusMessage: 'Сначала запустите установщик на консоли' })
+  if (!session) throw createError({ statusCode: 409, message: 'Сначала запустите установщик на консоли' })
   const client = await waitForClient(session)
   console.log(`[PackageFlow] Задание для PS4: «${job.title}» → ${job.url}`)
   const chunks: Buffer[] = []

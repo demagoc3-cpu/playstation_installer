@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const item = getPackage(id)
-  if (isDeliveryBlocked(id)) throw createError({ statusCode: 410, statusMessage: 'Installation cancelled' })
+  if (isDeliveryBlocked(id)) throw createError({ statusCode: 410, message: 'Installation cancelled' })
   const range = getHeader(event, 'range')
   recordPackageRequest(id)
   if (debug) console.log(`[PackageFlow] PS4 запрашивает «${item.fileName}» ${range || 'целиком'}`)
@@ -70,7 +70,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const match = /^bytes=(\d*)-(\d*)$/i.exec(range.trim())
-  if (!match) throw createError({ statusCode: 416, statusMessage: 'Некорректный диапазон файла' })
+  if (!match) throw createError({ statusCode: 416, message: 'Некорректный диапазон файла' })
   // "bytes=-N" means the last N bytes of the file.
   const start = match[1] ? Number(match[1]) : Math.max(0, item.size - Number(match[2] || 0))
   const requestedEnd = match[1] && match[2] ? Number(match[2]) : item.size - 1
