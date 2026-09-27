@@ -2,9 +2,12 @@
 .output
 .data
 .nuxt
+.idea
 .nitro
 .cache
 dist
+.toolchains
+PackegeFlowService
 
 # Node dependencies
 node_modules
