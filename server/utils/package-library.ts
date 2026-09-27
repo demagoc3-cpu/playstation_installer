@@ -228,8 +228,31 @@ export function getPackageStream(id: string, options?: { start?: number; end?: n
 export function getPackageIconStream(id: string) { const item = getPackage(id); if (!item.coverPath || !existsSync(item.coverPath)) throw createError({ statusCode: 404, statusMessage: 'Кэш обложки не найден. Пересканируйте папку.' }); return createReadStream(item.coverPath) }
 export async function readPackageIcon(id: string) { const item = getPackage(id); if (!item.coverPath || !existsSync(item.coverPath)) return undefined; return readFile(item.coverPath) }
 
+// Packages whose installation was cancelled: the console may keep retrying the
+// BGFT job, so their data is refused until the package is dispatched again.
+const blockedDeliveries = new Set<string>()
+const activeTransfers = new Map<string, Set<() => void>>()
+
+/** Registers a running HTTP transfer so a cancel can cut it; returns an unregister function. */
+export function registerActiveTransfer(id: string, abort: () => void) {
+  const transfers = activeTransfers.get(id) || new Set<() => void>()
+  transfers.add(abort)
+  activeTransfers.set(id, transfers)
+  return () => { transfers.delete(abort); if (!transfers.size) activeTransfers.delete(id) }
+}
+
+export function isDeliveryBlocked(id: string) { return blockedDeliveries.has(id) }
+
+/** Refuses further PS4 requests for the package and drops transfers in progress. */
+export function blockPackageDelivery(id: string) {
+  blockedDeliveries.add(id)
+  for (const abort of [...(activeTransfers.get(id) || [])]) { try { abort() } catch { /* already closed */ } }
+  activeTransfers.delete(id)
+}
+
 /** Starts a fresh, independently observable HTTP delivery for a new PS4 job. */
 export function resetPackageDelivery(id: string) {
+  blockedDeliveries.delete(id)
   const library = readLibrary()
   if (!library.packages.some((item) => item.id === id)) throw createError({ statusCode: 404, statusMessage: 'Пакет не найден' })
   delete library.deliveries[id]

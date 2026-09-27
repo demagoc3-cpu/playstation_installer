@@ -21,7 +21,7 @@ function validate(input: Partial<SearchSettings>) {
 }
 
 function text(value: string) { return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim() }
-function tag(block: string, name: string) { const match = new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, 'i').exec(block); return match ? text(match[1]) : '' }
+function tag(block: string, name: string) { const match = new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, 'i').exec(block); return match ? text(match[1] ?? '') : '' }
 function attr(block: string, name: string, key: string) { const element = new RegExp(`<${name}[^>]*>`, 'i').exec(block)?.[0] || ''; return new RegExp(`${key}=["']([^"']+)["']`, 'i').exec(element)?.[1] || '' }
 function torznabAttr(block: string, name: string) { const match = new RegExp(`<torznab:attr[^>]*name=["']${name}["'][^>]*value=["']([^"']+)["']`, 'i').exec(block); return match?.[1] || '' }
 

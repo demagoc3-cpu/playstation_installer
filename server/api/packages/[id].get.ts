@@ -1,7 +1,7 @@
 import { Transform } from 'node:stream'
 import type { ReadStream } from 'node:fs'
 import type { H3Event } from 'h3'
-import { getPackage, getPackageDelivery, getPackageIconStream, getPackageStream, recordPackageDelivery, recordPackageRequest } from '../../utils/package-library'
+import { getPackage, getPackageDelivery, getPackageIconStream, getPackageStream, isDeliveryBlocked, recordPackageDelivery, recordPackageRequest, registerActiveTransfer } from '../../utils/package-library'
 
 const debug = Boolean(process.env.PACKAGEFLOW_DEBUG)
 const PROGRESS_INTERVAL_MS = 500
@@ -32,10 +32,13 @@ function streamRange(event: H3Event, file: ReadStream, id: string, fileName: str
     }
   })
   const response = event.node.res
+  const unregister = registerActiveTransfer(id, () => response.destroy())
   response.once('close', () => {
+    unregister()
     if (response.writableFinished) { record(end, completed); return }
-    record(start + sent - 1, false)
     file.destroy()
+    if (isDeliveryBlocked(id)) { console.log(`[PackageFlow] Передача «${fileName}» остановлена: установка отменена`); return }
+    record(start + sent - 1, false)
     console.warn(`[PackageFlow] PS4 оборвала загрузку «${fileName}»: диапазон ${start}-${end}, отдано ${mb(sent)} из ${mb(expected)}`)
   })
   file.once('error', (error) => { console.warn(`[PackageFlow] Ошибка чтения PKG ${fileName} (${start}-${end}):`, error); counter.destroy(error) })
@@ -53,6 +56,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const item = getPackage(id)
+  if (isDeliveryBlocked(id)) throw createError({ statusCode: 410, statusMessage: 'Installation cancelled' })
   const range = getHeader(event, 'range')
   recordPackageRequest(id)
   if (debug) console.log(`[PackageFlow] PS4 запрашивает «${item.fileName}» ${range || 'целиком'}`)
@@ -61,7 +65,7 @@ export default defineEventHandler(async (event) => {
   setHeader(event, 'Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(item.fileName)}`)
 
   if (!range) {
-    setHeader(event, 'Content-Length', String(item.size))
+    setHeader(event, 'Content-Length', item.size)
     return streamRange(event, getPackageStream(id).stream, id, item.fileName, 0, item.size - 1, true)
   }
 
@@ -78,6 +82,6 @@ export default defineEventHandler(async (event) => {
   }
   setResponseStatus(event, 206)
   setHeader(event, 'Content-Range', `bytes ${start}-${end}/${item.size}`)
-  setHeader(event, 'Content-Length', String(end - start + 1))
+  setHeader(event, 'Content-Length', end - start + 1)
   return streamRange(event, getPackageStream(id, { start, end }).stream, id, item.fileName, start, end, start === 0 && end === item.size - 1)
 })
