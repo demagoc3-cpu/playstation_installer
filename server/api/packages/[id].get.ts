@@ -1,3 +1,4 @@
+import { logEvent } from '../../utils/event-log'
 import { Transform } from 'node:stream'
 import type { ReadStream } from 'node:fs'
 import type { H3Event } from 'h3'
@@ -18,7 +19,7 @@ const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(2)} МБ`
 function streamRange(event: H3Event, file: ReadStream, id: string, fileName: string, start: number, end: number, completed: boolean) {
   const record = (last: number, done: boolean) => {
     if (last < start) return
-    try { recordPackageDelivery(id, start, last, done) } catch (error) { console.warn('[PackageFlow] Не удалось записать прогресс передачи:', error) }
+    try { recordPackageDelivery(id, start, last, done) } catch (error) { logEvent('warn', 'Не удалось записать прогресс передачи:', error) }
   }
   const expected = end - start + 1
   let sent = 0
@@ -37,11 +38,11 @@ function streamRange(event: H3Event, file: ReadStream, id: string, fileName: str
     unregister()
     if (response.writableFinished) { record(end, completed); return }
     file.destroy()
-    if (isDeliveryBlocked(id)) { console.log(`[PackageFlow] Передача «${fileName}» остановлена: установка отменена`); return }
+    if (isDeliveryBlocked(id)) { logEvent('info', `Передача «${fileName}» остановлена: установка отменена`); return }
     record(start + sent - 1, false)
-    console.warn(`[PackageFlow] PS4 оборвала загрузку «${fileName}»: диапазон ${start}-${end}, отдано ${mb(sent)} из ${mb(expected)}`)
+    logEvent('warn', `PS4 оборвала загрузку «${fileName}»: диапазон ${start}-${end}, отдано ${mb(sent)} из ${mb(expected)}`)
   })
-  file.once('error', (error) => { console.warn(`[PackageFlow] Ошибка чтения PKG ${fileName} (${start}-${end}):`, error); counter.destroy(error) })
+  file.once('error', (error) => { logEvent('warn', `Ошибка чтения PKG ${fileName} (${start}-${end}):`, error); counter.destroy(error) })
   return sendStream(event, file.pipe(counter))
 }
 
@@ -59,7 +60,7 @@ export default defineEventHandler(async (event) => {
   if (isDeliveryBlocked(id)) throw createError({ statusCode: 410, message: 'Installation cancelled' })
   const range = getHeader(event, 'range')
   recordPackageRequest(id)
-  if (debug) console.log(`[PackageFlow] PS4 запрашивает «${item.fileName}» ${range || 'целиком'}`)
+  if (debug) logEvent('info', `PS4 запрашивает «${item.fileName}» ${range || 'целиком'}`)
   setHeader(event, 'Content-Type', 'application/octet-stream')
   setHeader(event, 'Accept-Ranges', 'bytes')
   setHeader(event, 'Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(item.fileName)}`)

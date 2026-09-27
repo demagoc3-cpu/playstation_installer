@@ -1,3 +1,4 @@
+import { logEvent } from '../utils/event-log'
 /**
  * Prints every failed request as one readable line, e.g.
  * [PackageFlow] GET /api/torrents → 502 qBittorrent отклонил подключение…
@@ -9,7 +10,7 @@ export default defineNitroPlugin((nitroApp) => {
     const status = error?.statusCode || 500
     const where = event ? `${event.method} ${event.path}` : 'сервер'
     const text = error?.message || error?.statusMessage || String(error)
-    if (status >= 500 && !error?.statusCode) console.error(`[PackageFlow] ${where} → ${status}`, error)
-    else console.warn(`[PackageFlow] ${where} → ${status} ${text}`)
+    if (status >= 500 && !error?.statusCode) logEvent('error', `${where} → ${status}`, error)
+    else logEvent('warn', `${where} → ${status} ${text}`)
   })
 })

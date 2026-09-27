@@ -1,5 +1,6 @@
+import { logEvent } from './event-log'
 import { createHash } from 'node:crypto'
-import { createReadStream, existsSync, mkdirSync } from 'node:fs'
+import { closeSync, createReadStream, existsSync, mkdirSync, openSync, readSync } from 'node:fs'
 import { open, readdir, readFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import { readJsonFile as readJson, writeJsonFile as writeJson } from './json-store'
@@ -35,7 +36,7 @@ export interface LocalPackage {
 
 interface PackageIcon { offset: number; size: number }
 interface StoredPackage extends LocalPackage { path: string; sourceModifiedAt: number; coverPath?: string; icon: PackageIcon }
-interface DeliveryStatus { requests: number; bytesSent: number; ranges: Array<{ start: number; end: number }>; startedAt?: number; completedAt?: number }
+interface DeliveryStatus { requests: number; bytesSent: number; ranges: Array<{ start: number; end: number }>; startedAt?: number; completedAt?: number; lastActivityAt?: number; partial?: boolean }
 interface FolderCacheEntry { size: number; modifiedAt: number; item: StoredPackage }
 interface FolderCache { version: 1; packages: Record<string, FolderCacheEntry> }
 interface SiteLibrary { version: 2; packages: StoredPackage[]; deliveries: Record<string, DeliveryStatus> }
@@ -76,7 +77,7 @@ function scheduleDeliveryFlush() {
   if (deliveryFlushTimer) return
   deliveryFlushTimer = setTimeout(() => {
     deliveryFlushTimer = undefined
-    try { writeLibrary(readLibraryFile()) } catch (error) { console.warn('[PackageFlow] Не удалось сохранить прогресс передачи:', error) }
+    try { writeLibrary(readLibraryFile()) } catch (error) { logEvent('warn', 'Не удалось сохранить прогресс передачи:', error) }
   }, 1000)
 }
 function publicItem({ path: _, sourceModifiedAt: __, coverPath: ___, icon: ____, ...item }: StoredPackage): LocalPackage { return item }
@@ -238,7 +239,8 @@ export function registerActiveTransfer(id: string, abort: () => void) {
   const transfers = activeTransfers.get(id) || new Set<() => void>()
   transfers.add(abort)
   activeTransfers.set(id, transfers)
-  return () => { transfers.delete(abort); if (!transfers.size) activeTransfers.delete(id) }
+  touchDelivery(id)
+  return () => { transfers.delete(abort); if (!transfers.size) activeTransfers.delete(id); touchDelivery(id) }
 }
 
 export function isDeliveryBlocked(id: string) { return blockedDeliveries.has(id) }
@@ -285,7 +287,54 @@ export function recordPackageRequest(id: string) {
   const delivery = deliveries()[id] ||= { requests: 0, bytesSent: 0, ranges: [] }
   delivery.requests += 1
   delivery.startedAt ||= Date.now()
+  delivery.lastActivityAt = Date.now()
   scheduleDeliveryFlush()
+}
+
+function touchDelivery(id: string) { const delivery = deliveries()[id]; if (delivery) delivery.lastActivityAt = Date.now() }
+
+// BGFT skips the first 64 KiB (fetched separately as a bootstrap chunk) and
+// stops at the end of the package content (the PFS image); the bytes after it
+// are never requested. Completion is therefore measured against that region.
+const BOOTSTRAP_BYTES = 64 * 1024
+const IDLE_COMPLETE_MS = 30_000
+const requiredEndCache = new Map<string, number>()
+
+/** End (exclusive) of the region the console actually downloads: content_offset + content_size from the PKG header. */
+function requiredEnd(item: StoredPackage) {
+  const cached = requiredEndCache.get(item.id)
+  if (cached) return cached
+  let end = item.size
+  try {
+    const header = Buffer.alloc(0x40)
+    const handle = openSync(item.path, 'r')
+    try { readSync(handle, header, 0, header.length, 0) } finally { closeSync(handle) }
+    const contentEnd = Number(header.readBigUInt64BE(0x30) + header.readBigUInt64BE(0x38))
+    if (contentEnd > BOOTSTRAP_BYTES && contentEnd <= item.size) end = contentEnd
+  } catch { /* fall back to the whole file */ }
+  requiredEndCache.set(item.id, end)
+  return end
+}
+
+function covers(ranges: DeliveryStatus['ranges'], from: number, to: number) {
+  return ranges.some((range) => range.start <= from && range.end >= to)
+}
+
+/** Marks the delivery complete once the downloadable region is covered, or the console went quiet after receiving data. */
+function settleDelivery(item: StoredPackage, delivery: DeliveryStatus) {
+  if (delivery.completedAt) return false
+  const end = requiredEnd(item)
+  if (covers(delivery.ranges, Math.min(BOOTSTRAP_BYTES, end - 1), end - 1) || delivery.bytesSent >= item.size) {
+    delivery.completedAt = Date.now()
+    return true
+  }
+  const quiet = delivery.lastActivityAt && Date.now() - delivery.lastActivityAt >= IDLE_COMPLETE_MS
+  if (delivery.bytesSent > 0 && quiet && !activeTransfers.has(item.id)) {
+    delivery.completedAt = Date.now()
+    delivery.partial = true
+    return true
+  }
+  return false
 }
 
 /** Called repeatedly while a range streams, so large ranges show progress before they finish. */
@@ -295,19 +344,18 @@ export function recordPackageDelivery(id: string, start: number, end: number, co
   if (!item) return
   const delivery = deliveries()[id] ||= { requests: 0, bytesSent: 0, ranges: [] }
   delivery.startedAt ||= Date.now()
+  delivery.lastActivityAt = Date.now()
   const ranges = [...delivery.ranges, { start, end }].sort((a, b) => a.start - b.start)
   delivery.ranges = ranges.reduce<Array<{ start: number; end: number }>>((merged, range) => { const previous = merged.at(-1); if (previous && range.start <= previous.end + 1) previous.end = Math.max(previous.end, range.end); else merged.push({ ...range }); return merged }, [])
   delivery.bytesSent = delivery.ranges.reduce((total, range) => total + range.end - range.start + 1, 0)
-  // GoldHEN/BGFT can request the package from byte 65536 onward: its bootstrap
-  // chunk is obtained separately, so range coverage never starts at zero.
-  if (completed || end >= item.size - 1 || delivery.bytesSent >= item.size) delivery.completedAt ||= Date.now()
+  if (completed) delivery.completedAt ||= Date.now()
+  else settleDelivery(item, delivery)
   scheduleDeliveryFlush()
 }
 
 export function getPackageDelivery(id: string) {
   const item = getPackage(id)
   const delivery = deliveries()[id] || { requests: 0, bytesSent: 0, ranges: [] }
-  // Upgrade deliveries recorded before the terminal-range rule was introduced.
-  if (!delivery.completedAt && delivery.ranges.some((range) => range.end >= item.size - 1)) { delivery.completedAt = Date.now(); deliveries()[id] = delivery; scheduleDeliveryFlush() }
-  return { ...delivery, size: item.size }
+  if (settleDelivery(item, delivery)) { deliveries()[id] = delivery; scheduleDeliveryFlush() }
+  return { ...delivery, size: item.size, requiredSize: requiredEnd(item) }
 }

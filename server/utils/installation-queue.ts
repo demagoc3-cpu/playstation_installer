@@ -1,3 +1,4 @@
+import { logEvent } from './event-log'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { writeJsonFile } from './json-store'
@@ -63,6 +64,7 @@ async function runQueue() {
         queue.status = 'completed'
         queue.currentIndex = undefined
         queue.message = 'Все пакеты переданы PlayStation по очереди: игра → патчи/бэкпорты → DLC.'
+        logEvent('info', 'Очередь установки завершена: все пакеты переданы PS4')
         writeQueue(queue)
         return
       }
@@ -99,20 +101,24 @@ async function runQueue() {
       if (delivery.completedAt) {
         item.state = 'delivered'
         item.completedAt = delivery.completedAt
-        item.detail = 'Файл полностью передан PlayStation; можно передавать следующий пакет'
+        if (!delivery.partial) item.bytesSent = delivery.size
+        item.detail = delivery.partial
+          ? `PS4 перестала запрашивать данные (получено ${formatBytes(item.bytesSent)} из ${formatBytes(delivery.requiredSize)}). Проверьте результат на приставке`
+          : 'PS4 скачала пакет полностью; установка идёт на приставке'
+        logEvent(delivery.partial ? 'warn' : 'info', `«${packageInfo.title}» (${packageInfo.type}): ${item.detail}`)
         writeQueue(queue)
         continue
       }
 
       if (item.bytesSent > 0) {
         item.state = 'receiving'
-        item.detail = `PS4 получила ${formatBytes(item.bytesSent)} из ${formatBytes(delivery.size)}`
+        item.detail = `PS4 получила ${formatBytes(Math.min(item.bytesSent, delivery.requiredSize))} из ${formatBytes(delivery.requiredSize)}`
         writeQueue(queue)
       } else if (delivery.requests > 0) {
         // The console fetched the manifest/package but no bytes have streamed yet: keep waiting.
         if (item.detail !== 'PS4 запросила пакет, начинает скачивание…') { item.detail = 'PS4 запросила пакет, начинает скачивание…'; writeQueue(queue) }
       } else if (item.dispatchedAt && Date.now() - item.dispatchedAt >= ALREADY_INSTALLED_AFTER_MS) {
-        console.log(`[PackageFlow] PS4 не обратилась за «${packageInfo.title}» за 20 с — считаем пакет уже установленным`)
+        logEvent('info', `PS4 не обратилась за «${packageInfo.title}» за 20 с — считаем пакет уже установленным`)
         markPackageInstalled(item.packageId, true)
         item.state = 'installed'
         item.installedAt = Date.now()
@@ -129,6 +135,7 @@ async function runQueue() {
       if (current) { current.state = 'failed'; current.detail = (error?.statusCode && error.message) || 'Не удалось передать задание' }
       queue.status = 'failed'
       queue.message = (error?.statusCode && error.message) || 'Не удалось передать очередь установщику'
+      logEvent('error', `Очередь установки остановлена: ${queue.message}`, error?.statusCode ? '' : error)
       writeQueue(queue)
     }
   } finally { runner = undefined }
@@ -186,7 +193,7 @@ export function cancelInstallationQueue() {
   queue.currentIndex = undefined
   queue.message = `Установка отменена${cancelled ? `: остановлено пакетов — ${cancelled}` : ''}. Если загрузка уже появилась на PS4, удалите её в «Уведомления → Загрузки».`
   writeQueue(queue)
-  console.log('[PackageFlow] Очередь установки отменена пользователем')
+  logEvent('info', 'Очередь установки отменена пользователем')
   return publicQueue(queue)
 }
 

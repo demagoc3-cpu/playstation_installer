@@ -1,3 +1,4 @@
+import { logEvent } from './event-log'
 import { existsSync, readFileSync } from 'node:fs'
 import { writeJsonFile } from './json-store'
 import { dirname, relative, resolve } from 'node:path'
@@ -48,10 +49,18 @@ async function request(path: string, init: RequestInit = {}) {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ username: verified.username, password: verified.password })
-  })
-  const cookie = login.headers.get('set-cookie')?.match(/SID=[^;]+/)?.[0]
-  if (!login.ok || !cookie) throw createError({ statusCode: 502, message: 'qBittorrent отклонил подключение. Проверьте Web UI, адрес и пароль.' })
-  const response = await timeoutFetch(`${verified.baseUrl}/api/v2${path}`, { ...init, headers: { ...init.headers, Cookie: cookie } })
+  }).catch(() => { throw createError({ statusCode: 502, message: `Не удалось связаться с qBittorrent по адресу ${verified.baseUrl}. Запущен ли он и включён ли Web UI?` }) })
+  const loginBody = (await login.text().catch(() => '')).trim()
+  // qBittorrent < 5.2: 200 "Ok." / 200 "Fails." and cookie "SID".
+  // qBittorrent >= 5.2: 204 (empty) / 401 and cookie "QBT_SID_<port>".
+  if (login.status === 403) throw createError({ statusCode: 502, message: 'qBittorrent временно заблокировал вход с этого IP после неудачных попыток. Подождите или перезапустите qBittorrent.' })
+  if (login.status === 401 || /^fails/i.test(loginBody)) throw createError({ statusCode: 502, message: 'qBittorrent: неверный логин или пароль Web UI.' })
+  if (!login.ok) throw createError({ statusCode: 502, message: `qBittorrent ответил на вход ошибкой ${login.status}` })
+  const setCookies = typeof login.headers.getSetCookie === 'function' ? login.headers.getSetCookie() : [login.headers.get('set-cookie') || '']
+  const cookie = setCookies.map((value) => value.split(';')[0]?.trim() || '').filter((value) => /^(?:QBT_)?SID(?:_\d+)?=/i.test(value)).join('; ')
+  // No session cookie with a successful login means "bypass authentication for localhost" is enabled.
+  const response = await timeoutFetch(`${verified.baseUrl}/api/v2${path}`, { ...init, headers: { ...init.headers, ...(cookie ? { Cookie: cookie } : {}) } })
+  if (response.status === 403) throw createError({ statusCode: 502, message: 'qBittorrent отклонил сессию (403). Проверьте логин и пароль Web UI.' })
   if (!response.ok) throw createError({ statusCode: 502, message: `qBittorrent вернул ошибку ${response.status}` })
   return response
 }
@@ -61,7 +70,8 @@ export function getQbitSettings() { return publicSettings(readSettings()) }
 export async function saveQbitSettings(input: Partial<QbitSettings>) {
   const settings = validateSettings(input)
   writeSettings(settings)
-  await request('/app/version')
+  const version = await (await request('/app/version')).text()
+  logEvent('info', `qBittorrent подключён: ${version.trim()} (${settings.baseUrl})`)
   return publicSettings(settings)
 }
 
@@ -80,7 +90,7 @@ export async function addTorrent(source: string, installAfterDownload = false) {
     body: new URLSearchParams({ urls: source, savepath: settings.downloadPath, tags: installAfterDownload ? 'packageflow,packageflow-auto-install' : 'packageflow' })
   })
   const result = await response.text()
-  if (result.trim() !== 'Ok.') throw createError({ statusCode: 502, message: 'qBittorrent не принял торрент-задачу' })
+  if (/^fails/i.test(result.trim())) throw createError({ statusCode: 502, message: 'qBittorrent не принял торрент-задачу' })
 }
 
 export async function getTorrents() {

@@ -1,3 +1,4 @@
+import { logEvent } from './event-log'
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { readJsonFile, writeJsonFile } from './json-store'
@@ -125,7 +126,7 @@ export async function startInstaller(psIp: string) {
   const patched = Buffer.from(payload)
   Buffer.from(pcIp.split('.').map(Number)).copy(patched, offset)
   patched.writeUInt16BE(active.port, offset + 4)
-  console.log(`[PackageFlow] Отправляем payload на ${psIp}:9090; PS4 подключится к ${pcIp}:${active.port}`)
+  logEvent('info', `Отправляем payload на ${psIp}:9090; PS4 подключится к ${pcIp}:${active.port}`)
   await sendPayload(psIp, patched)
   await waitForClient(active)
   return { pcIp, port: active.port, alreadyRunning: false }
@@ -138,7 +139,7 @@ function writeText(chunks: Buffer[], value: string) {
 export async function sendPackage(job: PackageJob) {
   if (!session) throw createError({ statusCode: 409, message: 'Сначала запустите установщик на консоли' })
   const client = await waitForClient(session)
-  console.log(`[PackageFlow] Задание для PS4: «${job.title}» → ${job.url}`)
+  logEvent('info', `Задание для PS4: «${job.title}» → ${job.url}`)
   const chunks: Buffer[] = []
   const command = Buffer.allocUnsafe(4); command.writeUInt32LE(1); chunks.push(command)
   writeText(chunks, job.url); writeText(chunks, job.title); writeText(chunks, job.contentId); writeText(chunks, job.contentType)
