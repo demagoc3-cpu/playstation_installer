@@ -1,16 +1,13 @@
-import { promisify } from 'node:util'
-import { execFile } from 'node:child_process'
+import { FolderPickerCancelled, pickFolder } from '../../utils/folder-picker'
 
-const run = promisify(execFile)
-
-export default defineEventHandler(async () => {
+/** Opens the operating system's folder dialog (Windows, macOS, Linux) on the PC running PackageFlow. */
+export default defineEventHandler(async (event) => {
+  const body = await readBody<{ initial?: string }>(event).catch(() => undefined)
   try {
-    const { stdout } = await run('/usr/bin/zenity', ['--file-selection', '--directory', '--title=PackageFlow: выберите папку с PKG'], { timeout: 5 * 60 * 1000 })
-    const directory = stdout.trim()
-    if (!directory) throw createError({ statusCode: 400, message: 'Папка не выбрана' })
-    return { directory }
+    return { directory: await pickFolder(body?.initial), cancelled: false }
   } catch (error: any) {
-    if (error?.killed || error?.code === 1) throw createError({ statusCode: 400, message: 'Выбор папки отменён' })
-    throw createError({ statusCode: 503, message: 'Не удалось открыть системный выбор папки. Введите путь вручную.' })
+    // Closing the dialog is a normal outcome, not an error.
+    if (error instanceof FolderPickerCancelled) return { directory: '', cancelled: true }
+    throw createError({ statusCode: 503, message: error?.message || 'Не удалось открыть системный выбор папки. Введите путь вручную.' })
   }
 })
