@@ -93,12 +93,15 @@ export async function addTorrent(source: string, installAfterDownload = false) {
   if (/^fails/i.test(result.trim())) throw createError({ statusCode: 502, message: 'qBittorrent не принял торрент-задачу' })
 }
 
+/** qBittorrent joins tags with ", " (comma + space); older builds used a bare comma. */
+function torrentTags(torrent: Record<string, unknown>) { return String(torrent.tags || '').split(',').map((tag) => tag.trim()).filter(Boolean) }
+
 export async function getTorrents() {
   const response = await request('/torrents/info?tag=packageflow')
   const torrents = await response.json() as Array<Record<string, unknown>>
   return torrents.map((torrent) => ({
     hash: String(torrent.hash || ''), name: String(torrent.name || 'Без названия'), state: String(torrent.state || 'unknown'), size: Number(torrent.size || 0), progress: Number(torrent.progress || 0),
-    downloaded: Number(torrent.downloaded || 0), speed: Number(torrent.dlspeed || 0), eta: Number(torrent.eta || 0), seeds: Number(torrent.num_seeds || 0), autoInstall: String(torrent.tags || '').split(',').includes('packageflow-auto-install'), contentPath: String(torrent.content_path || ''), savePath: String(torrent.save_path || '')
+    downloaded: Number(torrent.downloaded || 0), speed: Number(torrent.dlspeed || 0), eta: Number(torrent.eta || 0), seeds: Number(torrent.num_seeds || 0), autoInstall: torrentTags(torrent).includes('packageflow-auto-install'), contentPath: String(torrent.content_path || ''), savePath: String(torrent.save_path || '')
   }))
 }
 
@@ -127,7 +130,7 @@ export async function getCompletedTorrentDirectory(hash: string) {
   if (!/^[a-f0-9]{40}$/i.test(hash)) throw createError({ statusCode: 400, message: 'Некорректный идентификатор торрент-задачи' })
   const response = await request(`/torrents/info?hashes=${encodeURIComponent(hash)}`)
   const torrent = (await response.json() as Array<Record<string, unknown>>)[0]
-  if (!torrent || !String(torrent.tags || '').split(',').includes('packageflow')) throw createError({ statusCode: 404, message: 'Задача PackageFlow не найдена' })
+  if (!torrent || !torrentTags(torrent).includes('packageflow')) throw createError({ statusCode: 404, message: 'Задача PackageFlow не найдена' })
   if (Number(torrent.progress || 0) < 1) throw createError({ statusCode: 409, message: 'Torrent ещё не завершён' })
   const source = String(torrent.content_path || torrent.save_path || '')
   const path = resolve(source)
