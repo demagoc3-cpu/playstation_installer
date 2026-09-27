@@ -141,6 +141,12 @@ export async function getCompletedTorrentDirectory(hash: string) {
 
 export async function controlTorrent(hash: string, action: 'pause' | 'resume' | 'delete') {
   if (!/^[a-f0-9]{40}$/i.test(hash)) throw createError({ statusCode: 400, message: 'Некорректный идентификатор торрент-задачи' })
-  const path = action === 'delete' ? '/torrents/delete' : `/torrents/${action}`
-  await request(path, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(action === 'delete' ? { hashes: hash, deleteFiles: 'false' } : { hashes: hash }) })
+  const post = (path: string) => request(path, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams(action === 'delete' ? { hashes: hash, deleteFiles: 'false' } : { hashes: hash }) })
+  if (action === 'delete') { await post('/torrents/delete'); return }
+  // qBittorrent 5.0 renamed pause/resume to stop/start; older versions only know pause/resume.
+  const modern = action === 'pause' ? '/torrents/stop' : '/torrents/start'
+  try { await post(modern) } catch (error: any) {
+    if (!/ошибку 404/.test(error?.message || '')) throw error
+    await post(`/torrents/${action}`)
+  }
 }
