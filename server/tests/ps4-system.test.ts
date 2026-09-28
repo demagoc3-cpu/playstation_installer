@@ -64,3 +64,27 @@ test('unreadable volume remains unknown rather than zero', async () => {
   assert.equal(result.storage?.[0]?.available, false)
   assert.equal(result.storage?.[0]?.totalBytes, null)
 })
+test('the real PS4 1.02 ENOENT response retains its diagnostic code', async () => {
+  const data = fixtures()
+  const result = await getPs4SystemSnapshot('192.168.88.147', async (_, path) => path === '/storage' ? {
+    status: 200, body: { ...identity, volumes: [{ id: 'internal', path: '/user', available: false,
+      totalBytes: null, freeBytes: null, availableBytes: null, usedBytes: null, error: -2147352574 }] },
+  } : data[path])
+  assert.equal(result.ready, true)
+  assert.equal(result.storage?.[0]?.error, -2147352574)
+  assert.equal(result.storage?.[0]?.available, false)
+  assert.equal(result.storage?.[0]?.totalBytes, null)
+})
+test('GoldHEN SDK and hardware family do not pretend to be release or CUH', async () => {
+  const data = fixtures()
+  const result = await getPs4SystemSnapshot('192.168.88.147', async (_, path) => path === '/system/info' ? {
+    status: 200, body: { ...data[path].body, model: { name: null, family: 'PS4 Pro' },
+      hen: { name: 'GoldHEN', version: null, sdkVersion: '1.00' }, filesystemAccess: { enabled: true, error: 0 } },
+  } : data[path])
+  assert.equal(result.system?.modelFamily, 'PS4 Pro')
+  assert.equal(result.system?.model, null)
+  assert.equal(result.system?.henName, 'GoldHEN')
+  assert.equal(result.system?.henSdk, '1.00')
+  assert.equal(result.system?.henVersion, null)
+  assert.equal(result.system?.filesystemAccess?.enabled, true)
+})

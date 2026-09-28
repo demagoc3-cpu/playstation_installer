@@ -38,6 +38,14 @@ function uptime(value: number) {
 function usedPercent(volume: NonNullable<Ps4SystemSnapshot['storage']>[number]) {
   return volume.totalBytes && volume.usedBytes !== null ? Math.round(volume.usedBytes / volume.totalBytes * 100) : 0
 }
+function diskError(volume: NonNullable<Ps4SystemSnapshot['storage']>[number]) {
+  if (volume.error === -2147352574) return 'Раздел не найден в доступной сервису файловой системе. Для PKG 1.02 установите исправленную версию 1.03.'
+  if (volume.error === -2147352575 || volume.error === -2147352563 || volume.errno === 1 || volume.errno === 13) return 'Система отказала сервису в доступе к этому разделу.'
+  return 'Не удалось прочитать объём диска. Код ниже поможет определить причину.'
+}
+function errorCode(volume: NonNullable<Ps4SystemSnapshot['storage']>[number]) {
+  return volume.errorHex || (volume.error === null ? 'Неизвестно' : `0x${(volume.error >>> 0).toString(16).toUpperCase().padStart(8, '0')}`)
+}
 onMounted(() => { void refresh(); timer = setInterval(() => { if (!checking.value && !debounce) void refresh() }, 15000) })
 watch(() => props.psIp, () => {
   ++generation; controller?.abort(); snapshot.value = undefined; updatedAt.value = ''; checking.value = false
@@ -63,11 +71,12 @@ onBeforeUnmount(() => { ++generation; controller?.abort(); if (timer) clearInter
     <div v-if="snapshot.issues.length" class="system-notice" role="status"><p v-for="issue in snapshot.issues" :key="issue">{{ issue }}</p></div>
     <template v-if="snapshot.system">
       <div class="system-grid">
-        <article class="system-card"><span class="card-label">Модель консоли</span><strong>{{ snapshot.system.model || 'Неизвестно' }}</strong><p v-if="!snapshot.system.model">Система не предоставила точную модель CUH.</p></article>
+        <article class="system-card"><span class="card-label">Модель консоли</span><strong>{{ snapshot.system.model || snapshot.system.modelFamily || 'Неизвестно' }}</strong><p v-if="!snapshot.system.model">Точный номер модели CUH пока недоступен.</p></article>
         <article class="system-card"><span class="card-label">Прошивка</span><strong>{{ snapshot.system.firmware || 'Неизвестно' }}</strong><p>Системное программное обеспечение</p></article>
-        <article class="system-card"><span class="card-label">HEN</span><strong>{{ snapshot.system.henName || 'Неизвестно' }}</strong><p>{{ snapshot.system.henVersion ? `Версия ${snapshot.system.henVersion}` : 'Получение версии HEN пока не поддерживается.' }}</p></article>
+        <article class="system-card"><span class="card-label">HEN</span><strong>{{ snapshot.system.henName || 'Неизвестно' }}</strong><p>{{ snapshot.system.henVersion ? `Версия ${snapshot.system.henVersion}` : 'Версия релиза HEN пока недоступна.' }}</p><p v-if="snapshot.system.henSdk">SDK {{ snapshot.system.henSdk }} · отдельная версия API</p></article>
       </div>
     </template>
+    <p v-if="snapshot.environment === 'ps4' && snapshot.system?.filesystemAccess && !snapshot.system.filesystemAccess.enabled" class="system-notice">Доступ к системным разделам не получен. Проверьте, что GoldHEN активен и его SDK доступен. Код: {{ snapshot.system.filesystemAccess.error ?? 'Неизвестно' }}.</p>
     <section v-if="snapshot.storage" class="system-storage">
       <h2>Хранилище</h2>
       <article v-for="volume in snapshot.storage" :key="volume.id" class="storage-volume">
@@ -77,7 +86,7 @@ onBeforeUnmount(() => { ++generation; controller?.abort(); if (timer) clearInter
           <div class="storage-bar" role="progressbar" :aria-valuenow="usedPercent(volume)" :aria-valuemin="0" :aria-valuemax="100" aria-label="Занято на диске"><i :style="{ width: `${usedPercent(volume)}%` }" /></div>
           <p>{{ usedPercent(volume) }}% занято · Свободно {{ bytes(volume.freeBytes) }}. Доступное для записи место может быть меньше из-за резерва системы.</p>
         </template>
-        <p v-else>Не удалось прочитать объём диска. Сервис работает; доступ к разделу нужно проверить на консоли.</p>
+        <template v-else><p>{{ diskError(volume) }}</p><p class="storage-error">Ошибка {{ errorCode(volume) }}<template v-if="volume.stage"> · Этап {{ volume.stage }}</template><template v-if="volume.errno"> · errno {{ volume.errno }}</template></p></template>
       </article>
     </section>
     <section v-if="snapshot.runtime" class="system-runtime"><h2>Состояние сервиса</h2><dl><div><dt>Время работы</dt><dd>{{ uptime(snapshot.runtime.uptimeSeconds) }}</dd></div><div><dt>Запросы</dt><dd>{{ snapshot.runtime.requests }}</dd></div><div><dt>Ответы</dt><dd>{{ snapshot.runtime.replies }}</dd></div></dl><p>Счётчики обновляются каждые 15 секунд, пока открыт раздел.</p></section>

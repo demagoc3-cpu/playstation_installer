@@ -40,6 +40,7 @@ export const readPs4Service: Reader = async (ip, path) => {
 function object(value: unknown): value is JsonObject { return value !== null && typeof value === 'object' && !Array.isArray(value) }
 function text(value: unknown): string | null { return typeof value === 'string' && value.length > 0 && value.length <= 128 ? value : null }
 function integer(value: unknown): value is number { return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 }
+function signedInteger(value: unknown): number | null { return typeof value === 'number' && Number.isSafeInteger(value) && value >= -2147483648 && value <= 2147483647 ? value : null }
 function identity(reply: ServiceReply, version?: string): reply is ServiceReply & { body: JsonObject } {
   return reply.status === 200 && object(reply.body) && reply.body.service === 'PackegeFlowService' &&
     (!version || reply.body.version === version)
@@ -66,7 +67,10 @@ export async function getPs4SystemSnapshot(ip: string, read: Reader = readPs4Ser
     snapshot.pkgVersion = text(info.body.pkgVersion) || undefined
     snapshot.system = {
       firmware: text(info.body.firmware.version), model: text(info.body.model.name),
+      modelFamily: text(info.body.model.family), henSdk: text(info.body.hen.sdkVersion),
       henName: text(info.body.hen.name), henVersion: text(info.body.hen.version),
+      filesystemAccess: object(info.body.filesystemAccess) && typeof info.body.filesystemAccess.enabled === 'boolean'
+        ? { enabled: info.body.filesystemAccess.enabled, error: signedInteger(info.body.filesystemAccess.error) } : null,
     }
   } else if (!snapshot.updateRequired) snapshot.issues.push('Не удалось получить сведения о системе.')
   if (storage && identity(storage, snapshot.version) && Array.isArray(storage.body.volumes) && storage.body.volumes.length <= 8) {
@@ -78,7 +82,8 @@ export async function getPs4SystemSnapshot(ip: string, read: Reader = readPs4Ser
         !integer(usedBytes) || freeBytes > totalBytes || availableBytes > freeBytes || usedBytes !== totalBytes - freeBytes)) break
       volumes.push({ id: volume.id as string, path: volume.path as string, available: volume.available,
         totalBytes: volume.available ? totalBytes as number : null, freeBytes: volume.available ? freeBytes as number : null,
-        availableBytes: volume.available ? availableBytes as number : null, usedBytes: volume.available ? usedBytes as number : null })
+        availableBytes: volume.available ? availableBytes as number : null, usedBytes: volume.available ? usedBytes as number : null,
+        error: signedInteger(volume.error), errorHex: text(volume.errorHex), stage: text(volume.stage), errno: signedInteger(volume.errno) })
     }
     if (volumes.length === storage.body.volumes.length && volumes.length > 0) snapshot.storage = volumes
   }
