@@ -43,6 +43,18 @@ test('offline response contains no stale console data', async () => {
   assert.equal(result.storage, null)
   assert.equal(result.runtime, null)
 })
+test('independent daemon mode and process ID are available, old services remain compatible', async () => {
+  const data = fixtures()
+  const older = await getPs4SystemSnapshot('192.168.88.147', async (_, path) => data[path])
+  assert.equal(older.runtime?.mode, null)
+  assert.equal(older.runtime?.processId, null)
+  const current = await getPs4SystemSnapshot('192.168.88.147', async (_, path) => path === '/status'
+    ? { ...data[path], body: { ...data[path].body, runtimeMode: 'daemon', processId: 231, daemonRegistration: 0 } }
+    : data[path])
+  assert.equal(current.runtime?.mode, 'daemon')
+  assert.equal(current.runtime?.processId, 231)
+  assert.equal(current.runtime?.daemonRegistration, 0)
+})
 test('failed or invalid disk response preserves system data', async () => {
   for (const fail of [true, false]) {
     const data = fixtures()

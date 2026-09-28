@@ -97,7 +97,10 @@ export async function getPs4SystemSnapshot(ip: string, read: Reader = readPs4Ser
   if (!snapshot.storage && !snapshot.updateRequired) snapshot.issues.push('Не удалось получить сведения о диске.')
   if (status && identity(status, snapshot.version) && status.body.status === 'ok' && integer(status.body.uptimeSeconds) &&
     integer(status.body.requests) && integer(status.body.replies)) {
-    snapshot.runtime = { uptimeSeconds: status.body.uptimeSeconds, requests: status.body.requests, replies: status.body.replies }
+    snapshot.runtime = { uptimeSeconds: status.body.uptimeSeconds, requests: status.body.requests, replies: status.body.replies,
+      mode: status.body.runtimeMode === 'daemon' || status.body.runtimeMode === 'foreground' || status.body.runtimeMode === 'host' ? status.body.runtimeMode : null,
+      processId: integer(status.body.processId) && status.body.processId > 0 ? status.body.processId : null,
+      daemonRegistration: signedInteger(status.body.daemonRegistration) }
   } else if (!snapshot.updateRequired) snapshot.issues.push('Не удалось получить состояние сервиса.')
   return snapshot
 }

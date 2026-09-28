@@ -95,7 +95,10 @@ onBeforeUnmount(() => { ++generation; controller?.abort(); if (timer) clearInter
         <template v-else><p>{{ diskError(volume) }}</p><p class="storage-error">Ошибка {{ errorCode(volume) }}<template v-if="volume.stage"> · Этап {{ volume.stage }}</template><template v-if="volume.errno"> · errno {{ volume.errno }}</template></p></template>
       </article>
     </section>
-    <section v-if="snapshot.runtime" class="system-runtime"><h2>Состояние сервиса</h2><dl><div><dt>Время работы</dt><dd>{{ uptime(snapshot.runtime.uptimeSeconds) }}</dd></div><div><dt>Запросы</dt><dd>{{ snapshot.runtime.requests }}</dd></div><div><dt>Ответы</dt><dd>{{ snapshot.runtime.replies }}</dd></div></dl><p>Счётчики обновляются каждые 15 секунд, пока открыт раздел.</p></section>
+    <section v-if="snapshot.runtime" class="system-runtime"><h2>Состояние сервиса</h2>
+      <p v-if="snapshot.runtime.mode === 'daemon'">Режим: фоновая служба<template v-if="snapshot.runtime.processId"> · Процесс {{ snapshot.runtime.processId }}</template>.</p>
+      <p v-else-if="snapshot.runtime.mode === 'foreground'">Режим: приложение. При запуске другой игры сервис может закрыться.</p>
+      <dl><div><dt>Время работы</dt><dd>{{ uptime(snapshot.runtime.uptimeSeconds) }}</dd></div><div><dt>Запросы</dt><dd>{{ snapshot.runtime.requests }}</dd></div><div><dt>Ответы</dt><dd>{{ snapshot.runtime.replies }}</dd></div></dl><p>Счётчики обновляются каждые 15 секунд, пока открыт раздел.</p></section>
   </template>
 </template>
 

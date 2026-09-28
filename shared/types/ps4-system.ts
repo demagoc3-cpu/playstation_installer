@@ -14,5 +14,6 @@ export interface Ps4SystemSnapshot {
       sandboxBefore: number | null; sandboxAfter: number | null } | null } | null
   storage: { id: string; path: string; available: boolean; totalBytes: number | null; freeBytes: number | null; availableBytes: number | null; usedBytes: number | null;
     error: number | null; errorHex: string | null; stage: string | null; errno: number | null }[] | null
-  runtime: { uptimeSeconds: number; requests: number; replies: number } | null
+  runtime: { uptimeSeconds: number; requests: number; replies: number;
+    mode: 'daemon' | 'foreground' | 'host' | null; processId: number | null; daemonRegistration: number | null } | null
 }
