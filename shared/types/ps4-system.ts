@@ -9,7 +9,7 @@ export interface Ps4SystemSnapshot {
   issues: string[]
   system: { firmware: string | null; model: string | null; modelFamily: string | null; henName: string | null; henVersion: string | null; henSdk: string | null;
     filesystemAccess: { enabled: boolean; error: number | null; errorHex: string | null; stage: string | null;
-      sdkResult: number | null; sdkResultHex: string | null; sdkErrno: number | null;
+      sdkProbed: boolean | null; sdkResult: number | null; sdkResultHex: string | null; sdkErrno: number | null;
       sandboxBefore: number | null; sandboxAfter: number | null } | null } | null
   storage: { id: string; path: string; available: boolean; totalBytes: number | null; freeBytes: number | null; availableBytes: number | null; usedBytes: number | null;
     error: number | null; errorHex: string | null; stage: string | null; errno: number | null }[] | null

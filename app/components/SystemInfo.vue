@@ -79,6 +79,7 @@ onBeforeUnmount(() => { ++generation; controller?.abort(); if (timer) clearInter
     <div v-if="snapshot.environment === 'ps4' && snapshot.system?.filesystemAccess && !snapshot.system.filesystemAccess.enabled" class="system-notice">
       <p>Сервис не получил доступ к системным разделам. Этот результат не определяет, запущен ли HEN.</p>
       <p>Код: {{ snapshot.system.filesystemAccess.errorHex || (snapshot.system.filesystemAccess.error ?? 'Неизвестно') }}<template v-if="snapshot.system.filesystemAccess.stage"> · Этап: {{ snapshot.system.filesystemAccess.stage }}</template>.</p>
+      <p v-if="snapshot.system.filesystemAccess.sdkProbed === false">SDK HEN пока не проверен. Автоматическая проверка отключена в этой сборке для диагностики запуска.</p>
       <p v-if="snapshot.system.filesystemAccess.sdkResult !== null">Ответ SDK: {{ snapshot.system.filesystemAccess.sdkResult }}<template v-if="snapshot.system.filesystemAccess.sdkResultHex"> ({{ snapshot.system.filesystemAccess.sdkResultHex }})</template><template v-if="snapshot.system.filesystemAccess.sdkErrno"> · errno {{ snapshot.system.filesystemAccess.sdkErrno }}</template>.</p>
     </div>
     <section v-if="snapshot.storage" class="system-storage">

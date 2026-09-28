@@ -72,6 +72,7 @@ export async function getPs4SystemSnapshot(ip: string, read: Reader = readPs4Ser
       filesystemAccess: object(info.body.filesystemAccess) && typeof info.body.filesystemAccess.enabled === 'boolean'
         ? { enabled: info.body.filesystemAccess.enabled, error: signedInteger(info.body.filesystemAccess.error),
           errorHex: text(info.body.filesystemAccess.errorHex), stage: text(info.body.filesystemAccess.stage),
+          sdkProbed: typeof info.body.filesystemAccess.sdkProbed === 'boolean' ? info.body.filesystemAccess.sdkProbed : null,
           sdkResult: signedInteger(info.body.filesystemAccess.sdkResult), sdkResultHex: text(info.body.filesystemAccess.sdkResultHex),
           sdkErrno: signedInteger(info.body.filesystemAccess.sdkErrno),
           sandboxBefore: signedInteger(info.body.filesystemAccess.sandboxBefore), sandboxAfter: signedInteger(info.body.filesystemAccess.sandboxAfter) } : null,

@@ -114,3 +114,18 @@ test('raw SDK failure and stage survive aggregation for console diagnostics', as
   assert.equal(result.system?.filesystemAccess?.sdkErrno, 78)
   assert.equal(result.system?.filesystemAccess?.stage, 'sdk_version')
 })
+test('deferred SDK remains unknown and web polling never triggers the probe', async () => {
+  const data = fixtures()
+  const calls: string[] = []
+  const result = await getPs4SystemSnapshot('192.168.88.147', async (_, path) => {
+    calls.push(path)
+    return path === '/system/info' ? { status: 200, body: { ...data[path].body,
+      filesystemAccess: { enabled: false, error: -2147352574, stage: 'verify_user',
+        sdkProbed: false, sdkResult: null, sdkResultHex: null, sdkErrno: 0 } } } : data[path]
+  })
+  assert.deepEqual(calls, ['/ping', '/system/info', '/storage', '/status'])
+  assert.equal(result.ready, true)
+  assert.equal(result.system?.filesystemAccess?.sdkProbed, false)
+  assert.equal(result.system?.filesystemAccess?.sdkResult, null)
+  assert.equal(result.system?.henName, null)
+})
