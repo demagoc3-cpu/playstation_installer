@@ -1,16 +1,20 @@
 import { logEvent } from './event-log'
 import { existsSync, readFileSync } from 'node:fs'
 import { writeJsonFile } from './json-store'
-import { dirname, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { stat } from 'node:fs/promises'
 
 const settingsPath = resolve(process.cwd(), '.data/qbittorrent.json')
-const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
 
-export interface QbitSettings { baseUrl: string; username: string; password: string; downloadPath: string }
-export interface PublicQbitSettings { baseUrl: string; username: string; downloadPath: string; configured: boolean }
+/**
+ * downloadPath — the downloads folder as seen from this PC (PackageFlow reads PKGs there).
+ * remotePath   — the same folder as seen by qBittorrent, when it runs on another machine
+ *                (NAS, Docker, server). Empty when qBittorrent sees the same paths as this PC.
+ */
+export interface QbitSettings { baseUrl: string; username: string; password: string; downloadPath: string; remotePath: string }
+export interface PublicQbitSettings { baseUrl: string; username: string; downloadPath: string; remotePath: string; hasPassword: boolean; configured: boolean }
 
-const blankSettings = (): QbitSettings => ({ baseUrl: 'http://127.0.0.1:8080', username: '', password: '', downloadPath: '' })
+const blankSettings = (): QbitSettings => ({ baseUrl: 'http://127.0.0.1:8080', username: '', password: '', downloadPath: '', remotePath: '' })
 
 function writeSettings(settings: QbitSettings) {
   writeJsonFile(settingsPath, settings)
@@ -21,18 +25,33 @@ function readSettings(): QbitSettings {
 }
 
 function publicSettings(settings: QbitSettings): PublicQbitSettings {
-  return { baseUrl: settings.baseUrl, username: settings.username, downloadPath: settings.downloadPath, configured: existsSync(settingsPath) }
+  return { baseUrl: settings.baseUrl, username: settings.username, downloadPath: settings.downloadPath, remotePath: settings.remotePath, hasPassword: Boolean(settings.password), configured: existsSync(settingsPath) }
 }
 
 function validateSettings(input: Partial<QbitSettings>): QbitSettings {
-  const settings = { ...readSettings(), ...input }
+  const stored = readSettings()
+  const settings = { ...stored, ...input }
+  // An empty password field in the form means "keep the saved password".
+  if (!input.password) settings.password = stored.password
+  const address = String(settings.baseUrl || '').trim()
   let url: URL
-  try { url = new URL(settings.baseUrl) } catch { throw createError({ statusCode: 400, message: 'Укажите URL qBittorrent, например http://127.0.0.1:8080' }) }
-  if (!['http:', 'https:'].includes(url.protocol) || !LOCAL_HOSTS.has(url.hostname === '::1' ? '[::1]' : url.hostname)) {
-    throw createError({ statusCode: 400, message: 'Для безопасности разрешён только локальный qBittorrent (127.0.0.1, localhost).' })
-  }
-  if (!settings.downloadPath.trim()) throw createError({ statusCode: 400, message: 'Укажите папку загрузок qBittorrent' })
-  return { ...settings, baseUrl: url.origin }
+  try { url = new URL(/^[a-z]+:\/\//i.test(address) ? address : `http://${address}`) } catch { throw createError({ statusCode: 400, message: 'Укажите адрес qBittorrent Web UI, например http://192.168.1.10:8080' }) }
+  if (!['http:', 'https:'].includes(url.protocol)) throw createError({ statusCode: 400, message: 'Адрес qBittorrent должен начинаться с http:// или https://' })
+  if (url.username || url.password) throw createError({ statusCode: 400, message: 'Укажите логин и пароль в отдельных полях, а не в адресе' })
+  if (!settings.downloadPath.trim()) throw createError({ statusCode: 400, message: 'Укажите папку загрузок на этом компьютере' })
+  const basePath = url.pathname.replace(/\/+$/, '') // qBittorrent behind a reverse proxy may live under a sub-path
+  return { ...settings, baseUrl: `${url.origin}${basePath}`, downloadPath: settings.downloadPath.trim(), remotePath: String(settings.remotePath || '').trim() }
+}
+
+const slashes = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '')
+
+/** Translates a path reported by qBittorrent into the same place on this PC (see remotePath). */
+function toLocalPath(settings: QbitSettings, source: string) {
+  if (!settings.remotePath) return source
+  const remote = slashes(settings.remotePath)
+  const path = slashes(source)
+  if (path.toLowerCase() !== remote.toLowerCase() && !path.toLowerCase().startsWith(`${remote.toLowerCase()}/`)) return source
+  return join(settings.downloadPath, path.slice(remote.length))
 }
 
 function timeoutFetch(url: string, init: RequestInit = {}) {
@@ -87,7 +106,7 @@ export async function addTorrent(source: string, installAfterDownload = false) {
   const response = await request('/torrents/add', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ urls: source, savepath: settings.downloadPath, tags: installAfterDownload ? 'packageflow,packageflow-auto-install' : 'packageflow' })
+    body: new URLSearchParams({ urls: source, savepath: settings.remotePath || settings.downloadPath, tags: installAfterDownload ? 'packageflow,packageflow-auto-install' : 'packageflow' })
   })
   const result = await response.text()
   if (/^fails/i.test(result.trim())) throw createError({ statusCode: 502, message: 'qBittorrent не принял торрент-задачу' })
@@ -132,13 +151,18 @@ export async function getCompletedTorrentDirectory(hash: string) {
   const torrent = (await response.json() as Array<Record<string, unknown>>)[0]
   if (!torrent || !torrentTags(torrent).includes('packageflow')) throw createError({ statusCode: 404, message: 'Задача PackageFlow не найдена' })
   if (Number(torrent.progress || 0) < 1) throw createError({ statusCode: 409, message: 'Torrent ещё не завершён' })
-  const source = String(torrent.content_path || torrent.save_path || '')
-  const path = resolve(source)
-  const info = await stat(path).catch(() => undefined)
-  if (!info) throw createError({ statusCode: 404, message: 'Загруженные файлы не найдены на диске' })
-  const root = info.isDirectory() ? path : dirname(path)
   const settings = validateSettings(readSettings())
-  if (relative(resolve(settings.downloadPath), root).startsWith('..')) throw createError({ statusCode: 403, message: 'Файлы torrent находятся вне настроенной папки загрузок' })
+  const source = String(torrent.content_path || torrent.save_path || '')
+  const path = resolve(toLocalPath(settings, source))
+  const info = await stat(path).catch(() => undefined)
+  if (!info) {
+    const hint = settings.remotePath ? 'Проверьте, что «Папка в qBittorrent» и «Папка на этом ПК» указывают на одно и то же место.' : 'Если qBittorrent работает на другом компьютере, укажите в настройках «Папку в qBittorrent».'
+    throw createError({ statusCode: 404, message: `Загруженные файлы не найдены: ${path}. ${hint}` })
+  }
+  const root = info.isDirectory() ? path : dirname(path)
+  const inside = relative(resolve(settings.downloadPath), root)
+  // On Windows a path on another drive comes back absolute, not as "..".
+  if (inside.startsWith('..') || isAbsolute(inside)) throw createError({ statusCode: 403, message: 'Файлы torrent находятся вне настроенной папки загрузок' })
   return root
 }
 
