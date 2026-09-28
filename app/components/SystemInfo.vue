@@ -81,6 +81,7 @@ onBeforeUnmount(() => { ++generation; controller?.abort(); if (timer) clearInter
       <p>Код: {{ snapshot.system.filesystemAccess.errorHex || (snapshot.system.filesystemAccess.error ?? 'Неизвестно') }}<template v-if="snapshot.system.filesystemAccess.stage"> · Этап: {{ snapshot.system.filesystemAccess.stage }}</template>.</p>
       <p v-if="snapshot.system.filesystemAccess.sdkProbed === false">SDK HEN пока не проверен. Автоматическая проверка отключена в этой сборке для диагностики запуска.</p>
       <p v-if="snapshot.system.filesystemAccess.sdkResult !== null">Ответ SDK: {{ snapshot.system.filesystemAccess.sdkResult }}<template v-if="snapshot.system.filesystemAccess.sdkResultHex"> ({{ snapshot.system.filesystemAccess.sdkResultHex }})</template><template v-if="snapshot.system.filesystemAccess.sdkErrno"> · errno {{ snapshot.system.filesystemAccess.sdkErrno }}</template>.</p>
+      <p v-if="snapshot.system.filesystemAccess.sdkRawRaxHex">Исходный ответ SDK: RAX {{ snapshot.system.filesystemAccess.sdkRawRaxHex }} · Флаг ошибки: {{ snapshot.system.filesystemAccess.sdkCarry === null ? 'Неизвестно' : snapshot.system.filesystemAccess.sdkCarry ? 'Да' : 'Нет' }}.</p>
     </div>
     <section v-if="snapshot.storage" class="system-storage">
       <h2>Хранилище</h2>

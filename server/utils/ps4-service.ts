@@ -75,6 +75,8 @@ export async function getPs4SystemSnapshot(ip: string, read: Reader = readPs4Ser
           sdkProbed: typeof info.body.filesystemAccess.sdkProbed === 'boolean' ? info.body.filesystemAccess.sdkProbed : null,
           sdkResult: signedInteger(info.body.filesystemAccess.sdkResult), sdkResultHex: text(info.body.filesystemAccess.sdkResultHex),
           sdkErrno: signedInteger(info.body.filesystemAccess.sdkErrno),
+          sdkRawRaxHex: typeof info.body.filesystemAccess.sdkRawRaxHex === 'string' && /^0x[0-9a-f]{16}$/i.test(info.body.filesystemAccess.sdkRawRaxHex) ? info.body.filesystemAccess.sdkRawRaxHex : null,
+          sdkCarry: typeof info.body.filesystemAccess.sdkCarry === 'boolean' ? info.body.filesystemAccess.sdkCarry : null,
           sandboxBefore: signedInteger(info.body.filesystemAccess.sandboxBefore), sandboxAfter: signedInteger(info.body.filesystemAccess.sandboxAfter) } : null,
     }
   } else if (!snapshot.updateRequired) snapshot.issues.push('Не удалось получить сведения о системе.')

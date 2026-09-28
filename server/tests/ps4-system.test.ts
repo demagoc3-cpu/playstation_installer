@@ -99,7 +99,27 @@ test('PS4 1.03 access failure does not mean HEN is absent; old diagnostics stay 
   assert.equal(result.system?.filesystemAccess?.error, -1)
   assert.equal(result.system?.filesystemAccess?.sdkResult, null)
   assert.equal(result.system?.filesystemAccess?.sandboxAfter, 1)
+  assert.equal(result.system?.filesystemAccess?.sdkRawRaxHex, null)
+  assert.equal(result.system?.filesystemAccess?.sdkCarry, null)
   assert.equal(result.system?.henName, null)
+})
+test('raw 64-bit SDK reply preserves carry without treating errno 256 as HEN detection', async () => {
+  const data = fixtures()
+  for (const raw of ['0x0000000000000100', '0xFFFFFFFFFFFFFFFF', 'not-hex']) {
+    const calls: string[] = []
+    const result = await getPs4SystemSnapshot('192.168.88.147', async (_, path) => {
+      calls.push(path)
+      return path === '/system/info' ? { status: 200, body: { ...data[path].body,
+        hen: { name: null, version: null },
+        filesystemAccess: { enabled: false, error: -2147352574, sdkProbed: true,
+          sdkResult: -256, sdkErrno: 256, sdkRawRaxHex: raw, sdkCarry: true } } } : data[path]
+    })
+    assert.equal(result.system?.filesystemAccess?.sdkRawRaxHex, raw === 'not-hex' ? null : raw)
+    assert.equal(result.system?.filesystemAccess?.sdkCarry, true)
+    assert.equal(result.system?.filesystemAccess?.enabled, false)
+    assert.equal(result.system?.henName, null)
+    assert.deepEqual(calls, ['/ping', '/system/info', '/storage', '/status'])
+  }
 })
 test('raw SDK failure and stage survive aggregation for console diagnostics', async () => {
   const data = fixtures()
