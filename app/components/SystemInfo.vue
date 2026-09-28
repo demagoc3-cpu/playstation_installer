@@ -39,7 +39,7 @@ function usedPercent(volume: NonNullable<Ps4SystemSnapshot['storage']>[number]) 
   return volume.totalBytes && volume.usedBytes !== null ? Math.round(volume.usedBytes / volume.totalBytes * 100) : 0
 }
 function diskError(volume: NonNullable<Ps4SystemSnapshot['storage']>[number]) {
-  if (volume.error === -2147352574) return 'Раздел не найден в доступной сервису файловой системе. Для PKG 1.02 установите исправленную версию 1.03.'
+  if (volume.error === -2147352574) return 'Раздел /user не виден сервису. Процесс может оставаться в файловой изоляции приложения.'
   if (volume.error === -2147352575 || volume.error === -2147352563 || volume.errno === 1 || volume.errno === 13) return 'Система отказала сервису в доступе к этому разделу.'
   return 'Не удалось прочитать объём диска. Код ниже поможет определить причину.'
 }
@@ -76,7 +76,11 @@ onBeforeUnmount(() => { ++generation; controller?.abort(); if (timer) clearInter
         <article class="system-card"><span class="card-label">HEN</span><strong>{{ snapshot.system.henName || 'Неизвестно' }}</strong><p>{{ snapshot.system.henVersion ? `Версия ${snapshot.system.henVersion}` : 'Версия релиза HEN пока недоступна.' }}</p><p v-if="snapshot.system.henSdk">SDK {{ snapshot.system.henSdk }} · отдельная версия API</p></article>
       </div>
     </template>
-    <p v-if="snapshot.environment === 'ps4' && snapshot.system?.filesystemAccess && !snapshot.system.filesystemAccess.enabled" class="system-notice">Доступ к системным разделам не получен. Проверьте, что GoldHEN активен и его SDK доступен. Код: {{ snapshot.system.filesystemAccess.error ?? 'Неизвестно' }}.</p>
+    <div v-if="snapshot.environment === 'ps4' && snapshot.system?.filesystemAccess && !snapshot.system.filesystemAccess.enabled" class="system-notice">
+      <p>Сервис не получил доступ к системным разделам. Этот результат не определяет, запущен ли HEN.</p>
+      <p>Код: {{ snapshot.system.filesystemAccess.errorHex || (snapshot.system.filesystemAccess.error ?? 'Неизвестно') }}<template v-if="snapshot.system.filesystemAccess.stage"> · Этап: {{ snapshot.system.filesystemAccess.stage }}</template>.</p>
+      <p v-if="snapshot.system.filesystemAccess.sdkResult !== null">Ответ SDK: {{ snapshot.system.filesystemAccess.sdkResult }}<template v-if="snapshot.system.filesystemAccess.sdkResultHex"> ({{ snapshot.system.filesystemAccess.sdkResultHex }})</template><template v-if="snapshot.system.filesystemAccess.sdkErrno"> · errno {{ snapshot.system.filesystemAccess.sdkErrno }}</template>.</p>
+    </div>
     <section v-if="snapshot.storage" class="system-storage">
       <h2>Хранилище</h2>
       <article v-for="volume in snapshot.storage" :key="volume.id" class="storage-volume">

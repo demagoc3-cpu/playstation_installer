@@ -88,3 +88,29 @@ test('GoldHEN SDK and hardware family do not pretend to be release or CUH', asyn
   assert.equal(result.system?.henVersion, null)
   assert.equal(result.system?.filesystemAccess?.enabled, true)
 })
+test('PS4 1.03 access failure does not mean HEN is absent; old diagnostics stay nullable', async () => {
+  const data = fixtures()
+  const result = await getPs4SystemSnapshot('192.168.88.147', async (_, path) => path === '/system/info' ? {
+    status: 200, body: { ...data[path].body, pkgVersion: '1.03', firmware: { version: '12.50' },
+      model: { name: null, family: 'PS4 (Fat / Slim)' }, hen: { name: null, version: null, sdkVersion: null },
+      filesystemAccess: { enabled: false, error: -1, sandboxBefore: 1, sandboxAfter: 1 } },
+  } : data[path])
+  assert.equal(result.ready, true)
+  assert.equal(result.system?.filesystemAccess?.error, -1)
+  assert.equal(result.system?.filesystemAccess?.sdkResult, null)
+  assert.equal(result.system?.filesystemAccess?.sandboxAfter, 1)
+  assert.equal(result.system?.henName, null)
+})
+test('raw SDK failure and stage survive aggregation for console diagnostics', async () => {
+  const data = fixtures()
+  const result = await getPs4SystemSnapshot('192.168.88.147', async (_, path) => path === '/system/info' ? {
+    status: 200, body: { ...data[path].body, filesystemAccess: { enabled: false, error: -78,
+      errorHex: '0xFFFFFFB2', stage: 'sdk_version', sdkResult: -78, sdkResultHex: '0xFFFFFFB2',
+      sdkErrno: 78, sandboxBefore: 1, sandboxAfter: 1 } },
+  } : data[path])
+  assert.equal(result.ready, true)
+  assert.equal(result.system?.filesystemAccess?.errorHex, '0xFFFFFFB2')
+  assert.equal(result.system?.filesystemAccess?.sdkResult, -78)
+  assert.equal(result.system?.filesystemAccess?.sdkErrno, 78)
+  assert.equal(result.system?.filesystemAccess?.stage, 'sdk_version')
+})

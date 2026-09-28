@@ -70,7 +70,11 @@ export async function getPs4SystemSnapshot(ip: string, read: Reader = readPs4Ser
       modelFamily: text(info.body.model.family), henSdk: text(info.body.hen.sdkVersion),
       henName: text(info.body.hen.name), henVersion: text(info.body.hen.version),
       filesystemAccess: object(info.body.filesystemAccess) && typeof info.body.filesystemAccess.enabled === 'boolean'
-        ? { enabled: info.body.filesystemAccess.enabled, error: signedInteger(info.body.filesystemAccess.error) } : null,
+        ? { enabled: info.body.filesystemAccess.enabled, error: signedInteger(info.body.filesystemAccess.error),
+          errorHex: text(info.body.filesystemAccess.errorHex), stage: text(info.body.filesystemAccess.stage),
+          sdkResult: signedInteger(info.body.filesystemAccess.sdkResult), sdkResultHex: text(info.body.filesystemAccess.sdkResultHex),
+          sdkErrno: signedInteger(info.body.filesystemAccess.sdkErrno),
+          sandboxBefore: signedInteger(info.body.filesystemAccess.sandboxBefore), sandboxAfter: signedInteger(info.body.filesystemAccess.sandboxAfter) } : null,
     }
   } else if (!snapshot.updateRequired) snapshot.issues.push('Не удалось получить сведения о системе.')
   if (storage && identity(storage, snapshot.version) && Array.isArray(storage.body.volumes) && storage.body.volumes.length <= 8) {
