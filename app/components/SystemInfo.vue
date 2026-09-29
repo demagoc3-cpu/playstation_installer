@@ -66,6 +66,7 @@ onBeforeUnmount(() => { ++generation; controller?.abort(); if (timer) clearInter
     <p v-if="!snapshot?.ready">{{ snapshot?.reason || 'Запустите PackegeFlowService на PS4. Адрес консоли можно изменить в верхней панели.' }}</p>
     <p v-else>Сервис {{ snapshot.version || 'Неизвестно' }}<template v-if="snapshot.pkgVersion"> · PKG {{ snapshot.pkgVersion }}</template><template v-if="updatedAt"> · Обновлено {{ updatedAt }}</template></p>
   </section>
+  <ServiceUpdates :ip="psIp" :current="snapshot?.pkgVersion || ''" @changed="refresh" />
   <template v-if="snapshot?.ready">
     <p v-if="snapshot.environment === 'host'" class="system-notice">Тестовый запуск на компьютере. Показатели диска относятся к этому компьютеру.</p>
     <div v-if="snapshot.issues.length" class="system-notice" role="status"><p v-for="issue in snapshot.issues" :key="issue">{{ issue }}</p></div>

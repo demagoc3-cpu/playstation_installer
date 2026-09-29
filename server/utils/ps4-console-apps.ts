@@ -2,9 +2,10 @@ import { createError } from 'h3'
 import { ps4ServiceIp } from './ps4-service'
 import { authenticatedServiceRequest } from './ps4-service-installer'
 import { assertNoInstallation, assertNoRemoval, readRemovals, saveRemovals, type StoredRemoval } from './console-operation-store'
-import { clearConsoleInstallation } from './package-library'
+import { clearConsoleInstallation, getLibraryPackages } from './package-library'
 import { forgetQueuedPackage } from './installation-queue'
 import { logEvent } from './event-log'
+import { assertNoMaintenance } from './maintenance-store'
 import type { ConsoleApp, ConsoleCatalog, ConsoleComponent, ConsoleDetails, RemoveInput, RemoveOperation } from '../../shared/types/console-apps'
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -45,6 +46,13 @@ export async function getConsoleCatalog(value: unknown): Promise<ConsoleCatalog>
     if (v.next === null) break; offset = v.next
   }
   if (new Set(apps.map(a => a.titleId)).size !== apps.length) invalid()
+  const library = getLibraryPackages()
+  for (const a of apps) {
+    const local = library.find(p => p.titleId === a.titleId && p.contentType === 'PS4GD')
+    if (a.title === a.titleId && local?.title) a.title = local.title
+    a.iconUrl = `/api/ps4/apps/icon?ip=${ip}&titleId=${a.titleId}`
+    if (local?.iconSize) a.fallbackIconUrl = `/api/packages/${local.id}?asset=icon`
+  }
   return { apps, complete, revision: snapshot }
 }
 export async function getConsoleDetails(value: unknown, id: unknown): Promise<ConsoleDetails> {
@@ -86,8 +94,8 @@ function updateStored(r: StoredRemoval) {
   }
   all[index] = r; saveRemovals(all)
 }
-export async function getConsoleRemoval(value: unknown): Promise<RemoveOperation | null> {
-  const ip = ipAddress(value); const r = readRemovals().filter(x => x.ip === ip).at(-1)
+export async function getConsoleRemoval(value: unknown, id?: string): Promise<RemoveOperation | null> {
+  const ip = ipAddress(value); const r = readRemovals().filter(x => x.ip === ip && (!id || x.input.requestId === id)).at(-1)
   if (!r) return null
   if (submitting.has(`${ip}/${r.input.requestId}`)) return publicResult(r)
   if (!r.pending && ['removed', 'failed', 'partial'].includes(r.result.state)) { updateStored(r); return publicResult(r) }
@@ -100,14 +108,14 @@ export async function getConsoleRemoval(value: unknown): Promise<RemoveOperation
   }
   updateStored(r); return publicResult(r)
 }
-export async function submitConsoleRemoval(value: unknown, body: unknown): Promise<RemoveOperation> {
+export async function submitConsoleRemoval(value: unknown, body: unknown, owner?: string): Promise<RemoveOperation> {
   const ip = ipAddress(value); const input = validateRemoval(body); const all = readRemovals()
   const previous = all.find(x => x.ip === ip && x.input.requestId === input.requestId)
   if (previous) {
     if (JSON.stringify(previous.input) !== JSON.stringify(input)) throw createError({ statusCode: 409, message: 'Идентификатор команды уже занят' })
     return publicResult(previous) // Recovery always uses GET; never POST again.
   }
-  assertNoInstallation(ip); assertNoRemoval(ip)
+  assertNoMaintenance(ip, owner); assertNoInstallation(ip); assertNoRemoval(ip)
   if (all.length >= 256) throw createError({ statusCode: 409, message: 'История удалений WEB заполнена' })
   const r: StoredRemoval = { ip, input, createdAt: Date.now(), pending: true, result: { ...input, state: 'queued', completed: 0, total: 0, error: 0, errorHex: '0x00000000', pollError: 0 } }
   // Persist the exact command before the only POST, including across WEB restarts.

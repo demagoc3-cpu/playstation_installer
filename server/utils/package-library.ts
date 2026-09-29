@@ -132,7 +132,7 @@ function extractIconEntry(header: Buffer): PackageIcon {
   return { offset: 0, size: 0 }
 }
 
-async function readPackageMetadata(path: string, fileName: string) {
+export async function readPackageMetadata(path: string, fileName: string) {
   const handle = await open(path, 'r')
   try {
     const header = Buffer.alloc(HEADER_BYTES)
@@ -153,7 +153,7 @@ async function readPackageMetadata(path: string, fileName: string) {
     const isBackport = !isDlc && /backport/i.test(`${fileName} ${title}`)
     const type: LocalPackage['type'] = isDlc ? 'DLC' : isBackport ? 'Бэкпорт' : category.startsWith('gp') ? 'Патч' : 'Игра'
     const icon = extractIconEntry(data)
-    return { title, titleId, installOrder: isDlc ? 2 : type === 'Игра' ? 0 : 1, contentId, contentType: `PS4${category.toUpperCase()}`, packageDigest: data.subarray(0xfe0, 0x1000).toString('hex').toUpperCase(), icon, iconSize: icon.size, type }
+    return { title, titleId, appVersion: values.get('APP_VER') || '', installOrder: isDlc ? 2 : type === 'Игра' ? 0 : 1, contentId, contentType: `PS4${category.toUpperCase()}`, packageDigest: data.subarray(0xfe0, 0x1000).toString('hex').toUpperCase(), icon, iconSize: icon.size, type }
   } finally { await handle.close() }
 }
 

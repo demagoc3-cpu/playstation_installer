@@ -1,5 +1,6 @@
 import { logEvent } from './event-log'
 import { assertNoRemoval } from './console-operation-store'
+import { assertNoMaintenance } from './maintenance-store'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { writeJsonFile } from './json-store'
@@ -31,6 +32,7 @@ interface InstallationQueue {
   version: 1
   status: 'idle' | 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled'
   transport?: InstallationTransport
+  maintenanceId?: string
   id?: string
   psIp?: string
   items: InstallationQueueItem[]
@@ -251,7 +253,8 @@ export function getInstallationQueue() {
   return publicQueue(readQueue())
 }
 
-export function startInstallationQueue(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown }) {
+export function startInstallationQueue(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string }) {
+  assertNoMaintenance(input.psIp, input.maintenanceId)
   assertNoRemoval(input.psIp)
   const active = readQueue()
   if (active.status === 'running' || active.status === 'cancelling') throw createError({ statusCode: 409, message: 'Очередь уже работает; дождитесь её завершения или отмены' })
@@ -267,7 +270,7 @@ export function startInstallationQueue(input: { psIp: string; packageIds: string
     if (!url || !/^https?:\/\//.test(url)) throw createError({ statusCode: 400, message: `Не найден PS4 URL для «${item.title}»` })
     return { packageId, url, state: 'pending', detail: 'Ожидает очереди', bytesSent: 0 }
   })
-  const queue: InstallationQueue = { version: 1, id: randomUUID(), transport, status: 'running', psIp: input.psIp, items, createdAt: Date.now(), message: 'Подготавливаем последовательную очередь установки…' }
+  const queue: InstallationQueue = { version: 1, id: input.maintenanceId || randomUUID(), maintenanceId: input.maintenanceId, transport, status: 'running', psIp: input.psIp, items, createdAt: Date.now(), message: 'Подготавливаем последовательную очередь установки…' }
   writeQueue(queue)
   ensureInstallationQueueRunning()
   return publicQueue(queue)

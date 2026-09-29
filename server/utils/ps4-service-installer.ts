@@ -39,7 +39,12 @@ const explanations: Record<string, string> = {
   service_key_required: 'Сохранённый ключ не принят; выполните сопряжение с PS4 заново',
   pairing_code_invalid: 'Неверный код сопряжения',
   pairing_expired_reopen_launcher: 'Код истёк или уже использован. Откройте запускатель на PS4 для нового кода',
-  game_already_exists_no_overwrite: 'Игра уже есть на PS4. Перезапись через сервис пока не включена',
+  game_already_exists_no_overwrite: 'Игра уже есть на PS4. Используйте «Переустановить» в библиотеке',
+  application_changed_refresh: 'Запущенное приложение изменилось. Обновите его состояние',
+  application_not_installed: 'Приложение больше не установлено на PS4',
+  control_unavailable: 'Для запуска и остановки установите PKG 1.19',
+  control_not_found: 'Команда не найдена на PS4. Повтор автоматически не отправлен',
+  control_history_full: 'История команд сервиса заполнена',
   another_service_job_active: 'На PS4 уже есть активное задание сервиса',
   job_history_full: 'История заданий сервиса заполнена',
   job_not_found: 'PS4 не нашла прежнее задание. Автоматический повтор не отправлен',
@@ -48,8 +53,19 @@ const explanations: Record<string, string> = {
 }
 /** Only internal callers construct routes. Credentials stay on the WEB server. */
 export async function authenticatedServiceRequest(ip: string, path: string, method: 'GET' | 'POST', body?: unknown) {
-  if (!/^\/apps\/(?:list(?:\?|$)|title\/|operations\/|remove$)/.test(path)) throw new Error('Unexpected console route')
+  if (!/^\/apps\/(?:list(?:\?|$)|title\/|operations\/|remove$|control(?:\/|$)|runtime\/)/.test(path)) throw new Error('Unexpected console route')
   return request(ip, path, method, token(consoleIp(ip)), body)
+}
+export async function getServiceIcon(ip: string, titleId: string) {
+  if (!/^[A-Z0-9]{9}$/.test(titleId)) throw createError({ statusCode: 400, message: 'Неверный TITLE_ID' })
+  const response = await fetch(`http://${consoleIp(ip)}:12801/apps/icon/${titleId}`, { redirect: 'error', signal: AbortSignal.timeout(7000), headers: { Authorization: `Bearer ${token(consoleIp(ip))}` } })
+  if (!response.ok || !response.body || !/^image\/png(?:;|$)/i.test(response.headers.get('content-type') || '')) throw createError({ statusCode: 404, message: 'Обложка отсутствует' })
+  const reader = response.body.getReader(); const chunks: Uint8Array[] = []; let size = 0
+  try { for (;;) { const { done, value } = await reader.read(); if (done) break; size += value.byteLength; if (size > 512 * 1024) throw new Error('Image limit'); chunks.push(value) } }
+  finally { await reader.cancel().catch(() => {}) }
+  const data = Buffer.concat(chunks)
+  if (data.length < 8 || !data.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'))) throw createError({ statusCode: 404, message: 'Обложка отсутствует' })
+  return data
 }
 async function request(ip: string, path: string, method: 'GET' | 'POST', key?: string, body?: unknown): Promise<unknown> {
   // Paths are constructed internally; keep a fixed port and forbid redirects.
@@ -131,6 +147,11 @@ function jobPath(id: string) {
 export async function submitServicePackage(ip: string, input: ServiceInstallInput) {
   jobPath(input.requestId)
   return job(await request(ip, '/install/jobs', 'POST', token(consoleIp(ip)), input), input.requestId)
+}
+export async function submitServiceUpdate(ip: string, input: ServiceInstallInput) {
+  jobPath(input.requestId)
+  if (input.titleId !== 'PFLS00001' || input.contentId !== 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00') throw new Error('Unexpected update package')
+  return job(await request(ip, '/install/service-update', 'POST', token(consoleIp(ip)), input), input.requestId)
 }
 export async function getServiceInstallJob(ip: string, id: string) {
   return job(await request(ip, jobPath(id), 'GET', token(consoleIp(ip))), id)

@@ -16,15 +16,45 @@ const operation = ref<RemoveOperation | null>(null)
 const submitting = ref(false)
 const confirmation = ref<{ detail: ConsoleDetails; kind: RemovalKind; componentId: string; title: string; components: ConsoleComponent[] }>()
 const typedId = ref('')
+const iconFailures = ref<Record<string, number>>({})
+const runtime = ref<Record<string, { running: boolean; appId: number }>>({})
+const control = ref<any>(null)
+const controlling = ref(false)
+let runtimeTimer: ReturnType<typeof setInterval> | undefined
 let generation = 0
 let timer: ReturnType<typeof setTimeout> | undefined
-const active = computed(() => submitting.value || operation.value?.pending || ['queued', 'running', 'verifying'].includes(operation.value?.state || ''))
+const active = computed(() => submitting.value || controlling.value || ['pending', 'uncertain'].includes(control.value?.state || '') || operation.value?.pending || ['queued', 'running', 'verifying'].includes(operation.value?.state || ''))
 const visible = computed(() => (catalog.value?.apps || []).filter(a => `${a.title} ${a.titleId}`.toLocaleLowerCase().includes(query.value.toLocaleLowerCase())))
 const statusLabels: Record<string, string> = { queued: 'Принято PS4', running: 'Удаляем компоненты', verifying: 'Проверяем, что компоненты удалены', removed: 'Удаление подтверждено PS4', failed: 'Удаление не выполнено', partial: 'Удалена только часть компонентов', uncertain: 'Результат пока не подтверждён' }
 function errorText(error: any) { return error?.data?.message || error?.message || 'Не удалось связаться с PS4' }
 function kindName(kind: string) { return kind === 'base' ? 'Игра' : kind === 'patch' ? 'Патч / бэкпорт' : 'DLC' }
 function size(bytes: number) { return `${(bytes / 1024 ** 3).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ГиБ` }
 function storage(value: string) { return value === 'internal' ? 'Внутренний диск' : value === 'external' ? 'Внешний диск' : 'Внутренний и внешний диски' }
+function icon(a: ConsoleApp) { const n = iconFailures.value[a.titleId] || 0; return n === 0 ? a.iconUrl : n === 1 ? a.fallbackIconUrl : undefined }
+async function readRuntime(titleId: string) {
+  const id = generation
+  try { const value = await $fetch<{ running: boolean; appId: number }>('/api/ps4/apps/runtime', { query: { ip: props.ip, titleId } }); if (id === generation) runtime.value = { ...runtime.value, [titleId]: value } }
+  catch (e) { if (id === generation && selected.value === titleId) message.value = errorText(e) }
+}
+async function pollControl() {
+  const id = generation
+  try { const value = await $fetch<any>('/api/ps4/apps/control', { query: { ip: props.ip } }); if (id !== generation) return; control.value = value; if (selected.value) await readRuntime(selected.value) }
+  catch (e) { if (id === generation) message.value = errorText(e) }
+}
+async function act(a: ConsoleApp, action: 'launch' | 'stop') {
+  if (active.value || a.protected) return
+  if (action === 'stop' && !window.confirm(`Остановить «${a.title}»? Несохранённый прогресс игры будет потерян.`)) return
+  const id = generation; controlling.value = true; message.value = ''
+  try {
+    await readRuntime(a.titleId); const r = runtime.value[a.titleId]
+    if (id !== generation) return
+    if (!r) throw new Error('Не удалось проверить приложение')
+    if (action === 'stop' && !r.running) throw new Error('Приложение уже остановлено')
+    const value = await $fetch('/api/ps4/apps/control', { method: 'POST', body: { ip: props.ip, requestId: crypto.randomUUID(), titleId: a.titleId, action, expected: action === 'stop' ? (r.appId >>> 0).toString(16).toUpperCase().padStart(8, '0') : '' } })
+    if (id === generation) { control.value = value; await pollControl() }
+  } catch (e) { if (id === generation) message.value = errorText(e) }
+  finally { if (id === generation) controlling.value = false }
+}
 async function refresh() {
   const id = generation; const ip = props.ip; loading.value = true; message.value = ''
   try {
@@ -39,7 +69,7 @@ async function openApp(a: ConsoleApp) {
   selected.value = a.titleId; const id = generation; const ip = props.ip; detailLoading.value = true; message.value = ''
   try {
     const value = await $fetch<ConsoleDetails>('/api/ps4/apps/details', { query: { ip, titleId: a.titleId } })
-    if (id === generation) details.value = { ...details.value, [a.titleId]: value }
+    if (id === generation) { details.value = { ...details.value, [a.titleId]: value }; if (value.app.title !== a.titleId) a.title = value.app.title; a.version = value.app.version; await readRuntime(a.titleId) }
   } catch (error) { if (id === generation) message.value = errorText(error) }
   finally { if (id === generation) detailLoading.value = false }
 }
@@ -86,11 +116,12 @@ async function initialize() {
   const id = generation
   try { const result = await $fetch<{ configured: boolean }>('/api/ps4/service-installer', { query: { ip: props.ip } }); if (id === generation) paired.value = result.configured } catch { /* List request supplies the useful error. */ }
   if (id !== generation) return
-  await poll(); if (!active.value) await refresh()
+  runtime.value = {}; control.value = null; iconFailures.value = {}; controlling.value = false
+  await pollControl(); await poll(); if (!active.value) await refresh()
 }
 watch(() => props.ip, () => void initialize())
-onMounted(() => void initialize())
-onBeforeUnmount(() => { generation++; clearTimeout(timer); emit('status', false) })
+onMounted(() => { void initialize(); runtimeTimer = setInterval(() => { if (document.visibilityState === 'visible') { if (control.value && ['pending', 'uncertain'].includes(control.value.state)) void pollControl(); else if (selected.value && !active.value) void readRuntime(selected.value) } }, 4000) })
+onBeforeUnmount(() => { generation++; clearTimeout(timer); clearInterval(runtimeTimer); emit('status', false) })
 </script>
 
 <template>
@@ -103,9 +134,9 @@ onBeforeUnmount(() => { generation++; clearTimeout(timer); emit('status', false)
     <p v-if="catalog && !catalog.complete" class="notice">Список прочитан не полностью. В том числе проверьте, подключён ли внешний диск.</p>
     <p v-if="catalog && !visible.length" class="empty">{{ query ? 'Ничего не найдено.' : 'Установленных приложений не найдено.' }}</p>
     <article v-for="a in visible" :key="a.titleId" class="game-card">
-      <button class="game-title" :disabled="active || loading" :aria-expanded="selected === a.titleId" @click="openApp(a)"><span class="game-icon">{{ a.title.slice(0, 1) }}</span><span><strong>{{ a.title }}</strong><small>{{ a.titleId }} · {{ a.version || 'Версия неизвестна' }}<template v-if="a.protected"> · Только просмотр</template></small></span><span class="expand">{{ selected === a.titleId ? '−' : '+' }}</span></button>
+      <button class="game-title" :disabled="active || loading" :aria-expanded="selected === a.titleId" @click="openApp(a)"><span class="game-icon"><img v-if="icon(a)" :src="icon(a)" alt="" loading="lazy" @error="iconFailures[a.titleId] = (iconFailures[a.titleId] || 0) + 1"><template v-else>{{ a.title.slice(0, 1) }}</template></span><span><strong>{{ a.title }}</strong><small>{{ a.titleId }} · {{ a.version || 'Версия неизвестна' }}<template v-if="a.protected"> · Только просмотр</template></small></span><span class="expand">{{ selected === a.titleId ? '−' : '+' }}</span></button>
       <div v-if="selected === a.titleId" class="game-detail"><p v-if="detailLoading">Читаем состав игры…</p><template v-else-if="details[a.titleId]">
-        <p v-if="!details[a.titleId]!.complete" class="notice">Состав прочитан не полностью. Удаление отключено до полной проверки.</p>
+        <div v-if="!a.protected" class="app-controls"><span>{{ runtime[a.titleId] ? runtime[a.titleId]!.running ? 'Запущено' : 'Остановлено' : 'Проверяем состояние…' }}</span><button :disabled="active || !runtime[a.titleId] || runtime[a.titleId]!.running" @click="act(a, 'launch')">Запустить</button><button :disabled="active || !runtime[a.titleId]?.running" @click="act(a, 'stop')">Остановить</button></div><p v-if="control?.titleId === a.titleId">{{ control.state === 'running' ? 'Запуск подтверждён PS4' : control.state === 'stopped' ? 'Остановка подтверждена PS4' : control.state === 'failed' ? `Команда не выполнена: ${control.message || control.errorHex}` : 'Ожидаем подтверждения PS4; повтор не отправляется' }}<button v-if="control.state === 'uncertain'" @click="pollControl">Проверить</button></p><p v-if="!details[a.titleId]!.complete" class="notice">Состав прочитан не полностью. Удаление отключено до полной проверки.</p>
         <div v-for="c in details[a.titleId]!.components" :key="`${c.kind}/${c.id}`" class="component"><div><span class="tag">{{ kindName(c.kind) }}</span><strong>{{ c.title }}</strong><small>{{ c.version ? `Версия ${c.version} · ` : '' }}{{ size(c.sizeBytes) }} · {{ storage(c.storage) }}</small><small v-if="c.kind === 'dlc'">{{ c.id }}</small><small v-if="!c.canRemove && !a.protected">Метаданные компонента недоступны для удаления.</small></div><button v-if="c.kind !== 'base'" class="remove-button" :disabled="active || !c.canRemove || !details[a.titleId]!.complete" @click="askRemove(details[a.titleId]!, c.kind === 'patch' ? 'patch' : 'dlc', c)">Удалить</button></div>
         <p v-if="!details[a.titleId]!.components.length">Файлы компонентов недоступны. Подключите диск с игрой и обновите список.</p>
         <footer v-if="!a.protected"><p>Сохранения остаются на PS4. Бэкпорт отображается в составе установленного патча.</p><div><button v-if="details[a.titleId]!.components.some(c => c.kind === 'dlc')" :disabled="active || !details[a.titleId]!.complete || details[a.titleId]!.components.some(c => c.kind === 'dlc' && !c.canRemove)" @click="askRemove(details[a.titleId]!, 'dlcs')">Удалить все DLC</button><button class="remove-button" :disabled="active || !details[a.titleId]!.complete || !details[a.titleId]!.components.some(c => c.kind === 'base') || details[a.titleId]!.components.some(c => !c.canRemove)" @click="askRemove(details[a.titleId]!, 'game')">Удалить игру целиком</button></div></footer>
@@ -116,5 +147,5 @@ onBeforeUnmount(() => { generation++; clearTimeout(timer); emit('status', false)
 </template>
 
 <style scoped>
-.console-apps { max-width: 1000px; } header { display: flex; justify-content: space-between; align-items: center; gap: 20px; } h1 { margin: 0; font-size: 30px; } h2 { font-size: 16px; margin: 0 0 10px; } p { color: #a9a6b2; font-size: 13px; line-height: 1.65; } .eyebrow { color: #978ae1; font-size: 10px; letter-spacing: 1.3px; } button { background: #29272f; border: 1px solid #45404f; border-radius: 7px; color: #e8e2f4; padding: 10px 14px; font-size: 12px; } input { background: #151419; border: 1px solid #45404f; border-radius: 7px; color: #eee9f7; padding: 11px 13px; } .notice { border: 1px solid #766137; background: #292318; padding: 14px 18px; border-radius: 8px; color: #dabb88; } .pair-card, .operation { border: 1px solid #393342; border-radius: 10px; padding: 22px; margin: 22px 0; background: #1c1a20; } .pair-card label { margin-right: 12px; } .search { display: flex; gap: 18px; align-items: center; margin: 28px 0 18px; } .search input { width: 340px; } .search span, small { color: #a6a0af; font-size: 12px; } .game-card { background: #1b1a1f; border: 1px solid #343039; border-radius: 10px; margin-bottom: 14px; overflow: hidden; } .game-title { display: flex; align-items: center; gap: 16px; width: 100%; border: 0; border-radius: 0; padding: 20px; text-align: left; background: transparent; } .game-title strong { font-size: 16px; } small { display: block; margin-top: 7px; overflow-wrap: anywhere; } .game-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 9px; color: #bfb1ee; background: #383144; font-size: 22px; } .expand { margin-left: auto; font-size: 22px; color: #ad9be3; } .game-detail { padding: 0 22px 20px; border-top: 1px solid #302c36; } .component { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid #302c36; gap: 16px; } .component strong { display: block; font-size: 14px; margin-top: 8px; } .tag { color: #b9a6ef; font-size: 11px; } .remove-button { background: #3d252b; border-color: #74404b; color: #f2b5be; } footer { margin-top: 18px; } footer div { display: flex; gap: 10px; justify-content: flex-end; } .operation progress { width: 100%; accent-color: #9781df; } .modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: #000b; } .confirm-dialog { background: #201d26; border: 1px solid #61516f; border-radius: 12px; padding: 28px; max-width: 620px; width: 100%; max-height: 85vh; overflow: auto; } .confirm-dialog ul { color: #c8bed5; line-height: 1.8; font-size: 13px; } .confirm-dialog label { display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: #d6ccdf; } .dialog-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 22px; }
+.game-icon { flex: none; overflow: hidden; } .game-icon img { width: 100%; height: 100%; object-fit: cover; } .app-controls { display: flex; align-items: center; gap: 12px; padding: 18px 0; color: #b5a9ca; font-size: 12px; } .app-controls span { margin-right: auto; } .console-apps { max-width: 1000px; } header { display: flex; justify-content: space-between; align-items: center; gap: 20px; } h1 { margin: 0; font-size: 30px; } h2 { font-size: 16px; margin: 0 0 10px; } p { color: #a9a6b2; font-size: 13px; line-height: 1.65; } .eyebrow { color: #978ae1; font-size: 10px; letter-spacing: 1.3px; } button { background: #29272f; border: 1px solid #45404f; border-radius: 7px; color: #e8e2f4; padding: 10px 14px; font-size: 12px; } input { background: #151419; border: 1px solid #45404f; border-radius: 7px; color: #eee9f7; padding: 11px 13px; } .notice { border: 1px solid #766137; background: #292318; padding: 14px 18px; border-radius: 8px; color: #dabb88; } .pair-card, .operation { border: 1px solid #393342; border-radius: 10px; padding: 22px; margin: 22px 0; background: #1c1a20; } .pair-card label { margin-right: 12px; } .search { display: flex; gap: 18px; align-items: center; margin: 28px 0 18px; } .search input { width: 340px; } .search span, small { color: #a6a0af; font-size: 12px; } .game-card { background: #1b1a1f; border: 1px solid #343039; border-radius: 10px; margin-bottom: 14px; overflow: hidden; } .game-title { display: flex; align-items: center; gap: 16px; width: 100%; border: 0; border-radius: 0; padding: 20px; text-align: left; background: transparent; } .game-title strong { font-size: 16px; } small { display: block; margin-top: 7px; overflow-wrap: anywhere; } .game-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 9px; color: #bfb1ee; background: #383144; font-size: 22px; } .expand { margin-left: auto; font-size: 22px; color: #ad9be3; } .game-detail { padding: 0 22px 20px; border-top: 1px solid #302c36; } .component { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid #302c36; gap: 16px; } .component strong { display: block; font-size: 14px; margin-top: 8px; } .tag { color: #b9a6ef; font-size: 11px; } .remove-button { background: #3d252b; border-color: #74404b; color: #f2b5be; } footer { margin-top: 18px; } footer div { display: flex; gap: 10px; justify-content: flex-end; } .operation progress { width: 100%; accent-color: #9781df; } .modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: #000b; } .confirm-dialog { background: #201d26; border: 1px solid #61516f; border-radius: 12px; padding: 28px; max-width: 620px; width: 100%; max-height: 85vh; overflow: auto; } .confirm-dialog ul { color: #c8bed5; line-height: 1.8; font-size: 13px; } .confirm-dialog label { display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: #d6ccdf; } .dialog-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 22px; }
 </style>

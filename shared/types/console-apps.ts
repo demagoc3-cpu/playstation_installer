@@ -1,4 +1,4 @@
-export interface ConsoleApp { titleId: string; title: string; version: string; installed: boolean; protected: boolean }
+export interface ConsoleApp { titleId: string; title: string; version: string; installed: boolean; protected: boolean; iconUrl?: string; fallbackIconUrl?: string }
 export interface ConsoleComponent { id: string; kind: 'base' | 'patch' | 'dlc'; title: string; version: string; contentId: string; sizeBytes: number; storage: 'internal' | 'external' | 'mixed'; canRemove: boolean }
 export interface ConsoleCatalog { apps: ConsoleApp[]; complete: boolean; revision: string }
 export interface ConsoleDetails { app: ConsoleApp; components: ConsoleComponent[]; complete: boolean; revision: string }
