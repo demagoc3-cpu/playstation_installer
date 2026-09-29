@@ -4,7 +4,7 @@ const emit = defineEmits<{ changed: [] }>()
 const release = ref<any>(); const artifact = ref<any>(); const flow = ref<any>(); const message = ref(''); const busy = ref(false)
 let timer: ReturnType<typeof setInterval> | undefined; let generation = 0; let completed = ''
 function error(e: any) { return e?.data?.message || e?.message || 'Нет ответа от PS4' }
-async function check() { const id = generation; busy.value = true; try { const r = await $fetch('/api/ps4/service-update/check', { query: { current: props.current } }); if (id === generation) release.value = r } catch (e) { if (id === generation) message.value = error(e) } finally { if (id === generation) busy.value = false } }
+async function check() { const id = generation; const current = props.current; busy.value = true; try { const r = await $fetch('/api/ps4/service-update/check', { query: { current } }); if (id === generation && current === props.current) release.value = r } catch (e) { if (id === generation && current === props.current) message.value = error(e) } finally { if (id === generation) busy.value = false } }
 async function poll() { const id = generation; try { const r = await $fetch<any>('/api/ps4/maintenance', { query: { ip: props.ip } }); if (id !== generation) return; flow.value = r?.kind === 'update' ? r : null; if (r?.kind === 'update' && r.state === 'completed' && completed !== r.id) { completed = r.id; artifact.value = undefined; emit('changed') } } catch (e) { if (id === generation && flow.value) message.value = error(e) } }
 async function select(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return
@@ -25,7 +25,8 @@ async function restart() {
   try { const r = await $fetch('/api/ps4/service-update/restart', { method: 'POST', body: { ip: props.ip } }); if (id === generation) flow.value = r } catch (e) { if (id === generation) message.value = error(e) } finally { if (id === generation) busy.value = false }
 }
 watch(() => props.ip, () => { generation++; flow.value = undefined; artifact.value = undefined; message.value = ''; busy.value = false; void poll() })
-onMounted(() => { void check(); void poll(); timer = setInterval(() => { if (flow.value && !['completed', 'failed'].includes(flow.value.state)) void poll() }, 2500) })
+watch(() => props.current, current => { if (current) void check() }, { immediate: true })
+onMounted(() => { void poll(); timer = setInterval(() => { if (flow.value && !['completed', 'failed'].includes(flow.value.state)) void poll() }, 2500) })
 onBeforeUnmount(() => { generation++; clearInterval(timer) })
 </script>
 <template>
