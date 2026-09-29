@@ -33,7 +33,7 @@ export async function runTorrentAutoInstall() {
 
   const psIp = getSavedPsIp()
   if (!psIp) return logWait('Автоустановка ждёт: не указан IP PS4. Подключите приставку на странице PackageFlow.')
-  if (getInstallationQueue().status === 'running') return // the current queue finishes first
+  if (['running', 'cancelling'].includes(getInstallationQueue().status)) return // the current queue finishes first
 
   const torrent = ready[0]!
   try {
