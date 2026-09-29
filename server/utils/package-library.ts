@@ -263,6 +263,16 @@ export function resetPackageDelivery(id: string) {
 
 export function markPackageInstalled(id: string, installed: boolean) { const library = readLibrary(); const item = library.packages.find((entry) => entry.id === id); if (!item) throw createError({ statusCode: 404, message: 'Пакет не найден' }); item.installedAt = installed ? Date.now() : undefined; writeLibrary(library); return publicItem(item) }
 
+export function clearConsoleInstallation(titleId: string, kind: string, componentId: string) {
+  const library = readLibrary(); const affected: string[] = []
+  for (const item of library.packages) {
+    if (item.titleId !== titleId) continue
+    if (kind === 'game' || (kind === 'patch' && item.contentType === 'PS4GP') ||
+      (['dlc', 'dlcs'].includes(kind) && item.type === 'DLC' && (kind === 'dlcs' || item.contentId.slice(20) === componentId))) { item.installedAt = undefined; affected.push(item.id) }
+  }
+  writeLibrary(library); return affected
+}
+
 export function removePackageFromLibrary(id: string) {
   const library = readLibrary()
   const before = library.packages.length

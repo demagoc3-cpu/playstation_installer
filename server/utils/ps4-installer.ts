@@ -1,4 +1,5 @@
 import { logEvent } from './event-log'
+import { assertNoRemoval } from './console-operation-store'
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { readJsonFile, writeJsonFile } from './json-store'
@@ -138,7 +139,9 @@ function writeText(chunks: Buffer[], value: string) {
 
 export async function sendPackage(job: PackageJob) {
   if (!session) throw createError({ statusCode: 409, message: 'Сначала запустите установщик на консоли' })
+  assertNoRemoval(session.psIp)
   const client = await waitForClient(session)
+  assertNoRemoval(session.psIp)
   logEvent('info', `Задание для PS4: «${job.title}» → ${job.url}`)
   const chunks: Buffer[] = []
   const command = Buffer.allocUnsafe(4); command.writeUInt32LE(1); chunks.push(command)

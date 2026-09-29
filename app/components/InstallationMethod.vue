@@ -58,7 +58,7 @@ function inputCode(value: string) {
     </div>
     <p v-if="modelValue === 'payload'">Игры, патчи и DLC через текущий загрузчик. Автоустановка торрентов всегда использует PyLoader.</p>
     <template v-else>
-      <p>Первое испытание: базовая игра через PKG 1.17. Патчи и DLC пока устанавливаются через PyLoader.</p>
+      <p>Базовая игра через сервис. Управление установленным — в разделе «На консоли» (PKG 1.18). Патчи и DLC пока устанавливаются через PyLoader.</p>
       <p v-if="message" role="status">{{ message }}</p>
       <form v-if="showKey" @submit.prevent="saveKey">
         <label>Код с экрана запускателя PS4

@@ -1,4 +1,5 @@
 import { logEvent } from './event-log'
+import { assertNoRemoval } from './console-operation-store'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { writeJsonFile } from './json-store'
@@ -251,6 +252,7 @@ export function getInstallationQueue() {
 }
 
 export function startInstallationQueue(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown }) {
+  assertNoRemoval(input.psIp)
   const active = readQueue()
   if (active.status === 'running' || active.status === 'cancelling') throw createError({ statusCode: 409, message: 'Очередь уже работает; дождитесь её завершения или отмены' })
   let transport: InstallationTransport

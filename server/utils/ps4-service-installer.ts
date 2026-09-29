@@ -25,6 +25,17 @@ export function serviceKeyConfigured(ip: string) {
 }
 
 const explanations: Record<string, string> = {
+  apps_unavailable: 'Управление установленными приложениями недоступно',
+  inventory_scan_failed: 'Не удалось прочитать установленные приложения PS4',
+  inventory_changed_refresh: 'Состав игры изменился или прочитан не полностью. Обновите список',
+  console_operation_busy: 'На PS4 выполняется установка или удаление. Дождитесь завершения',
+  application_installing: 'Игра сейчас устанавливается или обновляется',
+  protected_application: 'Удаление системного приложения или самого сервиса запрещено',
+  component_not_found: 'Компонент уже отсутствует. Обновите список',
+  remove_history_full: 'История удалений сервиса заполнена',
+  remove_journal_failed: 'PS4 не смогла сохранить задание удаления',
+  request_id_conflict: 'Идентификатор уже использован для другой команды',
+  remove_job_not_found: 'Прежнее задание не найдено. Повторная команда не отправлена',
   service_key_required: 'Сохранённый ключ не принят; выполните сопряжение с PS4 заново',
   pairing_code_invalid: 'Неверный код сопряжения',
   pairing_expired_reopen_launcher: 'Код истёк или уже использован. Откройте запускатель на PS4 для нового кода',
@@ -34,6 +45,11 @@ const explanations: Record<string, string> = {
   job_not_found: 'PS4 не нашла прежнее задание. Автоматический повтор не отправлен',
   task_state_unknown_check_console: 'Проверьте принятое задание в загрузках PS4; его состояние неизвестно',
   invalid_game_request: 'Сервис 1.17 принимает только базовую игру, без патча или DLC',
+}
+/** Only internal callers construct routes. Credentials stay on the WEB server. */
+export async function authenticatedServiceRequest(ip: string, path: string, method: 'GET' | 'POST', body?: unknown) {
+  if (!/^\/apps\/(?:list(?:\?|$)|title\/|operations\/|remove$)/.test(path)) throw new Error('Unexpected console route')
+  return request(ip, path, method, token(consoleIp(ip)), body)
 }
 async function request(ip: string, path: string, method: 'GET' | 'POST', key?: string, body?: unknown): Promise<unknown> {
   // Paths are constructed internally; keep a fixed port and forbid redirects.
