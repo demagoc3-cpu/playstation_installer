@@ -5,13 +5,14 @@ type ServicePath = '/ping' | '/system/info' | '/storage' | '/status'
 interface ServiceReply { status: number; body: unknown }
 type Reader = (ip: string, path: ServicePath) => Promise<ServiceReply>
 
-export function localPs4Ip(value: unknown): string | null {
+export function ps4ServiceIp(value: unknown): string | null {
   if (typeof value !== 'string' || !/^(?:\d{1,3}\.){3}\d{1,3}$/.test(value)) return null
   const parts = value.split('.').map(Number)
   const [first, second] = parts
   if (first === undefined || second === undefined || parts.some(part => part < 0 || part > 255)) return null
-  if (!(first === 10 || (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && second === 168) || (first === 169 && second === 254))) return null
+  // LAN and remote consoles use the same fixed service port. Reject loopback,
+  // unspecified, multicast and reserved ranges; no hostnames or arbitrary URLs.
+  if (first === 0 || first === 127 || first >= 224) return null
   return parts.join('.')
 }
 

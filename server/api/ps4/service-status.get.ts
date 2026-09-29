@@ -1,9 +1,9 @@
-import { localPs4Ip, readPs4Service } from '../../utils/ps4-service'
+import { ps4ServiceIp, readPs4Service } from '../../utils/ps4-service'
 
 export default defineEventHandler(async (event) => {
   setResponseHeader(event, 'Cache-Control', 'no-store')
-  const ip = localPs4Ip(getQuery(event).ip)
-  if (!ip) throw createError({ statusCode: 400, message: 'Укажите локальный IPv4-адрес PS4' })
+  const ip = ps4ServiceIp(getQuery(event).ip)
+  if (!ip) throw createError({ statusCode: 400, message: 'Укажите IPv4-адрес PS4' })
 
   try {
     const response = await readPs4Service(ip, '/ping')

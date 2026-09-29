@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { getPs4SystemSnapshot, localPs4Ip } from '../utils/ps4-service.ts'
+import { getPs4SystemSnapshot, ps4ServiceIp } from '../utils/ps4-service.ts'
 
 const identity = { service: 'PackegeFlowService', version: '0.3.0', environment: 'ps4' }
 function fixtures() {
@@ -11,10 +11,13 @@ function fixtures() {
     '/status': { status: 200, body: { ...identity, status: 'ok', uptimeSeconds: 80, requests: 4, replies: 3 } },
   }
 }
-test('only canonical local IPv4 addresses can select the service', () => {
-  for (const ip of ['127.0.0.1', '8.8.8.8', '192.168.0.999', '192.168.1.2@evil.com', 'http://192.168.1.2', ['192.168.1.2'], '172.32.0.1', '::1']) assert.equal(localPs4Ip(ip), null)
-  assert.equal(localPs4Ip('192.168.088.147'), '192.168.88.147')
-  assert.equal(localPs4Ip('172.16.0.2'), '172.16.0.2')
+test('LAN and public unicast IPv4 addresses can select the service', () => {
+  for (const ip of ['127.0.0.1', '127.1.0.1', '0.0.0.0', '224.0.0.1', '240.0.0.1', '255.255.255.255', '192.168.0.999', '192.168.1.2@evil.com', 'http://192.168.1.2', ['192.168.1.2'], '::1']) assert.equal(ps4ServiceIp(ip), null)
+  assert.equal(ps4ServiceIp('192.168.088.147'), '192.168.88.147')
+  assert.equal(ps4ServiceIp('172.16.0.2'), '172.16.0.2')
+  assert.equal(ps4ServiceIp('134.17.24.238'), '134.17.24.238')
+  assert.equal(ps4ServiceIp('8.8.8.8'), '8.8.8.8')
+  assert.equal(ps4ServiceIp('172.32.0.1'), '172.32.0.1')
 })
 test('current service returns system, usable disk space and counters', async () => {
   const data = fixtures()
