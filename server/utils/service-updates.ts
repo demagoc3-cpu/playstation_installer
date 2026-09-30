@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createError } from 'h3'
 import { readPackageMetadata } from './package-library'
@@ -12,6 +12,18 @@ const repository = 'demagoc3-cpu/playstation_installer'
 export const updateLimit = 25 * 1024 * 1024
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export function comparePkgVersions(a: string, b: string) { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < Math.max(x.length, y.length); ++i) { const d = (x[i] || 0) - (y[i] || 0); if (d) return Math.sign(d) } return 0 }
+function stagedByHash(hash: string, size: number) {
+  let files: string[]
+  try { files = readdirSync(directory) } catch (e: any) { if (e.code === 'ENOENT') return null; throw e }
+  for (const file of files) {
+    if (!file.endsWith('.json') || !uuid.test(file.slice(0, -5))) continue
+    try {
+      const artifact = serviceArtifact(file.slice(0, -5))
+      if (artifact.sha256 === hash && artifact.size === size && createHash('sha256').update(readFileSync(artifact.path)).digest('hex') === hash) return artifact
+    } catch { /* Ignore a stale or incomplete staged package. */ }
+  }
+  return null
+}
 async function bytes(url: string, limit: number) {
   for (let redirect = 0; redirect < 5; redirect++) {
     const u = new URL(url)
@@ -30,10 +42,22 @@ async function bytes(url: string, limit: number) {
 export async function latestServiceRelease(current: string) {
   try {
     const release = JSON.parse((await bytes(`https://api.github.com/repos/${repository}/releases/latest`, 128 * 1024)).toString('utf8'))
-    const asset = release.assets?.find((a: any) => /^PackegeFlowService-\d+\.\d+\.pkg$/.test(a.name) && Number.isSafeInteger(a.size) && a.size > 0 && a.size <= updateLimit && /^sha256:[0-9a-f]{64}$/.test(a.digest || '') && typeof a.browser_download_url === 'string' && a.browser_download_url.startsWith(`https://github.com/${repository}/releases/download/`))
+    const asset = release.assets?.find((a: any) => /^PackegeFlowService(?:-\d+\.\d+)?\.pkg$/.test(a.name) && Number.isSafeInteger(a.size) && a.size > 0 && a.size <= updateLimit && /^sha256:[0-9a-f]{64}$/.test(a.digest || '') && typeof a.browser_download_url === 'string' && a.browser_download_url.startsWith(`https://github.com/${repository}/releases/download/`))
     if (!asset) return { available: false, message: 'В релизе нет PKG сервиса с контрольной суммой SHA-256', releaseUrl: `https://github.com/${repository}/releases` }
-    const version = asset.name.match(/-(\d+\.\d+)\.pkg$/)![1]
-    return { available: comparePkgVersions(version, current) > 0, version, asset: { url: asset.browser_download_url, sha256: asset.digest.slice(7), size: asset.size }, message: comparePkgVersions(version, current) > 0 ? `Доступен PKG ${version}` : 'Установлена актуальная версия', releaseUrl: release.html_url }
+    const hash = asset.digest.slice(7)
+    const namedVersion = asset.name.match(/-(\d+\.\d+)\.pkg$/)?.[1]
+    let staged = stagedByHash(hash, asset.size)
+    if (!namedVersion && !staged) {
+      const data = await bytes(asset.browser_download_url, updateLimit)
+      if (data.length !== asset.size) throw new Error('Размер PKG на GitHub не совпал с релизом')
+      const saved = await stageServicePackage(data, hash)
+      staged = serviceArtifact(saved.id)
+    }
+    if (namedVersion && staged && staged.version !== namedVersion) throw new Error('Версия PKG не совпала с именем файла релиза')
+    const version = namedVersion || staged!.version
+    const comparison = comparePkgVersions(version, current)
+    const available = comparison > 0
+    return { available, version, artifactId: staged?.id, asset: { url: asset.browser_download_url, sha256: hash, size: asset.size }, message: available ? `Доступен PKG ${version}` : comparison < 0 ? `Установленная версия новее опубликованной на GitHub (${version})` : 'Установлена актуальная версия', releaseUrl: release.html_url }
   } catch (e: any) { return { available: false, message: e.message || 'Не удалось проверить GitHub', releaseUrl: `https://github.com/${repository}/releases` } }
 }
 export async function stageServicePackage(data: Buffer, expectedHash?: string) {
@@ -61,6 +85,10 @@ export function serviceArtifact(id: string) {
 export async function downloadLatestServicePackage(current: string) {
   const release = await latestServiceRelease(current)
   if (!release.available || !release.asset) throw createError({ statusCode: 409, message: release.message })
+  if (release.artifactId) {
+    const { path: _path, ...artifact } = serviceArtifact(release.artifactId)
+    return artifact
+  }
   const result = await stageServicePackage(await bytes(release.asset.url, updateLimit), release.asset.sha256)
   if (result.version !== release.version) throw createError({ statusCode: 400, message: 'Версия внутри PKG не совпала с релизом' })
   return result
@@ -74,5 +102,5 @@ export async function installServiceArtifact(value: unknown, id: string, baseUrl
   if (comparePkgVersions(current.pkgVersion, '1.19') < 0) throw createError({ statusCode: 409, message: 'Для обновления из WEB сначала установите PKG 1.19 вручную' })
   if (comparePkgVersions(a.version, current.pkgVersion) <= 0) throw createError({ statusCode: 409, message: 'Выбранная версия уже установлена или старее текущей' })
   if ((await consoleRuntime(ip, 'PFLS00001')).running) throw createError({ statusCode: 409, message: 'Закройте запускатель PackegeFlowService на PS4 перед обновлением' })
-  return beginUpdate(ip, { requestId: randomUUID(), titleId: 'PFLS00001', contentId: 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00', title: `PackegeFlowService ${a.version}`, url: `${baseUrl}/api/ps4/service-update/manifest?id=${id}`, contentType: 'PS4GDE', size: a.size }, a.version)
+  return beginUpdate(ip, { requestId: randomUUID(), titleId: 'PFLS00001', contentId: 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00', title: `PackegeFlowService ${a.version}`, url: `${baseUrl}/service-update/manifest/${id}.json`, contentType: 'PS4GDE', size: a.size }, a.version)
 }

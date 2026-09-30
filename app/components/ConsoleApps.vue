@@ -18,6 +18,7 @@ const confirmation = ref<{ detail: ConsoleDetails; kind: RemovalKind; componentI
 const typedId = ref('')
 const iconFailures = ref<Record<string, number>>({})
 const runtime = ref<Record<string, { running: boolean; appId: number }>>({})
+const runtimeError = ref<Record<string, string>>({})
 const control = ref<any>(null)
 const controlling = ref(false)
 let runtimeTimer: ReturnType<typeof setInterval> | undefined
@@ -27,14 +28,23 @@ const active = computed(() => submitting.value || controlling.value || ['pending
 const visible = computed(() => (catalog.value?.apps || []).filter(a => `${a.title} ${a.titleId}`.toLocaleLowerCase().includes(query.value.toLocaleLowerCase())))
 const statusLabels: Record<string, string> = { queued: 'Принято PS4', running: 'Удаляем компоненты', verifying: 'Проверяем, что компоненты удалены', removed: 'Удаление подтверждено PS4', failed: 'Удаление не выполнено', partial: 'Удалена только часть компонентов', uncertain: 'Результат пока не подтверждён' }
 function errorText(error: any) { return error?.data?.message || error?.message || 'Не удалось связаться с PS4' }
+function requestId() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  bytes[6] = (bytes[6]! & 0x0f) | 0x40
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
 function kindName(kind: string) { return kind === 'base' ? 'Игра' : kind === 'patch' ? 'Патч / бэкпорт' : 'DLC' }
 function size(bytes: number) { return `${(bytes / 1024 ** 3).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ГиБ` }
 function storage(value: string) { return value === 'internal' ? 'Внутренний диск' : value === 'external' ? 'Внешний диск' : 'Внутренний и внешний диски' }
 function icon(a: ConsoleApp) { const n = iconFailures.value[a.titleId] || 0; return n === 0 ? a.iconUrl : n === 1 ? a.fallbackIconUrl : undefined }
 async function readRuntime(titleId: string) {
   const id = generation
-  try { const value = await $fetch<{ running: boolean; appId: number }>('/api/ps4/apps/runtime', { query: { ip: props.ip, titleId } }); if (id === generation) runtime.value = { ...runtime.value, [titleId]: value } }
-  catch (e) { if (id === generation && selected.value === titleId) message.value = errorText(e) }
+  try { const value = await $fetch<{ running: boolean; appId: number }>('/api/ps4/apps/runtime', { query: { ip: props.ip, titleId } }); if (id === generation) { runtime.value = { ...runtime.value, [titleId]: value }; const next = { ...runtimeError.value }; delete next[titleId]; runtimeError.value = next } }
+  catch (e) { if (id === generation) { const next = { ...runtime.value }; delete next[titleId]; runtime.value = next; runtimeError.value = { ...runtimeError.value, [titleId]: errorText(e) } } }
 }
 async function pollControl() {
   const id = generation
@@ -48,9 +58,9 @@ async function act(a: ConsoleApp, action: 'launch' | 'stop') {
   try {
     await readRuntime(a.titleId); const r = runtime.value[a.titleId]
     if (id !== generation) return
-    if (!r) throw new Error('Не удалось проверить приложение')
+    if (!r || runtimeError.value[a.titleId]) throw new Error(runtimeError.value[a.titleId] || 'Не удалось проверить приложение')
     if (action === 'stop' && !r.running) throw new Error('Приложение уже остановлено')
-    const value = await $fetch('/api/ps4/apps/control', { method: 'POST', body: { ip: props.ip, requestId: crypto.randomUUID(), titleId: a.titleId, action, expected: action === 'stop' ? (r.appId >>> 0).toString(16).toUpperCase().padStart(8, '0') : '' } })
+    const value = await $fetch('/api/ps4/apps/control', { method: 'POST', body: { ip: props.ip, requestId: requestId(), titleId: a.titleId, action, expected: action === 'stop' ? (r.appId >>> 0).toString(16).toUpperCase().padStart(8, '0') : '' } })
     if (id === generation) { control.value = value; await pollControl() }
   } catch (e) { if (id === generation) message.value = errorText(e) }
   finally { if (id === generation) controlling.value = false }
@@ -95,7 +105,7 @@ async function remove() {
   const target = confirmation.value; if (!target || typedId.value !== target.detail.app.titleId || active.value) return
   const id = generation; const ip = props.ip; submitting.value = true; message.value = ''
   try {
-    const value = await $fetch<RemoveOperation>('/api/ps4/apps/remove', { method: 'POST', body: { ip, requestId: crypto.randomUUID(), titleId: target.detail.app.titleId, kind: target.kind, componentId: target.componentId, revision: target.detail.revision, confirmTitleId: typedId.value } })
+    const value = await $fetch<RemoveOperation>('/api/ps4/apps/remove', { method: 'POST', body: { ip, requestId: requestId(), titleId: target.detail.app.titleId, kind: target.kind, componentId: target.componentId, revision: target.detail.revision, confirmTitleId: typedId.value } })
     if (id !== generation) return
     operation.value = value; confirmation.value = undefined
     if (value.state === 'removed') { emit('changed'); await refresh() }
@@ -116,7 +126,7 @@ async function initialize() {
   const id = generation
   try { const result = await $fetch<{ configured: boolean }>('/api/ps4/service-installer', { query: { ip: props.ip } }); if (id === generation) paired.value = result.configured } catch { /* List request supplies the useful error. */ }
   if (id !== generation) return
-  runtime.value = {}; control.value = null; iconFailures.value = {}; controlling.value = false
+  runtime.value = {}; runtimeError.value = {}; control.value = null; iconFailures.value = {}; controlling.value = false
   await pollControl(); await poll(); if (!active.value) await refresh()
 }
 watch(() => props.ip, () => void initialize())
@@ -136,7 +146,7 @@ onBeforeUnmount(() => { generation++; clearTimeout(timer); clearInterval(runtime
     <article v-for="a in visible" :key="a.titleId" class="game-card">
       <button class="game-title" :disabled="active || loading" :aria-expanded="selected === a.titleId" @click="openApp(a)"><span class="game-icon"><img v-if="icon(a)" :src="icon(a)" alt="" loading="lazy" @error="iconFailures[a.titleId] = (iconFailures[a.titleId] || 0) + 1"><template v-else>{{ a.title.slice(0, 1) }}</template></span><span><strong>{{ a.title }}</strong><small>{{ a.titleId }} · {{ a.version || 'Версия неизвестна' }}<template v-if="a.protected"> · Только просмотр</template></small></span><span class="expand">{{ selected === a.titleId ? '−' : '+' }}</span></button>
       <div v-if="selected === a.titleId" class="game-detail"><p v-if="detailLoading">Читаем состав игры…</p><template v-else-if="details[a.titleId]">
-        <div v-if="!a.protected" class="app-controls"><span>{{ runtime[a.titleId] ? runtime[a.titleId]!.running ? 'Запущено' : 'Остановлено' : 'Проверяем состояние…' }}</span><button :disabled="active || !runtime[a.titleId] || runtime[a.titleId]!.running" @click="act(a, 'launch')">Запустить</button><button :disabled="active || !runtime[a.titleId]?.running" @click="act(a, 'stop')">Остановить</button></div><p v-if="control?.titleId === a.titleId">{{ control.state === 'running' ? 'Запуск подтверждён PS4' : control.state === 'stopped' ? 'Остановка подтверждена PS4' : control.state === 'failed' ? `Команда не выполнена: ${control.message || control.errorHex}` : 'Ожидаем подтверждения PS4; повтор не отправляется' }}<button v-if="control.state === 'uncertain'" @click="pollControl">Проверить</button></p><p v-if="!details[a.titleId]!.complete" class="notice">Состав прочитан не полностью. Удаление отключено до полной проверки.</p>
+        <div v-if="!a.protected" class="app-controls"><span>{{ runtime[a.titleId] ? runtime[a.titleId]!.running ? 'Запущено' : 'Остановлено' : runtimeError[a.titleId] ? 'Состояние недоступно' : 'Проверяем состояние…' }}</span><button :disabled="active || !runtime[a.titleId] || runtime[a.titleId]!.running" @click="act(a, 'launch')">Запустить</button><button :disabled="active || !runtime[a.titleId]?.running" @click="act(a, 'stop')">Остановить</button></div><p v-if="runtimeError[a.titleId]" class="notice">Кнопки станут доступны после ответа PS4: {{ runtimeError[a.titleId] }}</p><p v-if="control?.titleId === a.titleId">{{ control.state === 'running' ? 'Запуск подтверждён PS4' : control.state === 'stopped' ? 'Остановка подтверждена PS4' : control.state === 'failed' ? `Команда не выполнена: ${control.message || control.errorHex}` : 'Ожидаем подтверждения PS4; повтор не отправляется' }}<button v-if="control.state === 'uncertain'" @click="pollControl">Проверить</button></p><p v-if="!details[a.titleId]!.complete" class="notice">Состав прочитан не полностью. Удаление отключено до полной проверки.</p>
         <div v-for="c in details[a.titleId]!.components" :key="`${c.kind}/${c.id}`" class="component"><div><span class="tag">{{ kindName(c.kind) }}</span><strong>{{ c.title }}</strong><small>{{ c.version ? `Версия ${c.version} · ` : '' }}{{ size(c.sizeBytes) }} · {{ storage(c.storage) }}</small><small v-if="c.kind === 'dlc'">{{ c.id }}</small><small v-if="!c.canRemove && !a.protected">Метаданные компонента недоступны для удаления.</small></div><button v-if="c.kind !== 'base'" class="remove-button" :disabled="active || !c.canRemove || !details[a.titleId]!.complete" @click="askRemove(details[a.titleId]!, c.kind === 'patch' ? 'patch' : 'dlc', c)">Удалить</button></div>
         <p v-if="!details[a.titleId]!.components.length">Файлы компонентов недоступны. Подключите диск с игрой и обновите список.</p>
         <footer v-if="!a.protected"><p>Сохранения остаются на PS4. Бэкпорт отображается в составе установленного патча.</p><div><button v-if="details[a.titleId]!.components.some(c => c.kind === 'dlc')" :disabled="active || !details[a.titleId]!.complete || details[a.titleId]!.components.some(c => c.kind === 'dlc' && !c.canRemove)" @click="askRemove(details[a.titleId]!, 'dlcs')">Удалить все DLC</button><button class="remove-button" :disabled="active || !details[a.titleId]!.complete || !details[a.titleId]!.components.some(c => c.kind === 'base') || details[a.titleId]!.components.some(c => !c.canRemove)" @click="askRemove(details[a.titleId]!, 'game')">Удалить игру целиком</button></div></footer>

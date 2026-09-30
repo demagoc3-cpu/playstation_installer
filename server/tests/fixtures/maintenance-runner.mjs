@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { registerHooks } from 'node:module'
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -17,15 +18,19 @@ function pkg(values) {
  const p=Buffer.alloc(8192);Buffer.from('7f434e54','hex').copy(p);p.writeUInt32BE(1,0x10);p.writeUInt32BE(128,0x18);Buffer.from(values.CONTENT_ID).copy(p,0x40);p.writeUInt32BE(0x1000,128);p.writeUInt32BE(256,144);p.writeUInt32BE(sfo.length,148);sfo.copy(p,256);return p
 }
 const base = pkg({TITLE:'Mario Collection',TITLE_ID:titleId,CONTENT_ID:cid,CATEGORY:'gd',APP_VER:'01.00'})
+const updatePackage = pkg({TITLE:'PackegeFlowService',TITLE_ID:'PFLS00001',CONTENT_ID:'IV0000-PFLS00001_00-PACKAGEFLOWSRV00',CATEGORY:'gde',APP_VER:'01.20'})
+const updateHash = createHash('sha256').update(updatePackage).digest('hex')
 writeFileSync('game.pkg',base)
 const item={id:'one',title:'Mario Collection',titleId,contentId:cid,contentType:'PS4GD',size:base.length,path:resolve('game.pkg'),fileName:'game.pkg',libraryRoot:directory,sourceModifiedAt:1,installedAt:100,type:'Игра',installOrder:0,iconSize:0,icon:{offset:0,size:0},packageDigest:'0'.repeat(64)}
 writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages:[item],deliveries:{}}))
 const app={titleId,title:'Mario Collection',version:'01.00',installed:true,protected:false}, part={id:'base',kind:'base',title:app.title,version:'01.00',contentId:cid,sizeBytes:base.length,storage:'internal',canRemove:true}
 let removePosts=0, installPosts=0, controlPosts=0, updatePosts=0, removeState='running', removal, installedJob, controlResult, version='1.19'
+let releaseDownloads=0
 const response=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{'Content-Type':'application/json'}})
 globalThis.fetch=async(url,options={})=>{
  const u=new URL(url),path=u.pathname
- if(u.hostname==='api.github.com') return response({message:'Not Found'},404)
+ if(u.hostname==='api.github.com') return mode==='release' ? response({html_url:'https://github.com/demagoc3-cpu/playstation_installer/releases/tag/PKG',assets:[{name:'PackegeFlowService.pkg',size:updatePackage.length,digest:`sha256:${updateHash}`,browser_download_url:'https://github.com/demagoc3-cpu/playstation_installer/releases/download/PKG/PackegeFlowService.pkg'}]}) : response({message:'Not Found'},404)
+ if(u.hostname==='github.com' && mode==='release') {releaseDownloads++;return new Response(updatePackage,{headers:{'Content-Type':'application/octet-stream'}})}
  assert.equal(u.port,'12801');assert.equal(options.redirect,'error')
  if(path==='/system/info') return response({service:'PackegeFlowService',environment:'ps4',pkgVersion:version})
  assert.equal(options.headers.Authorization,`Bearer ${token}`)
@@ -46,17 +51,26 @@ try {
   const input={requestId:'11111111-1111-1111-1111-111111111111',titleId,action:'launch',expected:''}
   assert.equal((await control.submitConsoleControl(ip,input)).state,'running');assert.equal(controlPosts,1);await control.submitConsoleControl(ip,input);assert.equal(controlPosts,1)
   await assert.rejects(control.submitConsoleControl(ip,{...input,action:'stop',expected:'INVALID'}));assert.equal(controlPosts,1)
- } else if(mode==='stage'||mode==='update') {
-  const update=pkg({TITLE:'PackegeFlowService',TITLE_ID:'PFLS00001',CONTENT_ID:'IV0000-PFLS00001_00-PACKAGEFLOWSRV00',CATEGORY:'gde',APP_VER:'01.20'})
-  await assert.rejects(updates.stageServicePackage(base)); await assert.rejects(updates.stageServicePackage(update,'0'.repeat(64)))
-  const artifact=await updates.stageServicePackage(update);assert.equal(artifact.version,'1.20');assert.equal(updates.serviceArtifact(artifact.id).size,update.length);assert.throws(()=>updates.serviceArtifact('../bad'))
+ } else if(mode==='release') {
+  const fresh=await updates.latestServiceRelease('1.19');assert.equal(fresh.available,true);assert.equal(fresh.version,'1.20');assert.equal(releaseDownloads,1)
+  assert.equal((await updates.latestServiceRelease('1.20')).available,false)
+  assert.match((await updates.latestServiceRelease('1.22')).message,/новее опубликованной/)
+  const staged=await updates.downloadLatestServicePackage('1.19');assert.equal(staged.version,'1.20');assert.equal(staged.id,fresh.artifactId);assert.equal(releaseDownloads,1)
+ } else if(mode==='stage'||mode==='update'||mode==='manual_update') {
+  await assert.rejects(updates.stageServicePackage(base)); await assert.rejects(updates.stageServicePackage(updatePackage,'0'.repeat(64)))
+  const artifact=await updates.stageServicePackage(updatePackage);assert.equal(artifact.version,'1.20');assert.equal(updates.serviceArtifact(artifact.id).size,updatePackage.length);assert.throws(()=>updates.serviceArtifact('../bad'))
   assert.equal(updates.comparePkgVersions('1.20','1.19'),1);assert.equal((await updates.latestServiceRelease('1.19')).available,false)
-  if(mode==='update') {
-   const f=await updates.installServiceArtifact(ip,artifact.id,'http://192.168.88.10:3000');assert.equal(updatePosts,1);assert.equal(f.state,'installing')
+  if(mode==='update'||mode==='manual_update') {
+   const f=await updates.installServiceArtifact(ip,artifact.id,'http://192.168.88.10:3000');assert.equal(updatePosts,1);assert.equal(f.state,'installing');assert.match(f.input.url,/\/service-update\/manifest\/[0-9a-f-]+\.json$/)
+   if(mode==='manual_update') {
+    installedJob.state='failed';installedJob.errorHex='0x80990033';assert.equal((await maintenance.getMaintenance(ip)).state,'failed')
+    version='1.20';const recovered=await maintenance.getMaintenance(ip);assert.equal(recovered.state,'completed');assert.equal(updatePosts,1);assert.equal(controlPosts,0)
+   } else {
    installedJob.state='installed';const ready=await maintenance.getMaintenance(ip);assert.equal(ready.state,'restart_ready');assert.equal(updatePosts,1)
    const restarted=await maintenance.restartUpdatedService(ip);assert.equal(restarted.state,'restarting');assert.equal(controlPosts,1)
    assert.equal((await maintenance.getMaintenance(ip)).state,'restarting');version='1.20';assert.equal((await maintenance.getMaintenance(ip)).state,'completed')
    assert.equal((await control.getConsoleControl(ip)).state,'running');assert.equal(updatePosts,1);assert.equal(controlPosts,1)
+   }
   }
  } else {
   const plan=await maintenance.reinstallPlan(ip,'one');assert.equal(plan.details.app.titleId,titleId)
