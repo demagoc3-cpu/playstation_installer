@@ -61,7 +61,7 @@ export async function getServiceIcon(ip: string, titleId: string) {
   const response = await fetch(`http://${consoleIp(ip)}:12801/apps/icon/${titleId}`, { redirect: 'error', signal: AbortSignal.timeout(7000), headers: { Authorization: `Bearer ${token(consoleIp(ip))}` } })
   if (!response.ok || !response.body || !/^image\/png(?:;|$)/i.test(response.headers.get('content-type') || '')) throw createError({ statusCode: 404, message: 'Обложка отсутствует' })
   const reader = response.body.getReader(); const chunks: Uint8Array[] = []; let size = 0
-  try { for (;;) { const { done, value } = await reader.read(); if (done) break; size += value.byteLength; if (size > 512 * 1024) throw new Error('Image limit'); chunks.push(value) } }
+  try { for (;;) { const { done, value } = await reader.read(); if (done) break; size += value.byteLength; if (size > 2 * 1024 * 1024) throw new Error('Image limit'); chunks.push(value) } }
   finally { await reader.cancel().catch(() => {}) }
   const data = Buffer.concat(chunks)
   if (data.length < 8 || !data.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex'))) throw createError({ statusCode: 404, message: 'Обложка отсутствует' })
@@ -101,7 +101,7 @@ export async function getServiceInstallerStatus(ip: string) {
     if (!c.ready) return { ready: false, configured, contentTypes: c.contentTypes, version: c.version, message: `API установки недоступен (${c.errorHex})` }
     if (!configured) return { ready: false, configured, contentTypes: c.contentTypes, version: c.version, message: 'Введите код сопряжения с экрана запускателя PS4' }
     capabilities(await request(ip, '/install/session', 'GET', token(ip)))
-    return { ready: true, configured, contentTypes: c.contentTypes, version: c.version, message: 'Сервис готов к установке базовой игры' }
+    return { ready: true, configured, contentTypes: c.contentTypes, version: c.version, message: c.contentTypes.includes('PS4GP') ? 'Сервис готов к установке игр, патчей и DLC' : 'Сервис готов к установке базовой игры; для патчей обновите PKG сервиса' }
   } catch (error: any) {
     return { ready: false, configured, contentTypes: [], message: error?.statusCode === 404 ? 'Обновите PackegeFlowService до PKG 1.17' : error?.statusCode ? error.message : 'Сервис не отвечает на порту 12801' }
   }

@@ -154,7 +154,7 @@ async function runQueue() {
           if (updated.status !== 'cancelling' && (current.state === 'failed' || current.state === 'cancelled')) updated.status = 'failed'
           writeQueue(updated)
           if (updated.status !== 'running') return
-          if (current.state === 'installed') { logEvent('info', `PS4 подтвердила установку «${packageInfo.title}»`); continue }
+          if (current.state === 'installed') { logEvent('info', `PackegeFlowService подтвердил установку «${packageInfo.title}» (задание PS4 ${job.taskId})`); continue }
         } catch (error: any) {
           const updated = stillCurrent(queue, index) || stillCurrent(queue, index, 'cancelling'); if (!updated) return
           const current = updated.items[index]!
@@ -265,13 +265,14 @@ export function startInstallationQueue(input: { psIp: string; packageIds: string
   if (!packageIds.length) throw createError({ statusCode: 400, message: 'Нет пакетов для установки' })
   const items: InstallationQueueItem[] = packageIds.map((packageId) => {
     const item = getPackage(packageId)
-    if (transport === 'service' && item.contentType !== 'PS4GD') throw createError({ statusCode: 400, message: 'Первый тест сервиса — базовая игра. Патчи и DLC пока устанавливайте через PyLoader' })
+    if (transport === 'service' && !['PS4GD', 'PS4GP', 'PS4AC'].includes(item.contentType)) throw createError({ statusCode: 400, message: 'Этот тип PKG пока не поддерживается сервисом PS4' })
     const url = input.packageUrls[packageId]
     if (!url || !/^https?:\/\//.test(url)) throw createError({ statusCode: 400, message: `Не найден PS4 URL для «${item.title}»` })
     return { packageId, url, state: 'pending', detail: 'Ожидает очереди', bytesSent: 0 }
   })
   const queue: InstallationQueue = { version: 1, id: input.maintenanceId || randomUUID(), maintenanceId: input.maintenanceId, transport, status: 'running', psIp: input.psIp, items, createdAt: Date.now(), message: 'Подготавливаем последовательную очередь установки…' }
   writeQueue(queue)
+  logEvent('info', `${transport === 'service' ? 'PackegeFlowService' : 'PyLoader'}: очередь установки, пакетов ${items.length}`)
   ensureInstallationQueueRunning()
   return publicQueue(queue)
 }
