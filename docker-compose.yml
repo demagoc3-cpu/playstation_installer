@@ -1,0 +1,30 @@
+# PackageFlow in Docker.
+#   docker compose up -d        → http://<IP компьютера>:3000
+# Replace /path/to/games with the folder that holds your PKG files.
+
+services:
+  packageflow:
+    image: demagoc3/packageflow:latest
+    container_name: packageflow
+    restart: unless-stopped
+
+    # Linux: host network — the console reaches the container by the PC's IP
+    # and the PyLoader payload can connect back on any port. Nothing else needed.
+    network_mode: host
+
+    # Windows / macOS (Docker Desktop) or when host network is not available:
+    # comment out "network_mode: host" and uncomment the block below.
+    # PACKAGEFLOW_HOST_IP must be the LAN IP of this computer (e.g. 192.168.1.10).
+    # ports:
+    #   - "3000:3000"
+    #   - "3001:3001"
+    # environment:
+    #   PACKAGEFLOW_HOST_IP: 192.168.1.10
+    #   PACKAGEFLOW_PAYLOAD_PORT: 3001
+
+    volumes:
+      - packageflow-data:/app/.data   # settings, queue, pairing tokens
+      - /path/to/games:/games:ro      # your PKG files → specify /games in the app
+
+volumes:
+  packageflow-data:

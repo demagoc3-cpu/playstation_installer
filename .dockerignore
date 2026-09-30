@@ -1,0 +1,22 @@
+# Never ship the PS4 service sources or local state into the image
+PackegeFlowService
+.data
+.env
+.env.*
+
+node_modules
+.output
+.nuxt
+.nitro
+.cache
+.toolchains
+.idea
+.codex
+.agents
+.fleet
+.git
+.github
+docs
+*.log
+pnpm-lock.yaml
+pnpm-workspace.yaml
