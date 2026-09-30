@@ -36,6 +36,7 @@ watch(() => [props.ip, props.modelValue], () => {
   emit('status', false)
   if (props.modelValue === 'service') void check()
 })
+onMounted(() => { if (props.modelValue === 'service') void check() })
 function inputCode(value: string) {
   const symbols = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
   key.value = symbols.length > 3 ? `${symbols.slice(0, 3)}-${symbols.slice(3)}` : symbols
@@ -47,8 +48,8 @@ function inputCode(value: string) {
     <div class="method-row">
       <label>Способ установки
         <select :value="modelValue" :disabled="disabled" @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value as InstallationTransport)">
-          <option value="payload">PyLoader — по умолчанию</option>
-          <option value="service">PackegeFlowService</option>
+          <option value="service">PackageFlowService — по умолчанию</option>
+          <option value="payload">PyLoader</option>
         </select>
       </label>
       <template v-if="modelValue === 'service'">

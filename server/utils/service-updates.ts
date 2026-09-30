@@ -42,7 +42,7 @@ async function bytes(url: string, limit: number) {
 export async function latestServiceRelease(current: string) {
   try {
     const release = JSON.parse((await bytes(`https://api.github.com/repos/${repository}/releases/latest`, 128 * 1024)).toString('utf8'))
-    const asset = release.assets?.find((a: any) => /^PackegeFlowService(?:-\d+\.\d+)?\.pkg$/.test(a.name) && Number.isSafeInteger(a.size) && a.size > 0 && a.size <= updateLimit && /^sha256:[0-9a-f]{64}$/.test(a.digest || '') && typeof a.browser_download_url === 'string' && a.browser_download_url.startsWith(`https://github.com/${repository}/releases/download/`))
+    const asset = release.assets?.find((a: any) => /^Pack[ea]geFlowService(?:-\d+\.\d+)?\.pkg$/.test(a.name) && Number.isSafeInteger(a.size) && a.size > 0 && a.size <= updateLimit && /^sha256:[0-9a-f]{64}$/.test(a.digest || '') && typeof a.browser_download_url === 'string' && a.browser_download_url.startsWith(`https://github.com/${repository}/releases/download/`))
     if (!asset) return { available: false, message: 'В релизе нет PKG сервиса с контрольной суммой SHA-256', releaseUrl: `https://github.com/${repository}/releases` }
     const hash = asset.digest.slice(7)
     const namedVersion = asset.name.match(/-(\d+\.\d+)\.pkg$/)?.[1]
@@ -67,8 +67,8 @@ export async function stageServicePackage(data: Buffer, expectedHash?: string) {
   const id = randomUUID(); mkdirSync(directory, { recursive: true }); const path = resolve(directory, `${id}.pkg`)
   writeFileSync(path, data, { flag: 'wx', mode: 0o600 })
   try {
-    const meta = await readPackageMetadata(path, 'PackegeFlowService.pkg')
-    if (meta.titleId !== 'PFLS00001' || meta.contentId !== 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00' || meta.contentType !== 'PS4GDE' || !/^\d{2}\.\d{2}$/.test(meta.appVersion)) throw createError({ statusCode: 400, message: 'Этот PKG не является запускателем PackegeFlowService' })
+    const meta = await readPackageMetadata(path, 'PackageFlowService.pkg')
+    if (meta.titleId !== 'PFLS00001' || meta.contentId !== 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00' || meta.contentType !== 'PS4GDE' || !/^\d{2}\.\d{2}$/.test(meta.appVersion)) throw createError({ statusCode: 400, message: 'Этот PKG не является запускателем PackageFlowService' })
     const version = meta.appVersion.replace(/^0+(?=\d)/, '')
     const artifact = { id, version, sha256: hash, size: data.length, packageDigest: meta.packageDigest }
     writeDurableJson(resolve(directory, `${id}.json`), artifact); return artifact
@@ -101,6 +101,6 @@ export async function installServiceArtifact(value: unknown, id: string, baseUrl
   if (r.status !== 200 || current?.service !== 'PackegeFlowService' || current.environment !== 'ps4' || typeof current.pkgVersion !== 'string') throw createError({ statusCode: 502, message: 'Не удалось проверить версию PS4' })
   if (comparePkgVersions(current.pkgVersion, '1.19') < 0) throw createError({ statusCode: 409, message: 'Для обновления из WEB сначала установите PKG 1.19 вручную' })
   if (comparePkgVersions(a.version, current.pkgVersion) <= 0) throw createError({ statusCode: 409, message: 'Выбранная версия уже установлена или старее текущей' })
-  if ((await consoleRuntime(ip, 'PFLS00001')).running) throw createError({ statusCode: 409, message: 'Закройте запускатель PackegeFlowService на PS4 перед обновлением' })
-  return beginUpdate(ip, { requestId: randomUUID(), titleId: 'PFLS00001', contentId: 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00', title: `PackegeFlowService ${a.version}`, url: `${baseUrl}/service-update/manifest/${id}.json`, contentType: 'PS4GDE', size: a.size }, a.version)
+  if ((await consoleRuntime(ip, 'PFLS00001')).running) throw createError({ statusCode: 409, message: 'Закройте запускатель PackageFlowService на PS4 перед обновлением' })
+  return beginUpdate(ip, { requestId: randomUUID(), titleId: 'PFLS00001', contentId: 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00', title: `PackageFlowService ${a.version}`, url: `${baseUrl}/service-update/manifest/${id}.json`, contentType: 'PS4GDE', size: a.size }, a.version)
 }

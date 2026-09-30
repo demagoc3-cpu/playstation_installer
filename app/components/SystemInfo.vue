@@ -23,7 +23,7 @@ async function refresh() {
   } catch {
     if (current !== generation) return
     snapshot.value = { ready: false, ip: props.psIp, updateRequired: false, issues: [], system: null, storage: null, runtime: null,
-      reason: 'Не удалось получить данные. Проверьте IP консоли и запуск PackegeFlowService.' }
+      reason: 'Не удалось получить данные. Проверьте IP консоли и запуск PackageFlowService.' }
     updatedAt.value = ''
   } finally { if (current === generation) checking.value = false }
 }
@@ -61,9 +61,9 @@ onBeforeUnmount(() => { ++generation; controller?.abort(); if (timer) clearInter
     <button class="secondary" :disabled="checking" @click="refresh">{{ checking ? 'Обновляем…' : 'Обновить' }}</button>
   </div>
   <section class="system-connection" aria-live="polite">
-    <div class="connection-title"><span class="indicator" :class="{ online: snapshot?.ready }" /><strong>{{ snapshot?.ready ? 'PackegeFlowService подключён' : checking ? 'Проверяем соединение…' : 'Нет соединения с сервисом' }}</strong></div>
+    <div class="connection-title"><span class="indicator" :class="{ online: snapshot?.ready }" /><strong>{{ snapshot?.ready ? 'PackageFlowService подключён' : checking ? 'Проверяем соединение…' : 'Нет соединения с сервисом' }}</strong></div>
     <span class="connection-address">{{ psIp }}:12801</span>
-    <p v-if="!snapshot?.ready">{{ snapshot?.reason || 'Запустите PackegeFlowService на PS4. Адрес консоли можно изменить в верхней панели.' }}</p>
+    <p v-if="!snapshot?.ready">{{ snapshot?.reason || 'Запустите PackageFlowService на PS4. Адрес консоли можно изменить в верхней панели.' }}</p>
     <p v-else>Сервис {{ snapshot.version || 'Неизвестно' }}<template v-if="snapshot.pkgVersion"> · PKG {{ snapshot.pkgVersion }}</template><template v-if="updatedAt"> · Обновлено {{ updatedAt }}</template></p>
   </section>
   <ServiceUpdates :ip="psIp" :current="snapshot?.pkgVersion || ''" @changed="refresh" />
@@ -108,8 +108,9 @@ onBeforeUnmount(() => { ++generation; controller?.abort(); if (timer) clearInter
 .system-connection, .system-card, .system-storage, .system-runtime { border: 1px solid #2d2c33; border-radius: 10px; background: #1b1a1f; }
 .system-connection { position: relative; max-width: 1000px; padding: 22px 24px; margin: 24px 0; }.connection-title { font-size: 13px; }.indicator { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #dc7d72; margin-right: 8px; }.indicator.online { background: #7ec78a; }.connection-address { display: block; margin-top: 8px; font: 12px 'DM Mono', monospace; color: #aaa4c0; }
 .system-connection p, .system-card p, .storage-volume p, .system-runtime p { margin: 9px 0 0; color: #96939f; font-size: 12px; line-height: 1.7; }
-.system-grid { max-width: 1000px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }.system-card { padding: 24px; min-width: 0; }.card-label { display: block; color: #9a95a7; font-size: 11px; margin-bottom: 16px; }.system-card strong { font-size: 23px; letter-spacing: -.6px; overflow-wrap: anywhere; }
+.system-grid { max-width: 1000px; margin-top: 20px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }.system-card { padding: 24px; min-width: 0; }.card-label { display: block; color: #9a95a7; font-size: 11px; margin-bottom: 16px; }.system-card strong { font-size: 23px; letter-spacing: -.6px; overflow-wrap: anywhere; }
 .system-storage, .system-runtime { max-width: 1000px; padding: 24px; margin-top: 20px; }h2 { font-size: 16px; margin: 0 0 22px; }.storage-title { display: flex; justify-content: space-between; gap: 20px; font-size: 13px; }.storage-title span { color: #88838f; font: 11px 'DM Mono', monospace; }
 .storage-values { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 16px; margin: 24px 0 18px; }.storage-values span { display: block; color: #9a95a7; font-size: 11px; margin-bottom: 8px; }.storage-values strong { font-size: 20px; }.storage-values > div:first-child strong { color: #a89ae7; }.storage-bar { height: 7px; border-radius: 5px; overflow: hidden; background: #323039; }.storage-bar i { display: block; height: 100%; background: #9681df; border-radius: inherit; transition: width .2s; }
 .system-runtime dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 0; }.system-runtime dt { color: #9a95a7; font-size: 11px; margin-bottom: 8px; }.system-runtime dd { margin: 0; font-size: 17px; }.system-notice { max-width: 1000px; padding: 14px 20px; border: 1px solid #61523c; border-radius: 8px; color: #d4bc8e; font-size: 12px; line-height: 1.7; margin: 0 0 20px; }.system-notice p { margin: 0; }
+@media (max-width: 700px) { .system-heading { align-items: flex-start; }.system-grid, .storage-values, .system-runtime dl { grid-template-columns: 1fr; }.storage-title { flex-wrap: wrap; }.system-card strong { font-size: 20px; } }
 </style>

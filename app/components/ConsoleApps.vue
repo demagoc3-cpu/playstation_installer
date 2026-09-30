@@ -13,6 +13,7 @@ const paired = ref(false)
 const pairing = ref(false)
 const code = ref('')
 const operation = ref<RemoveOperation | null>(null)
+const dismissedOperation = ref('')
 const submitting = ref(false)
 const confirmation = ref<{ detail: ConsoleDetails; kind: RemovalKind; componentId: string; title: string; components: ConsoleComponent[] }>()
 const typedId = ref('')
@@ -27,6 +28,8 @@ let timer: ReturnType<typeof setTimeout> | undefined
 const active = computed(() => submitting.value || controlling.value || ['pending', 'uncertain'].includes(control.value?.state || '') || operation.value?.pending || ['queued', 'running', 'verifying'].includes(operation.value?.state || ''))
 const visible = computed(() => (catalog.value?.apps || []).filter(a => `${a.title} ${a.titleId}`.toLocaleLowerCase().includes(query.value.toLocaleLowerCase())))
 const statusLabels: Record<string, string> = { queued: 'Принято PS4', running: 'Удаляем компоненты', verifying: 'Проверяем, что компоненты удалены', removed: 'Удаление подтверждено PS4', failed: 'Удаление не выполнено', partial: 'Удалена только часть компонентов', uncertain: 'Результат пока не подтверждён' }
+function dismissalKey() { return `packageflow:removal-dismissed:${props.ip}` }
+function dismissOperation() { if (!operation.value || !['removed', 'failed', 'partial'].includes(operation.value.state)) return; dismissedOperation.value = operation.value.requestId; try { localStorage.setItem(dismissalKey(), operation.value.requestId) } catch { /* The current tab still hides this result. */ } }
 function errorText(error: any) { return error?.data?.message || error?.message || 'Не удалось связаться с PS4' }
 function requestId() {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID()
@@ -38,6 +41,7 @@ function requestId() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
 function kindName(kind: string) { return kind === 'base' ? 'Игра' : kind === 'patch' ? 'Патч / бэкпорт' : 'DLC' }
+function displayTitle(titleId: string, title: string) { return titleId === 'PFLS00001' ? 'PackageFlowService' : title }
 function size(bytes: number) { return `${(bytes / 1024 ** 3).toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ГиБ` }
 function storage(value: string) { return value === 'internal' ? 'Внутренний диск' : value === 'external' ? 'Внешний диск' : 'Внутренний и внешний диски' }
 function icon(a: ConsoleApp) { const n = iconFailures.value[a.titleId] || 0; return n === 0 ? a.iconUrl : n === 1 ? a.fallbackIconUrl : undefined }
@@ -70,7 +74,7 @@ async function refresh() {
   try {
     const value = await $fetch<ConsoleCatalog>('/api/ps4/apps', { query: { ip } })
     if (id !== generation) return
-    catalog.value = value; details.value = {}; selected.value = ''; paired.value = true; emit('status', true)
+    catalog.value = { ...value, apps: value.apps.map(app => ({ ...app, title: displayTitle(app.titleId, app.title) })) }; details.value = {}; selected.value = ''; paired.value = true; emit('status', true)
   } catch (error) { if (id === generation) { message.value = errorText(error); emit('status', false) } }
   finally { if (id === generation) loading.value = false }
 }
@@ -79,7 +83,7 @@ async function openApp(a: ConsoleApp) {
   selected.value = a.titleId; const id = generation; const ip = props.ip; detailLoading.value = true; message.value = ''
   try {
     const value = await $fetch<ConsoleDetails>('/api/ps4/apps/details', { query: { ip, titleId: a.titleId } })
-    if (id === generation) { details.value = { ...details.value, [a.titleId]: value }; if (value.app.title !== a.titleId) a.title = value.app.title; a.version = value.app.version; await readRuntime(a.titleId) }
+    if (id === generation) { value.app.title = displayTitle(a.titleId, value.app.title); details.value = { ...details.value, [a.titleId]: value }; if (value.app.title !== a.titleId) a.title = value.app.title; a.version = value.app.version; await readRuntime(a.titleId) }
   } catch (error) { if (id === generation) message.value = errorText(error) }
   finally { if (id === generation) detailLoading.value = false }
 }
@@ -123,6 +127,7 @@ async function pair() {
 }
 async function initialize() {
   generation++; clearTimeout(timer); catalog.value = undefined; details.value = {}; operation.value = null; confirmation.value = undefined; loading.value = false; detailLoading.value = false; submitting.value = false; pairing.value = false; selected.value = ''; message.value = ''; code.value = ''; paired.value = false; emit('status', false)
+  try { dismissedOperation.value = localStorage.getItem(dismissalKey()) || '' } catch { dismissedOperation.value = '' }
   const id = generation
   try { const result = await $fetch<{ configured: boolean }>('/api/ps4/service-installer', { query: { ip: props.ip } }); if (id === generation) paired.value = result.configured } catch { /* List request supplies the useful error. */ }
   if (id !== generation) return
@@ -137,9 +142,9 @@ onBeforeUnmount(() => { generation++; clearTimeout(timer); clearInterval(runtime
 <template>
   <div class="console-apps">
     <header><div><p class="eyebrow">PLAYSTATION 4</p><h1>На консоли</h1><p>Установленные игры, патчи / бэкпорты и DLC на {{ ip }}.</p></div><button :disabled="loading || active" @click="refresh">{{ loading ? 'Читаем PS4…' : 'Обновить список' }}</button></header>
-    <p v-if="message" class="notice" role="alert">{{ message }}</p>
-    <form v-if="!paired" class="pair-card" @submit.prevent="pair"><h2>Подключить PackegeFlowService</h2><p>Откройте запускатель на PS4 и введите код с экрана. Уже сохранённое подключение используется автоматически.</p><label>Код PS4 <input :value="code" placeholder="F7Y-YUH" maxlength="7" autocomplete="off" @input="inputCode(($event.target as HTMLInputElement).value)"></label><button :disabled="pairing || !/^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(code)">{{ pairing ? 'Подключаем…' : 'Подключить' }}</button></form>
-    <section v-if="operation" class="operation" aria-live="polite"><h2>{{ statusLabels[operation.state] }}</h2><p>{{ operation.titleId }} · {{ operation.kind === 'game' ? 'Вся игра' : operation.kind === 'patch' ? 'Патч / бэкпорт' : operation.kind === 'dlcs' ? 'Все DLC' : `DLC ${operation.componentId}` }}</p><progress v-if="operation.total" :value="operation.completed" :max="operation.total"/><p>{{ operation.completed }} из {{ operation.total || '—' }} компонентов · {{ operation.state === 'verifying' ? 'Команды выполнены, проверяем результат' : operation.state === 'removed' ? 'Компоненты больше не обнаружены на PS4' : 'Подтверждённые системные команды' }}</p><p v-if="operation.error">Ошибка PS4: {{ operation.errorHex }}</p><p v-if="operation.pollError">Ошибка проверки: {{ operation.pollError }}</p><p v-if="operation.message">{{ operation.message }}</p><button v-if="!active" @click="poll">Проверить результат</button></section>
+    <div v-if="message" class="notice notice-row" role="alert"><span>{{ message }}</span><button class="dismiss" type="button" aria-label="Скрыть уведомление" @click="message = ''">×</button></div>
+    <form v-if="!paired" class="pair-card" @submit.prevent="pair"><h2>Подключить PackageFlowService</h2><p>Откройте запускатель на PS4 и введите код с экрана. Уже сохранённое подключение используется автоматически.</p><label>Код PS4 <input :value="code" placeholder="F7Y-YUH" maxlength="7" autocomplete="off" @input="inputCode(($event.target as HTMLInputElement).value)"></label><button :disabled="pairing || !/^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(code)">{{ pairing ? 'Подключаем…' : 'Подключить' }}</button></form>
+    <section v-if="operation && (!operation.requestId || operation.requestId !== dismissedOperation)" class="operation" aria-live="polite"><div class="operation-heading"><h2>{{ statusLabels[operation.state] }}</h2><button v-if="['removed', 'failed', 'partial'].includes(operation.state)" class="dismiss" type="button" aria-label="Скрыть уведомление об удалении" @click="dismissOperation">×</button></div><p>{{ operation.titleId }} · {{ operation.kind === 'game' ? 'Вся игра' : operation.kind === 'patch' ? 'Патч / бэкпорт' : operation.kind === 'dlcs' ? 'Все DLC' : `DLC ${operation.componentId}` }}</p><progress v-if="operation.total" :value="operation.completed" :max="operation.total"/><p>{{ operation.completed }} из {{ operation.total || '—' }} компонентов · {{ operation.state === 'verifying' ? 'Команды выполнены, проверяем результат' : operation.state === 'removed' ? 'Компоненты больше не обнаружены на PS4' : 'Подтверждённые системные команды' }}</p><p v-if="operation.error">Ошибка PS4: {{ operation.errorHex }}</p><p v-if="operation.pollError">Ошибка проверки: {{ operation.pollError }}</p><p v-if="operation.message">{{ operation.message }}</p><button v-if="!active" @click="poll">Проверить результат</button></section>
     <div v-if="catalog" class="search"><input v-model="query" type="search" aria-label="Поиск установленных игр" placeholder="Название или CUSA"><span>{{ catalog.apps.length }} приложений</span></div>
     <p v-if="catalog && !catalog.complete" class="notice">Список прочитан не полностью. В том числе проверьте, подключён ли внешний диск.</p>
     <p v-if="catalog && !visible.length" class="empty">{{ query ? 'Ничего не найдено.' : 'Установленных приложений не найдено.' }}</p>
@@ -158,4 +163,5 @@ onBeforeUnmount(() => { generation++; clearTimeout(timer); clearInterval(runtime
 
 <style scoped>
 .game-icon { flex: none; overflow: hidden; } .game-icon img { width: 100%; height: 100%; object-fit: cover; } .app-controls { display: flex; align-items: center; gap: 12px; padding: 18px 0; color: #b5a9ca; font-size: 12px; } .app-controls span { margin-right: auto; } .console-apps { max-width: 1000px; } header { display: flex; justify-content: space-between; align-items: center; gap: 20px; } h1 { margin: 0; font-size: 30px; } h2 { font-size: 16px; margin: 0 0 10px; } p { color: #a9a6b2; font-size: 13px; line-height: 1.65; } .eyebrow { color: #978ae1; font-size: 10px; letter-spacing: 1.3px; } button { background: #29272f; border: 1px solid #45404f; border-radius: 7px; color: #e8e2f4; padding: 10px 14px; font-size: 12px; } input { background: #151419; border: 1px solid #45404f; border-radius: 7px; color: #eee9f7; padding: 11px 13px; } .notice { border: 1px solid #766137; background: #292318; padding: 14px 18px; border-radius: 8px; color: #dabb88; } .pair-card, .operation { border: 1px solid #393342; border-radius: 10px; padding: 22px; margin: 22px 0; background: #1c1a20; } .pair-card label { margin-right: 12px; } .search { display: flex; gap: 18px; align-items: center; margin: 28px 0 18px; } .search input { width: 340px; } .search span, small { color: #a6a0af; font-size: 12px; } .game-card { background: #1b1a1f; border: 1px solid #343039; border-radius: 10px; margin-bottom: 14px; overflow: hidden; } .game-title { display: flex; align-items: center; gap: 16px; width: 100%; border: 0; border-radius: 0; padding: 20px; text-align: left; background: transparent; } .game-title strong { font-size: 16px; } small { display: block; margin-top: 7px; overflow-wrap: anywhere; } .game-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 9px; color: #bfb1ee; background: #383144; font-size: 22px; } .expand { margin-left: auto; font-size: 22px; color: #ad9be3; } .game-detail { padding: 0 22px 20px; border-top: 1px solid #302c36; } .component { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; border-bottom: 1px solid #302c36; gap: 16px; } .component strong { display: block; font-size: 14px; margin-top: 8px; } .tag { color: #b9a6ef; font-size: 11px; } .remove-button { background: #3d252b; border-color: #74404b; color: #f2b5be; } footer { margin-top: 18px; } footer div { display: flex; gap: 10px; justify-content: flex-end; } .operation progress { width: 100%; accent-color: #9781df; } .modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: #000b; } .confirm-dialog { background: #201d26; border: 1px solid #61516f; border-radius: 12px; padding: 28px; max-width: 620px; width: 100%; max-height: 85vh; overflow: auto; } .confirm-dialog ul { color: #c8bed5; line-height: 1.8; font-size: 13px; } .confirm-dialog label { display: flex; flex-direction: column; gap: 12px; font-size: 13px; color: #d6ccdf; } .dialog-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 22px; }
+.operation-heading, .notice-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }.operation-heading h2 { margin: 0; }.dismiss { flex: none; padding: 0 6px; border: 0; background: transparent; color: inherit; font-size: 22px; line-height: 1; cursor: pointer; }.dismiss:hover { color: #fff; }
 </style>

@@ -18,9 +18,9 @@ watch(() => props.psIp, () => { status.value = undefined; void checkService() })
 <template>
   <p class="eyebrow">ФАЙЛЫ КОНСОЛИ</p>
   <h1>FTP и управление файлами</h1>
-  <p class="ftp-description">Проводник будет работать через файловый API PackegeFlowService на PS4. Доступ ко всей файловой системе, загрузка и скачивание файлов, папки, переименование и удаление входят в план.</p>
+  <p class="ftp-description">Проводник будет работать через файловый API PackageFlowService на PS4. Доступ ко всей файловой системе, загрузка и скачивание файлов, папки, переименование и удаление входят в план.</p>
   <div class="ftp-status">
-    <div><span class="ftp-indicator" :class="{ online: status?.ready }" /><strong>{{ status?.ready ? 'PackegeFlowService доступен' : 'Ожидаем PackegeFlowService' }}</strong><small>{{ status?.ready ? `PS4 ${status.ip} · версия ${status.version}` : status?.reason || 'Проверяем соединение…' }}</small></div>
+    <div><span class="ftp-indicator" :class="{ online: status?.ready }" /><strong>{{ status?.ready ? 'PackageFlowService доступен' : 'Ожидаем PackageFlowService' }}</strong><small>{{ status?.ready ? `PS4 ${status.ip} · версия ${status.version}` : status?.reason || 'Проверяем соединение…' }}</small></div>
     <button type="button" :disabled="checking" @click="checkService">{{ checking ? 'Проверяем…' : 'Проверить /ping' }}</button>
   </div>
   <div class="ftp-next"><h2>Следующий этап</h2><p>После проверки сервиса на приставке подключим список каталогов и потоковую передачу файлов. Загрузка PKG на диск консоли сама по себе не запускает установку: для этого сервису понадобится отдельная команда установки.</p><p>Веб-раздел использует API нашего демона. Подключение FileZilla по стандартному FTP-протоколу в этот вариант не входит.</p></div>

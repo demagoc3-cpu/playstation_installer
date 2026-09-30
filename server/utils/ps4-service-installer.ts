@@ -103,7 +103,7 @@ export async function getServiceInstallerStatus(ip: string) {
     capabilities(await request(ip, '/install/session', 'GET', token(ip)))
     return { ready: true, configured, contentTypes: c.contentTypes, version: c.version, message: c.contentTypes.includes('PS4GP') ? 'Сервис готов к установке игр, патчей и DLC' : 'Сервис готов к установке базовой игры; для патчей обновите PKG сервиса' }
   } catch (error: any) {
-    return { ready: false, configured, contentTypes: [], message: error?.statusCode === 404 ? 'Обновите PackegeFlowService до PKG 1.17' : error?.statusCode ? error.message : 'Сервис не отвечает на порту 12801' }
+    return { ready: false, configured, contentTypes: [], message: error?.statusCode === 404 ? 'Обновите PackageFlowService до PKG 1.17' : error?.statusCode ? error.message : 'Сервис не отвечает на порту 12801' }
   }
 }
 export async function saveServiceKey(ip: string, value: unknown) {

@@ -61,7 +61,7 @@ export async function getPs4SystemSnapshot(ip: string, read: Reader = readPs4Ser
   snapshot.version = text(ping.body.version) || undefined
   const [info, storage, status] = replies.slice(1)
   snapshot.updateRequired = [info, storage, status].some(reply => reply?.status === 404)
-  if (snapshot.updateRequired) snapshot.issues.push('Обновите PackegeFlowService на PS4 до PKG 1.02 или новее.')
+  if (snapshot.updateRequired) snapshot.issues.push('Обновите PackageFlowService на PS4 до PKG 1.02 или новее.')
   if (info && identity(info, snapshot.version) && (info.body.environment === 'ps4' || info.body.environment === 'host') &&
     object(info.body.firmware) && object(info.body.model) && object(info.body.hen)) {
     snapshot.environment = info.body.environment

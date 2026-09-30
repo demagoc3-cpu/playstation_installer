@@ -14,7 +14,7 @@ async function select(event: Event) {
 }
 async function github() { const id = generation; busy.value = true; try { const a = await $fetch('/api/ps4/service-update/github', { method: 'POST', body: { current: props.current } }); if (id === generation) artifact.value = a } catch (e) { if (id === generation) message.value = error(e) } finally { if (id === generation) busy.value = false } }
 async function install() {
-  if (!artifact.value || !window.confirm(`Установить PackegeFlowService ${artifact.value.version}? WEB и PS4 должны оставаться включёнными. После установки будет доступен перезапуск через запускатель.`)) return
+  if (!artifact.value || !window.confirm(`Установить PackageFlowService ${artifact.value.version}? WEB и PS4 должны оставаться включёнными. После установки будет доступен перезапуск через запускатель.`)) return
   const id = generation; busy.value = true
   try { const r = await $fetch('/api/ps4/service-update/install', { method: 'POST', body: { ip: props.ip, artifactId: artifact.value.id } }); if (id === generation) flow.value = r }
   catch (e) { if (id === generation) { message.value = error(e); await poll() } } finally { if (id === generation) busy.value = false }
@@ -30,7 +30,7 @@ onMounted(() => { void poll(); timer = setInterval(() => { if (flow.value && !['
 onBeforeUnmount(() => { generation++; clearInterval(timer) })
 </script>
 <template>
-  <section class="updates"><h2>Обновление PackegeFlowService</h2><p>Установлено: PKG {{ current || '—' }}. Сопряжение с WEB сохраняется после обновления.</p>
+  <section class="updates"><h2>Обновление PackageFlowService</h2><p>Установлено: PKG {{ current || '—' }}. Сопряжение с WEB сохраняется после обновления.</p>
     <div class="actions"><button :disabled="busy" @click="check">Проверить GitHub</button><button v-if="release?.available" :disabled="busy" @click="github">Скачать PKG {{ release.version }}</button><label class="file-button">Выбрать PKG на компьютере<input type="file" accept=".pkg" :disabled="busy" @change="select"></label></div>
     <p v-if="release">{{ release.message }} · <a :href="release.releaseUrl" target="_blank" rel="noopener">Релизы проекта</a></p>
     <p v-if="current && Number(current) < 1.19">Первое обновление до 1.19 установите вручную на PS4. Следующие версии можно устанавливать отсюда.</p>

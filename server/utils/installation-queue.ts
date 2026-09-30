@@ -154,7 +154,7 @@ async function runQueue() {
           if (updated.status !== 'cancelling' && (current.state === 'failed' || current.state === 'cancelled')) updated.status = 'failed'
           writeQueue(updated)
           if (updated.status !== 'running') return
-          if (current.state === 'installed') { logEvent('info', `PackegeFlowService подтвердил установку «${packageInfo.title}» (задание PS4 ${job.taskId})`); continue }
+          if (current.state === 'installed') { logEvent('info', `PackageFlowService подтвердил установку «${packageInfo.title}» (задание PS4 ${job.taskId})`); continue }
         } catch (error: any) {
           const updated = stillCurrent(queue, index) || stillCurrent(queue, index, 'cancelling'); if (!updated) return
           const current = updated.items[index]!
@@ -272,7 +272,7 @@ export function startInstallationQueue(input: { psIp: string; packageIds: string
   })
   const queue: InstallationQueue = { version: 1, id: input.maintenanceId || randomUUID(), maintenanceId: input.maintenanceId, transport, status: 'running', psIp: input.psIp, items, createdAt: Date.now(), message: 'Подготавливаем последовательную очередь установки…' }
   writeQueue(queue)
-  logEvent('info', `${transport === 'service' ? 'PackegeFlowService' : 'PyLoader'}: очередь установки, пакетов ${items.length}`)
+  logEvent('info', `${transport === 'service' ? 'PackageFlowService' : 'PyLoader'}: очередь установки, пакетов ${items.length}`)
   ensureInstallationQueueRunning()
   return publicQueue(queue)
 }
