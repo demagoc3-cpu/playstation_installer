@@ -59,6 +59,46 @@ export async function authenticatedServiceRequest(ip: string, path: string, meth
   if (!/^\/apps\/(?:list(?:\?|$)|title\/|operations\/|remove$|control(?:\/|$)|runtime\/)/.test(path)) throw new Error('Unexpected console route')
   return request(ip, path, method, token(consoleIp(ip)), body)
 }
+export function consoleFilePath(value: unknown) {
+  if (typeof value !== 'string' || value.length < 1 || Buffer.byteLength(value, 'utf8') >= 512 || value[0] !== '/' ||
+      /[\x00-\x1f\x7f\\]/.test(value) || (value !== '/' && value.split('/').slice(1).some(part => !part || part === '.' || part === '..')))
+    throw createError({ statusCode: 400, message: 'Недопустимый путь на PS4' })
+  if (value.split('/').at(-1) === 'web-key') throw createError({ statusCode: 403, message: 'Ключ сопряжения недоступен в проводнике' })
+  return value
+}
+export async function consoleFileRequest(ip: string, route: 'list' | 'stat' | 'read' | 'upload/start' | 'upload/finish', body: Record<string, unknown>) {
+  if ('path' in body) consoleFilePath(body.path)
+  return request(ip, `/files/${route}`, 'POST', token(consoleIp(ip)), body)
+}
+export async function consoleFileRead(ip: string, path: string, offset: number, length: number): Promise<Buffer> {
+  consoleFilePath(path)
+  if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(length) || length < 1 || length > 256 * 1024)
+    throw createError({ statusCode: 400, message: 'Недопустимый диапазон файла' })
+  const response = await fetch(`http://${consoleIp(ip)}:12801/files/read`, {
+    method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
+    headers: { Authorization: `Bearer ${token(consoleIp(ip))}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, offset, length }),
+  })
+  if (!response.ok || !/^application\/octet-stream(?:;|$)/i.test(response.headers.get('content-type') || ''))
+    throw createError({ statusCode: response.status || 502, message: 'PS4 не смогла прочитать файл' })
+  const data = Buffer.from(await response.arrayBuffer())
+  if (data.length > length) throw createError({ statusCode: 502, message: 'PS4 вернула слишком много данных' })
+  return data
+}
+export async function consoleFileWrite(ip: string, id: string, offset: number, data: Buffer) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ||
+      !Number.isSafeInteger(offset) || offset < 0 || !data.length || data.length > 256 * 1024)
+    throw createError({ statusCode: 400, message: 'Недопустимый фрагмент файла' })
+  const response = await fetch(`http://${consoleIp(ip)}:12801/files/upload/${id}`, {
+    method: 'PUT', redirect: 'error', signal: AbortSignal.timeout(15000),
+    headers: { Authorization: `Bearer ${token(consoleIp(ip))}`, 'Content-Type': 'application/octet-stream', 'X-Offset': String(offset) },
+    body: data,
+  })
+  const result = await response.json().catch(() => ({})) as { offset?: number; error?: string }
+  if (!response.ok) throw createError({ statusCode: response.status, message: `PS4 не приняла фрагмент: ${result.error || response.status}` })
+  if (result.offset !== offset + data.length) throw createError({ statusCode: 502, message: 'PS4 вернула неверное смещение файла' })
+  return result
+}
 export async function getServiceIcon(ip: string, titleId: string) {
   if (!/^[A-Z0-9]{9}$/.test(titleId)) throw createError({ statusCode: 400, message: 'Неверный TITLE_ID' })
   const response = await fetch(`http://${consoleIp(ip)}:12801/apps/icon/${titleId}`, { redirect: 'error', signal: AbortSignal.timeout(7000), headers: { Authorization: `Bearer ${token(consoleIp(ip))}` } })
