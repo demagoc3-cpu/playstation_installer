@@ -59,6 +59,10 @@ export async function getGoldHenStatus(psIp: string) {
 }
 
 export async function getLocalIp(remoteIp: string) {
+  // // In Docker (bridge network) the container sees only its internal address,
+  // // which the console cannot reach. PACKAGEFLOW_HOST_IP sets the PC's LAN IP.
+  // const override = process.env.PACKAGEFLOW_HOST_IP?.trim()
+  // if (override) return override
   return await new Promise<string>((resolve, reject) => {
     const socket = createSocket('udp4')
     socket.once('error', reject)
@@ -107,7 +111,8 @@ export async function startInstaller(psIp: string) {
   const server = createServer()
   const active = await new Promise<InstallerSession>((resolve, reject) => {
     server.once('error', reject)
-    server.listen(0, '0.0.0.0', () => {
+    // A fixed port lets the payload connection be published from a Docker container.
+    server.listen(Number(process.env.PACKAGEFLOW_PAYLOAD_PORT) || 0, '0.0.0.0', () => {
       const address = server.address()
       if (!address || typeof address === 'string') return reject(new Error('Не удалось открыть локальный сервер'))
       resolve({ psIp, server, port: address.port, pcIp })

@@ -45,6 +45,7 @@ async function pickOnMac(initial?: string) {
 }
 
 async function pickOnLinux(initial?: string) {
+  // if (process.env.PACKAGEFLOW_DOCKER) throw new FolderPickerUnavailable('В Docker окно выбора папки недоступно. Введите путь внутри контейнера вручную, например /games.')
   const start = initial ? `${initial.replace(/\/+$/, '')}/` : undefined
   const candidates: Array<[string, string[]]> = [
     ['zenity', ['--file-selection', '--directory', `--title=${TITLE}`, ...(start ? [`--filename=${start}`] : [])]],
