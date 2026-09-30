@@ -1,5 +1,7 @@
 # ---- build ----
-FROM node:22-alpine AS build
+# Built once on the runner's native platform: .output is plain JavaScript,
+# so the same build serves amd64 and arm64 (npm under QEMU emulation crashes).
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /src
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
