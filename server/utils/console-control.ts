@@ -18,6 +18,13 @@ export function confirmConsoleRestart(ip: string, requestId: string) {
   const data = read(); const previous = data[ip]
   if (previous?.input.requestId === requestId && previous.input.action === 'restart') { previous.result = { ...previous.result, state: 'running', message: 'Новая версия сервиса подтверждена' }; writeJsonFile(file, data) }
 }
+export function failConsoleRestart(ip: string, requestId: string, message: string) {
+  const data = read(); const previous = data[ip]
+  if (previous?.input.requestId === requestId && previous.input.action === 'restart' && ['pending', 'uncertain'].includes(previous.result?.state)) {
+    previous.result = { ...previous.result, state: 'failed', message }
+    writeJsonFile(file, data)
+  }
+}
 export async function consoleRuntime(value: unknown, title: unknown) {
   if (typeof title !== 'string' || !/^[A-Z0-9]{9}$/.test(title)) throw createError({ statusCode: 400, message: 'Неверный TITLE_ID' })
   const v = await authenticatedServiceRequest(address(value), `/apps/runtime/${title}`, 'GET') as any
@@ -28,6 +35,13 @@ export async function getConsoleControl(value: unknown) {
   const ip = address(value); const entry = read()[ip]; if (!entry) return null
   if (!uuid.test(entry.input?.requestId)) throw createError({ statusCode: 503, message: 'Журнал команд повреждён' })
   if (!['pending', 'uncertain'].includes(entry.result?.state)) return entry.result
+  if (entry.input.action === 'restart') {
+    // Restart replaces the daemon. Its new process does not know the old
+    // control request, so confirm it from the installed PKG version instead.
+    try { await (await import('./console-maintenance')).getMaintenance(ip) } catch { /* Keep the old result until version verification succeeds. */ }
+    const confirmed = read()[ip]
+    if (confirmed?.input.requestId === entry.input.requestId && !['pending', 'uncertain'].includes(confirmed.result?.state)) return confirmed.result
+  }
   try {
     const result = check(await authenticatedServiceRequest(ip, `/apps/control/${entry.input.requestId}`, 'GET'), entry.input)
     const data = read(); data[ip] = { input: entry.input, result }; writeJsonFile(file, data); return result

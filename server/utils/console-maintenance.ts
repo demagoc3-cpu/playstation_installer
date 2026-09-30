@@ -1,13 +1,13 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { createError } from 'h3'
-import { statSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { ps4ServiceIp, readPs4Service } from './ps4-service'
 import { readMaintenance, saveMaintenance, assertNoMaintenance } from './maintenance-store'
 import { getPackage, readPackageMetadata } from './package-library'
-import { getConsoleDetails, submitConsoleRemoval, getConsoleRemoval } from './ps4-console-apps'
+import { getConsoleCatalog, getConsoleDetails, submitConsoleRemoval, getConsoleRemoval } from './ps4-console-apps'
 import { getInstallationQueue, startInstallationQueue } from './installation-queue'
 import { assertNoInstallation, assertNoRemoval } from './console-operation-store'
-import { consoleRuntime, submitConsoleControl, confirmConsoleRestart } from './console-control'
+import { consoleRuntime, submitConsoleControl, confirmConsoleRestart, failConsoleRestart } from './console-control'
 import { getServiceInstallJob, submitServiceUpdate } from './ps4-service-installer'
 const locks = new Set<string>()
 function address(v: unknown) { const ip = ps4ServiceIp(v); if (!ip) throw createError({ statusCode: 400, message: 'Укажите IP PS4' }); return ip }
@@ -95,4 +95,66 @@ export async function restartUpdatedService(ipValue: unknown) {
   try { flow.control = await submitConsoleControl(ip, { requestId: flow.restartId, titleId: 'PFLS00001', action: 'restart', expected: flow.input.requestId }, true, flow.id); if (flow.control?.state === 'failed') { flow.state = 'restart_ready'; flow.message = 'PS4 отказала в запуске. Закройте игру и откройте запускатель вручную' } }
   catch (e: any) { flow.message = `${e.message}. Откройте новый запускатель на PS4 вручную` }
   set(ip, flow); return flow
+}
+
+/** Recover an update whose old BGFT job finished but whose launcher was removed. */
+export async function reinstallMissingLauncher(ipValue: unknown) {
+  const ip = address(ipValue); const flow = readMaintenance()[ip]
+  if (!flow || flow.kind !== 'update' || flow.state !== 'restarting' || !flow.restartId || flow.job?.state !== 'installed')
+    throw createError({ statusCode: 409, message: 'Нет обновления с ожидающим перезапуском' })
+  assertNoInstallation(ip); assertNoRemoval(ip)
+  const current = await readPs4Service(ip, '/system/info'); const info = current.body as any
+  if (current.status !== 200 || info?.service !== 'PackegeFlowService' || info.environment !== 'ps4' || typeof info.pkgVersion !== 'string' || info.pkgVersion === flow.targetVersion)
+    throw createError({ statusCode: 409, message: 'Текущая версия службы не подтверждает необходимость восстановления' })
+  const catalog = await getConsoleCatalog(ip)
+  if (!catalog.complete || catalog.apps.some(app => app.titleId === 'PFLS00001') || (await consoleRuntime(ip, 'PFLS00001')).running)
+    throw createError({ statusCode: 409, message: 'Запускатель ещё установлен или список PS4 прочитан не полностью' })
+  const oldJob = await getServiceInstallJob(ip, flow.input.requestId)
+  if (oldJob.state !== 'installed') throw createError({ statusCode: 409, message: 'Прежнее задание установки ещё не завершено' })
+  const match = /^http:\/\/[^/]+\/service-update\/manifest\/([0-9a-f-]{36})\.json$/.exec(flow.input.url || '')
+  if (!match) throw createError({ statusCode: 409, message: 'Не найден сохранённый локальный PKG' })
+  const { serviceArtifact } = await import('./service-updates')
+  const artifact = serviceArtifact(match[1])
+  if (artifact.version !== flow.targetVersion || artifact.size !== flow.input.size) throw createError({ statusCode: 409, message: 'Сохранённый PKG не совпадает с обновлением' })
+  const previousRestartId = flow.restartId
+  flow.previousAttempt = { requestId: flow.input.requestId, restartId: previousRestartId }
+  flow.input = { ...flow.input, requestId: randomUUID() }
+  flow.restartId = undefined; flow.job = undefined; flow.control = undefined
+  flow.state = 'installing'; flow.message = 'Повторно устанавливаем локальный PKG после удаления запускателя'
+  failConsoleRestart(ip, previousRestartId, 'Запускатель удалён; начато восстановление из локального PKG')
+  set(ip, flow)
+  try { flow.job = await submitServiceUpdate(ip, flow.input) }
+  catch (e: any) { flow.message = e.message || 'Не удалось подтвердить новую задачу'; flow.state = [400, 401, 403, 404, 409, 503].includes(e.statusCode) ? 'failed' : 'uncertain' }
+  set(ip, flow); return getMaintenance(ip)
+}
+
+/** Replace a completed but stalled launcher update with a newer, verified local PKG. */
+export async function replaceStalledUpdate(ipValue: unknown, artifactId: string, baseUrl: string) {
+  const ip = address(ipValue); const flow = readMaintenance()[ip]
+  if (!flow || flow.kind !== 'update' || flow.state !== 'restarting' || !flow.restartId || flow.job?.state !== 'installed' || locks.has(ip))
+    throw createError({ statusCode: 409, message: 'Нет завершённого обновления с ожидающим запуском' })
+  assertNoInstallation(ip); assertNoRemoval(ip)
+  const { serviceArtifact, comparePkgVersions } = await import('./service-updates')
+  const artifact = serviceArtifact(artifactId)
+  if (comparePkgVersions(artifact.version, flow.targetVersion) <= 0 || createHash('sha256').update(readFileSync(artifact.path)).digest('hex') !== artifact.sha256)
+    throw createError({ statusCode: 409, message: 'Выберите проверенный PKG новее ожидающей версии' })
+  const current = await readPs4Service(ip, '/system/info'); const info = current.body as any
+  if (current.status !== 200 || info?.service !== 'PackegeFlowService' || info.environment !== 'ps4' || typeof info.pkgVersion !== 'string' || comparePkgVersions(info.pkgVersion, artifact.version) >= 0)
+    throw createError({ statusCode: 409, message: 'Текущая версия PS4 не подтверждает необходимость восстановления' })
+  const catalog = await getConsoleCatalog(ip)
+  if (!catalog.complete || (await consoleRuntime(ip, 'PFLS00001')).running)
+    throw createError({ statusCode: 409, message: 'Закройте запускатель и обновите полный список приложений PS4' })
+  const oldJob = await getServiceInstallJob(ip, flow.input.requestId)
+  if (oldJob.state !== 'installed') throw createError({ statusCode: 409, message: 'Прежнее задание установки ещё не завершено' })
+  const previousRestartId = flow.restartId
+  const replacement: any = { id: randomUUID(), kind: 'update', state: 'installing', targetVersion: artifact.version,
+    input: { requestId: randomUUID(), titleId: 'PFLS00001', contentId: 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00', title: `PackageFlowService ${artifact.version}`,
+      url: `${baseUrl}/service-update/manifest/${artifact.id}.json`, contentType: 'PS4GDE', size: artifact.size },
+    previousAttempt: { requestId: flow.input.requestId, restartId: previousRestartId, targetVersion: flow.targetVersion },
+    message: `Восстанавливаем обновление через локальный PKG ${artifact.version}`, dispatched: true }
+  failConsoleRestart(ip, previousRestartId, `Запускатель PKG ${flow.targetVersion} не заменил работающую службу`)
+  set(ip, replacement)
+  try { replacement.job = await submitServiceUpdate(ip, replacement.input) }
+  catch (e: any) { replacement.message = e.message || 'Не удалось подтвердить новую задачу'; replacement.state = [400, 401, 403, 404, 409, 503].includes(e.statusCode) ? 'failed' : 'uncertain' }
+  set(ip, replacement); return getMaintenance(ip)
 }

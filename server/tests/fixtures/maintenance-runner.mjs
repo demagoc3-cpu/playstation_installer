@@ -19,6 +19,7 @@ function pkg(values) {
 }
 const base = pkg({TITLE:'Mario Collection',TITLE_ID:titleId,CONTENT_ID:cid,CATEGORY:'gd',APP_VER:'01.00'})
 const updatePackage = pkg({TITLE:'PackegeFlowService',TITLE_ID:'PFLS00001',CONTENT_ID:'IV0000-PFLS00001_00-PACKAGEFLOWSRV00',CATEGORY:'gde',APP_VER:'01.20'})
+const replacementPackage = pkg({TITLE:'PackageFlowService',TITLE_ID:'PFLS00001',CONTENT_ID:'IV0000-PFLS00001_00-PACKAGEFLOWSRV00',CATEGORY:'gde',APP_VER:'01.21'})
 const updateHash = createHash('sha256').update(updatePackage).digest('hex')
 writeFileSync('game.pkg',base)
 const item={id:'one',title:'Mario Collection',titleId,contentId:cid,contentType:'PS4GD',size:base.length,path:resolve('game.pkg'),fileName:'game.pkg',libraryRoot:directory,sourceModifiedAt:1,installedAt:100,type:'Игра',installOrder:0,iconSize:0,icon:{offset:0,size:0},packageDigest:'0'.repeat(64)}
@@ -34,6 +35,7 @@ globalThis.fetch=async(url,options={})=>{
  assert.equal(u.port,'12801');assert.equal(options.redirect,'error')
  if(path==='/system/info') return response({service:'PackegeFlowService',environment:'ps4',pkgVersion:version})
  assert.equal(options.headers.Authorization,`Bearer ${token}`)
+ if(path==='/apps/list') return response({service:'PackegeFlowService',appsApi:1,revision,complete:true,total:0,next:null,apps:[]})
  if(path.startsWith('/apps/title/')) return response({service:'PackegeFlowService',revision,complete:true,total:1,next:null,app,components:[part]})
  if(path.startsWith('/apps/runtime/')) return response({service:'PackegeFlowService',titleId:path.split('/').at(-1),running:false,appId:-1})
  if(path==='/apps/remove') { removePosts++;const b=JSON.parse(options.body);removal={service:'PackegeFlowService',...b,state:removeState,completed:0,total:1,error:0,errorHex:'0x00000000',pollError:0};return response(removal) }
@@ -56,11 +58,11 @@ try {
   assert.equal((await updates.latestServiceRelease('1.20')).available,false)
   assert.match((await updates.latestServiceRelease('1.22')).message,/новее опубликованной/)
   const staged=await updates.downloadLatestServicePackage('1.19');assert.equal(staged.version,'1.20');assert.equal(staged.id,fresh.artifactId);assert.equal(releaseDownloads,1)
- } else if(mode==='stage'||mode==='update'||mode==='manual_update') {
+ } else if(mode==='stage'||mode==='update'||mode==='manual_update'||mode==='recover_update'||mode==='replace_update') {
   await assert.rejects(updates.stageServicePackage(base)); await assert.rejects(updates.stageServicePackage(updatePackage,'0'.repeat(64)))
   const artifact=await updates.stageServicePackage(updatePackage);assert.equal(artifact.version,'1.20');assert.equal(updates.serviceArtifact(artifact.id).size,updatePackage.length);assert.throws(()=>updates.serviceArtifact('../bad'))
   assert.equal(updates.comparePkgVersions('1.20','1.19'),1);assert.equal((await updates.latestServiceRelease('1.19')).available,false)
-  if(mode==='update'||mode==='manual_update') {
+  if(mode==='update'||mode==='manual_update'||mode==='recover_update'||mode==='replace_update') {
    const f=await updates.installServiceArtifact(ip,artifact.id,'http://192.168.88.10:3000');assert.equal(updatePosts,1);assert.equal(f.state,'installing');assert.match(f.input.url,/\/service-update\/manifest\/[0-9a-f-]+\.json$/)
    if(mode==='manual_update') {
     installedJob.state='failed';installedJob.errorHex='0x80990033';assert.equal((await maintenance.getMaintenance(ip)).state,'failed')
@@ -68,8 +70,24 @@ try {
    } else {
    installedJob.state='installed';const ready=await maintenance.getMaintenance(ip);assert.equal(ready.state,'restart_ready');assert.equal(updatePosts,1)
    const restarted=await maintenance.restartUpdatedService(ip);assert.equal(restarted.state,'restarting');assert.equal(controlPosts,1)
-   assert.equal((await maintenance.getMaintenance(ip)).state,'restarting');version='1.20';assert.equal((await maintenance.getMaintenance(ip)).state,'completed')
-   assert.equal((await control.getConsoleControl(ip)).state,'running');assert.equal(updatePosts,1);assert.equal(controlPosts,1)
+   assert.equal((await control.getConsoleControl(ip)).state,'pending');assert.equal((await maintenance.getMaintenance(ip)).state,'restarting')
+   if(mode==='recover_update') {
+    const recovered=await maintenance.reinstallMissingLauncher(ip);assert.equal(recovered.state,'installing');assert.equal(updatePosts,2)
+    const previous=JSON.parse(readFileSync('.data/console-control.json'))[ip];assert.equal(previous.result.state,'failed')
+    await assert.rejects(maintenance.reinstallMissingLauncher(ip));assert.equal(updatePosts,2)
+    installedJob.state='installed';assert.equal((await maintenance.getMaintenance(ip)).state,'restart_ready')
+    assert.equal((await maintenance.restartUpdatedService(ip)).state,'restarting');assert.equal(controlPosts,2)
+   }
+   if(mode==='replace_update') {
+    const newer=await updates.stageServicePackage(replacementPackage)
+    const replacement=await maintenance.replaceStalledUpdate(ip,newer.id,'http://192.168.88.10:3000');assert.equal(replacement.state,'installing');assert.equal(replacement.targetVersion,'1.21');assert.equal(updatePosts,2)
+    assert.equal(JSON.parse(readFileSync('.data/console-control.json'))[ip].result.state,'failed')
+    await assert.rejects(maintenance.replaceStalledUpdate(ip,newer.id,'http://192.168.88.10:3000'));assert.equal(updatePosts,2)
+    installedJob.state='installed';assert.equal((await maintenance.getMaintenance(ip)).state,'restart_ready')
+    assert.equal((await maintenance.restartUpdatedService(ip)).state,'restarting');assert.equal(controlPosts,2)
+   }
+   version=mode==='replace_update'?'1.21':'1.20';assert.equal((await control.getConsoleControl(ip)).state,'running');assert.equal((await maintenance.getMaintenance(ip)).state,'completed')
+   assert.equal(updatePosts,['recover_update','replace_update'].includes(mode)?2:1);assert.equal(controlPosts,['recover_update','replace_update'].includes(mode)?2:1)
    }
   }
  } else {

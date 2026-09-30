@@ -33,7 +33,7 @@ function page(v: any, offset: number, limit: number) {
 }
 async function readConsole(ip: string, path: string) {
   try { return await authenticatedServiceRequest(ip, path, 'GET') as any } catch (error: any) {
-    if (error?.statusCode === 404) throw createError({ statusCode: 409, message: 'Для раздела «На консоли» установите PackageFlowService PKG 1.18' })
+    if (error?.statusCode === 404) throw createError({ statusCode: path.startsWith('/apps/list') ? 409 : 404, message: path.startsWith('/apps/list') ? 'Для раздела «На консоли» установите PackageFlowService PKG 1.18' : 'PS4 временно не нашла состав игры. Обновите список и повторите проверку' })
     throw error
   }
 }

@@ -37,7 +37,7 @@ registerHooks({
     return next(url, context)
   },
 })
-let currentJob
+let currentJob, offline = false
 const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 const cap = { service: 'PackegeFlowService', version: '0.4.0', installApi: 1, ready: true, authentication: 'bearer', contentTypes: ['PS4GD'], error: 0, errorHex: '0x00000000' }
 const makeJob = id => ({ service: 'PackegeFlowService', jobId: id, requestId: id, contentId: item.contentId, taskId: 43, state: 'downloading',
@@ -56,6 +56,7 @@ globalThis.fetch = async (url, options) => {
     throw new Error('Connection lost after PS4 accepted the task')
   }
   assert(currentJob && path.startsWith(`/install/jobs/${currentJob.jobId}`))
+  if (offline && !path.endsWith('/cancel')) throw new Error('Temporary connection loss')
   if (path.endsWith('/cancel')) { calls.cancel++; currentJob.state = 'cancelled' }
   return response(currentJob)
 }
@@ -103,7 +104,12 @@ try {
       assert.equal(readQueue().items[0].bytesSent, 5368709120); assert.equal(calls.submit, 1); assert.equal(calls.payload, 0)
       currentJob.downloadedBytes = currentJob.totalBytes
       await delay(1600); assert.equal(readQueue().status, 'running'); assert.equal(installed(), undefined)
-      if (mode === 'cancel') {
+      if (mode === 'interruption') {
+        offline = true; await until(() => readQueue().items[0].state === 'verifying')
+        assert.equal(calls.submit, 1); assert.equal(installed(), undefined)
+        offline = false; currentJob.state = 'installed'
+        await until(() => readQueue().status === 'completed'); assert(installed())
+      } else if (mode === 'cancel') {
         queue.cancelInstallationQueue(); await until(() => readQueue().status === 'cancelled'); assert.equal(calls.cancel, 1); assert.equal(installed(), undefined)
       } else {
         currentJob.state = 'installed'; await until(() => readQueue().status === 'completed'); assert(installed())
