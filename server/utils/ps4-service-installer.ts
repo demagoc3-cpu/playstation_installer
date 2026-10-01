@@ -53,10 +53,18 @@ const explanations: Record<string, string> = {
   job_not_found: 'PS4 не нашла прежнее задание. Автоматический повтор не отправлен',
   task_state_unknown_check_console: 'Проверьте принятое задание в загрузках PS4; его состояние неизвестно',
   invalid_game_request: 'Сервис 1.17 принимает только базовую игру, без патча или DLC',
+  save_export_failed: 'Не удалось прочитать сохранение PS4',
+  restore_prepare_failed: 'Не удалось подготовить восстановление сохранения',
+  restore_stage_missing: 'Подготовленная копия для восстановления не найдена',
+  restore_already_committed: 'Восстановление уже выполнялось; повтор запрещён',
+  save_restore_failed: 'Не удалось записать сохранение PS4',
+  save_key_changed: 'Ключ сохранения изменился; откат остановлен',
+  rollback_failed: 'Не удалось вернуть исходный контейнер сохранения',
 }
 /** Only internal callers construct routes. Credentials stay on the WEB server. */
 export async function authenticatedServiceRequest(ip: string, path: string, method: 'GET' | 'POST', body?: unknown) {
-  if (!/^\/apps\/(?:list(?:\?|$)|title\/|operations\/|remove$|control(?:\/|$)|runtime\/)/.test(path)) throw new Error('Unexpected console route')
+  if (!/^\/apps\/(?:list(?:\?|$)|title\/|operations\/|remove$|control(?:\/|$)|runtime\/)/.test(path) &&
+      !(method === 'POST' && ['/saves/export', '/saves/cleanup', '/saves/restore/prepare', '/saves/restore/commit', '/saves/restore/rollback', '/saves/restore/finalize'].includes(path))) throw new Error('Unexpected console route')
   return request(ip, path, method, token(consoleIp(ip)), body)
 }
 export function consoleFilePath(value: unknown) {
@@ -113,7 +121,7 @@ export async function getServiceIcon(ip: string, titleId: string) {
 async function request(ip: string, path: string, method: 'GET' | 'POST', key?: string, body?: unknown): Promise<unknown> {
   // Paths are constructed internally; keep a fixed port and forbid redirects.
   const response = await fetch(`http://${consoleIp(ip)}:12801${path}`, {
-    method, redirect: 'error', signal: AbortSignal.timeout(7000),
+    method, redirect: 'error', signal: AbortSignal.timeout(path.startsWith('/saves/') ? 120000 : 7000),
     headers: { ...(key ? { Authorization: `Bearer ${key}` } : {}), ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}) },
     ...(method === 'POST' ? { body: JSON.stringify(body ?? {}) } : {}),
   })

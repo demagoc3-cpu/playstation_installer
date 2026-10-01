@@ -46,6 +46,14 @@ export async function beginUpdate(ipValue: unknown, input: any, targetVersion: s
 }
 export async function getMaintenance(ipValue: unknown) {
   const ip = address(ipValue); let flow = readMaintenance()[ip]; if (!flow || locks.has(ip)) return flow || null
+  if (flow.kind === 'update' && flow.state === 'restart_ready') {
+    try {
+      const r = await readPs4Service(ip, '/system/info'); const v = r.body as any
+      if (r.status === 200 && v.service === 'PackegeFlowService' && v.environment === 'ps4' && v.pkgVersion === flow.targetVersion) {
+        flow.state = 'completed'; flow.message = `Обновление подтверждено: PKG ${v.pkgVersion}`; set(ip, flow)
+      }
+    } catch { /* Keep the previous state until the new daemon responds. */ }
+  }
   if (flow.kind === 'update' && flow.state === 'failed') {
     try {
       const r = await readPs4Service(ip, '/system/info'); const v = r.body as any
