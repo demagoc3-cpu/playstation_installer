@@ -48,7 +48,9 @@ interface SiteLibrary { version: 2; packages: StoredPackage[]; deliveries: Recor
 
 const blankLibrary = (): SiteLibrary => ({ version: 2, packages: [], deliveries: {} })
 const hash = (value: string) => createHash('sha256').update(value).digest('hex').slice(0, 32)
-const cacheDirectory = (root: string) => join(root, '.packageflow')
+// PKG sources can be read-only (Docker bind mounts or NAS shares). Keep all
+// generated files in the writable application data volume, separately per root.
+const cacheDirectory = (root: string) => resolve(process.cwd(), '.data/package-cache', hash(root))
 const cachePath = (root: string) => join(cacheDirectory(root), 'index.json')
 const coversDirectory = (root: string) => join(cacheDirectory(root), 'covers')
 
@@ -217,7 +219,11 @@ async function writeCover(source: string, icon: PackageIcon, destination: string
 async function walk(directory: string, root: string, cache: FolderCache, found: StoredPackage[], oldItems: Map<string, StoredPackage>, limit: number): Promise<void> {
   if (found.length >= limit) return
   let entries
-  try { entries = await readdir(directory, { withFileTypes: true }) } catch { return }
+  try { entries = await readdir(directory, { withFileTypes: true }) } catch (error) {
+    if (directory === root) throw createError({ statusCode: 403, message: `Нет доступа к содержимому папки ${root}. Проверьте права чтения и подключение папки к контейнеру.` })
+    logEvent('warn', `Пропущена недоступная папка ${directory}`, error)
+    return
+  }
   for (const entry of entries) {
     if (found.length >= limit) return
     const path = resolve(directory, entry.name)

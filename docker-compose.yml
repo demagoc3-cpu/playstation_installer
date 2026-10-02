@@ -12,13 +12,13 @@ services:
     # Required: the console downloads packages from this computer and the
     # PyLoader payload connects back to it, so the container must use the
     # host network and see the computer's real LAN IP.
-    network_mode: host
-#    ports:
-#      - "3001:3000"
+#    network_mode: host
+    ports:
+      - "3001:3000"
 
     volumes:
       - packageflow-data:/app/.data   # settings, queue, pairing tokens
-      - /path/to/games:/games:ro      # your PKG files
+      - /mnt/nas-downloads:/games:ro      # your PKG files
 
 volumes:
   packageflow-data:
