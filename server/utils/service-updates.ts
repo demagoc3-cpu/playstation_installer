@@ -12,6 +12,16 @@ const repository = 'demagoc3-cpu/playstation_installer'
 export const updateLimit = 25 * 1024 * 1024
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export function comparePkgVersions(a: string, b: string) { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < Math.max(x.length, y.length); ++i) { const d = (x[i] || 0) - (y[i] || 0); if (d) return Math.sign(d) } return 0 }
+export function selectServiceReleaseAsset(assets: any[]) {
+  const valid = assets.filter((a: any) => /^Pack[ea]geFlowService(?:-\d+\.\d+)?\.pkg$/.test(a.name) && Number.isSafeInteger(a.size) && a.size > 0 && a.size <= updateLimit && /^sha256:[0-9a-f]{64}$/.test(a.digest || '') && typeof a.browser_download_url === 'string' && a.browser_download_url.startsWith(`https://github.com/${repository}/releases/download/`))
+  // Versioned assets take precedence over a legacy unversioned PKG. This
+  // lets the user keep old release attachments without hiding a newer build.
+  return valid.sort((a: any, b: any) => {
+    const av = a.name.match(/-(\d+\.\d+)\.pkg$/)?.[1]
+    const bv = b.name.match(/-(\d+\.\d+)\.pkg$/)?.[1]
+    return av && bv ? comparePkgVersions(bv, av) : av ? -1 : bv ? 1 : 0
+  })[0]
+}
 function stagedByHash(hash: string, size: number) {
   let files: string[]
   try { files = readdirSync(directory) } catch (e: any) { if (e.code === 'ENOENT') return null; throw e }
@@ -42,7 +52,7 @@ async function bytes(url: string, limit: number) {
 export async function latestServiceRelease(current: string) {
   try {
     const release = JSON.parse((await bytes(`https://api.github.com/repos/${repository}/releases/latest`, 128 * 1024)).toString('utf8'))
-    const asset = release.assets?.find((a: any) => /^Pack[ea]geFlowService(?:-\d+\.\d+)?\.pkg$/.test(a.name) && Number.isSafeInteger(a.size) && a.size > 0 && a.size <= updateLimit && /^sha256:[0-9a-f]{64}$/.test(a.digest || '') && typeof a.browser_download_url === 'string' && a.browser_download_url.startsWith(`https://github.com/${repository}/releases/download/`))
+    const asset = selectServiceReleaseAsset(release.assets || [])
     if (!asset) return { available: false, message: 'В релизе нет PKG сервиса с контрольной суммой SHA-256', releaseUrl: `https://github.com/${repository}/releases` }
     const hash = asset.digest.slice(7)
     const namedVersion = asset.name.match(/-(\d+\.\d+)\.pkg$/)?.[1]

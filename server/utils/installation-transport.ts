@@ -1,6 +1,6 @@
 import type { InstallationTransport, ServiceInstallJob } from '../../shared/types/installation'
 
-/** Omitted transport (including persisted v1 queues) always means payload. */
+/** Omitted transport in a saved legacy queue means payload. New queues resolve the saved preference first. */
 export function installationTransport(value: unknown): InstallationTransport {
   if (value === undefined || value === 'payload') return 'payload'
   if (value === 'service') return 'service'
@@ -9,7 +9,9 @@ export function installationTransport(value: unknown): InstallationTransport {
 
 export function serviceJobDetail(job: ServiceInstallJob): string {
   if (job.state === 'installed') return 'Установка подтверждена PS4'
-  if (job.state === 'failed') return `Ошибка установки на PS4: ${job.errorHex}`
+  if (job.state === 'failed') return job.errorHex.toUpperCase() === '0XFFFFD8D0'
+    ? 'Загрузка завершена, но PS4 не подтвердила установку компонента. Проверьте его на приставке; очередь продолжена'
+    : `Ошибка установки на PS4: ${job.errorHex}`
   if (job.state === 'cancelled') return 'Задание остановлено и снято с очереди PS4'
   if (job.state === 'cancelling') return `Ожидаем подтверждение отмены${job.error ? ` (${job.errorHex})` : ''}`
   if (job.state === 'uncertain') return `Состояние принятого задания требует проверки на PS4 (${job.errorHex}); повтор не отправлен`

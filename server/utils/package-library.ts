@@ -25,6 +25,11 @@ export interface LocalPackage {
   size: number
   type: 'Игра' | 'Патч' | 'Бэкпорт' | 'DLC'
   titleId: string
+  appVersion?: string
+  masterVersion?: string
+  requiredFirmware?: string
+  sdkFirmware?: string
+  packageVolume?: 'application' | 'patch' | 'add-on' | 'unknown'
   installOrder: number
   contentId: string
   contentType: string
@@ -38,7 +43,7 @@ interface PackageIcon { offset: number; size: number }
 interface StoredPackage extends LocalPackage { path: string; sourceModifiedAt: number; coverPath?: string; icon: PackageIcon }
 interface DeliveryStatus { requests: number; bytesSent: number; ranges: Array<{ start: number; end: number }>; startedAt?: number; completedAt?: number; lastActivityAt?: number; partial?: boolean }
 interface FolderCacheEntry { size: number; modifiedAt: number; item: StoredPackage }
-interface FolderCache { version: 1; packages: Record<string, FolderCacheEntry> }
+interface FolderCache { version: 4; packages: Record<string, FolderCacheEntry> }
 interface SiteLibrary { version: 2; packages: StoredPackage[]; deliveries: Record<string, DeliveryStatus> }
 
 const blankLibrary = (): SiteLibrary => ({ version: 2, packages: [], deliveries: {} })
@@ -98,12 +103,45 @@ async function findSfoOffset(handle: Awaited<ReturnType<typeof open>>, header: B
   return -1
 }
 
+async function packageEntries(handle: Awaited<ReturnType<typeof open>>, header: Buffer, fileSize: number) {
+  const count = header.readUInt32BE(0x10)
+  const tableOffset = header.readUInt32BE(0x18)
+  if (!count || count > 4096 || tableOffset < 0x20 || tableOffset + count * 0x20 > fileSize) return []
+  const table = Buffer.alloc(count * 0x20)
+  const { bytesRead } = await handle.read(table, 0, table.length, tableOffset)
+  if (bytesRead !== table.length) return []
+  const entries: Array<{ id: number; offset: number; size: number }> = []
+  for (let index = 0; index < count; index++) {
+    const position = index * 0x20
+    const offset = table.readUInt32BE(position + 0x10)
+    const size = table.readUInt32BE(position + 0x14)
+    if (offset && size && offset + size <= fileSize) entries.push({ id: table.readUInt32BE(position), offset, size })
+  }
+  return entries
+}
+
+function volumeType(header: Buffer): LocalPackage['packageVolume'] {
+  const contentType = header.readUInt32BE(0x74)
+  const flags = header.readUInt32BE(0x78)
+  if (contentType === 0x1b || contentType === 0x1c) return 'add-on'
+  if (contentType !== 0x1a) return 'unknown'
+  return flags & 0x60100000 ? 'patch' : 'application'
+}
+
+function packedFirmware(value: string) {
+  const match = /^(\d{2})(\d{2})[0-9a-fA-F]{4}$/.exec(value)
+  if (!match) return undefined
+  const major = Number(match[1]), minor = Number(match[2])
+  return major || minor ? `${major}.${match[2]}` : undefined
+}
+
 function parseSfo(data: Buffer) {
   if (!data.subarray(0, 4).equals(SFO_MAGIC) || data.length < 20) throw new Error('PARAM.SFO не найден')
   const keyTable = data.readUInt32LE(8)
   const dataTable = data.readUInt32LE(12)
   const count = data.readUInt32LE(16)
   const values = new Map<string, string>()
+  let requiredFirmware: string | undefined
   for (let index = 0; index < count; index++) {
     const entry = 20 + index * 16
     if (entry + 16 > data.length) break
@@ -113,23 +151,18 @@ function parseSfo(data: Buffer) {
     if (keyStart >= data.length || valueStart + length > data.length) continue
     const keyEnd = data.indexOf(0, keyStart)
     const key = data.subarray(keyStart, keyEnd < 0 ? data.length : keyEnd).toString('utf8')
-    values.set(key, data.subarray(valueStart, valueStart + length).toString('utf8').replace(/\0/g, '').trim())
+    const value = data.subarray(valueStart, valueStart + length)
+    if (key === 'SYSTEM_VER') requiredFirmware = value.length === 4
+      ? packedFirmware(value.readUInt32LE(0).toString(16).padStart(8, '0'))
+      : packedFirmware(value.toString('utf8').replace(/\0/g, '').replace(/^0x/i, '').trim())
+    values.set(key, value.toString('utf8').replace(/\0/g, '').trim())
   }
-  return values
+  return { values, requiredFirmware }
 }
 
-function extractIconEntry(header: Buffer): PackageIcon {
-  if (header.length < 0x20) return { offset: 0, size: 0 }
-  const tableOffset = header.readUInt32BE(0x18)
-  const entryCount = header.readUInt32BE(0x10)
-  for (let index = 0; index < entryCount; index++) {
-    const entry = tableOffset + index * 0x20
-    if (entry + 0x20 > header.length || header.readUInt32BE(entry) !== 0x1200) continue
-    const offset = header.readUInt32BE(entry + 0x10)
-    const size = header.readUInt32BE(entry + 0x14)
-    return size > 0 && size <= 2 * 1024 * 1024 ? { offset, size } : { offset: 0, size: 0 }
-  }
-  return { offset: 0, size: 0 }
+function extractIconEntry(entries: ReturnType<typeof packageEntries>): PackageIcon {
+  const icon = entries.find((entry) => entry.id === 0x1200)
+  return icon && icon.size <= 2 * 1024 * 1024 ? { offset: icon.offset, size: icon.size } : { offset: 0, size: 0 }
 }
 
 export async function readPackageMetadata(path: string, fileName: string) {
@@ -139,21 +172,26 @@ export async function readPackageMetadata(path: string, fileName: string) {
     const { bytesRead: headerBytes } = await handle.read(header, 0, header.length, 0)
     const data = header.subarray(0, headerBytes)
     if (data.length < 0x1000 || !data.subarray(0, 4).equals(PKG_MAGIC)) throw new Error('Некорректный заголовок PKG')
-    const sfoOffset = await findSfoOffset(handle, data)
-    if (sfoOffset < 0) throw new Error('PARAM.SFO не найден в первых 4 МБ')
-    const sfo = Buffer.alloc(SFO_BYTES)
+    const entries = await packageEntries(handle, data, (await handle.stat()).size)
+    const sfoEntry = entries.find((entry) => entry.id === 0x1000 && entry.size <= SFO_BYTES)
+    const sfoOffset = sfoEntry?.offset ?? await findSfoOffset(handle, data)
+    if (sfoOffset < 0) throw new Error('PARAM.SFO не найден в PKG')
+    const sfo = Buffer.alloc(sfoEntry?.size || SFO_BYTES)
     const { bytesRead: sfoBytes } = await handle.read(sfo, 0, sfo.length, sfoOffset)
-    const values = parseSfo(sfo.subarray(0, sfoBytes))
+    const { values, requiredFirmware } = parseSfo(sfo.subarray(0, sfoBytes))
     const category = values.get('CATEGORY') || ''
     const contentId = values.get('CONTENT_ID') || ''
     if (!category || !contentId) throw new Error('В PARAM.SFO отсутствуют CATEGORY или CONTENT_ID')
     const title = values.get('TITLE') || basename(fileName, extname(fileName)).replace(/[._-]/g, ' ')
     const titleId = values.get('TITLE_ID') || contentId.match(/CUSA\d{5}/i)?.[0]?.toUpperCase() || contentId
-    const isDlc = category === 'ac'
+    const headerContentType = data.readUInt32BE(0x74)
+    const isDlc = category === 'ac' || category === 'al' || headerContentType === 0x1b || headerContentType === 0x1c
     const isBackport = !isDlc && /backport/i.test(`${fileName} ${title}`)
     const type: LocalPackage['type'] = isDlc ? 'DLC' : isBackport ? 'Бэкпорт' : category.startsWith('gp') ? 'Патч' : 'Игра'
-    const icon = extractIconEntry(data)
-    return { title, titleId, appVersion: values.get('APP_VER') || '', installOrder: isDlc ? 2 : type === 'Игра' ? 0 : 1, contentId, contentType: `PS4${category.toUpperCase()}`, packageDigest: data.subarray(0xfe0, 0x1000).toString('hex').toUpperCase(), icon, iconSize: icon.size, type }
+    const icon = extractIconEntry(entries)
+    const sdkFirmware = packedFirmware(values.get('PUBTOOLINFO')?.match(/(?:^|[,\s])sdk_ver=([0-9a-fA-F]{8})(?:[,\s]|$)/i)?.[1] || '')
+    const contentType = headerContentType === 0x1c ? 'PS4AL' : headerContentType === 0x1b ? 'PS4AC' : `PS4${category.toUpperCase()}`
+    return { title, titleId, appVersion: values.get('APP_VER') || '', masterVersion: values.get('VERSION') || '', requiredFirmware, sdkFirmware, packageVolume: volumeType(data), installOrder: isDlc ? 2 : type === 'Игра' ? 0 : 1, contentId, contentType, packageDigest: data.subarray(0xfe0, 0x1000).toString('hex').toUpperCase(), icon, iconSize: icon.size, type }
   } finally { await handle.close() }
 }
 
@@ -211,7 +249,8 @@ export async function scanPackageFolder(directory: string, onlyTitleId?: string)
   const root = resolve(directory.trim())
   const rootInfo = await stat(root).catch(() => undefined)
   if (!rootInfo?.isDirectory()) throw createError({ statusCode: 404, message: 'Папка не найдена или недоступна' })
-  const cache = readJson<FolderCache>(cachePath(root), { version: 1, packages: {} })
+  const previousCache = readJson<FolderCache>(cachePath(root), { version: 4, packages: {} })
+  const cache: FolderCache = previousCache.version === 4 ? previousCache : { version: 4, packages: {} }
   const siteLibrary = readLibrary()
   const oldItems = new Map(siteLibrary.packages.map((item) => [item.id, item]))
   const found: StoredPackage[] = []
@@ -261,7 +300,19 @@ export function resetPackageDelivery(id: string) {
   writeLibrary(library)
 }
 
-export function markPackageInstalled(id: string, installed: boolean) { const library = readLibrary(); const item = library.packages.find((entry) => entry.id === id); if (!item) throw createError({ statusCode: 404, message: 'Пакет не найден' }); item.installedAt = installed ? Date.now() : undefined; writeLibrary(library); return publicItem(item) }
+export function markPackageInstalled(id: string, installed: boolean) {
+  const library = readLibrary()
+  const item = library.packages.find((entry) => entry.id === id)
+  if (!item) throw createError({ statusCode: 404, message: 'Пакет не найден' })
+  if (installed && item.contentType === 'PS4GP') {
+    for (const other of library.packages) {
+      if (other.id !== id && other.titleId === item.titleId && other.contentType === 'PS4GP') other.installedAt = undefined
+    }
+  }
+  item.installedAt = installed ? Date.now() : undefined
+  writeLibrary(library)
+  return publicItem(item)
+}
 
 export function clearConsoleInstallation(titleId: string, kind: string, componentId: string) {
   const library = readLibrary(); const affected: string[] = []

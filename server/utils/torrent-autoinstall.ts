@@ -1,7 +1,11 @@
 import { logEvent } from './event-log'
+import { selectAutomaticPackages } from './automatic-package-selection'
 import { getInstallationQueue, startInstallationQueue } from './installation-queue'
+import { getInstallationPreference } from './installation-preference'
 import { getLibraryPackages, scanPackageFolder } from './package-library'
+import { getConsoleCatalog, getConsoleDetails } from './ps4-console-apps'
 import { getGoldHenStatus, getLocalIp, getSavedPsIp } from './ps4-installer'
+import { getServiceInstallerStatus } from './ps4-service-installer'
 import { getCompletedTorrentDirectory, getQbitSettings, getTorrents } from './qbittorrent'
 import { getIndexedTorrentPackageIds, markAutoInstallHandled, markTorrentIndexed, wasAutoInstallHandled } from './torrent-library'
 
@@ -44,24 +48,49 @@ export async function runTorrentAutoInstall() {
       markTorrentIndexed(torrent.hash, packageIds)
     }
     const ids = new Set(packageIds)
-    const packages = getLibraryPackages().filter((item) => ids.has(item.id) && !item.installedAt)
-      .sort((a, b) => a.installOrder - b.installOrder || a.title.localeCompare(b.title))
+    const library = getLibraryPackages()
+    const candidates = library.filter((item) => ids.has(item.id))
+    const transport = getInstallationPreference()
+    let consoleSnapshot: Parameters<typeof selectAutomaticPackages>[2]
+    if (transport === 'service') {
+      const status = await getServiceInstallerStatus(psIp)
+      if (!status.ready) return logWait(`Автоустановка «${torrent.name}» ждёт PackageFlowService на PS4 ${psIp}: ${status.message}`)
+      try {
+        const catalog = await getConsoleCatalog(psIp)
+        if (!catalog.complete) return logWait(`Автоустановка «${torrent.name}» ждёт полного списка игр с PS4`)
+        const baseTitleIds = new Set(catalog.apps.filter((app) => app.installed).map((app) => app.titleId))
+        const patchTitleIds = new Set<string>()
+        const dlcContentIds = new Set<string>()
+        const detailsIds = new Set(candidates.filter((item) => ['PS4GP', 'PS4AC', 'PS4AL'].includes(item.contentType)).map((item) => item.titleId).filter((id) => baseTitleIds.has(id)))
+        for (const titleId of detailsIds) {
+          const details = await getConsoleDetails(psIp, titleId)
+          if (!details.complete) return logWait(`Автоустановка «${torrent.name}» ждёт полного состава ${titleId} с PS4`)
+          for (const component of details.components) {
+            if (component.kind === 'patch') patchTitleIds.add(titleId)
+            if (component.kind === 'dlc') dlcContentIds.add(component.contentId)
+          }
+        }
+        consoleSnapshot = { baseTitleIds, patchTitleIds, dlcContentIds }
+      } catch (error: any) { return logWait(`Автоустановка «${torrent.name}» ждёт списка PS4: ${error?.message || error}`) }
+    } else {
+      const status = await getGoldHenStatus(psIp)
+      if (!status.ready) return logWait(`Автоустановка «${torrent.name}» ждёт PS4 ${psIp}: загрузчик на порту 9090 не отвечает`)
+    }
+
+    const packages = selectAutomaticPackages(candidates, library, consoleSnapshot)
     if (!packages.length) {
       markAutoInstallHandled(torrent.hash)
       logEvent('warn', `Торрент «${torrent.name}» загружен, но новых PKG для установки в нём нет`)
       return
     }
 
-    const status = await getGoldHenStatus(psIp)
-    if (!status.ready) return logWait(`Автоустановка «${torrent.name}» ждёт PS4 ${psIp}: загрузчик на порту 9090 не отвечает`)
-
     const pcIp = await getLocalIp(psIp)
     const port = serverPort()
     const packageUrls = Object.fromEntries(packages.map((item) => [item.id, `http://${pcIp}:${port}/json/${item.id}.json`]))
-    startInstallationQueue({ psIp, packageIds: packages.map((item) => item.id), packageUrls })
+    startInstallationQueue({ psIp, packageIds: packages.map((item) => item.id), packageUrls, transport })
     markAutoInstallHandled(torrent.hash)
     lastWaitLog = 0
-    logEvent('info', `Торрент «${torrent.name}» загружен: автоустановка на PS4 запущена (пакетов — ${packages.length})`)
+    logEvent('info', `Торрент «${torrent.name}» загружен: автоустановка через ${transport === 'service' ? 'PackageFlowService' : 'PyLoader'} запущена (пакетов — ${packages.length})`)
   } catch (error: any) {
     // Do not retry forever: re-enabling "Автоустановка" on the torrent allows another attempt.
     markAutoInstallHandled(torrent.hash)

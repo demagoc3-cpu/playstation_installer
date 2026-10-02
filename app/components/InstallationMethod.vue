@@ -57,9 +57,9 @@ function inputCode(value: string) {
         <button v-if="configured" :disabled="busy || disabled" @click="showKey = !showKey">Повторить сопряжение</button>
       </template>
     </div>
-    <p v-if="modelValue === 'payload'">Игры, патчи и DLC через текущий загрузчик. Автоустановка торрентов всегда использует PyLoader.</p>
+    <p v-if="modelValue === 'payload'">Игры, патчи, DLC и автоустановка торрентов через PyLoader.</p>
     <template v-else>
-      <p>Игры, патчи и DLC через фоновый сервис PS4. Автоустановка торрентов всегда использует PyLoader.</p>
+      <p>Игры, патчи, DLC и автоустановка торрентов через фоновый сервис PS4.</p>
       <p v-if="message" role="status">{{ message }}</p>
       <form v-if="showKey" @submit.prevent="saveKey">
         <label>Код с экрана запускателя PS4

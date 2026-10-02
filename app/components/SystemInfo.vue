@@ -5,6 +5,12 @@ const props = defineProps<{ psIp: string }>()
 const snapshot = ref<Ps4SystemSnapshot>()
 const checking = ref(false)
 const updatedAt = ref('')
+const recovery = ref<{ activeJob: { requestId: string; state: string; taskId: number } | null; queue: { id?: string; status: string; message?: string } | null }>()
+const recoveryBusy = ref(false)
+const recoveryMessage = ref('')
+const recoveryUnsupported = ref(false)
+const restarting = ref(false)
+let restartProcessId: number | null = null
 let timer: ReturnType<typeof setInterval> | undefined
 let debounce: ReturnType<typeof setTimeout> | undefined
 let controller: AbortController | undefined
@@ -20,12 +26,51 @@ async function refresh() {
     if (current !== generation) return
     snapshot.value = result
     updatedAt.value = result.ready ? new Date().toLocaleTimeString('ru-RU') : ''
+    if (restarting.value && result.ready && result.runtime?.processId && result.runtime.processId !== restartProcessId) {
+      restarting.value = false
+      recoveryMessage.value = 'Сервис перезапущен и снова отвечает.'
+    }
   } catch {
     if (current !== generation) return
     snapshot.value = { ready: false, ip: props.psIp, updateRequired: false, issues: [], system: null, storage: null, runtime: null,
       reason: 'Не удалось получить данные. Проверьте IP консоли и запуск PackageFlowService.' }
     updatedAt.value = ''
   } finally { if (current === generation) checking.value = false }
+}
+function apiError(error: any) { return error?.data?.message || error?.message || 'Нет ответа от PS4' }
+async function refreshRecovery() {
+  if (!snapshot.value?.ready || recoveryBusy.value) return
+  const ip = props.psIp
+  recoveryBusy.value = true
+  try {
+    const result = await $fetch<typeof recovery.value>('/api/ps4/service-recovery', { query: { ip } })
+    if (ip === props.psIp) { recovery.value = result; recoveryUnsupported.value = false }
+  } catch (error: any) {
+    if (ip === props.psIp) { recoveryUnsupported.value = error?.statusCode === 404; recoveryMessage.value = recoveryUnsupported.value ? 'Управление заданиями доступно после обновления службы до PKG 1.46.' : apiError(error) }
+  } finally { if (ip === props.psIp) recoveryBusy.value = false }
+}
+async function clearStale() {
+  if (!recovery.value || !window.confirm(recovery.value.activeJob
+    ? 'Отменить задание PS4 и снять зависшее ожидание WEB? Если загрузка ещё идёт, она будет прервана. Проверьте «Уведомления → Загрузки» перед подтверждением.'
+    : 'Снять зависшее ожидание WEB? У службы PS4 нет активного задания. Пакеты повторно отправляться не будут.')) return
+  recoveryBusy.value = true; recoveryMessage.value = ''
+  try {
+    const result = await $fetch<{ message: string }>('/api/ps4/service-recovery', { method: 'POST', body: { ip: props.psIp, queueId: recovery.value.queue?.id, jobId: recovery.value.activeJob?.requestId } })
+    recoveryMessage.value = result.message
+    await refresh()
+  } catch (error) { recoveryMessage.value = apiError(error) }
+  finally { recoveryBusy.value = false; void refreshRecovery() }
+}
+async function restartService() {
+  if (!snapshot.value?.ready || !window.confirm('Перезапустить службу PackageFlowService? Текущая установка должна быть завершена; соединение с PS4 ненадолго прервётся.')) return
+  recoveryBusy.value = true; recoveryMessage.value = ''
+  restartProcessId = snapshot.value.runtime?.processId || null
+  try {
+    const result = await $fetch<{ message: string }>('/api/ps4/service-restart', { method: 'POST', body: { ip: props.psIp } })
+    restarting.value = true
+    recoveryMessage.value = result.message
+  } catch (error) { recoveryMessage.value = apiError(error) }
+  finally { recoveryBusy.value = false }
 }
 function bytes(value: number | null) {
   if (value === null) return 'Неизвестно'
@@ -46,9 +91,10 @@ function diskError(volume: NonNullable<Ps4SystemSnapshot['storage']>[number]) {
 function errorCode(volume: NonNullable<Ps4SystemSnapshot['storage']>[number]) {
   return volume.errorHex || (volume.error === null ? 'Неизвестно' : `0x${(volume.error >>> 0).toString(16).toUpperCase().padStart(8, '0')}`)
 }
-onMounted(() => { void refresh(); timer = setInterval(() => { if (!checking.value && !debounce) void refresh() }, 15000) })
+onMounted(() => { void refresh(); timer = setInterval(() => { if (!checking.value && !debounce) { void refresh(); if (!recoveryBusy.value) void refreshRecovery() } }, 15000) })
+watch(() => snapshot.value?.ready, ready => { if (ready) void refreshRecovery() })
 watch(() => props.psIp, () => {
-  ++generation; controller?.abort(); snapshot.value = undefined; updatedAt.value = ''; checking.value = false
+  ++generation; controller?.abort(); snapshot.value = undefined; updatedAt.value = ''; checking.value = false; recovery.value = undefined; recoveryMessage.value = ''; recoveryUnsupported.value = false; restarting.value = false
   if (debounce) clearTimeout(debounce)
   debounce = setTimeout(() => { debounce = undefined; void refresh() }, 500)
 })
@@ -65,6 +111,14 @@ onBeforeUnmount(() => { ++generation; controller?.abort(); if (timer) clearInter
     <span class="connection-address">{{ psIp }}:12801</span>
     <p v-if="!snapshot?.ready">{{ snapshot?.reason || 'Запустите PackageFlowService на PS4. Адрес консоли можно изменить в верхней панели.' }}</p>
     <p v-else>Сервис {{ snapshot.version || 'Неизвестно' }}<template v-if="snapshot.pkgVersion"> · PKG {{ snapshot.pkgVersion }}</template><template v-if="updatedAt"> · Обновлено {{ updatedAt }}</template></p>
+  </section>
+  <section class="system-recovery">
+    <div class="recovery-heading"><div><h2>Управление сервисом</h2><p>Проверка заданий установки и перезапуск фоновой службы PS4.</p></div><button class="secondary" :disabled="recoveryBusy || !snapshot?.ready" @click="refreshRecovery">Проверить задания</button></div>
+    <p v-if="recovery?.activeJob">Задание PS4: {{ recovery.activeJob.state }}<template v-if="recovery.activeJob.taskId >= 0"> · №{{ recovery.activeJob.taskId }}</template>.</p>
+    <p v-else-if="recovery && !recoveryUnsupported">Активных заданий PS4 нет.</p>
+    <p v-if="recovery?.queue && ['failed', 'cancelling'].includes(recovery.queue.status)">Очередь WEB остановлена: {{ recovery.queue.message || recovery.queue.status }}</p>
+    <div class="recovery-actions"><button class="secondary" :disabled="recoveryBusy || !snapshot?.ready || recoveryUnsupported || !!recovery?.activeJob || restarting" @click="restartService">{{ restarting ? 'Ожидаем перезапуска…' : 'Перезапустить сервис' }}</button><button v-if="recovery && (recovery.activeJob || (recovery.queue && ['failed', 'cancelling'].includes(recovery.queue.status)))" class="secondary" :disabled="recoveryBusy" @click="clearStale">{{ recovery.activeJob ? 'Отменить задание PS4' : 'Очистить зависшую очередь WEB' }}</button></div>
+    <p v-if="recoveryMessage" role="status">{{ recoveryMessage }}</p>
   </section>
   <ServiceUpdates :ip="psIp" :current="snapshot?.pkgVersion || ''" @changed="refresh" />
   <template v-if="snapshot?.ready">
@@ -105,7 +159,8 @@ onBeforeUnmount(() => { ++generation; controller?.abort(); if (timer) clearInter
 
 <style scoped>
 .system-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; max-width: 1000px; }.description { color: #a9a6b2; font-size: 13px; }.system-heading button { flex: none; }
-.system-connection, .system-card, .system-storage, .system-runtime { border: 1px solid #2d2c33; border-radius: 10px; background: #1b1a1f; }
+.system-connection, .system-recovery, .system-card, .system-storage, .system-runtime { border: 1px solid #2d2c33; border-radius: 10px; background: #1b1a1f; }
+.system-recovery { max-width: 1000px; padding: 22px 24px; margin: 0 0 24px; }.recovery-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }.recovery-heading h2 { margin: 0 0 8px; }.system-recovery p { margin: 8px 0 0; color: #aaa4b4; font-size: 12px; line-height: 1.6; }.recovery-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .system-connection { position: relative; max-width: 1000px; padding: 22px 24px; margin: 24px 0; }.connection-title { font-size: 13px; }.indicator { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #dc7d72; margin-right: 8px; }.indicator.online { background: #7ec78a; }.connection-address { display: block; margin-top: 8px; font: 12px 'DM Mono', monospace; color: #aaa4c0; }
 .system-connection p, .system-card p, .storage-volume p, .system-runtime p { margin: 9px 0 0; color: #96939f; font-size: 12px; line-height: 1.7; }
 .system-grid { max-width: 1000px; margin-top: 20px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }.system-card { padding: 24px; min-width: 0; }.card-label { display: block; color: #9a95a7; font-size: 11px; margin-bottom: 16px; }.system-card strong { font-size: 23px; letter-spacing: -.6px; overflow-wrap: anywhere; }

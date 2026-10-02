@@ -17,7 +17,7 @@ function pkg(values) {
  keys.copy(sfo,20+count*16);data.copy(sfo,20+count*16+keys.length)
  const p=Buffer.alloc(8192);Buffer.from('7f434e54','hex').copy(p);p.writeUInt32BE(1,0x10);p.writeUInt32BE(128,0x18);Buffer.from(values.CONTENT_ID).copy(p,0x40);p.writeUInt32BE(0x1000,128);p.writeUInt32BE(256,144);p.writeUInt32BE(sfo.length,148);sfo.copy(p,256);return p
 }
-const base = pkg({TITLE:'Mario Collection',TITLE_ID:titleId,CONTENT_ID:cid,CATEGORY:'gd',APP_VER:'01.00'})
+const base = pkg({TITLE:'Mario Collection',TITLE_ID:titleId,CONTENT_ID:cid,CATEGORY:'gd',APP_VER:'01.00',SYSTEM_VER:'0x05050000',PUBTOOLINFO:'sdk_ver=05050001'})
 const updatePackage = pkg({TITLE:'PackegeFlowService',TITLE_ID:'PFLS00001',CONTENT_ID:'IV0000-PFLS00001_00-PACKAGEFLOWSRV00',CATEGORY:'gde',APP_VER:'01.20'})
 const replacementPackage = pkg({TITLE:'PackageFlowService',TITLE_ID:'PFLS00001',CONTENT_ID:'IV0000-PFLS00001_00-PACKAGEFLOWSRV00',CATEGORY:'gde',APP_VER:'01.21'})
 const updateHash = createHash('sha256').update(updatePackage).digest('hex')
@@ -25,7 +25,7 @@ writeFileSync('game.pkg',base)
 const item={id:'one',title:'Mario Collection',titleId,contentId:cid,contentType:'PS4GD',size:base.length,path:resolve('game.pkg'),fileName:'game.pkg',libraryRoot:directory,sourceModifiedAt:1,installedAt:100,type:'Игра',installOrder:0,iconSize:0,icon:{offset:0,size:0},packageDigest:'0'.repeat(64)}
 writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages:[item],deliveries:{}}))
 const app={titleId,title:'Mario Collection',version:'01.00',installed:true,protected:false}, part={id:'base',kind:'base',title:app.title,version:'01.00',contentId:cid,sizeBytes:base.length,storage:'internal',canRemove:true}
-let removePosts=0, installPosts=0, controlPosts=0, updatePosts=0, removeState='running', removal, installedJob, controlResult, version='1.19'
+let removePosts=0, installPosts=0, controlPosts=0, updatePosts=0, removeState='running', removal, installedJob, controlResult, version='1.19', consoleFirmware='12.50'
 let releaseDownloads=0
 const response=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{'Content-Type':'application/json'}})
 globalThis.fetch=async(url,options={})=>{
@@ -33,7 +33,8 @@ globalThis.fetch=async(url,options={})=>{
  if(u.hostname==='api.github.com') return mode==='release' ? response({html_url:'https://github.com/demagoc3-cpu/playstation_installer/releases/tag/PKG',assets:[{name:'PackegeFlowService.pkg',size:updatePackage.length,digest:`sha256:${updateHash}`,browser_download_url:'https://github.com/demagoc3-cpu/playstation_installer/releases/download/PKG/PackegeFlowService.pkg'}]}) : response({message:'Not Found'},404)
  if(u.hostname==='github.com' && mode==='release') {releaseDownloads++;return new Response(updatePackage,{headers:{'Content-Type':'application/octet-stream'}})}
  assert.equal(u.port,'12801');assert.equal(options.redirect,'error')
- if(path==='/system/info') return response({service:'PackegeFlowService',environment:'ps4',pkgVersion:version})
+ if(path==='/system/info') return response({service:'PackegeFlowService',environment:'ps4',pkgVersion:version,firmware:{version:consoleFirmware}})
+ if(path==='/storage') return response({service:'PackegeFlowService',volumes:[{id:'internal',path:'/user',available:true,availableBytes:20*1024**3}]})
  assert.equal(options.headers.Authorization,`Bearer ${token}`)
  if(path==='/apps/list') return response({service:'PackegeFlowService',appsApi:1,revision,complete:true,total:0,next:null,apps:[]})
  if(path.startsWith('/apps/title/')) return response({service:'PackegeFlowService',revision,complete:true,total:1,next:null,app,components:[part]})
@@ -90,6 +91,10 @@ try {
    assert.equal(updatePosts,['recover_update','replace_update'].includes(mode)?2:1);assert.equal(controlPosts,['recover_update','replace_update'].includes(mode)?2:1)
    }
   }
+ } else if(mode==='firmware-reinstall') {
+  consoleFirmware='4.50'
+  await assert.rejects(maintenance.beginReinstall(ip,{packageId:'one',confirmTitleId:titleId,revision,url:'http://192.168.88.10:3000/json/one.json'}), /выше прошивки/)
+  assert.equal(removePosts,0)
  } else {
   const plan=await maintenance.reinstallPlan(ip,'one');assert.equal(plan.details.app.titleId,titleId)
   await assert.rejects(maintenance.beginReinstall(ip,{packageId:'one',confirmTitleId:titleId,revision:'ffffffffffffffff',url:'http://192.168.88.10:3000/json/one.json'}));assert.equal(removePosts,0)

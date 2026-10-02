@@ -31,7 +31,7 @@ const explanations: Record<string, string> = {
   console_operation_busy: 'На PS4 выполняется установка или удаление. Дождитесь завершения',
   application_installing: 'Игра сейчас устанавливается или обновляется',
   base_game_not_installed: 'Базовая игра не найдена на PS4',
-  component_already_installed: 'Этот патч или DLC уже установлен на PS4',
+  component_already_installed: 'Компонент уже установлен на PS4',
   component_presence_unavailable: 'PS4 не смогла проверить, установлен ли этот патч или DLC',
   protected_application: 'Удаление системного приложения или самого сервиса запрещено',
   component_not_found: 'Компонент уже отсутствует. Обновите список',
@@ -49,6 +49,7 @@ const explanations: Record<string, string> = {
   control_not_found: 'Команда не найдена на PS4. Повтор автоматически не отправлен',
   control_history_full: 'История команд сервиса заполнена',
   another_service_job_active: 'На PS4 уже есть активное задание сервиса',
+  job_still_running: 'Задание ещё выполняется на PS4. Проверьте «Уведомления → Загрузки»',
   job_history_full: 'История заданий сервиса заполнена',
   job_not_found: 'PS4 не нашла прежнее задание. Автоматический повтор не отправлен',
   task_state_unknown_check_console: 'Проверьте принятое задание в загрузках PS4; его состояние неизвестно',
@@ -133,7 +134,8 @@ async function request(ip: string, path: string, method: 'GET' | 'POST', key?: s
   const data = JSON.parse(Buffer.concat(chunks).toString('utf8'))
   if (!response.ok) {
     const message = explanations[data?.error] || 'Сервис не принял запрос'
-    throw createError({ statusCode: response.status, message: `${message}${data?.errorHex ? ` (${data.errorHex})` : ''}` })
+    throw createError({ statusCode: response.status, message: `${message}${data?.errorHex ? ` (${data.errorHex})` : ''}`,
+      data: { serviceError: typeof data?.error === 'string' ? data.error : undefined } })
   }
   return data
 }
@@ -187,6 +189,27 @@ export async function saveServiceKey(ip: string, value: unknown) {
   return { ready: true, configured: true, contentTypes: c.contentTypes, message: 'PS4 сопряжена с WEB; повторный ввод кода не требуется' }
 }
 export interface ServiceInstallInput { requestId: string; contentId: string; titleId: string; title: string; url: string; contentType: string; size: number }
+/** BGFT reads its icon from a local PS4 path when the task is registered. */
+export async function uploadServiceInstallIcon(ip: string, titleId: string, requestId: string, icon: Buffer) {
+  jobPath(requestId)
+  if (!/^[A-Z0-9]{9}$/.test(titleId)) throw new Error('Неверный TITLE_ID обложки')
+  if (icon.length < 8 || icon.length > 2 * 1024 * 1024 || !icon.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')))
+    throw new Error('Некорректная обложка PKG')
+  const path = `/data/PackegeFlowService/install-icon-${titleId}.png`
+  try {
+    const existing = await consoleFileRequest(ip, 'stat', { path }) as { type?: string; size?: number }
+    if (existing.type === 'file' && typeof existing.size === 'number' && existing.size >= 8 && existing.size <= 2 * 1024 * 1024) return
+    throw new Error('Файл обложки на PS4 уже существует в неверном формате')
+  } catch (error: any) { if (error?.statusCode !== 404) throw error }
+  const session = await consoleFileRequest(ip, 'upload/start', { path, id: requestId, size: icon.length }) as { offset?: number }
+  if (!Number.isSafeInteger(session.offset) || session.offset! < 0 || session.offset! > icon.length) throw new Error('PS4 вернула неверную позицию обложки')
+  for (let offset = session.offset!; offset < icon.length;) {
+    const part = icon.subarray(offset, Math.min(offset + 256 * 1024, icon.length))
+    const result = await consoleFileWrite(ip, requestId, offset, part)
+    offset = result.offset
+  }
+  await consoleFileRequest(ip, 'upload/finish', { id: requestId })
+}
 function job(value: unknown, id: string): ServiceInstallJob {
   if (!validServiceJob(value) || value.requestId !== id) throw createError({ statusCode: 502, message: 'Сервис вернул неожиданный идентификатор или состояние задания' })
   return value
@@ -209,4 +232,13 @@ export async function getServiceInstallJob(ip: string, id: string) {
 }
 export async function cancelServiceInstallJob(ip: string, id: string) {
   return job(await request(ip, `${jobPath(id)}/cancel`, 'POST', token(consoleIp(ip))), id)
+}
+export async function getActiveServiceInstallJob(ip: string) {
+  const value = await request(ip, '/install/jobs/active', 'GET', token(consoleIp(ip))) as { active?: boolean; requestId?: string }
+  if (value?.active === false) return null
+  if (!value?.requestId) throw createError({ statusCode: 502, message: 'Неожиданный ответ о задании PS4' })
+  return job(value, value.requestId)
+}
+export async function releaseServiceInstallJob(ip: string, id: string) {
+  return job(await request(ip, `${jobPath(id)}/release`, 'POST', token(consoleIp(ip))), id)
 }

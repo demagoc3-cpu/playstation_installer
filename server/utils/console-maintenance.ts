@@ -4,6 +4,7 @@ import { readFileSync, statSync } from 'node:fs'
 import { ps4ServiceIp, readPs4Service } from './ps4-service'
 import { readMaintenance, saveMaintenance, assertNoMaintenance } from './maintenance-store'
 import { getPackage, readPackageMetadata } from './package-library'
+import { checkPs4Firmware } from './installation-firmware'
 import { getConsoleCatalog, getConsoleDetails, submitConsoleRemoval, getConsoleRemoval } from './ps4-console-apps'
 import { getInstallationQueue, startInstallationQueue } from './installation-queue'
 import { assertNoInstallation, assertNoRemoval } from './console-operation-store'
@@ -18,6 +19,8 @@ export async function reinstallPlan(ipValue: unknown, packageId: unknown) {
   const actual = await readPackageMetadata(pkg.path, pkg.fileName)
   if (actual.titleId !== pkg.titleId || actual.contentId !== pkg.contentId || actual.contentType !== 'PS4GD' || statSync(pkg.path).size !== pkg.size)
     throw createError({ statusCode: 409, message: 'PKG изменился после сканирования. Просканируйте библиотеку заново' })
+  const firmware = await checkPs4Firmware(ip, actual)
+  if (firmware.state !== 'compatible') throw createError({ statusCode: firmware.state === 'unavailable' ? 503 : 409, message: firmware.detail })
   const details = await getConsoleDetails(ip, pkg.titleId)
   if (!details.app.installed || details.app.protected || !details.complete || !details.components.some(c => c.kind === 'base') || details.components.some(c => !c.canRemove)) throw createError({ statusCode: 409, message: 'Состав игры не подтверждён для переустановки. Обновите «На консоли»' })
   return { packageId: pkg.id, title: pkg.title, details }
@@ -79,7 +82,7 @@ export async function getMaintenance(ipValue: unknown) {
     if (flow.kind === 'reinstall' && flow.installDispatch) {
       const q = getInstallationQueue()
       if (q.id !== flow.id) { flow.state = 'uncertain'; flow.message = 'Очередь переустановки не найдена. Повтор не отправлен' }
-      else { flow.queue = q; flow.message = q.message; if (q.status === 'completed' && q.items.every(i => i.state === 'installed')) flow.state = 'completed'; else if (['failed', 'cancelled'].includes(q.status)) flow.state = 'failed' }
+      else { flow.queue = q; flow.message = q.message; if (q.status === 'completed') flow.state = q.items.every(i => i.state === 'installed') ? 'completed' : 'failed'; else if (['failed', 'cancelled'].includes(q.status)) flow.state = 'failed' }
     }
     if (flow.kind === 'update' && ['installing', 'uncertain'].includes(flow.state)) {
       flow.job = await getServiceInstallJob(ip, flow.input.requestId)

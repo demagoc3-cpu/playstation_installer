@@ -12,6 +12,13 @@ export interface ServiceInstallJob {
   error: number
   errorHex: string
   pollError: number
+  progressBits?: number
+  preparingPercent?: number
+  localCopyPercent?: number
+  installing?: boolean
+  updating?: number
+  activeTaskId?: number
+  activeTaskProbe?: number
 }
 export interface ServiceInstallCapabilities {
   service: 'PackegeFlowService'
