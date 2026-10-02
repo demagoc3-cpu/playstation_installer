@@ -13,9 +13,10 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       donation: {
-        // Bitcoin address for the "Поддержать" section. Empty hides the section.
-        // Can be overridden at runtime: NUXT_PUBLIC_DONATION_BTC=bc1...
-        btc: '17jXaJmM4jki1gwQmzo4ep9U4Sb6iiZXWG'
+        // Wallets for "Поддержать". Empty addresses hide the corresponding cards.
+        // Runtime overrides: NUXT_PUBLIC_DONATION_BTC / NUXT_PUBLIC_DONATION_USDT_TRC20.
+        btc: '17jXaJmM4jki1gwQmzo4ep9U4Sb6iiZXWG',
+        usdtTrc20: 'TRMH7kJxydeBxjbyu2FRmraoDzkx6mRa9v'
       }
     }
   },

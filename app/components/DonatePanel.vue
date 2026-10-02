@@ -1,28 +1,40 @@
 <script setup lang="ts">
 import { renderSVG } from 'uqr'
 
-const props = defineProps<{ btc: string }>()
-const copied = ref(false)
+const props = defineProps<{ btc: string; usdtTrc20: string }>()
+const copied = ref('')
+const copyError = ref('')
 let copiedTimer: ReturnType<typeof setTimeout> | undefined
 
-const qr = computed(() => props.btc ? renderSVG(`bitcoin:${props.btc}`, { border: 1, whiteColor: '#ffffff', blackColor: '#101012' }) : '')
+const wallets = computed(() => [
+  { id: 'btc', name: 'Bitcoin (BTC)', symbol: '₿', network: 'Bitcoin', address: props.btc, uri: `bitcoin:${props.btc}`, note: 'Отправляйте только BTC в сети Bitcoin.' },
+  { id: 'usdt', name: 'Tether (USDT)', symbol: '₮', network: 'Tron · TRC20', address: props.usdtTrc20, uri: '', note: 'Отправляйте USDT в сети Tron (TRC20).' },
+].filter(wallet => wallet.address).map(wallet => ({
+  ...wallet,
+  qr: renderSVG(wallet.uri || wallet.address, { border: 4, whiteColor: '#ffffff', blackColor: '#101012' }),
+})))
 
 /** navigator.clipboard needs a secure context; over plain http on the LAN fall back to execCommand. */
-async function copyAddress() {
-  try { await navigator.clipboard.writeText(props.btc) } catch {
+async function copyAddress(id: string, address: string) {
+  if (copiedTimer) clearTimeout(copiedTimer)
+  copyError.value = ''
+  copied.value = ''
+  try { await navigator.clipboard.writeText(address) } catch {
     const field = document.createElement('textarea')
-    field.value = props.btc
+    field.value = address
     field.style.position = 'fixed'
     field.style.opacity = '0'
     document.body.appendChild(field)
     field.select()
-    document.execCommand('copy')
-    field.remove()
+    try {
+      if (!document.execCommand('copy')) { copyError.value = id; return }
+    } catch { copyError.value = id; return }
+    finally { field.remove() }
   }
-  copied.value = true
-  if (copiedTimer) clearTimeout(copiedTimer)
-  copiedTimer = setTimeout(() => { copied.value = false }, 2000)
+  copied.value = id
+  copiedTimer = setTimeout(() => { copied.value = '' }, 2000)
 }
+onBeforeUnmount(() => { if (copiedTimer) clearTimeout(copiedTimer) })
 </script>
 
 <template>
@@ -30,16 +42,19 @@ async function copyAddress() {
     <p class="eyebrow">ПОДДЕРЖКА ПРОЕКТА</p>
     <h1>Поддержать PackageFlow</h1>
     <p class="donate-lead">PackageFlow — бесплатный проект с открытым кодом. Если он вам помогает, можно поддержать его развитие: новые функции, исправления и совместимость с новыми версиями.</p>
-    <div class="donate-card">
-      <div class="donate-qr" v-html="qr" />
+    <div v-for="wallet in wallets" :key="wallet.id" class="donate-card" :class="wallet.id">
+      <div class="donate-qr" role="img" :aria-label="`QR-код адреса ${wallet.name}, сеть ${wallet.network}`" v-html="wallet.qr" />
       <div class="donate-info">
-        <span class="donate-coin"><b>₿</b> Bitcoin (BTC)</span>
-        <code class="donate-address">{{ btc }}</code>
+        <span class="donate-coin"><b aria-hidden="true">{{ wallet.symbol }}</b> {{ wallet.name }}</span>
+        <span class="donate-network">Сеть: {{ wallet.network }}</span>
+        <code class="donate-address">{{ wallet.address }}</code>
         <div class="donate-actions">
-          <button class="primary" @click="copyAddress">{{ copied ? 'Скопировано ✓' : 'Скопировать адрес' }}</button>
-          <a class="secondary" :href="`bitcoin:${btc}`">Открыть в кошельке</a>
+          <button class="primary" @click="copyAddress(wallet.id, wallet.address)">{{ copied === wallet.id ? 'Скопировано ✓' : 'Скопировать адрес' }}</button>
+          <a v-if="wallet.uri" class="secondary" :href="wallet.uri">Открыть в кошельке</a>
         </div>
-        <p class="donate-note">Отправляйте только BTC в сети Bitcoin. Монеты других сетей на этот адрес будут потеряны.</p>
+        <p v-if="copyError === wallet.id" class="donate-copy-error" role="status">Не удалось скопировать автоматически. Выделите адрес и скопируйте его вручную.</p>
+        <span class="sr-only" role="status">{{ copied === wallet.id ? 'Адрес скопирован' : '' }}</span>
+        <p class="donate-note">{{ wallet.note }}</p>
       </div>
     </div>
   </div>
@@ -53,8 +68,12 @@ async function copyAddress() {
 .donate-qr svg { display: block; width: 100%; height: 100%; }
 .donate-info { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .donate-coin { color: #e6e1ff; font-size: 14px; font-weight: 800; }.donate-coin b { color: #f2a33a; }
+.donate-card.usdt .donate-coin b { color: #50bda4; }
+.donate-network { align-self: flex-start; padding: 4px 8px; border-radius: 5px; background: #29272f; color: #bdb5d0; font-size: 11px; }
 .donate-address { padding: 10px 12px; overflow-wrap: anywhere; border: 1px solid #3b3941; border-radius: 6px; background: #121216; color: #e9e8ef; font: 12px 'DM Mono', monospace; user-select: all; }
 .donate-actions { display: flex; flex-wrap: wrap; gap: 9px; }.donate-actions a { text-decoration: none; display: inline-flex; align-items: center; }
 .donate-note { margin: 0; color: #85838b; font-size: 10px; }
+.donate-copy-error { margin: 0; color: #e3bd77; font-size: 11px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 760px) { .donate-card { flex-direction: column; align-items: stretch; }.donate-qr { align-self: center; } }
 </style>

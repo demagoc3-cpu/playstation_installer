@@ -13,6 +13,8 @@ services:
     # PyLoader payload connects back to it, so the container must use the
     # host network and see the computer's real LAN IP.
     network_mode: host
+#    ports:
+#      - "3001:3000"
 
     volumes:
       - packageflow-data:/app/.data   # settings, queue, pairing tokens
