@@ -1,4 +1,5 @@
 import { logEvent } from './event-log'
+import { assertNoFileInstallation } from './console-file-install-store'
 import { assertNoRemoval } from './console-operation-store'
 import { assertNoMaintenance } from './maintenance-store'
 import { existsSync, readFileSync } from 'node:fs'
@@ -393,6 +394,7 @@ function createQueueItems(packageIds: string[], packageUrls: Record<string, stri
 export function startInstallationQueue(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string }) {
   assertNoMaintenance(input.psIp, input.maintenanceId)
   assertNoRemoval(input.psIp)
+  assertNoFileInstallation(input.psIp)
   const active = readQueue()
   if (active.status === 'running' || active.status === 'cancelling') throw createError({ statusCode: 409, message: 'Очередь уже работает; дождитесь её завершения или отмены' })
   let transport: InstallationTransport

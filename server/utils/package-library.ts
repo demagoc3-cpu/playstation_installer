@@ -89,7 +89,11 @@ function scheduleDeliveryFlush() {
 }
 function publicItem({ path: _, sourceModifiedAt: __, coverPath: ___, icon: ____, ...item }: StoredPackage): LocalPackage { return item }
 
-async function findSfoOffset(handle: Awaited<ReturnType<typeof open>>, header: Buffer) {
+interface PackageReader {
+  read(buffer: Buffer, offset: number, length: number, position: number): Promise<{ bytesRead: number }>
+  stat(): Promise<{ size: number }>
+}
+async function findSfoOffset(handle: PackageReader, header: Buffer) {
   const headerOffset = header.indexOf(SFO_MAGIC)
   if (headerOffset >= 0) return headerOffset
   const chunk = Buffer.alloc(SFO_SEARCH_CHUNK)
@@ -105,7 +109,7 @@ async function findSfoOffset(handle: Awaited<ReturnType<typeof open>>, header: B
   return -1
 }
 
-async function packageEntries(handle: Awaited<ReturnType<typeof open>>, header: Buffer, fileSize: number) {
+async function packageEntries(handle: PackageReader, header: Buffer, fileSize: number) {
   const count = header.readUInt32BE(0x10)
   const tableOffset = header.readUInt32BE(0x18)
   if (!count || count > 4096 || tableOffset < 0x20 || tableOffset + count * 0x20 > fileSize) return []
@@ -127,6 +131,8 @@ function volumeType(header: Buffer): LocalPackage['packageVolume'] {
   const flags = header.readUInt32BE(0x78)
   if (contentType === 0x1b || contentType === 0x1c) return 'add-on'
   if (contentType !== 0x1a) return 'unknown'
+  // Remaster contains the base game despite also carrying patch flags.
+  if (flags & 0x00400000) return 'application'
   return flags & 0x60100000 ? 'patch' : 'application'
 }
 
@@ -169,7 +175,11 @@ function extractIconEntry(entries: ReturnType<typeof packageEntries>): PackageIc
 
 export async function readPackageMetadata(path: string, fileName: string) {
   const handle = await open(path, 'r')
-  try {
+  try { return await readPackageMetadataFromReader(handle, fileName) }
+  finally { await handle.close() }
+}
+/** Bounded reads allow the same parser to inspect a PKG on PS4 without downloading it. */
+export async function readPackageMetadataFromReader(handle: PackageReader, fileName: string) {
     const header = Buffer.alloc(HEADER_BYTES)
     const { bytesRead: headerBytes } = await handle.read(header, 0, header.length, 0)
     const data = header.subarray(0, headerBytes)
@@ -194,7 +204,6 @@ export async function readPackageMetadata(path: string, fileName: string) {
     const sdkFirmware = packedFirmware(values.get('PUBTOOLINFO')?.match(/(?:^|[,\s])sdk_ver=([0-9a-fA-F]{8})(?:[,\s]|$)/i)?.[1] || '')
     const contentType = headerContentType === 0x1c ? 'PS4AL' : headerContentType === 0x1b ? 'PS4AC' : `PS4${category.toUpperCase()}`
     return { title, titleId, appVersion: values.get('APP_VER') || '', masterVersion: values.get('VERSION') || '', requiredFirmware, sdkFirmware, packageVolume: volumeType(data), installOrder: isDlc ? 2 : type === 'Игра' ? 0 : 1, contentId, contentType, packageDigest: data.subarray(0xfe0, 0x1000).toString('hex').toUpperCase(), icon, iconSize: icon.size, type }
-  } finally { await handle.close() }
 }
 
 async function writeCover(source: string, icon: PackageIcon, destination: string) {

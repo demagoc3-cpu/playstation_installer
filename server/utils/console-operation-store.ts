@@ -1,6 +1,7 @@
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { createError } from 'h3'
+import { assertNoFileInstallation } from './console-file-install-store'
 import type { RemoveInput, RemoveOperation } from '../../shared/types/console-apps'
 
 export interface StoredRemoval { ip: string; input: RemoveInput; result: RemoveOperation; createdAt: number; pending: boolean; libraryUpdated?: boolean }
@@ -36,6 +37,7 @@ export function assertNoRemoval(ip: string) {
     throw createError({ statusCode: 409, message: 'Дождитесь удаления на PS4. Его состояние видно в разделе «На консоли»' })
 }
 export function assertNoInstallation(ip: string) {
+  assertNoFileInstallation(ip)
   const queuePath = resolve(process.cwd(), '.data/installation-queue.json')
   if (!existsSync(queuePath)) return
   let q: any

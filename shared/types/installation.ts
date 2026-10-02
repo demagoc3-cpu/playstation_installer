@@ -23,6 +23,7 @@ export interface ServiceInstallJob {
 export interface ServiceInstallCapabilities {
   service: 'PackegeFlowService'
   version: string
+  localInstall?: boolean
   installApi: 1
   ready: boolean
   authentication: 'bearer'

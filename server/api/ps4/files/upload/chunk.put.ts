@@ -9,7 +9,7 @@ export default defineEventHandler(async event => {
   let size = 0
   for await (const part of event.node.req) {
     size += part.length
-    if (size > 256 * 1024) throw createError({ statusCode: 413, message: 'Фрагмент файла слишком велик' })
+    if (size > 4 * 1024 * 1024) throw createError({ statusCode: 413, message: 'Фрагмент файла слишком велик' })
     chunks.push(Buffer.from(part))
   }
   return consoleFileWrite(String(query.ip || ''), String(query.id || ''), Number(query.offset), Buffer.concat(chunks))

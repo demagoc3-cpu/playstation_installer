@@ -25,6 +25,8 @@ export function serviceKeyConfigured(ip: string) {
 }
 
 const explanations: Record<string, string> = {
+  local_package_changed_or_invalid: 'Локальный PKG изменился или повреждён. Обновите сведения о файле',
+  local_slot_unavailable: 'PS4 не смогла выбрать место установки локального PKG',
   apps_unavailable: 'Управление установленными приложениями недоступно',
   inventory_scan_failed: 'Не удалось прочитать установленные приложения PS4',
   inventory_changed_refresh: 'Состав игры изменился или прочитан не полностью. Обновите список',
@@ -75,8 +77,9 @@ export function consoleFilePath(value: unknown) {
   if (value.split('/').at(-1) === 'web-key') throw createError({ statusCode: 403, message: 'Ключ сопряжения недоступен в проводнике' })
   return value
 }
-export async function consoleFileRequest(ip: string, route: 'list' | 'stat' | 'read' | 'upload/start' | 'upload/finish', body: Record<string, unknown>) {
+export async function consoleFileRequest(ip: string, route: 'list' | 'stat' | 'read' | 'upload/start' | 'upload/finish' | 'capabilities' | 'mkdir' | 'move' | 'replace' | 'delete', body: Record<string, unknown>) {
   if ('path' in body) consoleFilePath(body.path)
+  if ('destination' in body) consoleFilePath(body.destination)
   return request(ip, `/files/${route}`, 'POST', token(consoleIp(ip)), body)
 }
 export async function consoleFileRead(ip: string, path: string, offset: number, length: number): Promise<Buffer> {
@@ -96,10 +99,10 @@ export async function consoleFileRead(ip: string, path: string, offset: number, 
 }
 export async function consoleFileWrite(ip: string, id: string, offset: number, data: Buffer) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ||
-      !Number.isSafeInteger(offset) || offset < 0 || !data.length || data.length > 256 * 1024)
+      !Number.isSafeInteger(offset) || offset < 0 || !data.length || data.length > 4 * 1024 * 1024)
     throw createError({ statusCode: 400, message: 'Недопустимый фрагмент файла' })
   const response = await fetch(`http://${consoleIp(ip)}:12801/files/upload/${id}`, {
-    method: 'PUT', redirect: 'error', signal: AbortSignal.timeout(15000),
+    method: 'PUT', redirect: 'error', signal: AbortSignal.timeout(60000),
     headers: { Authorization: `Bearer ${token(consoleIp(ip))}`, 'Content-Type': 'application/octet-stream', 'X-Offset': String(offset) },
     body: data,
   })
@@ -133,7 +136,8 @@ async function request(ip: string, path: string, method: 'GET' | 'POST', key?: s
   } finally { await reader.cancel().catch(() => {}) }
   const data = JSON.parse(Buffer.concat(chunks).toString('utf8'))
   if (!response.ok) {
-    const message = explanations[data?.error] || 'Сервис не принял запрос'
+    const fileErrors: Record<number, string> = { 400: 'Неверный путь или параметры операции', 403: 'Изменение этого пути запрещено или он содержит защищённые файлы', 404: 'Файл не найден или путь содержит символическую ссылку', 409: 'Файл изменился или имя уже занято. Обновите папку', 422: 'Перемещение между дисками выполняется через копирование', 503: 'Операция не завершена. Проверьте исходный файл и резервную копию' }
+    const message = data?.error === 'file_operation_failed' ? fileErrors[response.status] || 'PS4 не смогла выполнить файловую операцию' : explanations[data?.error] || 'Сервис не принял запрос'
     throw createError({ statusCode: response.status, message: `${message}${data?.errorHex ? ` (${data.errorHex})` : ''}`,
       data: { serviceError: typeof data?.error === 'string' ? data.error : undefined } })
   }
@@ -154,7 +158,7 @@ export async function getServiceInstallerStatus(ip: string) {
     if (!c.ready) return { ready: false, configured, contentTypes: c.contentTypes, version: c.version, message: `API установки недоступен (${c.errorHex})` }
     if (!configured) return { ready: false, configured, contentTypes: c.contentTypes, version: c.version, message: 'Введите код сопряжения с экрана запускателя PS4' }
     capabilities(await request(ip, '/install/session', 'GET', token(ip)))
-    return { ready: true, configured, contentTypes: c.contentTypes, version: c.version, message: c.contentTypes.includes('PS4GP') ? 'Сервис готов к установке игр, патчей и DLC' : 'Сервис готов к установке базовой игры; для патчей обновите PKG сервиса' }
+    return { ready: true, configured, localInstall: c.localInstall === true, contentTypes: c.contentTypes, version: c.version, message: c.contentTypes.includes('PS4GP') ? 'Сервис готов к установке игр, патчей и DLC' : 'Сервис готов к установке базовой игры; для патчей обновите PKG сервиса' }
   } catch (error: any) {
     return { ready: false, configured, contentTypes: [], message: error?.statusCode === 404 ? 'Обновите PackageFlowService до PKG 1.17' : error?.statusCode ? error.message : 'Сервис не отвечает на порту 12801' }
   }
@@ -221,6 +225,10 @@ function jobPath(id: string) {
 export async function submitServicePackage(ip: string, input: ServiceInstallInput) {
   jobPath(input.requestId)
   return job(await request(ip, '/install/jobs', 'POST', token(consoleIp(ip)), input), input.requestId)
+}
+export async function submitServiceLocalPackage(ip: string, input: ServiceInstallInput & { revision: string }) {
+  jobPath(input.requestId); consoleFilePath(input.url)
+  return job(await request(ip, '/install/local', 'POST', token(consoleIp(ip)), input), input.requestId)
 }
 export async function submitServiceUpdate(ip: string, input: ServiceInstallInput) {
   jobPath(input.requestId)
