@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t, formatLocale } = useAppLocale()
+
 const props = defineProps<{ ip: string; current: string }>()
 const emit = defineEmits<{ changed: [] }>()
 const release = ref<any>(); const artifact = ref<any>(); const flow = ref<any>(); const message = ref(''); const busy = ref(false); const dismissed = ref('')
@@ -16,14 +18,14 @@ async function select(event: Event) {
 }
 async function github() { const id = generation; busy.value = true; try { const a = await $fetch('/api/ps4/service-update/github', { method: 'POST', body: { current: props.current } }); if (id === generation) artifact.value = a } catch (e) { if (id === generation) message.value = error(e) } finally { if (id === generation) busy.value = false } }
 async function install() {
-  if (!artifact.value || !window.confirm(`Установить PackageFlowService ${artifact.value.version}? WEB и PS4 должны оставаться включёнными. После установки будет доступен перезапуск через запускатель.`)) return
+  if (!artifact.value || !window.confirm(t(`Установить PackageFlowService ${artifact.value.version}? WEB и PS4 должны оставаться включёнными. После установки будет доступен перезапуск через запускатель.`))) return
   const id = generation; busy.value = true
   const recovering = flow.value?.state === 'restarting' && Number(artifact.value.version) > Number(flow.value.targetVersion)
   try { const r = await $fetch(recovering ? '/api/ps4/service-update/recover' : '/api/ps4/service-update/install', { method: 'POST', body: { ip: props.ip, artifactId: artifact.value.id } }); if (id === generation) flow.value = r }
   catch (e) { if (id === generation) { message.value = error(e); await poll() } } finally { if (id === generation) busy.value = false }
 }
 async function restart() {
-  if (!window.confirm('Закройте активную игру. Запускатель заменит фоновый сервис; подключение на несколько секунд прервётся. Продолжить?')) return
+  if (!window.confirm(t('Закройте активную игру. Запускатель заменит фоновый сервис; подключение на несколько секунд прервётся. Продолжить?'))) return
   const id = generation; busy.value = true
   try { const r = await $fetch('/api/ps4/service-update/restart', { method: 'POST', body: { ip: props.ip } }); if (id === generation) flow.value = r } catch (e) { if (id === generation) message.value = error(e) } finally { if (id === generation) busy.value = false }
 }
@@ -33,13 +35,13 @@ onMounted(() => { dismissed.value = localStorage.getItem(dismissalKey()) || ''; 
 onBeforeUnmount(() => { generation++; clearInterval(timer) })
 </script>
 <template>
-  <section class="updates"><h2>Обновление PackageFlowService</h2><p>Установлено: PKG {{ current || '—' }}. Сопряжение с WEB сохраняется после обновления.</p>
-    <div class="actions"><button :disabled="busy" @click="check">Проверить GitHub</button><button v-if="release?.available" :disabled="busy" @click="github">Скачать PKG {{ release.version }}</button><label class="file-button">Выбрать PKG на компьютере<input type="file" accept=".pkg" :disabled="busy" @change="select"></label></div>
-    <p v-if="release">{{ release.message }} · <a :href="release.releaseUrl" target="_blank" rel="noopener">Релизы проекта</a></p>
-    <p v-if="current && Number(current) < 1.19">Первое обновление до 1.19 установите вручную на PS4. Следующие версии можно устанавливать отсюда.</p>
-    <div v-if="artifact" class="artifact"><strong>Проверен PKG {{ artifact.version }}</strong><p>{{ (artifact.size / 1024 / 1024).toFixed(1) }} МБ · SHA-256: {{ artifact.sha256 }}</p><button :disabled="busy || (flow && !['completed', 'failed'].includes(flow.state) && !(flow.state === 'restarting' && Number(artifact.version) > Number(flow.targetVersion)))" @click="install">{{ flow?.state === 'restarting' ? 'Восстановить обновление на PS4' : 'Установить обновление на PS4' }}</button></div>
-    <div v-if="flow && !(flow.state === 'completed' && dismissed === flow.id)" class="flow" aria-live="polite"><div class="flow-heading"><strong>{{ flow.state === 'completed' ? 'Сервис обновлён' : flow.state === 'failed' ? 'Обновление не выполнено' : 'Обновление сервиса' }}</strong><button v-if="flow.state === 'completed'" class="dismiss" type="button" aria-label="Скрыть уведомление об обновлении" @click="dismiss">×</button></div><p>{{ flow.message }}</p><progress v-if="flow.job?.downloadTotalBytes" :value="flow.job.downloadedBytes" :max="flow.job.downloadTotalBytes"/><button v-if="flow.state === 'restart_ready'" :disabled="busy" @click="restart">Перезапустить сервис</button><button v-else-if="!['completed', 'failed'].includes(flow.state)" :disabled="busy" @click="poll">Проверить результат</button></div>
-    <p v-if="message" role="alert">{{ message }}</p><p v-if="busy">Подождите…</p>
+  <section class="updates"><h2>{{ t("Обновление PackageFlowService") }}</h2><p>{{ t("Установлено: PKG") }} {{ t(current || '—') }}{{ t(". Сопряжение с WEB сохраняется после обновления.") }}</p>
+    <div class="actions"><button :disabled="busy" @click="check">{{ t("Проверить GitHub") }}</button><button v-if="release?.available" :disabled="busy" @click="github">{{ t("Скачать PKG") }} {{ t(release.version) }}</button><label class="file-button">{{ t("Выбрать PKG на компьютере") }}<input type="file" accept=".pkg" :disabled="busy" @change="select"></label></div>
+    <p v-if="release">{{ t(release.message) }} · <a :href="release.releaseUrl" target="_blank" rel="noopener">{{ t("Релизы проекта") }}</a></p>
+    <p v-if="current && Number(current) < 1.19">{{ t("Первое обновление до 1.19 установите вручную на PS4. Следующие версии можно устанавливать отсюда.") }}</p>
+    <div v-if="artifact" class="artifact"><strong>{{ t("Проверен PKG") }} {{ t(artifact.version) }}</strong><p>{{ t((artifact.size / 1024 / 1024).toLocaleString(formatLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })) }} {{ t("МБ · SHA-256:") }} {{ t(artifact.sha256) }}</p><button :disabled="busy || (flow && !['completed', 'failed'].includes(flow.state) && !(flow.state === 'restarting' && Number(artifact.version) > Number(flow.targetVersion)))" @click="install">{{ t(flow?.state === 'restarting' ? 'Восстановить обновление на PS4' : 'Установить обновление на PS4') }}</button></div>
+    <div v-if="flow && !(flow.state === 'completed' && dismissed === flow.id)" class="flow" aria-live="polite"><div class="flow-heading"><strong>{{ t(flow.state === 'completed' ? 'Сервис обновлён' : flow.state === 'failed' ? 'Обновление не выполнено' : 'Обновление сервиса') }}</strong><button v-if="flow.state === 'completed'" class="dismiss" type="button" :aria-label="t(&quot;Скрыть уведомление об обновлении&quot;)" @click="dismiss">×</button></div><p>{{ t(flow.message) }}</p><progress v-if="flow.job?.downloadTotalBytes" :value="flow.job.downloadedBytes" :max="flow.job.downloadTotalBytes"/><button v-if="flow.state === 'restart_ready'" :disabled="busy" @click="restart">{{ t("Перезапустить сервис") }}</button><button v-else-if="!['completed', 'failed'].includes(flow.state)" :disabled="busy" @click="poll">{{ t("Проверить результат") }}</button></div>
+    <p v-if="message" role="alert">{{ t(message) }}</p><p v-if="busy">{{ t("Подождите…") }}</p>
   </section>
 </template>
 <style scoped>

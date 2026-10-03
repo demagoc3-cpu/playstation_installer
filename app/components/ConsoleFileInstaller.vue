@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t, formatLocale } = useAppLocale()
+
 import type { ConsolePackagePreview, ConsolePackageInstallation } from '../../shared/types/console-file-install'
 const props = defineProps<{ psIp: string; showHistory: boolean }>()
 const emit = defineEmits<{ busy: [value: boolean]; notice: [title: string, detail?: string, attention?: boolean] }>()
@@ -16,7 +18,7 @@ function detail(j: ConsolePackageInstallation) {
   return `PS4: ${j.job.errorHex}`
 }
 const message = (cause: any) => cause?.data?.message || cause?.message || 'Нет ответа от PS4'
-const bytes = (size: number) => `${(size / 1024 ** (size >= 1024 ** 3 ? 3 : 2)).toFixed(1)} ${size >= 1024 ** 3 ? 'ГБ' : 'МБ'}`
+const bytes = (size: number) => `${(size / 1024 ** (size >= 1024 ** 3 ? 3 : 2)).toLocaleString(formatLocale.value, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })} ${size >= 1024 ** 3 ? 'ГБ' : 'МБ'}`
 function percent(j: ConsolePackageInstallation) {
   const job = j.job
   if (!job) return 0
@@ -75,30 +77,30 @@ watch(() => props.psIp, () => { modal.value?.close(); preview.value = undefined;
 </script>
 
 <template>
-  <div v-if="preparing" class="pkg-progress" role="status">Проверяем PKG, прошивку и свободное место PS4…</div>
+  <div v-if="preparing" class="pkg-progress" role="status">{{ t("Проверяем PKG, прошивку и свободное место PS4…") }}</div>
   <div v-for="record in active" :key="record.id" class="pkg-progress" role="status">
-    <div><strong>{{ record.title }}</strong><span>{{ state(record) }}<template v-if="percent(record)"> · {{ percent(record) }}%</template></span></div>
+    <div><strong>{{ record.title }}</strong><span>{{ t(state(record)) }}<template v-if="percent(record)"> · {{ t(percent(record)) }}%</template></span></div>
     <progress :value="percent(record)" max="100" />
-    <span class="path">{{ record.path }}</span><span v-if="detail(record)" class="warning">{{ detail(record) }}</span>
-    <button type="button" :disabled="record.pending || record.job?.state === 'cancelling'" @click="cancel(record.id)">Отменить установку</button>
+    <span class="path">{{ record.path }}</span><span v-if="detail(record)" class="warning">{{ t(detail(record)) }}</span>
+    <button type="button" :disabled="record.pending || record.job?.state === 'cancelling'" @click="cancel(record.id)">{{ t("Отменить установку") }}</button>
   </div>
   <section v-if="showHistory && history.length" class="pkg-history">
-    <h2>Установки из файлов</h2>
+    <h2>{{ t("Установки из файлов") }}</h2>
     <div v-for="record in history" :key="record.id" class="history-row">
-      <strong>{{ record.title }} · {{ state(record) }}</strong>
-      <span>{{ new Date(record.createdAt).toLocaleString('ru-RU') }} · {{ record.path }}</span>
-      <span v-if="detail(record)" class="warning">{{ detail(record) }}</span>
+      <strong>{{ record.title }} · {{ t(state(record)) }}</strong>
+      <span>{{ t(new Date(record.createdAt).toLocaleString(formatLocale)) }} · {{ record.path }}</span>
+      <span v-if="detail(record)" class="warning">{{ t(detail(record)) }}</span>
     </div>
   </section>
   <dialog ref="modal" @cancel.prevent="close">
     <form v-if="preview" @submit.prevent="install">
-      <h2>Установить PKG на PS4?</h2><p>PS4 {{ psIp }}</p>
+      <h2>{{ t("Установить PKG на PS4?") }}</h2><p>PS4 {{ psIp }}</p>
       <strong>{{ preview.title }}</strong>
-      <dl><dt>Пакет</dt><dd>{{ preview.type }} · {{ preview.appVersion || 'Без версии' }} · {{ bytes(preview.size) }}</dd><dt>Игра</dt><dd>{{ preview.titleId }}</dd><dt>Файл на PS4</dt><dd>{{ preview.path }}</dd></dl>
-      <p :class="{ warning: !preview.compatible }">{{ preview.firmwareMessage }}</p><p :class="{ warning: !preview.canInstall }">{{ preview.spaceMessage }}</p>
-      <p>Установка идёт с диска консоли. Исходный PKG останется в папке; PS4 потребуется место для установленного пакета.</p>
-      <p v-if="error" class="warning" role="alert">{{ error }}</p>
-      <div class="buttons"><button type="button" :disabled="starting" @click="close">Отмена</button><button type="submit" :disabled="starting || !preview.canInstall">{{ starting ? 'Запускаем…' : 'Установить на PS4' }}</button></div>
+      <dl><dt>{{ t("Пакет") }}</dt><dd>{{ t(preview.type) }} · {{ t(preview.appVersion || 'Без версии') }} · {{ t(bytes(preview.size)) }}</dd><dt>{{ t("Игра") }}</dt><dd>{{ preview.titleId }}</dd><dt>{{ t("Файл на PS4") }}</dt><dd>{{ preview.path }}</dd></dl>
+      <p :class="{ warning: !preview.compatible }">{{ t(preview.firmwareMessage) }}</p><p :class="{ warning: !preview.canInstall }">{{ t(preview.spaceMessage) }}</p>
+      <p>{{ t("Установка идёт с диска консоли. Исходный PKG останется в папке; PS4 потребуется место для установленного пакета.") }}</p>
+      <p v-if="error" class="warning" role="alert">{{ t(error) }}</p>
+      <div class="buttons"><button type="button" :disabled="starting" @click="close">{{ t("Отмена") }}</button><button type="submit" :disabled="starting || !preview.canInstall">{{ t(starting ? 'Запускаем…' : 'Установить на PS4') }}</button></div>
     </form>
   </dialog>
 </template>

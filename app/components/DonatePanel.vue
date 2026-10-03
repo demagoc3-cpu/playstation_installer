@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t } = useAppLocale()
+
 import { renderSVG } from 'uqr'
 
 const props = defineProps<{ btc: string; usdtTrc20: string }>()
@@ -40,24 +42,24 @@ onBeforeUnmount(() => { if (copiedTimer) clearTimeout(copiedTimer) })
 
 <template>
   <div class="donate">
-    <p class="eyebrow">ПОДДЕРЖКА ПРОЕКТА</p>
-    <h1>Поддержать PackageFlow</h1>
-    <p class="donate-lead">PackageFlow — бесплатный проект с открытым кодом. Если он вам помогает, можно поддержать его развитие: новые функции, исправления и совместимость с новыми версиями.</p>
+    <p class="eyebrow">{{ t("ПОДДЕРЖКА ПРОЕКТА") }}</p>
+    <h1>{{ t("Поддержать PackageFlow") }}</h1>
+    <p class="donate-lead">{{ t("PackageFlow — бесплатный проект с открытым кодом. Если он вам помогает, можно поддержать его развитие: новые функции, исправления и совместимость с новыми версиями.") }}</p>
     <div v-for="wallet in wallets" :key="wallet.id" class="donate-card" :class="wallet.id">
-      <div v-if="activeQr === wallet.id" :id="`donate-qr-${wallet.id}`" class="donate-qr" role="img" :aria-label="`QR-код адреса ${wallet.name}, сеть ${wallet.network}`" v-html="wallet.qr" />
+      <div v-if="activeQr === wallet.id" :id="`donate-qr-${wallet.id}`" class="donate-qr" role="img" :aria-label="t(`QR-код адреса ${wallet.name}, сеть ${wallet.network}`)" v-html="wallet.qr" />
       <div v-else class="donate-wallet-icon" aria-hidden="true">{{ wallet.symbol }}</div>
       <div class="donate-info">
         <span class="donate-coin">{{ wallet.name }}</span>
-        <span class="donate-network">Сеть: {{ wallet.network }}</span>
+        <span class="donate-network">{{ t("Сеть:") }} {{ t(wallet.network) }}</span>
         <code class="donate-address">{{ wallet.address }}</code>
         <div class="donate-actions">
-          <button class="secondary" :aria-expanded="activeQr === wallet.id" :aria-controls="`donate-qr-${wallet.id}`" :aria-label="`${activeQr === wallet.id ? 'Скрыть' : 'Показать'} QR ${wallet.name}`" @click="activeQr = activeQr === wallet.id ? '' : wallet.id">{{ activeQr === wallet.id ? 'Скрыть QR' : 'Показать QR' }}</button>
-          <button class="primary" @click="copyAddress(wallet.id, wallet.address)">{{ copied === wallet.id ? 'Скопировано ✓' : 'Скопировать адрес' }}</button>
-          <a v-if="wallet.uri" class="secondary" :href="wallet.uri">Открыть в кошельке</a>
+          <button class="secondary" :aria-expanded="activeQr === wallet.id" :aria-controls="`donate-qr-${wallet.id}`" :aria-label="`${t(activeQr === wallet.id ? 'Скрыть' : 'Показать')} QR ${wallet.name}`" @click="activeQr = activeQr === wallet.id ? '' : wallet.id">{{ t(activeQr === wallet.id ? 'Скрыть QR' : 'Показать QR') }}</button>
+          <button class="primary" @click="copyAddress(wallet.id, wallet.address)">{{ t(copied === wallet.id ? 'Скопировано ✓' : 'Скопировать адрес') }}</button>
+          <a v-if="wallet.uri" class="secondary" :href="wallet.uri">{{ t("Открыть в кошельке") }}</a>
         </div>
-        <p v-if="copyError === wallet.id" class="donate-copy-error" role="status">Не удалось скопировать автоматически. Выделите адрес и скопируйте его вручную.</p>
-        <span class="sr-only" role="status">{{ copied === wallet.id ? 'Адрес скопирован' : '' }}</span>
-        <p class="donate-note">{{ wallet.note }}</p>
+        <p v-if="copyError === wallet.id" class="donate-copy-error" role="status">{{ t("Не удалось скопировать автоматически. Выделите адрес и скопируйте его вручную.") }}</p>
+        <span class="sr-only" role="status">{{ t(copied === wallet.id ? 'Адрес скопирован' : '') }}</span>
+        <p class="donate-note">{{ t(wallet.note) }}</p>
       </div>
     </div>
   </div>

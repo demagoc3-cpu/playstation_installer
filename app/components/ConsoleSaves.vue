@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t, formatLocale } = useAppLocale()
+
 const props = defineProps<{ ip: string; focusTitleId?: string }>()
 interface SaveGame { titleId: string; title: string; installed: boolean | null }
 interface SaveUser { userId: string; games: SaveGame[] }
@@ -34,7 +36,7 @@ function bytes(size: number) {
   if (size < 1024) return `${size} Б`
   const unit = size < 1024 ** 2 ? 'КБ' : size < 1024 ** 3 ? 'МБ' : 'ГБ'
   const divisor = unit === 'КБ' ? 1024 : unit === 'МБ' ? 1024 ** 2 : 1024 ** 3
-  return `${(size / divisor).toLocaleString('ru-RU', { maximumFractionDigits: 1 })} ${unit}`
+  return `${(size / divisor).toLocaleString(formatLocale.value, { maximumFractionDigits: 1 })} ${unit}`
 }
 async function refresh() {
   const id = ++generation
@@ -76,7 +78,7 @@ function toggleBackups(slot: string) {
     ? expandedBackupSlots.value.filter(item => item !== slot) : [...expandedBackupSlots.value, slot]
 }
 async function restoreBackup(backup: SaveBackup) {
-  if (restoreActionId.value || !window.confirm(`Восстановить копию ${new Date(backup.createdAt).toLocaleString('ru-RU')} для ${backup.slot}? Сначала закройте игру. Текущее сохранение будет скопировано для отката.`)) return
+  if (restoreActionId.value || !window.confirm(t(`Восстановить копию ${new Date(backup.createdAt).toLocaleString(formatLocale.value)} для ${backup.slot}? Сначала закройте игру. Текущее сохранение будет скопировано для отката.`))) return
   restoreActionId.value = backup.id; error.value = ''; notice.value = ''
   const titleId = selectedTitle.value
   try {
@@ -91,7 +93,7 @@ async function settleRestore(record: SaveRestore, action: 'finalize' | 'rollback
   const prompt = action === 'finalize'
     ? 'Игра открыла восстановленный сейв? Подтверждение удалит временный откат на PS4; скачанные копии останутся.'
     : 'Вернуть сейв, который был на PS4 до восстановления? Закройте игру. Прогресс, созданный после восстановления, будет заменён.'
-  if (!window.confirm(prompt)) return
+  if (!window.confirm(t(prompt))) return
   restoreActionId.value = record.rollbackId; error.value = ''; notice.value = ''
   const titleId = selectedTitle.value
   try {
@@ -152,44 +154,44 @@ watch(() => props.focusTitleId, titleId => {
 
 <template>
   <section class="saves-page">
-    <header><div><p class="eyebrow">PLAYSTATION 4</p><h1>Сохранения</h1><p>Сейвы остаются в этом списке, даже если игра удалена с приставки.</p></div><button :disabled="loading" @click="refresh">{{ loading ? 'Читаем…' : 'Обновить список' }}</button></header>
+    <header><div><p class="eyebrow">PLAYSTATION 4</p><h1>{{ t("Сохранения") }}</h1><p>{{ t("Сейвы остаются в этом списке, даже если игра удалена с приставки.") }}</p></div><button :disabled="loading" @click="refresh">{{ t(loading ? 'Читаем…' : 'Обновить список') }}</button></header>
     <SaveCollections :ip="props.ip" :users="users" />
-    <h2 class="separate-title">Отдельные копии игр и слотов</h2>
-    <p>Слот — одно сохранение внутри игры. Копия игры сохраняет все её слоты. Именной набор выше охватывает все игры и профили PS4.</p>
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <p v-if="notice" class="notice" role="status">{{ notice }}</p>
-    <div v-if="users.length" class="filters"><label>Профиль PS4 <select v-model="selectedUser" @change="chooseUser(selectedUser)"><option v-for="(user, index) in users" :key="user.userId" :value="user.userId">Профиль {{ index + 1 }} · {{ user.games.length }} игр</option></select></label><input v-model="query" placeholder="Название или CUSA" aria-label="Найти сохранения игры"></div>
-    <p v-if="!loading && !users.length && !error" class="empty">Сохранения не найдены.</p>
-    <p v-else-if="!loading && !visibleGames.length && !error" class="empty">Для этого профиля игр с сохранениями не найдено.</p>
+    <h2 class="separate-title">{{ t("Отдельные копии игр и слотов") }}</h2>
+    <p>{{ t("Слот — одно сохранение внутри игры. Копия игры сохраняет все её слоты. Именной набор выше охватывает все игры и профили PS4.") }}</p>
+    <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
+    <p v-if="notice" class="notice" role="status">{{ t(notice) }}</p>
+    <div v-if="users.length" class="filters"><label>{{ t("Профиль PS4") }} <select v-model="selectedUser" @change="chooseUser(selectedUser)"><option v-for="(user, index) in users" :key="user.userId" :value="user.userId">{{ t("Профиль") }} {{ t(index + 1) }} · {{ t(user.games.length) }} {{ t("игр") }}</option></select></label><input v-model="query" :placeholder="t(&quot;Название или CUSA&quot;)" :aria-label="t(&quot;Найти сохранения игры&quot;)"></div>
+    <p v-if="!loading && !users.length && !error" class="empty">{{ t("Сохранения не найдены.") }}</p>
+    <p v-else-if="!loading && !visibleGames.length && !error" class="empty">{{ t("Для этого профиля игр с сохранениями не найдено.") }}</p>
     <div v-for="game in visibleGames" :key="game.titleId" class="game">
       <button class="game-button" :aria-expanded="selectedTitle === game.titleId" @click="toggleGame(game.titleId)">
-        <span><strong>{{ game.title === game.titleId ? `Игра ${game.titleId}` : game.title }}</strong><small>{{ game.title === game.titleId ? '' : `${game.titleId} · ` }}{{ game.installed === true ? 'Игра установлена' : game.installed === false ? 'Игра сейчас не установлена' : 'Состояние игры неизвестно' }}</small></span><span class="expand">{{ selectedTitle === game.titleId ? '−' : '+' }}</span>
+        <span><strong>{{ t(game.title === game.titleId ? `Игра ${game.titleId}` : game.title) }}</strong><small>{{ t(game.title === game.titleId ? '' : `${game.titleId} · `) }}{{ t(game.installed === true ? 'Игра установлена' : game.installed === false ? 'Игра сейчас не установлена' : 'Состояние игры неизвестно') }}</small></span><span class="expand">{{ t(selectedTitle === game.titleId ? '−' : '+') }}</span>
       </button>
       <div v-if="selectedTitle === game.titleId" class="slots">
-        <p v-if="loadingSlots">Читаем слоты…</p><p v-else-if="!slots.length">Слоты не найдены. Обновите список, если игра только что создала сейв.</p>
-        <div v-if="slots.length" class="all-slots"><span>Для полной копии прогресса сохраните все слоты игры.</span><button :disabled="!!creatingSlot || !!restoreActionId" @click="createAllBackups">{{ creatingSlot === 'all' ? 'Копируем все слоты…' : 'Создать копию игры' }}</button></div>
+        <p v-if="loadingSlots">{{ t("Читаем слоты…") }}</p><p v-else-if="!slots.length">{{ t("Слоты не найдены. Обновите список, если игра только что создала сейв.") }}</p>
+        <div v-if="slots.length" class="all-slots"><span>{{ t("Для полной копии прогресса сохраните все слоты игры.") }}</span><button :disabled="!!creatingSlot || !!restoreActionId" @click="createAllBackups">{{ t(creatingSlot === 'all' ? 'Копируем все слоты…' : 'Создать копию игры') }}</button></div>
         <div v-for="slot in slots" :key="slot.name" class="slot">
           <div class="slot-details">
-            <strong>{{ slot.name }}</strong><small>Размер контейнера: {{ bytes(slot.containerBytes) }}</small>
+            <strong>{{ slot.name }}</strong><small>{{ t("Размер контейнера:") }} {{ t(bytes(slot.containerBytes)) }}</small>
             <div v-for="restore in restores.filter(item => item.slot === slot.name)" :key="restore.rollbackId" class="restore-check">
-              <strong>Проверьте восстановление в игре</strong>
-              <span>Пока результат не подтверждён, исходный сейв доступен для отката.</span>
-              <div><button :disabled="!!restoreActionId" @click="settleRestore(restore, 'finalize')">Игра читает сейв</button><button :disabled="!!restoreActionId" @click="settleRestore(restore, 'rollback')">Вернуть прежний</button></div>
+              <strong>{{ t("Проверьте восстановление в игре") }}</strong>
+              <span>{{ t("Пока результат не подтверждён, исходный сейв доступен для отката.") }}</span>
+              <div><button :disabled="!!restoreActionId" @click="settleRestore(restore, 'finalize')">{{ t("Игра читает сейв") }}</button><button :disabled="!!restoreActionId" @click="settleRestore(restore, 'rollback')">{{ t("Вернуть прежний") }}</button></div>
             </div>
             <div class="backup-list">
               <div v-for="backup in visibleBackups(slot.name)" :key="backup.id" class="backup-row">
-                <span>Копия {{ new Date(backup.createdAt).toLocaleString('ru-RU') }} · {{ bytes(backup.bytes) }}</span>
-                <button :disabled="!!downloadingId" @click="downloadBackup(backup)">{{ downloadingId === backup.id ? 'Подготовка…' : 'Скачать' }}</button>
-                <button :disabled="!!restoreActionId || restores.some(item => item.slot === slot.name)" @click="restoreBackup(backup)">{{ restoreActionId === backup.id ? 'Восстанавливаем…' : 'Восстановить' }}</button>
+                <span>{{ t("Копия") }} {{ t(new Date(backup.createdAt).toLocaleString(formatLocale)) }} · {{ t(bytes(backup.bytes)) }}</span>
+                <button :disabled="!!downloadingId" @click="downloadBackup(backup)">{{ t(downloadingId === backup.id ? 'Подготовка…' : 'Скачать') }}</button>
+                <button :disabled="!!restoreActionId || restores.some(item => item.slot === slot.name)" @click="restoreBackup(backup)">{{ t(restoreActionId === backup.id ? 'Восстанавливаем…' : 'Восстановить') }}</button>
               </div>
-              <button v-if="slotBackups(slot.name).length > 1" class="more-backups" :aria-expanded="expandedBackupSlots.includes(slot.name)" @click="toggleBackups(slot.name)">{{ expandedBackupSlots.includes(slot.name) ? 'Скрыть старые копии' : `Показать ещё ${slotBackups(slot.name).length - 1} копий` }}</button>
+              <button v-if="slotBackups(slot.name).length > 1" class="more-backups" :aria-expanded="expandedBackupSlots.includes(slot.name)" @click="toggleBackups(slot.name)">{{ t(expandedBackupSlots.includes(slot.name) ? 'Скрыть старые копии' : `Показать ещё ${slotBackups(slot.name).length - 1} копий`) }}</button>
             </div>
           </div>
-          <button :disabled="!!creatingSlot" @click="createBackup(slot)">{{ creatingSlot === slot.name ? 'Копируем…' : 'Создать копию слота' }}</button>
+          <button :disabled="!!creatingSlot" @click="createBackup(slot)">{{ t(creatingSlot === slot.name ? 'Копируем…' : 'Создать копию слота') }}</button>
         </div>
       </div>
     </div>
-    <p class="note">Копии содержат только сохранения игр. Перед восстановлением закройте игру; после записи запустите её и подтвердите результат.</p>
+    <p class="note">{{ t("Копии содержат только сохранения игр. Перед восстановлением закройте игру; после записи запустите её и подтвердите результат.") }}</p>
   </section>
 </template>
 

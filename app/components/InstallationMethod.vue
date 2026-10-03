@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t } = useAppLocale()
+
 import type { InstallationTransport } from '../../shared/types/installation'
 const props = defineProps<{ ip: string; modelValue: InstallationTransport; disabled: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: InstallationTransport]; status: [ready: boolean] }>()
@@ -44,29 +46,27 @@ function inputCode(value: string) {
 </script>
 
 <template>
-  <section class="installation-method" aria-label="Способ установки">
+  <section class="installation-method" :aria-label="t(&quot;Способ установки&quot;)">
     <div class="method-row">
-      <label>Способ установки
-        <select :value="modelValue" :disabled="disabled" @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value as InstallationTransport)">
-          <option value="service">PackageFlowService — по умолчанию</option>
+      <label>{{ t("Способ установки") }} <select :value="modelValue" :disabled="disabled" @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value as InstallationTransport)">
+          <option value="service">{{ t("PackageFlowService — по умолчанию") }}</option>
           <option value="payload">PyLoader</option>
         </select>
       </label>
       <template v-if="modelValue === 'service'">
-        <button :disabled="busy || disabled" @click="check">{{ busy ? 'Проверяем…' : 'Проверить сервис' }}</button>
-        <button v-if="configured" :disabled="busy || disabled" @click="showKey = !showKey">Повторить сопряжение</button>
+        <button :disabled="busy || disabled" @click="check">{{ t(busy ? 'Проверяем…' : 'Проверить сервис') }}</button>
+        <button v-if="configured" :disabled="busy || disabled" @click="showKey = !showKey">{{ t("Повторить сопряжение") }}</button>
       </template>
     </div>
-    <p v-if="modelValue === 'payload'">Игры, патчи, DLC и автоустановка торрентов через PyLoader.</p>
+    <p v-if="modelValue === 'payload'">{{ t("Игры, патчи, DLC и автоустановка торрентов через PyLoader.") }}</p>
     <template v-else>
-      <p>Игры, патчи, DLC и автоустановка торрентов через фоновый сервис PS4.</p>
-      <p v-if="message" role="status">{{ message }}</p>
+      <p>{{ t("Игры, патчи, DLC и автоустановка торрентов через фоновый сервис PS4.") }}</p>
+      <p v-if="message" role="status">{{ t(message) }}</p>
       <form v-if="showKey" @submit.prevent="saveKey">
-        <label>Код с экрана запускателя PS4
-          <input :value="key" @input="inputCode(($event.target as HTMLInputElement).value)" type="text" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" :disabled="busy || disabled" placeholder="F7Y-YUH">
+        <label>{{ t("Код с экрана запускателя PS4") }} <input :value="key" @input="inputCode(($event.target as HTMLInputElement).value)" type="text" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" :disabled="busy || disabled" placeholder="F7Y-YUH">
         </label>
-        <button :disabled="busy || disabled || !/^[a-z0-9]{3}-[a-z0-9]{3}$/i.test(key.trim())">Подключить</button>
-        <small>Введите один раз в течение 5 минут. WEB сохранит подключение. Для нового кода откройте запускатель PS4 ещё раз.</small>
+        <button :disabled="busy || disabled || !/^[a-z0-9]{3}-[a-z0-9]{3}$/i.test(key.trim())">{{ t("Подключить") }}</button>
+        <small>{{ t("Введите один раз в течение 5 минут. WEB сохранит подключение. Для нового кода откройте запускатель PS4 ещё раз.") }}</small>
       </form>
     </template>
   </section>

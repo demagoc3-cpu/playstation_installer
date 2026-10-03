@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t, formatLocale } = useAppLocale()
+
 const props = defineProps<{ ip: string; users: { userId: string; games: { titleId: string; title: string }[] }[] }>()
 
 interface SaveSetGame { userId: string; titleId: string; title: string; discovered: boolean; error?: string }
@@ -37,7 +39,7 @@ function failure(cause: unknown) {
   const issue = cause as { data?: { message?: string }; message?: string }
   return issue.data?.message || issue.message || 'Не удалось выполнить действие'
 }
-function date(value: string) { return new Date(value).toLocaleString('ru-RU') }
+function date(value: string) { return new Date(value).toLocaleString(formatLocale.value) }
 function plural(count: number, one: string, few: string, many: string) {
   const mod100 = count % 100, mod10 = count % 10
   return mod100 >= 11 && mod100 <= 14 ? many : mod10 === 1 ? one : mod10 >= 2 && mod10 <= 4 ? few : many
@@ -148,7 +150,7 @@ function toggleAllReady() {
 }
 async function restore() {
   if (!selected.value || !checked.value.length || busy.value) return
-  if (!window.confirm(`Восстановить сохранения ${checked.value.length} игр? Перед этим закройте эти игры на PS4. Для каждого слота будет создана копия для отката.`)) return
+  if (!window.confirm(t(`Восстановить сохранения ${checked.value.length} игр? Перед этим закройте эти игры на PS4. Для каждого слота будет создана копия для отката.`))) return
   busy.value = 'restore'; error.value = ''; notice.value = ''
   try {
     await $fetch('/api/ps4/saves/sets/restore', { method: 'POST', body: { id: selected.value.id, ip: props.ip, targetUserId: targetUserId.value, selected: checked.value } })
@@ -163,7 +165,7 @@ async function settle(task: RestoreTask, action: 'finalize' | 'rollback') {
   const question = action === 'finalize'
     ? `Сейв ${task.titleId} / ${task.slot} открылся в игре? Подтверждение удалит временный откат на PS4.`
     : `Вернуть прежний сейв ${task.titleId} / ${task.slot}? Сначала закройте игру.`
-  if (!window.confirm(question)) return
+  if (!window.confirm(t(question))) return
   busy.value = task.rollbackId; error.value = ''; notice.value = ''
   try {
     await $fetch(`/api/ps4/saves/${action}`, { method: 'POST', body: { ip: props.ip, id: task.rollbackId } })
@@ -199,25 +201,25 @@ watch(targetUserId, () => { matches.value = []; checked.value = [] })
 
 <template>
   <section class="collections">
-    <div class="heading"><div><h2>Наборы сохранений</h2><p>Создайте папку со всеми сейвами PS4. Новая копия с тем же названием станет отдельной версией набора.</p></div></div>
-    <div class="create"><label>Название папки<input v-model="name" maxlength="60" placeholder="Например, PS HOME" @keyup.enter="create"></label><button :disabled="!name.trim() || !!busy" @click="create">{{ busy === 'create' ? 'Начинаем…' : 'Сохранить все сейвы' }}</button><label class="upload">{{ busy === 'import' ? `Загрузка ${uploadProgress}% · проверяем ZIP…` : 'Загрузить ZIP набора' }}<input type="file" accept=".zip,application/zip" :disabled="!!busy" @change="importZip"></label></div>
-    <p v-if="error" class="message error" role="alert">{{ error }}</p>
-    <p v-if="notice" class="message notice" role="status">{{ notice }}</p>
+    <div class="heading"><div><h2>{{ t("Наборы сохранений") }}</h2><p>{{ t("Создайте папку со всеми сейвами PS4. Новая копия с тем же названием станет отдельной версией набора.") }}</p></div></div>
+    <div class="create"><label>{{ t("Название папки") }}<input v-model="name" maxlength="60" :placeholder="t(&quot;Например, PS HOME&quot;)" @keyup.enter="create"></label><button :disabled="!name.trim() || !!busy" @click="create">{{ t(busy === 'create' ? 'Начинаем…' : 'Сохранить все сейвы') }}</button><label class="upload">{{ t(busy === 'import' ? `Загрузка ${uploadProgress}% · проверяем ZIP…` : 'Загрузить ZIP набора') }}<input type="file" accept=".zip,application/zip" :disabled="!!busy" @change="importZip"></label></div>
+    <p v-if="error" class="message error" role="alert">{{ t(error) }}</p>
+    <p v-if="notice" class="message notice" role="status">{{ t(notice) }}</p>
     <div v-if="groups.length" class="groups">
       <div v-for="group in groups" :key="`${group[0]?.sourceIp}-${group[0]?.name}`" class="group">
-        <div><strong>{{ group[0]?.name }}</strong><small>PS4 {{ group[0]?.sourceIp }} · {{ group.length }} {{ plural(group.length, 'версия', 'версии', 'версий') }}</small></div>
-        <button v-for="set in group" :key="set.id" :class="{ active: selected?.id === set.id }" @click="openSet(set.id)">{{ date(set.createdAt) }} · {{ stateText(set) }}</button>
+        <div><strong>{{ group[0]?.name }}</strong><small>PS4 {{ t(group[0]?.sourceIp) }} · {{ t(group.length) }} {{ t(plural(group.length, 'версия', 'версии', 'версий')) }}</small></div>
+        <button v-for="set in group" :key="set.id" :class="{ active: selected?.id === set.id }" @click="openSet(set.id)">{{ t(date(set.createdAt)) }} · {{ t(stateText(set)) }}</button>
       </div>
     </div>
-    <p v-else class="muted">Именных наборов пока нет.</p>
+    <p v-else class="muted">{{ t("Именных наборов пока нет.") }}</p>
     <div v-if="selected" class="details">
-      <div class="details-head"><div><h3>{{ selected.name }}</h3><p>Копия от {{ date(selected.createdAt) }} · {{ stateText(selected) }} · {{ progress(selected) }}</p></div><div class="actions"><button :disabled="!!busy || !selected.slots.some(slot => slot.status === 'complete') || ['queued', 'running'].includes(selected.status)" @click="download">{{ busy === 'download' ? 'Собираем ZIP…' : 'Скачать ZIP' }}</button><button v-if="['partial', 'interrupted'].includes(selected.status)" :disabled="!!busy" @click="resume">Повторить пропущенное</button></div></div>
-      <p v-if="selected.lastError" class="message error">{{ selected.lastError }}</p>
-      <div v-if="selected.games.some(game => game.error) || selected.slots.some(slot => slot.error)" class="issues"><strong>Не удалось скопировать</strong><p v-for="game in selected.games.filter(item => item.error)" :key="`${game.userId}-${game.titleId}`">{{ game.title }}: {{ game.error }}</p><p v-for="slot in selected.slots.filter(item => item.error)" :key="`${slot.userId}-${slot.titleId}-${slot.slot}`">{{ slot.title }} / {{ slot.slot }}: {{ slot.error }}</p></div>
-      <div class="restore-section"><h3>Восстановить выбранные игры</h3><p>Игра должна быть установлена. Сначала создайте в ней сейв на целевом профиле и закройте игру. Сервис проверит каждый слот перед записью.</p><div class="restore-controls"><label>Профиль на PS4<select v-model="targetUserId"><option disabled value="">Выберите профиль</option><option v-for="(user, index) in users" :key="user.userId" :value="user.userId">Профиль {{ index + 1 }} · {{ user.userId }}</option></select></label><button :disabled="!!busy || !targetUserId || !selected.slots.some(slot => slot.status === 'complete')" @click="preview">{{ busy === 'preview' ? 'Проверяем…' : 'Показать подходящие игры' }}</button></div>
-        <div v-if="matches.length" class="matches"><div class="match-summary"><span>Можно восстановить: {{ readyCount }} из {{ matches.length }} игр</span><button v-if="readyCount" :disabled="!!busy" @click="toggleAllReady">{{ checked.length === readyCount ? 'Снять выбор' : 'Выбрать все подходящие' }}</button></div><label v-for="match in matches" :key="match.key" class="match" :class="{ unavailable: match.status !== 'ready' }"><input type="checkbox" :checked="checked.includes(match.key)" :disabled="match.status !== 'ready' || !!busy" @change="toggle(match.key)"><span><strong>{{ match.title === match.titleId ? match.titleId : match.title }}</strong><small>{{ match.titleId }} · профиль {{ match.sourceUserId }} · {{ match.slots.length }} {{ plural(match.slots.length, 'слот', 'слота', 'слотов') }}</small><em>{{ match.status === 'ready' ? 'Можно восстановить' : match.message }}</em></span></label><button :disabled="!checked.length || !!busy" @click="restore">{{ busy === 'restore' ? 'Начинаем…' : `Восстановить выбранные (${checked.length})` }}</button></div>
+      <div class="details-head"><div><h3>{{ selected.name }}</h3><p>{{ t("Копия от") }} {{ t(date(selected.createdAt)) }} · {{ t(stateText(selected)) }} · {{ t(progress(selected)) }}</p></div><div class="actions"><button :disabled="!!busy || !selected.slots.some(slot => slot.status === 'complete') || ['queued', 'running'].includes(selected.status)" @click="download">{{ t(busy === 'download' ? 'Собираем ZIP…' : 'Скачать ZIP') }}</button><button v-if="['partial', 'interrupted'].includes(selected.status)" :disabled="!!busy" @click="resume">{{ t("Повторить пропущенное") }}</button></div></div>
+      <p v-if="selected.lastError" class="message error">{{ t(selected.lastError) }}</p>
+      <div v-if="selected.games.some(game => game.error) || selected.slots.some(slot => slot.error)" class="issues"><strong>{{ t("Не удалось скопировать") }}</strong><p v-for="game in selected.games.filter(item => item.error)" :key="`${game.userId}-${game.titleId}`">{{ game.title }}: {{ t(game.error) }}</p><p v-for="slot in selected.slots.filter(item => item.error)" :key="`${slot.userId}-${slot.titleId}-${slot.slot}`">{{ slot.title }} / {{ slot.slot }}: {{ t(slot.error) }}</p></div>
+      <div class="restore-section"><h3>{{ t("Восстановить выбранные игры") }}</h3><p>{{ t("Игра должна быть установлена. Сначала создайте в ней сейв на целевом профиле и закройте игру. Сервис проверит каждый слот перед записью.") }}</p><div class="restore-controls"><label>{{ t("Профиль на PS4") }}<select v-model="targetUserId"><option disabled value="">{{ t("Выберите профиль") }}</option><option v-for="(user, index) in users" :key="user.userId" :value="user.userId">{{ t("Профиль") }} {{ t(index + 1) }} · {{ t(user.userId) }}</option></select></label><button :disabled="!!busy || !targetUserId || !selected.slots.some(slot => slot.status === 'complete')" @click="preview">{{ t(busy === 'preview' ? 'Проверяем…' : 'Показать подходящие игры') }}</button></div>
+        <div v-if="matches.length" class="matches"><div class="match-summary"><span>{{ t("Можно восстановить:") }} {{ t(readyCount) }} {{ t("из") }} {{ t(matches.length) }} {{ t("игр") }}</span><button v-if="readyCount" :disabled="!!busy" @click="toggleAllReady">{{ t(checked.length === readyCount ? 'Снять выбор' : 'Выбрать все подходящие') }}</button></div><label v-for="match in matches" :key="match.key" class="match" :class="{ unavailable: match.status !== 'ready' }"><input type="checkbox" :checked="checked.includes(match.key)" :disabled="match.status !== 'ready' || !!busy" @change="toggle(match.key)"><span><strong>{{ match.title === match.titleId ? match.titleId : match.title }}</strong><small>{{ match.titleId }} {{ t("· профиль") }} {{ t(match.sourceUserId) }} · {{ t(match.slots.length) }} {{ t(plural(match.slots.length, 'слот', 'слота', 'слотов')) }}</small><em>{{ t(match.status === 'ready' ? 'Можно восстановить' : match.message) }}</em></span></label><button :disabled="!checked.length || !!busy" @click="restore">{{ t(busy === 'restore' ? 'Начинаем…' : `Восстановить выбранные (${checked.length})`) }}</button></div>
       </div>
-      <div v-if="latestRun" class="restore-section"><div class="run-head"><h3>Последнее восстановление</h3><span>{{ runText(latestRun) }}</span></div><p>{{ latestRun.tasks.filter(task => task.status === 'restored' || task.status === 'needs-review').length }} из {{ latestRun.tasks.length }} слотов записано.</p><button v-if="['partial', 'interrupted'].includes(latestRun.status) && latestRun.tasks.some(task => task.status === 'error' || task.status === 'pending')" :disabled="!!busy" @click="resumeRestore">Повторить оставшиеся</button><div v-for="task in latestRun.tasks" :key="`${task.key}-${task.slot}`" class="task"><span><strong>{{ task.titleId }} / {{ task.slot }}</strong><small v-if="task.error">{{ task.error }}</small><small v-else-if="task.restoreState === 'accepted'">Подтверждено</small><small v-else-if="task.restoreState === 'rolledBack'">Вернули прежний сейв</small><small v-else-if="task.rollbackId">Проверьте сейв в игре; откат сохранён</small><small v-else>{{ task.status === 'error' ? 'Ошибка' : 'Ожидает записи' }}</small></span><div v-if="task.rollbackId && task.restoreState === 'pending'" class="actions"><button :disabled="!!busy" @click="settle(task, 'finalize')">Игра читает сейв</button><button :disabled="!!busy" @click="settle(task, 'rollback')">Вернуть прежний</button></div></div></div>
+      <div v-if="latestRun" class="restore-section"><div class="run-head"><h3>{{ t("Последнее восстановление") }}</h3><span>{{ t(runText(latestRun)) }}</span></div><p>{{ t(latestRun.tasks.filter(task => task.status === 'restored' || task.status === 'needs-review').length) }} {{ t("из") }} {{ t(latestRun.tasks.length) }} {{ t("слотов записано.") }}</p><button v-if="['partial', 'interrupted'].includes(latestRun.status) && latestRun.tasks.some(task => task.status === 'error' || task.status === 'pending')" :disabled="!!busy" @click="resumeRestore">{{ t("Повторить оставшиеся") }}</button><div v-for="task in latestRun.tasks" :key="`${task.key}-${task.slot}`" class="task"><span><strong>{{ task.titleId }} / {{ task.slot }}</strong><small v-if="task.error">{{ t(task.error) }}</small><small v-else-if="task.restoreState === 'accepted'">{{ t("Подтверждено") }}</small><small v-else-if="task.restoreState === 'rolledBack'">{{ t("Вернули прежний сейв") }}</small><small v-else-if="task.rollbackId">{{ t("Проверьте сейв в игре; откат сохранён") }}</small><small v-else>{{ t(task.status === 'error' ? 'Ошибка' : 'Ожидает записи') }}</small></span><div v-if="task.rollbackId && task.restoreState === 'pending'" class="actions"><button :disabled="!!busy" @click="settle(task, 'finalize')">{{ t("Игра читает сейв") }}</button><button :disabled="!!busy" @click="settle(task, 'rollback')">{{ t("Вернуть прежний") }}</button></div></div></div>
     </div>
   </section>
 </template>

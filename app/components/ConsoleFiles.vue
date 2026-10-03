@@ -1,4 +1,6 @@
 <script setup lang="ts">
+const { t, formatLocale } = useAppLocale()
+
 import type { ConsoleFileJob, ConsoleTrashItem } from '../../shared/types/console-files'
 const props = defineProps<{ psIp: string }>()
 const packageInstaller = ref<{ open: (path: string) => Promise<void> }>(), packageBusy = ref(false), localInstall = ref(false)
@@ -47,7 +49,7 @@ const crumbs = computed(() => {
   return [{ name: '/', path: '/' }, ...parts.map((name, index) => ({ name, path: '/' + parts.slice(0, index + 1).join('/') }))]
 })
 const message = (cause: unknown) => { const issue = cause as { data?: { message?: string }; message?: string }; return issue.data?.message || issue.message || 'Нет ответа от PS4' }
-const sizeLabel = (bytes: number) => bytes < 1024 ? `${bytes} Б` : bytes < 1024 ** 2 ? `${(bytes / 1024).toFixed(1)} КБ` : bytes < 1024 ** 3 ? `${(bytes / 1024 ** 2).toFixed(1)} МБ` : `${(bytes / 1024 ** 3).toFixed(1)} ГБ`
+const sizeLabel = (bytes: number) => bytes < 1024 ? `${bytes} Б` : bytes < 1024 ** 2 ? `${(bytes / 1024).toLocaleString(formatLocale.value, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })} КБ` : bytes < 1024 ** 3 ? `${(bytes / 1024 ** 2).toLocaleString(formatLocale.value, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })} МБ` : `${(bytes / 1024 ** 3).toLocaleString(formatLocale.value, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })} ГБ`
 const actionLabel: Record<string, string> = { mkdir: 'Создание папки', rename: 'Переименование', copy: 'Копирование', move: 'Перемещение', trash: 'Перенос в корзину', restore: 'Возврат из корзины', replace: 'Замена файла', delete: 'Удаление без корзины', purge: 'Удаление из корзины' }
 const stateLabel: Record<string, string> = { planning: 'Подготовка', running: 'Выполняется', paused: 'Приостановлено', completed: 'Завершено', failed: 'Не завершено' }
 async function load(more = false) {
@@ -219,105 +221,105 @@ watch(() => props.psIp, () => {
 <template>
   <section class="files-page">
     <p class="eyebrow">PLAYSTATION 4 · {{ psIp }}</p>
-    <h1>Файлы консоли</h1>
-    <p class="description">Папки и файлы PS4 через PackageFlowService. Передачу можно продолжить после обрыва связи.</p>
-    <div v-if="api < 2" class="message">Просмотр и загрузка доступны. Для новых операций обновите PackageFlowService до PKG 1.52. <button type="button" @click="checkApi">Проверить версию</button></div>
+    <h1>{{ t("Файлы консоли") }}</h1>
+    <p class="description">{{ t("Папки и файлы PS4 через PackageFlowService. Передачу можно продолжить после обрыва связи.") }}</p>
+    <div v-if="api < 2" class="message">{{ t("Просмотр и загрузка доступны. Для новых операций обновите PackageFlowService до PKG 1.52.") }} <button type="button" @click="checkApi">{{ t("Проверить версию") }}</button></div>
     <div class="toolbar">
-      <div class="roots"><button v-for="root in ['/', '/user', '/data', '/mnt/usb0']" :key="root" type="button" :disabled="uploading" :class="{ active: path === root }" @click="navigate(root)">{{ root }}</button></div>
+      <div class="roots"><button v-for="root in ['/', '/user', '/data', '/mnt/usb0']" :key="root" type="button" :disabled="uploading" :class="{ active: path === root }" @click="navigate(root)">{{ t(root) }}</button></div>
       <div class="actions">
         <input ref="fileInput" class="hidden" type="file" @change="selectFile">
-        <button type="button" :disabled="!writable || locked" @click="fileInput?.click()">Загрузить файл</button>
-        <button type="button" :disabled="!writable || locked || api < 2" @click="ask('mkdir')">Новая папка</button>
-        <button type="button" :disabled="busy" @click="load()">Обновить</button>
-        <button type="button" :aria-expanded="showHistory" :class="{ attention: needsAttention }" :title="needsAttention ? `Требуют внимания: ${needsAttention}` : undefined" @click="showHistory = !showHistory">История операций<span v-if="needsAttention" class="attention-count">{{ needsAttention }}</span></button>
-        <button type="button" :aria-expanded="showTrash" @click="showTrash = !showTrash">Корзина <span v-if="trash.length">({{ trash.length }})</span></button>
+        <button type="button" :disabled="!writable || locked" @click="fileInput?.click()">{{ t("Загрузить файл") }}</button>
+        <button type="button" :disabled="!writable || locked || api < 2" @click="ask('mkdir')">{{ t("Новая папка") }}</button>
+        <button type="button" :disabled="busy" @click="load()">{{ t("Обновить") }}</button>
+        <button type="button" :aria-expanded="showHistory" :class="{ attention: needsAttention }" :title="t(needsAttention ? `Требуют внимания: ${needsAttention}` : undefined)" @click="showHistory = !showHistory">{{ t("История операций") }}<span v-if="needsAttention" class="attention-count">{{ t(needsAttention) }}</span></button>
+        <button type="button" :aria-expanded="showTrash" @click="showTrash = !showTrash">{{ t("Корзина") }} <span v-if="trash.length">({{ t(trash.length) }})</span></button>
       </div>
     </div>
-    <nav class="crumbs" aria-label="Путь"><button v-for="item in crumbs" :key="item.path" type="button" :disabled="uploading" @click="navigate(item.path)">{{ item.name }}</button></nav>
+    <nav class="crumbs" :aria-label="t(&quot;Путь&quot;)"><button v-for="item in crumbs" :key="item.path" type="button" :disabled="uploading" @click="navigate(item.path)">{{ item.name }}</button></nav>
     <div class="selection-bar actions">
-      <label><input type="checkbox" :checked="!!entries.length && selectedNames.length === entries.filter(e => e.type !== 'link').length" :disabled="locked || api < 2" @change="selectedNames = ($event.target as HTMLInputElement).checked ? entries.filter(e => e.type !== 'link').map(e => e.name) : []"> Выбрать видимые</label>
-      <span>Выбрано: {{ selectedNames.length }}</span>
-      <button type="button" :disabled="!selectedNames.length || locked || api < 2" @click="putClipboard('copy')">Копировать</button>
-      <button type="button" :disabled="!selectedNames.length || !writable || locked || api < 2" @click="putClipboard('move')">Переместить</button>
-      <button type="button" :disabled="selectedNames.length !== 1 || !writable || locked || api < 2" @click="ask('rename')">Переименовать</button>
-      <button type="button" class="danger" :disabled="!selectedNames.length || !writable || locked || api < 2" @click="ask('trash')">В корзину</button>
-      <button type="button" class="danger" :disabled="!selectedNames.length || !writable || locked || !permanentDelete" :title="permanentDelete ? 'Удалить выбранное без возможности возврата' : 'Нужен PackageFlowService 1.55'" @click="ask('delete')">Удалить</button>
+      <label><input type="checkbox" :checked="!!entries.length && selectedNames.length === entries.filter(e => e.type !== 'link').length" :disabled="locked || api < 2" @change="selectedNames = ($event.target as HTMLInputElement).checked ? entries.filter(e => e.type !== 'link').map(e => e.name) : []"> {{ t("Выбрать видимые") }}</label>
+      <span>{{ t("Выбрано:") }} {{ t(selectedNames.length) }}</span>
+      <button type="button" :disabled="!selectedNames.length || locked || api < 2" @click="putClipboard('copy')">{{ t("Копировать") }}</button>
+      <button type="button" :disabled="!selectedNames.length || !writable || locked || api < 2" @click="putClipboard('move')">{{ t("Переместить") }}</button>
+      <button type="button" :disabled="selectedNames.length !== 1 || !writable || locked || api < 2" @click="ask('rename')">{{ t("Переименовать") }}</button>
+      <button type="button" class="danger" :disabled="!selectedNames.length || !writable || locked || api < 2" @click="ask('trash')">{{ t("В корзину") }}</button>
+      <button type="button" class="danger" :disabled="!selectedNames.length || !writable || locked || !permanentDelete" :title="t(permanentDelete ? 'Удалить выбранное без возможности возврата' : 'Нужен PackageFlowService 1.55')" @click="ask('delete')">{{ t("Удалить") }}</button>
     </div>
     <div v-if="clipboard" class="message clipboard">
-      <span>{{ clipboard.action === 'copy' ? 'Копировать' : 'Переместить' }} {{ clipboard.paths.length }} эл. Откройте папку назначения и нажмите «Вставить».</span>
-      <button type="button" :disabled="!writable || locked" @click="paste">Вставить сюда</button><button type="button" @click="clipboard = undefined">Отменить выбор</button>
+      <span>{{ t(clipboard.action === 'copy' ? 'Копировать' : 'Переместить') }} {{ t(clipboard.paths.length) }} {{ t("эл. Откройте папку назначения и нажмите «Вставить».") }}</span>
+      <button type="button" :disabled="!writable || locked" @click="paste">{{ t("Вставить сюда") }}</button><button type="button" @click="clipboard = undefined">{{ t("Отменить выбор") }}</button>
     </div>
-    <div v-if="error" class="message error" role="alert">{{ error }}</div>
+    <div v-if="error" class="message error" role="alert">{{ t(error) }}</div>
     <div v-if="transfer" class="message transfer">
-      <strong>{{ transfer.file.name }}</strong><span>{{ sizeLabel(uploadOffset) }} из {{ sizeLabel(transfer.file.size) }}</span>
+      <strong>{{ transfer.file.name }}</strong><span>{{ t(sizeLabel(uploadOffset)) }} {{ t("из") }} {{ t(sizeLabel(transfer.file.size)) }}</span>
       <progress :value="transfer.file.size ? uploadOffset / transfer.file.size * 100 : 0" max="100" />
-      <button v-if="uploading" type="button" @click="pause">Пауза</button><button v-else type="button" :disabled="locked" @click="upload">Продолжить</button>
+      <button v-if="uploading" type="button" @click="pause">{{ t("Пауза") }}</button><button v-else type="button" :disabled="locked" @click="upload">{{ t("Продолжить") }}</button>
     </div>
     <div v-for="job in activeJobs" :key="job.id" class="message file-job" :class="{ error: job.state === 'failed' }" role="status">
-      <strong>{{ actionLabel[job.action] }} · {{ stateLabel[job.state] }}</strong>
-      <span>{{ job.done }} из {{ job.total }} операций<template v-if="job.totalBytes"> · {{ sizeLabel(job.bytes) }} / {{ sizeLabel(job.totalBytes) }}</template></span>
-      <span v-if="job.current" class="job-path">{{ job.current }}</span><span v-if="job.error">{{ job.error }}</span>
+      <strong>{{ t(actionLabel[job.action]) }} · {{ t(stateLabel[job.state]) }}</strong>
+      <span>{{ t(job.done) }} {{ t("из") }} {{ t(job.total) }} {{ t("операций") }}<template v-if="job.totalBytes"> · {{ t(sizeLabel(job.bytes)) }} / {{ t(sizeLabel(job.totalBytes)) }}</template></span>
+      <span v-if="job.current" class="job-path">{{ t(job.current) }}</span><span v-if="job.error">{{ t(job.error) }}</span>
       <progress v-if="['planning', 'running', 'paused'].includes(job.state)" :value="job.totalBytes ? job.bytes : job.done" :max="job.totalBytes || job.total || 1" />
-      <button v-if="job.state === 'running' && ['copy', 'move'].includes(job.action)" type="button" :disabled="actionBusy" @click="operation({ action: 'pause', id: job.id })">Пауза</button>
-      <button v-if="['paused', 'failed'].includes(job.state)" type="button" :disabled="locked" @click="operation({ action: 'resume', id: job.id })">Продолжить проверку</button>
+      <button v-if="job.state === 'running' && ['copy', 'move'].includes(job.action)" type="button" :disabled="actionBusy" @click="operation({ action: 'pause', id: job.id })">{{ t("Пауза") }}</button>
+      <button v-if="['paused', 'failed'].includes(job.state)" type="button" :disabled="locked" @click="operation({ action: 'resume', id: job.id })">{{ t("Продолжить проверку") }}</button>
     </div>
     <ConsoleFileInstaller ref="packageInstaller" :ps-ip="psIp" :show-history="showHistory" @busy="packageBusy = $event" @notice="notify" />
     <section v-if="showHistory" class="history-panel message">
-      <div class="panel-title"><h2>История операций</h2><button type="button" @click="showHistory = false" aria-label="Закрыть историю операций">×</button></div>
-      <p v-if="!historyJobs.length">Завершённых операций пока нет</p>
+      <div class="panel-title"><h2>{{ t("История операций") }}</h2><button type="button" @click="showHistory = false" :aria-label="t(&quot;Закрыть историю операций&quot;)">×</button></div>
+      <p v-if="!historyJobs.length">{{ t("Завершённых операций пока нет") }}</p>
       <div class="history-list">
         <div v-for="job in historyJobs" :key="job.id" class="history-row" :class="{ error: job.state === 'failed' }">
-          <div><strong>{{ actionLabel[job.action] }} · {{ stateLabel[job.state] }}</strong><span>{{ new Date(job.createdAt).toLocaleString('ru-RU') }} · {{ job.done }} из {{ job.total }} операций</span><span v-if="job.error">{{ job.error }}</span><span class="job-path">{{ job.paths.join(', ') || job.destination }}</span></div>
-          <button v-if="['paused', 'failed'].includes(job.state)" type="button" :disabled="locked" @click="operation({ action: 'resume', id: job.id })">Продолжить проверку</button>
+          <div><strong>{{ t(actionLabel[job.action]) }} · {{ t(stateLabel[job.state]) }}</strong><span>{{ t(new Date(job.createdAt).toLocaleString(formatLocale)) }} · {{ t(job.done) }} {{ t("из") }} {{ t(job.total) }} {{ t("операций") }}</span><span v-if="job.error">{{ t(job.error) }}</span><span class="job-path">{{ job.paths.join(', ') || job.destination }}</span></div>
+          <button v-if="['paused', 'failed'].includes(job.state)" type="button" :disabled="locked" @click="operation({ action: 'resume', id: job.id })">{{ t("Продолжить проверку") }}</button>
         </div>
       </div>
     </section>
-    <div class="file-notifications" aria-label="Уведомления файловых операций">
+    <div class="file-notifications" :aria-label="t(&quot;Уведомления файловых операций&quot;)">
       <div v-for="item in notifications" :key="item.id" class="file-notification" :class="{ attention: item.attention }" :role="item.attention ? 'alert' : 'status'">
-        <div><strong>{{ item.title }}</strong><span v-if="item.detail">{{ item.detail }}</span><button v-if="item.attention" type="button" @click="showHistory = true; dismissNotification(item.id)">Открыть историю</button></div>
-        <button type="button" class="notification-close" @click="dismissNotification(item.id)" :aria-label="`Скрыть уведомление: ${item.title}`">×</button>
+        <div><strong>{{ t(item.title) }}</strong><span v-if="item.detail">{{ t(item.detail) }}</span><button v-if="item.attention" type="button" @click="showHistory = true; dismissNotification(item.id)">{{ t("Открыть историю") }}</button></div>
+        <button type="button" class="notification-close" @click="dismissNotification(item.id)" :aria-label="t(`Скрыть уведомление: ${item.title}`)">×</button>
       </div>
     </div>
     <section v-if="showTrash" class="trash-panel message">
-      <div class="panel-title"><h2>Корзина и предыдущие версии</h2><button type="button" class="danger" :disabled="locked || !permanentDelete || !trash.length || trash.some(t => t.purging)" @click="askPurge(trash)">Очистить корзину</button></div><p>Копии остаются на том же диске PS4 и занимают место. Для возврата подключите исходный USB, если он использовался.</p>
-      <p v-if="!trash.length">Корзина пуста</p>
+      <div class="panel-title"><h2>{{ t("Корзина и предыдущие версии") }}</h2><button type="button" class="danger" :disabled="locked || !permanentDelete || !trash.length || trash.some(t => t.purging)" @click="askPurge(trash)">{{ t("Очистить корзину") }}</button></div><p>{{ t("Копии остаются на том же диске PS4 и занимают место. Для возврата подключите исходный USB, если он использовался.") }}</p>
+      <p v-if="!trash.length">{{ t("Корзина пуста") }}</p>
       <div v-for="item in trash" :key="item.id" class="trash-row">
-        <div><strong>{{ item.original }}</strong><span>{{ item.reason === 'replaced' ? 'Перед заменой файла' : item.reason === 'moved' ? 'После перемещения на другой диск' : 'Удалено в корзину' }} · {{ new Date(item.createdAt).toLocaleString('ru-RU') }}</span></div>
-        <span v-if="item.purging" class="warning">Удаление начато — продолжите задание в истории</span>
-        <div class="trash-actions"><button type="button" :disabled="locked || api < 2 || !!item.purging" @click="openDialog({ kind: 'restore', ip: psIp, paths: [item.original], name: '', trashId: item.id })">Вернуть</button><button type="button" class="danger" :disabled="locked || !permanentDelete || !!item.purging" @click="askPurge([item])">Удалить</button></div>
+        <div><strong>{{ item.original }}</strong><span>{{ t(item.reason === 'replaced' ? 'Перед заменой файла' : item.reason === 'moved' ? 'После перемещения на другой диск' : 'Удалено в корзину') }} · {{ t(new Date(item.createdAt).toLocaleString(formatLocale)) }}</span></div>
+        <span v-if="item.purging" class="warning">{{ t("Удаление начато — продолжите задание в истории") }}</span>
+        <div class="trash-actions"><button type="button" :disabled="locked || api < 2 || !!item.purging" @click="openDialog({ kind: 'restore', ip: psIp, paths: [item.original], name: '', trashId: item.id })">{{ t("Вернуть") }}</button><button type="button" class="danger" :disabled="locked || !permanentDelete || !!item.purging" @click="askPurge([item])">{{ t("Удалить") }}</button></div>
       </div>
     </section>
     <div class="listing">
-      <div class="heading"><span></span><span>Название</span><span>Размер</span><span>Изменён</span><span>Действия</span></div>
-      <div v-if="busy && !entries.length" class="empty">Читаем папку…</div>
-      <div v-else-if="!entries.length" class="empty">{{ error ? 'Список недоступен' : 'Папка пуста' }}</div>
+      <div class="heading"><span></span><span>{{ t("Название") }}</span><span>{{ t("Размер") }}</span><span>{{ t("Изменён") }}</span><span>{{ t("Действия") }}</span></div>
+      <div v-if="busy && !entries.length" class="empty">{{ t("Читаем папку…") }}</div>
+      <div v-else-if="!entries.length" class="empty">{{ t(error ? 'Список недоступен' : 'Папка пуста') }}</div>
       <div v-for="item in entries" :key="item.name" class="row">
-        <input v-model="selectedNames" type="checkbox" :value="item.name" :disabled="locked || api < 2 || item.type === 'link'" :aria-label="`Выбрать ${item.name}`">
+        <input v-model="selectedNames" type="checkbox" :value="item.name" :disabled="locked || api < 2 || item.type === 'link'" :aria-label="t(`Выбрать ${item.name}`)">
         <button v-if="item.type === 'directory'" class="name" type="button" :disabled="uploading" @click="navigate(entryPath(item.name))">📁 {{ item.name }}</button>
-        <span v-else class="name">{{ item.type === 'link' ? '🔗' : '📄' }} {{ item.name }}</span>
-        <span>{{ item.type === 'file' ? sizeLabel(item.size) : '—' }}</span>
-        <span>{{ item.mtime ? new Date(item.mtime * 1000).toLocaleString('ru-RU') : '—' }}</span>
-        <div class="row-actions"><button v-if="item.type === 'file' && /\.pkg$/i.test(item.name)" type="button" :disabled="locked || !localInstall" :title="localInstall ? 'Установить PKG с диска PS4' : 'Нужен PackageFlowService 1.54'" @click="packageInstaller?.open(entryPath(item.name))">Установить</button><a v-if="item.type === 'file'" :href="downloadUrl(item.name)">Скачать</a><button v-if="editable(item) && api >= 2" type="button" :disabled="locked" @click="openEditor(item)">Открыть</button></div>
+        <span v-else class="name">{{ t(item.type === 'link' ? '🔗' : '📄') }} {{ item.name }}</span>
+        <span>{{ t(item.type === 'file' ? sizeLabel(item.size) : '—') }}</span>
+        <span>{{ t(item.mtime ? new Date(item.mtime * 1000).toLocaleString(formatLocale) : '—') }}</span>
+        <div class="row-actions"><button v-if="item.type === 'file' && /\.pkg$/i.test(item.name)" type="button" :disabled="locked || !localInstall" :title="t(localInstall ? 'Установить PKG с диска PS4' : 'Нужен PackageFlowService 1.54')" @click="packageInstaller?.open(entryPath(item.name))">{{ t("Установить") }}</button><a v-if="item.type === 'file'" :href="downloadUrl(item.name)">{{ t("Скачать") }}</a><button v-if="editable(item) && api >= 2" type="button" :disabled="locked" @click="openEditor(item)">{{ t("Открыть") }}</button></div>
       </div>
-      <button v-if="hasMore" class="more" type="button" :disabled="busy" @click="load(true)">Показать ещё</button>
+      <button v-if="hasMore" class="more" type="button" :disabled="busy" @click="load(true)">{{ t("Показать ещё") }}</button>
     </div>
-    <p class="hint">Изменения доступны в /data и на USB. Системные области — только для чтения. Игры удаляйте через «На консоли», сохранениями управляйте в «Сохранениях». Корзина хранится на PS4; её список — в данных WEB.</p>
+    <p class="hint">{{ t("Изменения доступны в /data и на USB. Системные области — только для чтения. Игры удаляйте через «На консоли», сохранениями управляйте в «Сохранениях». Корзина хранится на PS4; её список — в данных WEB.") }}</p>
     <dialog ref="modal" class="file-dialog" @cancel.prevent="closeDialog">
       <form v-if="dialog" @submit.prevent="confirmDialog">
-        <h2>{{ ['delete', 'purge'].includes(dialog.kind) ? 'Удалить безвозвратно?' : dialog.kind === 'editor' ? dialog.name : dialog.kind === 'overwrite' ? 'Заменить файл?' : dialog.kind === 'restore' ? 'Вернуть из корзины?' : dialog.kind === 'trash' ? 'Перенести в корзину?' : dialog.kind === 'mkdir' ? 'Новая папка' : 'Переименовать' }}</h2>
-        <p>PS4 {{ dialog.ip }}</p>
-        <ul v-if="['trash', 'restore', 'overwrite', 'delete', 'purge'].includes(dialog.kind)" class="confirmation-paths"><li v-for="(p, index) in dialog.paths" :key="index">{{ p }}</li></ul>
-        <p v-if="['delete', 'purge'].includes(dialog.kind)" class="permanent-warning">{{ dialog.kind === 'purge' ? 'Выбранные копии из корзины' : 'Выбранные файлы и папки со всем содержимым' }} будут удалены с PS4 безвозвратно. Вернуть их через корзину будет нельзя. Элементов: {{ dialog.paths.length }}.</p>
-        <p v-if="dialog.kind === 'trash'">Выбранные элементы будут перемещены в корзину. Их можно вернуть на прежнее место.</p>
-        <p v-if="dialog.kind === 'overwrite'">Предыдущая версия останется в «Корзине и предыдущих версиях».</p>
-        <p v-if="dialog.kind === 'restore'">Исходное имя должно быть свободно. Существующий файл не будет заменён.</p>
-        <label v-if="['mkdir', 'rename'].includes(dialog.kind)">Название<input v-model="dialog.name" autofocus required maxlength="200" :disabled="actionBusy"></label>
+        <h2>{{ t(['delete', 'purge'].includes(dialog.kind) ? 'Удалить безвозвратно?' : dialog.kind === 'editor' ? dialog.name : dialog.kind === 'overwrite' ? 'Заменить файл?' : dialog.kind === 'restore' ? 'Вернуть из корзины?' : dialog.kind === 'trash' ? 'Перенести в корзину?' : dialog.kind === 'mkdir' ? 'Новая папка' : 'Переименовать') }}</h2>
+        <p>PS4 {{ t(dialog.ip) }}</p>
+        <ul v-if="['trash', 'restore', 'overwrite', 'delete', 'purge'].includes(dialog.kind)" class="confirmation-paths"><li v-for="(p, index) in dialog.paths" :key="index">{{ t(p) }}</li></ul>
+        <p v-if="['delete', 'purge'].includes(dialog.kind)" class="permanent-warning">{{ t(dialog.kind === 'purge' ? 'Выбранные копии из корзины' : 'Выбранные файлы и папки со всем содержимым') }} {{ t("будут удалены с PS4 безвозвратно. Вернуть их через корзину будет нельзя. Элементов:") }} {{ t(dialog.paths.length) }}.</p>
+        <p v-if="dialog.kind === 'trash'">{{ t("Выбранные элементы будут перемещены в корзину. Их можно вернуть на прежнее место.") }}</p>
+        <p v-if="dialog.kind === 'overwrite'">{{ t("Предыдущая версия останется в «Корзине и предыдущих версиях».") }}</p>
+        <p v-if="dialog.kind === 'restore'">{{ t("Исходное имя должно быть свободно. Существующий файл не будет заменён.") }}</p>
+        <label v-if="['mkdir', 'rename'].includes(dialog.kind)">{{ t("Название") }}<input v-model="dialog.name" autofocus required maxlength="200" :disabled="actionBusy"></label>
         <template v-if="dialog.kind === 'editor'">
-          <p>{{ dialog.paths[0] }}</p><textarea v-model="dialog.text" spellcheck="false" :readonly="!dialog.original?.writable || actionBusy" aria-label="Содержимое текстового файла" />
-          <p>{{ dialog.original?.writable ? 'Перед сохранением проверим изменения и сохраним предыдущую версию.' : 'Этот путь доступен только для чтения.' }}</p>
+          <p>{{ t(dialog.paths[0]) }}</p><textarea v-model="dialog.text" spellcheck="false" :readonly="!dialog.original?.writable || actionBusy" :aria-label="t(&quot;Содержимое текстового файла&quot;)" />
+          <p>{{ t(dialog.original?.writable ? 'Перед сохранением проверим изменения и сохраним предыдущую версию.' : 'Этот путь доступен только для чтения.') }}</p>
         </template>
-        <div v-if="error" class="error dialog-error" role="alert">{{ error }}</div>
-        <div class="dialog-actions"><button type="button" :disabled="actionBusy" @click="closeDialog">{{ dialog.kind === 'editor' ? 'Закрыть' : 'Отмена' }}</button><button v-if="dialog.kind !== 'editor' || dialog.original?.writable" type="submit" :class="{ 'permanent-button': ['delete', 'purge'].includes(dialog.kind) }" :disabled="actionBusy || (dialog.kind === 'editor' && dialog.text === dialog.original?.text)">{{ actionBusy ? 'Проверяем…' : ['delete', 'purge'].includes(dialog.kind) ? 'Удалить безвозвратно' : dialog.kind === 'editor' ? 'Сохранить' : dialog.kind === 'trash' ? 'В корзину' : dialog.kind === 'overwrite' ? 'Заменить' : dialog.kind === 'restore' ? 'Вернуть' : 'Применить' }}</button></div>
+        <div v-if="error" class="error dialog-error" role="alert">{{ t(error) }}</div>
+        <div class="dialog-actions"><button type="button" :disabled="actionBusy" @click="closeDialog">{{ t(dialog.kind === 'editor' ? 'Закрыть' : 'Отмена') }}</button><button v-if="dialog.kind !== 'editor' || dialog.original?.writable" type="submit" :class="{ 'permanent-button': ['delete', 'purge'].includes(dialog.kind) }" :disabled="actionBusy || (dialog.kind === 'editor' && dialog.text === dialog.original?.text)">{{ t(actionBusy ? 'Проверяем…' : ['delete', 'purge'].includes(dialog.kind) ? 'Удалить безвозвратно' : dialog.kind === 'editor' ? 'Сохранить' : dialog.kind === 'trash' ? 'В корзину' : dialog.kind === 'overwrite' ? 'Заменить' : dialog.kind === 'restore' ? 'Вернуть' : 'Применить') }}</button></div>
       </form>
     </dialog>
   </section>
