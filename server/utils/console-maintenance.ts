@@ -3,7 +3,7 @@ import { createError } from 'h3'
 import { readFileSync, statSync } from 'node:fs'
 import { ps4ServiceIp, readPs4Service } from './ps4-service'
 import { readMaintenance, saveMaintenance, assertNoMaintenance } from './maintenance-store'
-import { getPackage, readPackageMetadata } from './package-library'
+import { getPackage, getLibraryPackages, readPackageMetadata } from './package-library'
 import { checkPs4Firmware } from './installation-firmware'
 import { getConsoleCatalog, getConsoleDetails, submitConsoleRemoval, getConsoleRemoval } from './ps4-console-apps'
 import { getInstallationQueue, startInstallationQueue } from './installation-queue'
@@ -32,8 +32,17 @@ export async function beginReinstall(ipValue: unknown, body: any) {
   const runtime = await consoleRuntime(ip, plan.details.app.titleId)
   if (runtime.running) throw createError({ statusCode: 409, message: 'Сначала остановите игру в разделе «На консоли»' })
   if (typeof body.url !== 'string' || !/^https?:\/\//.test(body.url)) throw createError({ statusCode: 400, message: 'Не найден адрес PKG' })
+  let bundle: { packageIds: string[]; packageUrls: Record<string, string> } | undefined
+  if (body.bundle !== undefined) {
+    const group = getLibraryPackages().filter(p => p.titleId === plan.details.app.titleId)
+      .sort((a, b) => a.installOrder - b.installOrder || a.fileName.localeCompare(b.fileName))
+    const ids = group.map(p => p.id)
+    if (!Array.isArray(body.bundle?.packageIds) || JSON.stringify(body.bundle.packageIds) !== JSON.stringify(ids) || ids[0] !== plan.packageId || ids.some(id => typeof body.bundle.packageUrls?.[id] !== 'string' || !/^https?:\/\//.test(body.bundle.packageUrls[id])))
+      throw createError({ statusCode: 409, message: 'Комплект переустановки изменился. Обновите карточку игры' })
+    bundle = { packageIds: ids, packageUrls: Object.fromEntries(ids.map(id => [id, body.bundle.packageUrls[id]])) }
+  }
   assertNoMaintenance(ip); assertNoInstallation(ip); assertNoRemoval(ip)
-  const flow: any = { id: randomUUID(), kind: 'reinstall', state: 'removing', title: plan.title, packageId: plan.packageId, url: body.url,
+  const flow: any = { id: randomUUID(), kind: 'reinstall', state: 'removing', title: plan.title, packageId: plan.packageId, url: body.url, bundle,
     removal: { requestId: randomUUID(), titleId: plan.details.app.titleId, kind: 'game', componentId: 'all', revision: body.revision, confirmTitleId: body.confirmTitleId }, message: 'Удаляем прежнюю игру и её дополнения перед переустановкой', dispatched: true }
   set(ip, flow)
   try { flow.removalResult = await submitConsoleRemoval(ip, flow.removal, flow.id) } catch (e: any) { flow.message = e.message; flow.state = 'uncertain' }
@@ -73,10 +82,10 @@ export async function getMaintenance(ipValue: unknown) {
       if (!r) { flow.state = 'uncertain'; flow.message = 'Задание удаления не найдено. Проверьте игру на PS4; повтор не отправлен' }
       else if (['failed', 'partial'].includes(r.state)) { flow.state = 'failed'; flow.message = r.message || 'Удаление не завершено; установка не начата' }
       else if (r.state === 'removed') {
-        flow.state = 'installing'; flow.installDispatch = true; flow.message = 'Удаление подтверждено. Устанавливаем выбранный базовый PKG'; set(ip, flow)
+        flow.state = 'installing'; flow.installDispatch = true; flow.message = flow.bundle ? 'Удаление подтверждено. Устанавливаем игру, патчи и DLC по очереди' : 'Удаление подтверждено. Устанавливаем выбранный базовый PKG'; set(ip, flow)
         const previous = getInstallationQueue()
         if (previous.id === flow.id) flow.queue = previous
-        else flow.queue = startInstallationQueue({ psIp: ip, packageIds: [flow.packageId], packageUrls: { [flow.packageId]: flow.url }, transport: 'service', maintenanceId: flow.id })
+        else flow.queue = startInstallationQueue({ psIp: ip, packageIds: flow.bundle?.packageIds || [flow.packageId], packageUrls: flow.bundle?.packageUrls || { [flow.packageId]: flow.url }, transport: 'service', maintenanceId: flow.id })
       }
     }
     if (flow.kind === 'reinstall' && flow.installDispatch) {

@@ -96,14 +96,17 @@ try {
   await assert.rejects(maintenance.beginReinstall(ip,{packageId:'one',confirmTitleId:titleId,revision,url:'http://192.168.88.10:3000/json/one.json'}), /выше прошивки/)
   assert.equal(removePosts,0)
  } else {
+  if(mode==='reinstall-bundle')writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages:[item,{...item,id:'patch',type:'Патч',contentType:'PS4GP',installOrder:1,requiredFirmware:'5.05'}, {...item,id:'dlc',type:'DLC',contentType:'PS4AC',installOrder:2,requiredFirmware:'5.05'}],deliveries:{}}))
+  const bundle=mode==='reinstall-bundle'?{packageIds:['one','patch','dlc'],packageUrls:{one:'http://192.168.88.10:3000/json/one.json',patch:'http://192.168.88.10:3000/json/patch.json',dlc:'http://192.168.88.10:3000/json/dlc.json'}}:undefined
+  if(bundle){await assert.rejects(maintenance.beginReinstall(ip,{packageId:'one',confirmTitleId:titleId,revision,url:bundle.packageUrls.one,bundle:{...bundle,packageIds:['one','dlc']}}));assert.equal(removePosts,0)}
   const plan=await maintenance.reinstallPlan(ip,'one');assert.equal(plan.details.app.titleId,titleId)
   await assert.rejects(maintenance.beginReinstall(ip,{packageId:'one',confirmTitleId:titleId,revision:'ffffffffffffffff',url:'http://192.168.88.10:3000/json/one.json'}));assert.equal(removePosts,0)
-  let f=await maintenance.beginReinstall(ip,{packageId:'one',confirmTitleId:titleId,revision,url:'http://192.168.88.10:3000/json/one.json'});assert.equal(f.state,'removing');assert.equal(removePosts,1);assert.equal(installPosts,0)
+  let f=await maintenance.beginReinstall(ip,{bundle,packageId:'one',confirmTitleId:titleId,revision,url:'http://192.168.88.10:3000/json/one.json'});assert.equal(f.state,'removing');assert.equal(removePosts,1);assert.equal(installPosts,0)
   const queue=await load('installation-queue');assert.throws(()=>queue.startInstallationQueue({psIp:ip,packageIds:['one'],packageUrls:{one:'http://local/one'},transport:'service'}))
   if(mode==='recovery') {const stored=JSON.parse(readFileSync('.data/console-maintenance.json'));stored[ip].state='uncertain';writeFileSync('.data/console-maintenance.json',JSON.stringify(stored));await maintenance.getMaintenance(ip);assert.equal(removePosts,1)}
   removeState=mode==='partial'?'partial':'removed';f=await maintenance.getMaintenance(ip)
   if(mode==='partial'){assert.equal(f.state,'failed');assert.equal(installPosts,0)}
-  else { for(let i=0;i<30&&f.state!=='completed';i++){await new Promise(r=>setTimeout(r,50));f=await maintenance.getMaintenance(ip)} assert.equal(f.state,'completed');assert.equal(installPosts,1);assert.equal(removePosts,1);await maintenance.getMaintenance(ip);assert.equal(installPosts,1) }
+  else { for(let i=0;i<30&&f.state!=='completed';i++){await new Promise(r=>setTimeout(r,50));f=await maintenance.getMaintenance(ip)} assert.equal(f.state,'completed');assert.equal(installPosts,bundle?3:1);assert.equal(removePosts,1);if(bundle)assert.deepEqual(queue.getInstallationQueue().items.map(i=>i.packageId),['one','patch','dlc']);await maintenance.getMaintenance(ip);assert.equal(installPosts,bundle?3:1) }
  }
  console.log(`PASS: ${mode}, real production workflows in isolated filesystem, scoped native requests, no payload fallback, no repeated writes`)
 } finally { rmSync(directory,{recursive:true,force:true}) }
