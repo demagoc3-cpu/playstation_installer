@@ -9,10 +9,12 @@ import { build } from 'esbuild'
 import { createError } from 'h3'
 
 const repo = process.cwd()
-const nativeAvailable = existsSync(resolve(repo, 'PackegeFlowService/files.c'))
+const serviceSource = resolve(process.env.PACKAGEFLOW_SERVICE_SOURCE || resolve(repo, '../../PS/PackageFlowService'))
+const nativeAvailable = existsSync(resolve(serviceSource, 'files.c'))
+if (process.env.PACKAGEFLOW_SERVICE_SOURCE) assert.ok(nativeAvailable, 'PACKAGEFLOW_SERVICE_SOURCE must point to the private service source')
 test('real file API: folders, copy resume, trash/restore, replacement and editor conflicts', { skip: !nativeAvailable && 'Private service source and OpenOrbis tests are maintained locally' }, async () => {
   const dir = mkdtempSync(resolve(tmpdir(), 'packageflow-file-jobs-')), native = resolve(dir, 'bridge'), bundle = resolve(repo, 'node_modules/.cache/console-files-test.mjs')
-  const r = spawnSync('cc', ['-DPFS_FILE_TEST', '-std=c11', '-Wall', '-Wextra', '-Werror', '-o', native, 'PackegeFlowService/tests/files-bridge.c', 'PackegeFlowService/files.c'], { cwd: repo, encoding: 'utf8' })
+  const r = spawnSync('cc', ['-DPFS_FILE_TEST', '-std=c11', '-Wall', '-Wextra', '-Werror', '-o', native, resolve(serviceSource, 'tests/files-bridge.c'), resolve(serviceSource, 'files.c')], { cwd: repo, encoding: 'utf8' })
   assert.equal(r.status, 0, r.stderr)
   await build({ entryPoints: [resolve(repo, 'server/utils/console-files.ts')], outfile: bundle, bundle: true, platform: 'node', format: 'esm', packages: 'external' })
   const child = spawn(native, [], { stdio: ['pipe', 'pipe', 'inherit'] }), lines = createInterface({ input: child.stdout }), pending = []
