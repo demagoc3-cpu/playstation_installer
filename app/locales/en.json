@@ -760,6 +760,7 @@
   "Для редактора нужен текстовый файл размером до 128 КиБ": "The editor requires a text file up to 128 KiB",
   "Для удаления обновите PackageFlowService до PKG 1.55": "Update PackageFlowService to PKG 1.55 for deletion",
   "Для установки нужен доступный PS4 URL пакета": "Installation requires a package URL accessible to PS4",
+  "Для установки приложений PS4GDE обновите PackageFlowService до PKG 1.69 или новее": "Update PackageFlowService to PKG 1.69 or later to install PS4GDE applications",
   "Для установки с диска PS4 обновите PackageFlowService до PKG 1.54": "Update PackageFlowService to PKG 1.54 to install from PS4 disk",
   "Для этой PS4 уже создаётся набор сохранений": "A save collection is already being created for this PS4",
   "Добавьте magnet-ссылку или HTTPS-ссылку на .torrent": "Add a magnet link or an HTTPS .torrent link",

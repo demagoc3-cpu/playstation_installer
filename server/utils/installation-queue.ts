@@ -12,7 +12,7 @@ import { installationTransport, serviceJobDetail } from './installation-transpor
 import { getInstallationPreference } from './installation-preference'
 import { checkPs4InstallSpace, installSpaceMessage } from './installation-space'
 import { checkPs4Firmware } from './installation-firmware'
-import { cancelServiceInstallJob, getServiceInstallJob, serviceKeyConfigured, submitServicePackage, uploadServiceInstallIcon } from './ps4-service-installer'
+import { cancelServiceInstallJob, getServiceInstallJob, getServiceInstallerStatus, serviceKeyConfigured, submitServicePackage, uploadServiceInstallIcon } from './ps4-service-installer'
 import type { InstallationTransport, ServiceInstallJob } from '../../shared/types/installation'
 
 export type InstallationItemState = 'pending' | 'sending' | 'waiting' | 'receiving' | 'installing' | 'verifying' | 'delivered' | 'installed' | 'unconfirmed' | 'skipped' | 'failed' | 'cancelled'
@@ -201,6 +201,11 @@ async function runQueue() {
           }
           let job: ServiceInstallJob
           if (!item.serviceDispatchedAt) {
+            if (packageInfo.contentType === 'PS4GDE') {
+              const capability = await getServiceInstallerStatus(queue.psIp)
+              if (!capability.ready) throw createError({ statusCode: 503, message: capability.message })
+              if (!capability.contentTypes.includes('PS4GDE')) throw createError({ statusCode: 409, message: 'Для установки приложений PS4GDE обновите PackageFlowService до PKG 1.69 или новее' })
+            }
             // Old library indexes predate firmware fields; read the original PKG
             // before dispatch so a stale cache cannot bypass the check.
             const metadata = packageInfo.requiredFirmware || packageInfo.sdkFirmware ? packageInfo
@@ -407,7 +412,7 @@ export function getInstallationQueue() {
 function createQueueItems(packageIds: string[], packageUrls: Record<string, string>, transport: InstallationTransport): InstallationQueueItem[] {
   return packageIds.map((packageId) => {
     const item = getPackage(packageId)
-    if (transport === 'service' && !['PS4GD', 'PS4GP', 'PS4AC', 'PS4AL'].includes(item.contentType)) throw createError({ statusCode: 400, message: 'Этот тип PKG пока не поддерживается сервисом PS4' })
+    if (transport === 'service' && !['PS4GD', 'PS4GP', 'PS4AC', 'PS4AL', 'PS4GDE'].includes(item.contentType)) throw createError({ statusCode: 400, message: 'Этот тип PKG пока не поддерживается сервисом PS4' })
     const url = packageUrls[packageId]
     if (!url || !/^https?:\/\//.test(url)) throw createError({ statusCode: 400, message: `Не найден PS4 URL для «${item.title}»` })
     return { packageId, url, state: 'pending', detail: 'Ожидает очереди', bytesSent: 0 }
@@ -461,6 +466,24 @@ export function cancelCurrentInstallation(expectedId: string, packageId: string,
     throw createError({ statusCode: 409, message: 'Текущее задание изменилось. Обновите «Задания»' })
   queue.items[index]!.cancelRequested = true
   queue.items[index]!.detail = 'Запрошена отмена текущего пакета'
+  writeQueue(queue); ensureInstallationQueueRunning(); return publicQueue(queue)
+}
+
+/** Cancels only this library group. Accepted PS4 jobs are stopped by the runner;
+ * queued packages keep their indices so concurrent snapshots remain valid. */
+export function cancelGameInstallation(expectedId: string, ip: string, gameId: string) {
+  const queue = readQueue()
+  if (queue.id !== expectedId || queue.psIp !== ip || queue.transport !== 'service' || queue.status !== 'running')
+    throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите карточку игры' })
+  const targets = queue.items.filter(item => {
+    const pkg = getPackage(item.packageId)
+    return (pkg.titleId || pkg.id) === gameId && ACTIVE_STATES.includes(item.state)
+  })
+  if (!targets.length) throw createError({ statusCode: 409, message: 'У этой игры больше нет активных пакетов' })
+  for (const item of targets) {
+    item.cancelRequested = true
+    item.detail = 'Запрошена отмена пакетов этой игры'
+  }
   writeQueue(queue); ensureInstallationQueueRunning(); return publicQueue(queue)
 }
 

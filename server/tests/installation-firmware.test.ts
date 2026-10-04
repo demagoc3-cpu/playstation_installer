@@ -22,3 +22,9 @@ test('DLC without its own firmware requirement follows the base game; unverifiab
   assert.equal(assessPackageFirmware('12.50', { contentType: 'PS4GD' }).state, 'unverified')
   assert.equal(assessPackageFirmware('unknown', { contentType: 'PS4GD', requiredFirmware: '5.05' }).state, 'unavailable')
 })
+
+test('explicit zero SYSTEM_VER permits an app but does not bypass newer SDK or missing metadata', () => {
+  assert.equal(assessPackageFirmware('12.50', { contentType: 'PS4GDE', requiredFirmware: '0.00' }).state, 'compatible')
+  assert.equal(assessPackageFirmware('12.50', { contentType: 'PS4GDE', requiredFirmware: '0.00', sdkFirmware: '13.00' }).state, 'incompatible')
+  assert.equal(assessPackageFirmware('12.50', { contentType: 'PS4GDE' }).state, 'unverified')
+})

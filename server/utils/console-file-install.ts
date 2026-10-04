@@ -37,7 +37,8 @@ async function inspect(value: unknown, source: unknown) {
   try {
     pkg = await readPackageMetadataFromReader({ stat: async () => ({ size: stat.size }), read: async (buffer, offset, length, position) => { const part = await read(position, length); part.copy(buffer, offset); return { bytesRead: part.length } } }, posix.basename(path))
   } catch (cause) { fail(`Не удалось прочитать сведения PKG: ${issue(cause)}`, 422) }
-  if (!['PS4GD', 'PS4GP', 'PS4AC', 'PS4AL'].includes(pkg!.contentType) || !/^[A-Z0-9]{9}$/.test(pkg!.titleId) || /^(?:PFLS|NPXS)/.test(pkg!.titleId)) fail('Этот тип PKG нельзя установить через файловый менеджер', 400)
+  if (!['PS4GD', 'PS4GP', 'PS4AC', 'PS4AL', 'PS4GDE'].includes(pkg!.contentType) || !/^[A-Z0-9]{9}$/.test(pkg!.titleId) || /^(?:PFLS|NPXS)/.test(pkg!.titleId)) fail('Этот тип PKG нельзя установить через файловый менеджер', 400)
+  if (pkg!.contentType === 'PS4GDE' && !cap.contentTypes.includes('PS4GDE')) fail('Для установки приложений PS4GDE обновите PackageFlowService до PKG 1.69 или новее')
   const after = await consoleFileRequest(ip, 'stat', { path }) as ConsoleFileStat
   if (after.revision !== stat.revision || after.size !== stat.size) fail('Файл изменился во время проверки. Выберите его снова')
   const [firmware, space] = await Promise.all([checkPs4Firmware(ip, pkg!), checkPs4InstallSpace(ip, stat.size)])

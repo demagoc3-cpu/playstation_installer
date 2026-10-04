@@ -136,11 +136,11 @@ function volumeType(header: Buffer): LocalPackage['packageVolume'] {
   return flags & 0x60100000 ? 'patch' : 'application'
 }
 
-function packedFirmware(value: string) {
+function packedFirmware(value: string, allowZero = false) {
   const match = /^(\d{2})(\d{2})[0-9a-fA-F]{4}$/.exec(value)
   if (!match) return undefined
   const major = Number(match[1]), minor = Number(match[2])
-  return major || minor ? `${major}.${match[2]}` : undefined
+  return major || minor || allowZero ? `${major}.${match[2]}` : undefined
 }
 
 function parseSfo(data: Buffer) {
@@ -161,8 +161,8 @@ function parseSfo(data: Buffer) {
     const key = data.subarray(keyStart, keyEnd < 0 ? data.length : keyEnd).toString('utf8')
     const value = data.subarray(valueStart, valueStart + length)
     if (key === 'SYSTEM_VER') requiredFirmware = value.length === 4
-      ? packedFirmware(value.readUInt32LE(0).toString(16).padStart(8, '0'))
-      : packedFirmware(value.toString('utf8').replace(/\0/g, '').replace(/^0x/i, '').trim())
+      ? packedFirmware(value.readUInt32LE(0).toString(16).padStart(8, '0'), true)
+      : packedFirmware(value.toString('utf8').replace(/\0/g, '').replace(/^0x/i, '').trim(), true)
     values.set(key, value.toString('utf8').replace(/\0/g, '').trim())
   }
   return { values, requiredFirmware }

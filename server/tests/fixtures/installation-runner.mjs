@@ -16,6 +16,7 @@ const item = { id: 'one', title: 'Test Game', fileName: 'game.pkg', size: 858993
   requiredFirmware: '5.05', sdkFirmware: '5.05',
   contentId: 'EP0000-CUSA00001_00-ABCDEFGHIJKLMNOP', contentType: 'PS4GD', packageDigest: 'a'.repeat(40), iconSize: 0,
   path: resolve('game.pkg'), libraryRoot: directory, sourceModifiedAt: 1, icon: { offset: 0, size: 0 } }
+if (mode.startsWith('mini-app')) Object.assign(item, {title:'GameBaTo', titleId:'GBTX00001',contentId:'XX0000-GBTX00001_00-GBTXXXXXXXXXXXXX',contentType:'PS4GDE',requiredFirmware:'0.00',sdkFirmware:undefined})
 if (mode === 'icon') {
   item.coverPath = resolve('icon.png')
   item.iconSize = 8
@@ -46,6 +47,7 @@ registerHooks({
 let currentJob, offline = false
 const response = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 const cap = { service: 'PackegeFlowService', version: '0.4.0', installApi: 1, ready: true, authentication: 'bearer', contentTypes: ['PS4GD'], error: 0, errorHex: '0x00000000' }
+if (mode === 'mini-app') cap.contentTypes.push('PS4GDE')
 const makeJob = id => ({ service: 'PackegeFlowService', jobId: id, requestId: id, contentId: item.contentId, taskId: 43, state: 'downloading',
   totalBytes: item.size, downloadedBytes: 5368709120, downloadTotalBytes: item.size, error: 0, errorHex: '0x00000000', pollError: 0 })
 globalThis.fetch = async (url, options) => {
@@ -79,8 +81,9 @@ globalThis.fetch = async (url, options) => {
     if (mode === 'busy-rejection') return response({ error: 'another_service_job_active', errorHex: '0x00000000' }, 409)
     assert.equal(calls.submit, mode === 'already-installed' ? 2 : 1, 'accepted task must never be POSTed twice')
     if (mode === 'icon') assert.equal(calls.icon, 1, 'BGFT icon must be on the console before task registration')
-    const body = JSON.parse(options.body); assert.equal(body.size, item.size); assert.equal(body.contentType, mode === 'already-installed' ? 'PS4AC' : mode.startsWith('cancel-one') ? 'PS4GP' : 'PS4GD')
+    const body = JSON.parse(options.body); assert.equal(body.size, item.size); assert.equal(body.contentType, mode === 'already-installed' ? 'PS4AC' : mode.startsWith('mini-app') ? 'PS4GDE' : mode.startsWith('cancel-one') || mode === 'cancel-game' ? 'PS4GP' : 'PS4GD')
     currentJob = makeJob(body.requestId)
+    currentJob.contentId = body.contentId
     throw new Error('Connection lost after PS4 accepted the task')
   }
   assert(currentJob && path.startsWith(`/install/jobs/${currentJob.jobId}`))
@@ -138,6 +141,31 @@ try {
     assert.throws(() => queue.appendInstallationQueue({ psIp: ip, queueId: 'active', packageIds: ['two'], packageUrls: {} }), /уже находятся/)
     assert.throws(() => queue.appendInstallationQueue({ psIp: ip, queueId: 'old', packageIds: ['two'], packageUrls: {} }), /изменилась/)
     queue.cancelInstallationQueue()
+  } else if (mode === 'cancel-game') {
+    writeFileSync('.data/ps4-service-keys.json', JSON.stringify({[ip]:token}))
+    const packages = [item, {...item,id:'patch',contentType:'PS4GP',installOrder:1},
+      {...item,id:'other',titleId:'CUSA00002',contentId:'EP0000-CUSA00002_00-ABCDEFGHIJKLMNOP',contentType:'PS4GP'},
+      {...item,id:'done',contentType:'PS4AC',installOrder:2}]
+    writeFileSync('.data/package-library.json', JSON.stringify({version:2,packages,deliveries:{}}))
+    const id='11111111-1111-1111-1111-111111111111';currentJob=makeJob(id)
+    writeFileSync('.data/installation-queue.json', JSON.stringify({version:1,transport:'service',id:'game-test',status:'running',psIp:ip,createdAt:1,
+      items:[{packageId:'one',url:input.packageUrls.one,state:'receiving',detail:'',bytesSent:10,requestId:id,serviceDispatchedAt:1},
+        {packageId:'patch',url:input.packageUrls.one,state:'pending',detail:'',bytesSent:0},
+        {packageId:'other',url:input.packageUrls.one,state:'pending',detail:'',bytesSent:0},
+        {packageId:'done',url:input.packageUrls.one,state:'installed',detail:'',bytesSent:0}]}))
+    const queue = await load('installation-queue')
+    assert.throws(()=>queue.cancelGameInstallation('old',ip,'CUSA00001'))
+    assert.throws(()=>queue.cancelGameInstallation('game-test','192.168.88.148','CUSA00001'))
+    assert.throws(()=>queue.cancelGameInstallation('game-test',ip,'CUSA00003'))
+    const result=queue.cancelGameInstallation('game-test',ip,'CUSA00001')
+    assert.equal(result.items[0].cancelRequested,true);assert.equal(result.items[1].cancelRequested,true)
+    assert.equal(result.items[2].cancelRequested,undefined);assert.equal(result.items[3].cancelRequested,undefined)
+    await until(()=>calls.submit===1&&readQueue().items[2].serviceDispatchedAt)
+    assert.equal(calls.cancel,1);assert.equal(readQueue().items[0].state,'cancelled');assert.equal(readQueue().items[1].state,'cancelled')
+    assert.equal(currentJob.contentId,packages[2].contentId)
+    currentJob.state='installed';await until(()=>readQueue().status==='completed')
+    assert.equal(readQueue().items[2].state,'installed');assert.equal(readQueue().items[3].state,'installed')
+    assert.equal(calls.submit,1);assert.match(readQueue().message,/отменено — 2/)
   } else if (mode === 'cancel-one' || mode === 'cancel-one-before-dispatch') {
     writeFileSync('.data/ps4-service-keys.json', JSON.stringify({[ip]:token}))
     writeFileSync('.data/package-library.json', JSON.stringify({version:2,packages:[item,{...item,id:'two',title:'Next package',contentType:'PS4GP',installOrder:1}],deliveries:{}}))
@@ -180,6 +208,19 @@ try {
     await until(() => readQueue().status === 'completed')
     assert.equal(readQueue().items[1].state, 'installed')
     assert.match(readQueue().message, /пропущено.*1/)
+  } else if (mode.startsWith('mini-app')) {
+    writeFileSync('.data/ps4-service-keys.json', JSON.stringify({[ip]:token}))
+    const queue = await load('installation-queue')
+    queue.startInstallationQueue({...input,transport:'service'})
+    if (mode === 'mini-app-old-service') {
+      await until(()=>readQueue().status==='failed')
+      assert.equal(calls.submit,0);assert.match(readQueue().items[0].detail,/1\.69/)
+    } else {
+      await until(()=>calls.submit===1&&currentJob)
+      assert.equal(currentJob.contentId,item.contentId)
+      currentJob.state='installed';await until(()=>readQueue().status==='completed')
+      assert.equal(calls.submit,1);assert.equal(readQueue().items[0].state,'installed')
+    }
   } else if (mode === 'firmware-unverified') {
     writeFileSync('.data/package-library.json', JSON.stringify({ version: 2, packages: [{ ...item, requiredFirmware: undefined, sdkFirmware: undefined }], deliveries: {} }))
     writeFileSync('.data/ps4-service-keys.json', JSON.stringify({ [ip]: token }))

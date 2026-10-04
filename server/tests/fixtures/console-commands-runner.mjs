@@ -18,6 +18,7 @@ registerHooks({
   if(url.endsWith('/ps4-installer.ts'))return {format:'module',shortCircuit:true,source:'export const getLocalIp = async () => "10.1.10.47"'}
   if(url.endsWith('/installation-queue.ts'))return {format:'module',shortCircuit:true,source:`
    export const getInstallationQueue=()=>globalThis.commandQueue;
+   export const cancelGameInstallation=(id,ip,game)=>{if(game!=='CUSA00001')throw new Error('wrong game');globalThis.commandCalls.cancel++;globalThis.cancelledGame=game;return globalThis.commandQueue};
    export const cancelInstallationQueue=()=>{globalThis.commandCalls.cancel++;return globalThis.commandQueue};
    export const cancelCurrentInstallation=(id,pkg,ip)=>{if(pkg!=='dlc')throw new Error('current changed');globalThis.commandCalls.cancel++;return globalThis.commandQueue};
    export const startInstallationQueue=v=>{globalThis.commandCalls.start++;globalThis.lastCommand=v;return globalThis.commandQueue={id:'shared',psIp:v.psIp,transport:v.transport,status:'running',items:[]}};
@@ -50,6 +51,7 @@ try {
  assert.throws(()=>submitConsoleCommand({...cancel,currentPackageId:'base'},'3000'));
  const old=request(9,'cancel-all',{queueId:'old'});submitConsoleCommand(old,'3000');assert.equal((await finish(old)).state,'failed');assert.equal(calls.cancel,1);
  globalThis.reinstallState='failed';const rejected=request(10,'reinstall',{revision:plan.result.revision,confirmTitleId:plan.result.titleId});submitConsoleCommand(rejected,'3000');const rejectedResult=await finish(rejected);assert.equal(rejectedResult.state,'failed');assert.equal(rejectedResult.message,'Removal history full');
+ const game=request(11,'cancel-game',{queueId:'shared'});submitConsoleCommand(game,'3000');assert.equal((await finish(game)).state,'accepted');assert.equal(globalThis.cancelledGame,'CUSA00001');const cancellations=calls.cancel;submitConsoleCommand(game,'3000');assert.equal(calls.cancel,cancellations);
  const id='f'.repeat(32);writeFileSync('.data/console-app-commands.json',JSON.stringify({version:1,records:[{id,ip:'10.1.10.32',fingerprint:'x',state:'pending',message:''}]}));assert.equal(consoleCommand(id,'10.1.10.32').state,'uncertain');assert.throws(()=>consoleCommand(id,'10.1.10.33'))
  console.log('Production native commands: same service queue, append, replay protection, foreign selections, confirmed reinstall and interrupted WEB: passed')
 }finally {process.chdir(root);rmSync(temp,{recursive:true,force:true})}

@@ -85,4 +85,9 @@ try {
   assert.equal(addonWithData.contentType, 'PS4AC')
   assert.equal(licenseOnly.type, 'DLC')
   assert.equal(licenseOnly.contentType, 'PS4AL')
+  const app = await readPackageMetadata(packageFile('app.pkg', 'gde', 0x0a000000, '00.00', { SYSTEM_VER: 0, PUBTOOLINFO: 'sdk_ver=00000000' }), 'app.pkg')
+  assert.equal(app.contentType, 'PS4GDE')
+  assert.equal(app.requiredFirmware, '0.00')
+  assert.equal(app.sdkFirmware, undefined)
+  assert.equal(remaster.requiredFirmware, undefined, 'absent SYSTEM_VER must stay unknown')
 } finally { rmSync(directory, { recursive: true, force: true }) }

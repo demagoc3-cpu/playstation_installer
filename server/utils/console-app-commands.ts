@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { createError } from 'h3'
 import { readJsonFile, writeJsonFile } from './json-store'
 import { getLibraryPackages } from './package-library'
-import { getInstallationQueue, startInstallationQueue, appendInstallationQueue, cancelCurrentInstallation, cancelInstallationQueue } from './installation-queue'
+import { getInstallationQueue, startInstallationQueue, appendInstallationQueue, cancelCurrentInstallation, cancelInstallationQueue, cancelGameInstallation } from './installation-queue'
 import { beginReinstall, reinstallPlan } from './console-maintenance'
 import { getLocalIp } from './ps4-installer'
 import { consoleSelection } from './console-app-data'
@@ -25,7 +25,7 @@ export function consoleCommand(id: unknown, ipValue: unknown) {
 }
 export function submitConsoleCommand(body: any, port: string) {
   const ip = ps4ServiceIp(body?.ip)
-  if (!ip || !/^[a-f0-9]{32}$/.test(body?.requestId || '') || typeof body.gameId !== 'string' || !['all', 'selected', 'reinstall-preview', 'reinstall', 'patches', 'dlc', 'cancel-current', 'cancel-all'].includes(body.action))
+  if (!ip || !/^[a-f0-9]{32}$/.test(body?.requestId || '') || typeof body.gameId !== 'string' || !['all', 'selected', 'reinstall-preview', 'reinstall', 'patches', 'dlc', 'cancel-current', 'cancel-all', 'cancel-game'].includes(body.action))
     throw createError({ statusCode: 400, message: 'Некорректная команда приложения' })
   if (body.packageIds !== undefined && (!Array.isArray(body.packageIds) || body.packageIds.some((id: unknown) => typeof id !== 'string')))
     throw createError({ statusCode: 400, message: 'Некорректный выбор пакетов' })
@@ -35,7 +35,7 @@ export function submitConsoleCommand(body: any, port: string) {
     if (existing.ip !== ip || existing.fingerprint !== fingerprint) throw createError({ statusCode: 409, message: 'Идентификатор уже использован другой командой' })
     return consoleCommand(body.requestId, ip)
   }
-  const control = body.action === 'cancel-current' || body.action === 'cancel-all'
+  const control = body.action === 'cancel-current' || body.action === 'cancel-all' || body.action === 'cancel-game'
   if (control && (typeof body.queueId !== 'string' || !body.queueId || (body.action === 'cancel-current' && typeof body.currentPackageId !== 'string')))
     throw createError({ statusCode: 400, message: 'Не указано текущее задание' })
   let packages
@@ -50,7 +50,7 @@ export function submitConsoleCommand(body: any, port: string) {
         const active = getInstallationQueue()
         if (active.id !== body.queueId || active.psIp !== ip || active.transport !== 'service' || !['running', 'cancelling'].includes(active.status))
           throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите «Задания»' })
-        const queue = body.action === 'cancel-current' ? cancelCurrentInstallation(body.queueId, body.currentPackageId, ip) : cancelInstallationQueue()
+        const queue = body.action === 'cancel-current' ? cancelCurrentInstallation(body.queueId, body.currentPackageId, ip) : body.action === 'cancel-game' ? cancelGameInstallation(body.queueId, ip, body.gameId) : cancelInstallationQueue()
         record.result = { queueId: queue.id }; record.message = 'Отмена запрошена; ожидаем подтверждение PS4'
       } else if (body.action === 'reinstall-preview') {
         const plan = await reinstallPlan(ip, packages[0]!.id)
