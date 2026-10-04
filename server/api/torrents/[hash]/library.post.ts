@@ -3,6 +3,7 @@ import { getLibraryPackages, scanPackageFolder } from '../../../utils/package-li
 import { getCompletedTorrentDirectory } from '../../../utils/qbittorrent'
 import { getIndexedTorrentPackageIds, markTorrentIndexed } from '../../../utils/torrent-library'
 import { getLocalIp } from '../../../utils/ps4-installer'
+import { packageHasId } from '../../../../shared/package-identity'
 
 export default defineEventHandler(async (event) => {
   const hash = getRouterParam(event, 'hash') || ''
@@ -12,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const port = host.match(/:(\d+)$/)?.[1] || '3000'
   const indexedPackageIds = getIndexedTorrentPackageIds(hash)
   if (indexedPackageIds) {
-    const indexed = getLibraryPackages().filter((item) => indexedPackageIds.includes(item.id))
+    const indexed = getLibraryPackages().filter((item) => indexedPackageIds.some(id => packageHasId(item, id)))
     return { alreadyIndexed: true, packages: indexed.map((item) => ({ ...item, url: `http://${pcIp}:${port}/json/${item.id}.json` })) }
   }
   const result = await scanPackageFolder(await getCompletedTorrentDirectory(hash))

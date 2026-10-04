@@ -1,5 +1,6 @@
 import { consolePackageLabel } from './console-catalog.ts'
 import type { LocalPackage } from './package-library'
+import { packageHasId } from '../../shared/package-identity.ts'
 
 /** Only catalog IDs are accepted; source URLs and filesystem paths stay on WEB. */
 export function consoleSelection(packages: LocalPackage[], gameId: string, action: string, ids: string[] = []) {
@@ -14,15 +15,15 @@ export function consoleSelection(packages: LocalPackage[], gameId: string, actio
   if (action === 'all') return group
   if (action === 'dlc') return group.filter(p => p.type === 'DLC')
   if (action === 'patches') return group.filter(p => p.type === 'Патч' || p.type === 'Бэкпорт')
-  if (action !== 'selected' || !ids.length || ids.length > 128 || ids.some(id => !group.some(p => p.id === id)))
+  if (action !== 'selected' || !ids.length || ids.length > 128 || ids.some(id => !group.some(p => packageHasId(p, id))))
     throw new Error('Выберите пакеты из этой карточки игры')
-  return group.filter(p => ids.includes(p.id))
+  return group.filter(p => ids.some(id => packageHasId(p, id)))
 }
 
 export function consoleQueueTasks(queue: { psIp?: string; items: Array<{ packageId: string; state: string; detail: string; bytesSent: number }> }, ip: string, packages: LocalPackage[], language: 'ru' | 'en' = 'ru') {
   if (queue.psIp !== ip) return []
   return queue.items.slice(0, 256).map(item => {
-    const pkg = packages.find(p => p.id === item.packageId)
+    const pkg = packages.find(p => packageHasId(p, item.packageId))
     return {
       id: item.packageId, title: pkg ? `${pkg.title || pkg.titleId} • ${consolePackageLabel(pkg, language)}` : item.packageId,
       kind: ({ 'Игра': 'game', 'Патч': 'patch', 'Бэкпорт': 'backport', DLC: 'dlc' } as const)[pkg?.type || 'Игра'],

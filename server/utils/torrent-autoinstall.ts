@@ -49,7 +49,7 @@ export async function runTorrentAutoInstall() {
     }
     const ids = new Set(packageIds)
     const library = getLibraryPackages()
-    const candidates = library.filter((item) => ids.has(item.id))
+    const candidates = library.filter((item) => ids.has(item.id) || item.sourceIds?.some(id => ids.has(id)))
     const transport = getInstallationPreference()
     let consoleSnapshot: Parameters<typeof selectAutomaticPackages>[2]
     if (transport === 'service') {

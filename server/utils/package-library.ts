@@ -4,6 +4,7 @@ import { closeSync, createReadStream, existsSync, mkdirSync, openSync, readSync 
 import { open, readdir, readFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import { readJsonFile as readJson, writeJsonFile as writeJson } from './json-store'
+import { packageIdentity } from '../../shared/package-identity'
 
 const PKG_MAGIC = Buffer.from([0x7f, 0x43, 0x4e, 0x54])
 const SFO_MAGIC = Buffer.from([0x00, 0x50, 0x53, 0x46])
@@ -20,6 +21,7 @@ const siteLibraryPath = resolve(process.cwd(), '.data/package-library.json')
 
 export interface LocalPackage {
   id: string
+  sourceIds?: string[]
   title: string
   fileName: string
   size: number
@@ -88,6 +90,27 @@ function scheduleDeliveryFlush() {
   }, 1000)
 }
 function publicItem({ path: _, sourceModifiedAt: __, coverPath: ___, icon: ____, ...item }: StoredPackage): LocalPackage { return item }
+
+const packageKey = (item: StoredPackage) => packageIdentity(item) || `path:${resolve(item.path)}`
+function packageGroups(items: StoredPackage[]) {
+  const groups = new Map<string, StoredPackage[]>()
+  for (const item of items) {
+    const key = packageKey(item)
+    const group = groups.get(key)
+    if (group) group.push(item)
+    else groups.set(key, [item])
+  }
+  return groups
+}
+/** Keep the first indexed ID stable; other paths remain usable as fallbacks
+ * and old URLs, torrent indexes and accepted installation jobs stay valid. */
+function availablePackage(group: StoredPackage[], id = group[0]!.id) {
+  const source = group.find(item => item.id === id && existsSync(item.path)) || group.find(item => existsSync(item.path))
+  if (!source) return undefined
+  const installedAt = Math.max(0, ...group.map(item => item.installedAt || 0)) || undefined
+  const cover = [source, ...group].find(item => item.coverPath && existsSync(item.coverPath))
+  return { ...source, id, installedAt, coverPath: cover?.coverPath, sourceIds: [...new Set(group.map(item => item.id))] }
+}
 
 interface PackageReader {
   read(buffer: Buffer, offset: number, length: number, position: number): Promise<{ bytesRead: number }>
@@ -243,8 +266,7 @@ async function walk(directory: string, root: string, cache: FolderCache, found: 
     const key = relative(root, path)
     const cached = cache.packages[key]
     if (cached?.size === info.size && cached.modifiedAt === info.mtimeMs && existsSync(cached.item.path) && (!cached.item.coverPath || existsSync(cached.item.coverPath))) {
-      cached.item.libraryRoot = root
-      found.push(cached.item)
+      found.push({ ...cached.item, libraryRoot: root, installedAt: oldItems.get(cached.item.id)?.installedAt })
       continue
     }
     const metadata = await readPackageMetadata(path, entry.name).catch(() => undefined)
@@ -252,7 +274,9 @@ async function walk(directory: string, root: string, cache: FolderCache, found: 
     const id = hash(path)
     const coverPath = metadata.icon.size ? join(coversDirectory(root), `${id}.png`) : undefined
     if (coverPath) { mkdirSync(dirname(coverPath), { recursive: true }); await writeCover(path, metadata.icon, coverPath).catch(() => undefined) }
-    const item: StoredPackage = { id, path, fileName: entry.name, size: info.size, libraryRoot: root, sourceModifiedAt: info.mtimeMs, installedAt: oldItems.get(id)?.installedAt, coverPath, ...metadata }
+    const item: StoredPackage = { id, path, fileName: entry.name, size: info.size, libraryRoot: root, sourceModifiedAt: info.mtimeMs, coverPath, ...metadata }
+    const previous = oldItems.get(id)
+    if (previous && packageKey(previous) === packageKey(item)) item.installedAt = previous.installedAt
     cache.packages[key] = { size: info.size, modifiedAt: info.mtimeMs, item }
     found.push(item)
     if (found.length % 12 === 0) await new Promise<void>((done) => setImmediate(done))
@@ -271,14 +295,37 @@ export async function scanPackageFolder(directory: string, onlyTitleId?: string)
   const found: StoredPackage[] = []
   await walk(root, root, cache, found, oldItems, 500)
   writeJson(cachePath(root), cache)
-  const scannedPaths = new Set(found.map((item) => item.path))
-  siteLibrary.packages = [...siteLibrary.packages.filter((item) => !scannedPaths.has(item.path)), ...found]
-  writeLibrary(siteLibrary)
-  return { directory: root, packages: found.filter((item) => !onlyTitleId || item.titleId === onlyTitleId).map(publicItem) }
+  // Re-read after asynchronous scanning so concurrent install confirmations
+  // are preserved. Replacing entries in place keeps canonical IDs stable.
+  const latest = readLibrary()
+  const replacements = new Map(found.map(item => [item.path, item]))
+  const seen = new Set<string>()
+  const merged: StoredPackage[] = []
+  for (const previous of latest.packages) {
+    if (seen.has(previous.path)) continue
+    seen.add(previous.path)
+    const item = replacements.get(previous.path)
+    merged.push(item ? { ...item, installedAt: packageKey(previous) === packageKey(item) ? previous.installedAt : undefined } : previous)
+  }
+  for (const item of found) if (!seen.has(item.path)) { merged.push(item); seen.add(item.path) }
+  latest.packages = merged
+  writeLibrary(latest)
+  const keys = new Set(found.map(packageKey))
+  const packages = [...packageGroups(merged)].filter(([key, group]) => onlyTitleId ? group[0]!.titleId === onlyTitleId : keys.has(key))
+    .map(([, group]) => availablePackage(group)).filter((item): item is NonNullable<typeof item> => Boolean(item)).map(publicItem)
+  return { directory: root, packages }
 }
 
-export function getLibraryPackages() { return readLibrary().packages.filter((item) => existsSync(item.path)).map(publicItem) }
-export function getPackage(id: string) { const item = readLibrary().packages.find((entry) => entry.id === id); if (!item || !existsSync(item.path)) throw createError({ statusCode: 404, message: 'Пакет не найден. Просканируйте папку повторно.' }); return item }
+export function getLibraryPackages() {
+  return [...packageGroups(readLibrary().packages).values()].map(group => availablePackage(group))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item)).map(publicItem)
+}
+export function getPackage(id: string) {
+  const packages = readLibrary().packages, original = packages.find(item => item.id === id)
+  const item = original && availablePackage(packages.filter(item => packageKey(item) === packageKey(original)), id)
+  if (!item) throw createError({ statusCode: 404, message: 'Пакет не найден. Просканируйте папку повторно.' })
+  return item
+}
 export function getPackageStream(id: string, options?: { start?: number; end?: number }) { const item = getPackage(id); return { item, stream: createReadStream(item.path, options) } }
 export function getPackageIconStream(id: string) { const item = getPackage(id); if (!item.coverPath || !existsSync(item.coverPath)) throw createError({ statusCode: 404, message: 'Кэш обложки не найден. Пересканируйте папку.' }); return createReadStream(item.coverPath) }
 export async function readPackageIcon(id: string) { const item = getPackage(id); if (!item.coverPath || !existsSync(item.coverPath)) return undefined; return readFile(item.coverPath) }
@@ -324,7 +371,8 @@ export function markPackageInstalled(id: string, installed: boolean) {
       if (other.id !== id && other.titleId === item.titleId && other.contentType === 'PS4GP') other.installedAt = undefined
     }
   }
-  item.installedAt = installed ? Date.now() : undefined
+  const key = packageKey(item), installedAt = installed ? Date.now() : undefined
+  for (const other of library.packages) if (packageKey(other) === key) other.installedAt = installedAt
   writeLibrary(library)
   return publicItem(item)
 }
@@ -341,10 +389,12 @@ export function clearConsoleInstallation(titleId: string, kind: string, componen
 
 export function removePackageFromLibrary(id: string) {
   const library = readLibrary()
-  const before = library.packages.length
-  library.packages = library.packages.filter((item) => item.id !== id)
-  if (library.packages.length === before) throw createError({ statusCode: 404, message: 'Пакет не найден' })
-  delete library.deliveries[id]
+  const original = library.packages.find(item => item.id === id)
+  if (!original) throw createError({ statusCode: 404, message: 'Пакет не найден' })
+  const key = packageKey(original)
+  const removed = library.packages.filter(item => packageKey(item) === key)
+  library.packages = library.packages.filter(item => packageKey(item) !== key)
+  for (const item of removed) delete library.deliveries[item.id]
   writeLibrary(library)
 }
 

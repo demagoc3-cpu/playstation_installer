@@ -23,3 +23,11 @@ test('PS4 snapshots preserve unconfirmed/errors and cannot turn full transfer in
   queue.items[0]!.state='installed';assert.equal(consoleQueueTasks(queue, queue.psIp, library)[0]!.progress,100)
   assert.deepEqual(consoleQueueTasks(queue,'10.1.10.33',library),[])
 })
+test('old package IDs remain selectable and keep task labels after duplicate sources are grouped', () => {
+  const packages = [{ ...pkg('base', 'PS4GD', 0), title: 'Same game', sourceIds: ['base', 'old-mount'] }]
+  assert.deepEqual(consoleSelection(packages, 'CUSA00001', 'selected', ['old-mount', 'base']).map(p => p.id), ['base'])
+  const tasks = consoleQueueTasks({ psIp: '10.1.10.32', items: [{ packageId: 'old-mount', state: 'receiving', detail: 'Active', bytesSent: 500 }] }, '10.1.10.32', packages)
+  assert.equal(tasks[0]!.id, 'old-mount', 'cancellation still targets the accepted job ID')
+  assert.match(tasks[0]!.title, /Same game/)
+  assert.equal(tasks[0]!.progress, 50)
+})
