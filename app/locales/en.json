@@ -1185,5 +1185,13 @@
   "целиком": "entirely",
   "Язык интерфейса": "Interface language",
   "Ошибка установки PKG на PS4: {0}": "PS4 PKG installation error: {0}",
-  "Отправка файла": "Sending file"
+  "Отправка файла": "Sending file",
+  "API‑ключ сохранён — пусто, чтобы оставить": "API key saved — leave blank to keep it",
+  "Категории: 1180 (PS4)": "Categories: 1180 (PS4)",
+  "Категории Torznab: номера через запятую, пусто — все": "Torznab categories: comma-separated numbers; blank for all",
+  "1180 — игры PS4. Пустое поле категорий — поиск по всем платформам.": "1180 — PS4 games. Leave categories blank to search all platforms.",
+  "Неверные настройки источника поиска": "Invalid search source settings",
+  "Категории Torznab: укажите номера через запятую": "Torznab categories: enter comma-separated numbers",
+  "Источник Torznab вернул ошибку. Проверьте API‑ключ и настройки индексатора.": "The Torznab source returned an error. Check the API key and indexer settings.",
+  "Источник вернул неверный ответ Torznab": "The source returned an invalid Torznab response"
 }

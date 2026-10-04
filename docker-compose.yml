@@ -4,6 +4,31 @@
 # and enter /games as the folder in the app.
 
 services:
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    network_mode: host
+
+    environment:
+      - LOG_LEVEL=info
+      - TZ=Europe/Amsterdam
+
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    restart: unless-stopped
+    network_mode: host
+
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Amsterdam
+
+    volumes:
+      - ./prowlarr:/config
+
+
   packageflow:
     image: demagoc3/packageflow:latest
     container_name: packageflow
