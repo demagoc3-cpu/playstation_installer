@@ -62,8 +62,16 @@ export async function listConsolePackageInstallations(value: unknown) {
   if (updates.length) saveFileInstallations(current)
   return current.filter(j => j.ip === ip).reverse()
 }
-export async function installConsolePackage(value: unknown, path: unknown, revision: unknown) {
+export async function installConsolePackage(value: unknown, path: unknown, revision: unknown, requestId?: unknown) {
   const ip = fileIp(value)
+  if (requestId !== undefined) {
+    if (typeof requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) fail('Неверный идентификатор установки', 400)
+    const prior = readFileInstallations().find(j => j.ip === ip && j.id === requestId)
+    if (prior) {
+      if (prior.path !== path) fail('Идентификатор уже используется', 409)
+      return prior
+    }
+  }
   if (starting.has(ip)) fail('Установка уже подготавливается')
   starting.add(ip)
   try {
@@ -74,7 +82,7 @@ export async function installConsolePackage(value: unknown, path: unknown, revis
     if (p.revision !== revision) fail('PKG изменился после выбора. Откройте сведения снова')
     if (!p.canInstall) fail(!p.compatible ? p.firmwareMessage : p.spaceMessage)
     if (await getActiveServiceInstallJob(ip)) fail('На PS4 уже выполняется установка. Дождитесь её завершения')
-    const id = randomUUID()
+    const id = typeof requestId === 'string' ? requestId : randomUUID()
     if (inspected.pkg.icon.size) {
       const chunks = []
       for (let offset = 0; offset < inspected.pkg.icon.size; offset += 256 * 1024) chunks.push(await inspected.read(inspected.pkg.icon.offset + offset, Math.min(256 * 1024, inspected.pkg.icon.size - offset)))

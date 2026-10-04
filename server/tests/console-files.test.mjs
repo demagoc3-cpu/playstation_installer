@@ -54,7 +54,11 @@ test('real file API: folders, copy resume, trash/restore, replacement and editor
     assert.throws(() => f.userFilePath('/data/PackegeFlowService', true))
     assert.throws(() => f.userFilePath('/data/foo/../bar', true))
     assert.throws(() => f.startFileJob(ip, { action: 'trash', paths: ['/user/home'] }))
-    await run({ action: 'mkdir', paths: ['/data'], name: 'source' })
+    const requestId = '11223344-5566-4788-8899-aabbccddeeff'
+    const folderJob = await run({ action: 'mkdir', paths: ['/data'], name: 'source', requestId })
+    assert.equal(f.startFileJob(ip, { action: 'mkdir', paths: ['/data'], name: 'source', requestId }).id, folderJob.id)
+    assert.throws(() => f.startFileJob(ip, { action: 'mkdir', paths: ['/data'], name: 'other', requestId }), /другой операцией/)
+    assert.equal(f.fileJobs(ip).jobs.filter(j => j.id === requestId).length, 1)
     const text = 'Hello — Привет\r\n'; writeFileSync(resolve(disk, 'source/settings.json'), JSON.stringify({ text }))
     mkdirSync(resolve(disk, 'source/empty'))
     const data = Buffer.alloc(600000, 37); writeFileSync(resolve(disk, 'source/big.bin'), data)

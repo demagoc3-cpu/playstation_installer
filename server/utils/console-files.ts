@@ -282,6 +282,14 @@ export function startFileJob(value: unknown, body: any) {
   if (!['mkdir', 'rename', 'copy', 'move', 'trash', 'restore', 'replace', 'delete', 'purge'].includes(action)) fail('Неизвестная файловая операция')
   if (['delete', 'purge'].includes(action) && body.confirmPermanent !== true) fail('Подтвердите безвозвратное удаление', 400)
   const ledger = readLedger(ip)
+  if (body.requestId !== undefined) {
+    if (typeof body.requestId !== 'string' || !uuid.test(body.requestId)) fail('Неверный идентификатор операции')
+    const prior = ledger.jobs.find(j => j.id === body.requestId)
+    if (prior) {
+      if (prior.action !== action || JSON.stringify(prior.input.paths) !== JSON.stringify(body.paths) || prior.input.destination !== body.destination || prior.input.name !== body.name) fail('Идентификатор уже используется другой операцией', 409)
+      return publicJob(prior)
+    }
+  }
   if (ledger.jobs.some(j => active.has(j.id))) fail('Дождитесь текущей файловой операции', 409)
   const paths: string[] = ['restore', 'purge'].includes(action) ? [] : Array.isArray(body.paths) && body.paths.length && body.paths.length <= 100 ? [...new Set<string>(body.paths.map((p: unknown) => userFilePath(p, !['copy', 'mkdir'].includes(action))))] : fail('Выберите от 1 до 100 элементов')
   const trashIds: string[] | undefined = action === 'purge' ? Array.isArray(body.trashIds) && body.trashIds.length && body.trashIds.length <= 1000 && body.trashIds.every((id: unknown) => typeof id === 'string' && uuid.test(id)) ? [...new Set<string>(body.trashIds)] : fail('Выберите элементы корзины') : undefined
@@ -293,7 +301,7 @@ export function startFileJob(value: unknown, body: any) {
   if (action === 'replace') fail('Используйте подтверждённую замену загружаемого файла')
   if (['copy', 'move'].includes(action)) userFilePath(`${destination}/placeholder`, true)
   if (action === 'restore' && !uuid.test(body.trashId || '')) fail('Выберите копию из корзины')
-  const job: StoredJob = { id: randomUUID(), ip, action, state: 'planning', paths, destination, current: '', done: 0, total: 0, bytes: 0, totalBytes: 0, error: '', createdAt: new Date().toISOString(), steps: [], planned: false,
+  const job: StoredJob = { id: body.requestId || randomUUID(), ip, action, state: 'planning', paths, destination, current: '', done: 0, total: 0, bytes: 0, totalBytes: 0, error: '', createdAt: new Date().toISOString(), steps: [], planned: false,
     input: { paths, destination, ...(['mkdir', 'rename'].includes(action) ? { name: fileName(body.name) } : {}), ...(action === 'replace' ? { revision: String(body.revision || '') } : {}), ...(action === 'restore' ? { trashId: body.trashId } : {}), ...(trashIds ? { trashIds } : {}) } }
   ledger.jobs.push(job); persist(ip, ledger)
   launch(job, ledger)
@@ -339,11 +347,19 @@ export function replaceUploadedFile(value: unknown, pathValue: unknown, idValue:
 export function replacementStage(path: string, id: string) { return consoleFilePath(`${path}.packageflow-upload-${id}`) }
 export async function saveConsoleText(value: unknown, body: any) {
   const ip = fileIp(value), path = userFilePath(body?.path, true)
+  if (body.requestId !== undefined) {
+    if (typeof body.requestId !== 'string' || !uuid.test(body.requestId)) fail('Неверный идентификатор сохранения')
+    const existing = readLedger(ip).jobs.find(j => j.id === body.requestId)
+    if (existing) {
+      if (existing.action !== 'replace' || existing.destination !== path || existing.input.revision !== body.revision) fail('Идентификатор уже используется', 409)
+      return publicJob(existing)
+    }
+  }
   if (typeof body?.text !== 'string' || Buffer.byteLength(body.text) > textLimit || body.text.includes('\0')) fail('Текст слишком велик или содержит недопустимые символы')
   const original = await readConsoleText(ip, path)
   if (!original.writable || original.revision !== body.revision || original.digest !== body.digest) fail('Файл изменился после открытия. Перечитайте его перед сохранением', 409)
   if (original.text === body.text) return { unchanged: true }
-  const id = randomUUID(), staging = replacementStage(path, id), data = Buffer.from(body.text)
+  const id = body.requestId || randomUUID(), staging = replacementStage(path, id), data = Buffer.from(body.text)
   await consoleFileRequest(ip, 'upload/start', { path: staging, id, size: data.length })
   if (data.length) await consoleFileWrite(ip, id, 0, data)
   await consoleFileRequest(ip, 'upload/finish', { id })

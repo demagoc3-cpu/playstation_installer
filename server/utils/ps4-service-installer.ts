@@ -77,7 +77,7 @@ export function consoleFilePath(value: unknown) {
   if (value.split('/').at(-1) === 'web-key') throw createError({ statusCode: 403, message: 'Ключ сопряжения недоступен в проводнике' })
   return value
 }
-export async function consoleFileRequest(ip: string, route: 'list' | 'stat' | 'read' | 'upload/start' | 'upload/finish' | 'capabilities' | 'mkdir' | 'move' | 'replace' | 'delete', body: Record<string, unknown>) {
+export async function consoleFileRequest(ip: string, route: 'roots' | 'list' | 'stat' | 'read' | 'upload/start' | 'upload/finish' | 'capabilities' | 'mkdir' | 'move' | 'replace' | 'delete', body: Record<string, unknown>) {
   if ('path' in body) consoleFilePath(body.path)
   if ('destination' in body) consoleFilePath(body.destination)
   return request(ip, `/files/${route}`, 'POST', token(consoleIp(ip)), body)

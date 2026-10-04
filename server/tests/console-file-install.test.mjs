@@ -69,7 +69,11 @@ test('local PKG: bounded metadata reads, size/revision/firmware gates, durable j
     firmware=''; assert.equal((await api.previewConsolePackage(ip,'/data/Test DLC.pkg')).canInstall,false); await assert.rejects(api.installConsolePackage(ip,'/data/Test DLC.pkg',revision),/прошивк/); assert.equal(requests,0); firmware='12.50'
     available=0; assert.equal((await api.previewConsolePackage(ip,'/data/Test DLC.pkg')).canInstall,false); await assert.rejects(api.installConsolePackage(ip,'/data/Test DLC.pkg',revision),/Недостаточно места/); available=100*1024**3
     await assert.rejects(api.installConsolePackage(ip,'/data/Test DLC.pkg','0000000000000000'),/изменился/); assert.equal(requests,0)
-    loseReply=true; const accepted=await api.installConsolePackage(ip,'/data/Test DLC.pkg',revision); assert.equal(accepted.pending,true); assert.equal(requests,1)
+    const requestId = '11223344-5566-4788-8899-aabbccddeeff'
+    loseReply=true; const accepted=await api.installConsolePackage(ip,'/data/Test DLC.pkg',revision,requestId); assert.equal(accepted.pending,true); assert.equal(requests,1)
+    assert.equal((await api.installConsolePackage(ip,'/data/Test DLC.pkg',revision,requestId)).id, accepted.id)
+    assert.equal(requests,1, 'A lost native UI reply never repeats an installation')
+    await assert.rejects(api.installConsolePackage(ip,'/data/Other.pkg',revision,requestId), /уже используется/)
     const restored=await api.listConsolePackageInstallations(ip); assert.equal(restored[0].pending,false); assert.equal(restored[0].job.state,'downloading'); assert.equal(requests,1)
     await assert.rejects(api.installConsolePackage(ip,'/data/Test DLC.pkg',revision),/Дождитесь установки/); assert.equal(requests,1)
     await api.cancelConsolePackageInstallation(ip,accepted.id); assert.equal((await api.listConsolePackageInstallations(ip))[0].job.state,'cancelled')
