@@ -25,3 +25,6 @@ node_modules
 .env
 .env.*
 !.env.example
+
+# Local indexer database, tracker credentials and logs
+/prowlarr/

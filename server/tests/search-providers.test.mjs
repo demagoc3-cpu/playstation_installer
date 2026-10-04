@@ -27,12 +27,14 @@ test('Torznab PS4 category, saved credentials, XML links and upstream failures',
     const results = await source.searchPackages(' Little Nightmares 2 ')
     assert.equal(request.pathname, '/2/api')
     assert.equal(request.searchParams.get('cat'), '1180')
+    assert.equal(request.searchParams.get('extended'), '1')
     assert.equal(request.searchParams.get('q'), 'Little Nightmares 2')
     assert.equal(request.searchParams.get('apikey'), 'private-test-key')
     assert.equal(results.length, 1)
     assert.equal(results[0].title, '[PS4] Little Nightmares 2 [EUR]')
     assert.equal(results[0].size, 3800236032)
     assert.equal(results[0].seeders, 12)
+    assert.equal(results[0].displayTitle, 'Little Nightmares 2')
     assert.ok(results[0].source.includes('&apikey=test-key'))
     assert.ok(!results[0].source.includes('&amp;'))
 
@@ -53,6 +55,11 @@ test('Torznab PS4 category, saved credentials, XML links and upstream failures',
     assert.equal(magnet.title, 'A &amp; B') // CDATA is literal, not entity encoded.
     assert.equal(magnet.source, 'magnet:?xt=urn:btih:abcd&dn=Game')
     assert.equal(magnet.size, 0)
+    const full = source.parseTorznabResults(`<rss><item><title>[PS4] Game [1.05]</title><guid>https://rutracker.org/forum/viewtopic.php?t=1</guid><prowlarrindexer id="2">RuTracker.org</prowlarrindexer><description><![CDATA[<p>Details</p><script>ignored</script>]]></description><category>1180</category><torznab:attr name="category" value="1180"/><link>https://example.test/download</link><torznab:attr name="seeders" value="0"/><torznab:attr name="peers" value="24"/><torznab:attr name="grabs" value="4707"/><torznab:attr name="coverurl" value="https://images.example.test/cover.jpg"/></item></rss>`)[0]
+    assert.equal(full.sourcePage, 'https://rutracker.org/forum/viewtopic.php?t=1')
+    assert.equal(full.indexer, 'RuTracker.org'); assert.deepEqual(full.categories, ['1180'])
+    assert.equal(full.seeders, 0); assert.equal(full.leechers, 24); assert.equal(full.grabs, 4707)
+    assert.equal(full.cover, 'https://images.example.test/cover.jpg'); assert.equal(full.description, 'Details')
     assert.equal(source.parseTorznabResults('<rss><channel><item><title>Game &#x26; Patch &apos;2&apos;</title><link>https://example.test/a?x=1&amp;y=2</link></item></channel></rss>')[0].title, "Game & Patch '2'")
     assert.throws(() => source.parseTorznabResults('<error code="100" description="Invalid API key private-test-key"/>'), error => error.statusCode === 502 && !error.message.includes('private-test-key'))
     assert.throws(() => source.parseTorznabResults('<html>Login</html>'), /неверный ответ/)

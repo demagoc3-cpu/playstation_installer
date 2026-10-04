@@ -2,11 +2,14 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createError } from 'h3'
 import { writeJsonFile } from './json-store'
+import type { SearchResult } from '../../shared/types/search'
+import { searchTitleMetadata } from '../../shared/search-metadata'
+import { htmlText, publicWebUrl } from './search-source-parser'
+import { registerSearchResults } from './search-source'
 
 const settingsPath = resolve(process.cwd(), '.data/search-providers.json')
 export interface SearchSettings { name: string; endpoint: string; apiKey: string; categories: string }
 export interface PublicSearchSettings { name: string; endpoint: string; categories: string; hasApiKey: boolean; configured: boolean }
-export interface SearchResult { title: string; source: string; size: number; seeders?: number; published?: string }
 
 const blank = (): SearchSettings => ({ name: 'Torznab', endpoint: '', apiKey: '', categories: '1180' })
 function readSettings(): SearchSettings {
@@ -51,6 +54,7 @@ function torznabAttr(block: string, name: string) {
   return ''
 }
 function positiveNumber(value: string) { const n = Number(value); return Number.isFinite(n) && n >= 0 ? n : 0 }
+function optionalNumber(value: string) { return value.trim() && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : undefined }
 
 export function parseTorznabResults(xml: string): SearchResult[] {
   const error = /<error\b[^>]*>/i.exec(xml)?.[0]
@@ -62,7 +66,22 @@ export function parseTorznabResults(xml: string): SearchResult[] {
     const source = torznabAttr(block, 'magneturl') || attr(enclosure, 'url') || tag(block, 'link') || tag(block, 'guid')
     if (!/^(magnet:\?|https?:\/\/)/i.test(source) || seen.has(source)) continue
     seen.add(source)
-    results.push({ title: tag(block, 'title') || 'Без названия', source, size: positiveNumber(attr(enclosure, 'length') || torznabAttr(block, 'size') || tag(block, 'size')), seeders: positiveNumber(torznabAttr(block, 'seeders')) || undefined, published: tag(block, 'pubDate') || undefined })
+    const title = tag(block, 'title') || 'Без названия'
+    const categories = [...new Set([
+      ...[...block.matchAll(/<category\b[^>]*>([\s\S]*?)<\/category\s*>/gi)].map(m => text(m[1]!)),
+      ...[...block.matchAll(/<(?:[\w.-]+:)?attr\b[^>]*>/gi)].filter(m => attr(m[0], 'name') === 'category').map(m => attr(m[0], 'value'))
+    ])].filter(value => /^\d+$/.test(value))
+    const description = htmlText(tag(block, 'description'), 4000)
+    const indexer = tag(block, 'prowlarrindexer') || tag(block, 'jackettindexer') || undefined
+    const sourcePage = publicWebUrl(tag(block, 'comments')) || publicWebUrl(tag(block, 'guid'))
+    const media = /<(?:media:thumbnail|media:content)\b[^>]*>/i.exec(block)?.[0] || ''
+    const cover = publicWebUrl(torznabAttr(block, 'coverurl') || tag(block, 'coverurl') || attr(media, 'url'))
+    const seeders = optionalNumber(torznabAttr(block, 'seeders')), peers = optionalNumber(torznabAttr(block, 'peers'))
+    const leechers = optionalNumber(torznabAttr(block, 'leechers')) ?? (peers !== undefined && seeders !== undefined ? Math.max(0, peers - seeders) : undefined)
+    results.push({ title, source, size: positiveNumber(attr(enclosure, 'length') || torznabAttr(block, 'size') || tag(block, 'size')),
+      seeders, leechers, peers, grabs: optionalNumber(torznabAttr(block, 'grabs')), published: tag(block, 'pubDate') || undefined,
+      sourcePage, indexer, cover, description: description && description !== title ? description : undefined,
+      categories, ...searchTitleMetadata(title, categories) })
     if (results.length === 40) break
   }
   return results
@@ -77,6 +96,7 @@ export async function searchPackages(query: string) {
   const verified = validate(settings)
   const request = new URL(verified.endpoint)
   request.searchParams.set('t', 'search'); request.searchParams.set('q', query.trim())
+  request.searchParams.set('extended', '1')
   if (verified.categories) request.searchParams.set('cat', verified.categories)
   else request.searchParams.delete('cat')
   if (verified.apiKey) request.searchParams.set('apikey', verified.apiKey)
@@ -84,5 +104,5 @@ export async function searchPackages(query: string) {
   let response: Response, xml: string
   try { response = await fetch(request, { signal: controller.signal }); xml = await response.text() } catch { throw createError({ statusCode: 502, message: 'Источник поиска не ответил' }) } finally { clearTimeout(timer) }
   if (!response.ok) throw createError({ statusCode: 502, message: `Источник поиска вернул ошибку ${response.status}` })
-  return parseTorznabResults(xml)
+  return registerSearchResults(parseTorznabResults(xml).map(result => ({ ...result, indexer: result.indexer || verified.name })))
 }
