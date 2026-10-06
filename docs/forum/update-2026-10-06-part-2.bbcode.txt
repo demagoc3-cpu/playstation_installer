@@ -1,5 +1,7 @@
 [size=3][b]PackageFlow — часть 2/3: Windows-установщик и мастер[/b][/size]
 
+[img]https://raw.githubusercontent.com/demagoc3-cpu/playstation_installer/main/docs/forum/media/update-2026-10-06/02-windows/banner.png[/img]
+
 [b]Обычная установка на компьютер[/b]
 
 Добавили EXE для Windows 10/11 x64. WEB, Node.js и среда .NET входят в комплект: отдельно устанавливать инструменты разработки и собирать проект обычному пользователю больше не требуется. В конце установки предлагается создать ярлык на рабочем столе.
@@ -23,3 +25,12 @@
 [/list]
 
 Добавлены автозапуск, работа в трее и обновление Windows-приложения из GitHub с проверкой файла. Активные задания блокируют остановку для обновления. В шапке расположены логотипы 4PDA/GitHub, ссылки, версия WEB и звёзды репозитория.
+
+[spoiler=Скриншоты]
+Мастер Windows: установка и статусы подключений.
+[img]https://raw.githubusercontent.com/demagoc3-cpu/playstation_installer/main/docs/forum/media/update-2026-10-06/02-windows/01-setup.png[/img]
+
+Подключение qBittorrent и выбор папки загрузок.
+[img]https://raw.githubusercontent.com/demagoc3-cpu/playstation_installer/main/docs/forum/media/update-2026-10-06/02-windows/02-downloads.png[/img]
+
+[/spoiler]

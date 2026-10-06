@@ -1,5 +1,7 @@
 [size=3][b]PackageFlow — большое обновление. Часть 1/3: сервис PS4[/b][/size]
 
+[img]https://raw.githubusercontent.com/demagoc3-cpu/playstation_installer/main/docs/forum/media/update-2026-10-06/01-ps4/banner.png[/img]
+
 Собрал изменения с момента появления самостоятельного обновления сервиса на PS4 до последнего исправления библиотеки. За это время добавили установщик Windows, мастер первой настройки, автоматическую подготовку компонентов и первоначальную установку сервиса на приставку.
 
 [b]Версии компонентов: Windows-установщик 1.10.6, PackageFlowService для PS4 1.92.[/b]
@@ -24,3 +26,12 @@
 На шаге «PS4» мастер умеет обнаружить приставку в локальной сети, показать наличие сервиса или PyLoader и подставить выбранный IP. Ручной ввод адреса остаётся доступен.
 
 Если PackageFlow ещё не установлен, включите GoldHEN и PyLoader на порту 9090, затем нажмите «Установить сервис». Мастер скачает проверенный PKG и отправит его без предварительного сопряжения. После передачи дождитесь завершения установки в «Уведомления → Загрузки», запустите PackageFlow и введите код из «Подключений» в мастере.
+
+[spoiler=Скриншоты]
+Настройки и обновление PS4 1.92 — предпросмотр интерфейса.
+[img]https://raw.githubusercontent.com/demagoc3-cpu/playstation_installer/main/docs/forum/media/update-2026-10-06/01-ps4/01-settings-preview.png[/img]
+
+Поиск приставки, установка сервиса и сопряжение в мастере Windows.
+[img]https://raw.githubusercontent.com/demagoc3-cpu/playstation_installer/main/docs/forum/media/update-2026-10-06/01-ps4/02-discovery-pairing.png[/img]
+
+[/spoiler]

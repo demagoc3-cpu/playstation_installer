@@ -1,5 +1,7 @@
 [size=3][b]PackageFlow — часть 3/3: RuTracker, библиотека и обновление[/b][/size]
 
+[img]https://raw.githubusercontent.com/demagoc3-cpu/playstation_installer/main/docs/forum/media/update-2026-10-06/03-search-library/banner.png[/img]
+
 [b]RuTracker и FlareSolverr[/b]
 [list]
 [*]Мастер помогает добавить RuTracker по логину и паролю либо подключить существующий индексатор Prowlarr. После проверки его Torznab подключается к поиску PackageFlow. Настройки других индексаторов сохраняются.
@@ -27,3 +29,15 @@
 Установите новый EXE поверх текущей версии и нажмите «Применить», чтобы пересканировать папку без прежнего ограничения. На PS4 используйте «Настройки → Обновить», обновление через WEB или ручную установку PKG. Перед обновлением завершите активные установки и передачи.
 
 [url=https://github.com/demagoc3-cpu/playstation_installer/releases]EXE и PKG в GitHub Releases[/url] · [url=https://github.com/demagoc3-cpu/playstation_installer]GitHub и инструкции[/url]
+
+[spoiler=Скриншоты]
+Настройка RuTracker и ручной вход при капче. Логин скрыт.
+[img]https://raw.githubusercontent.com/demagoc3-cpu/playstation_installer/main/docs/forum/media/update-2026-10-06/03-search-library/01-rutracker.png[/img]
+
+Карточка раздачи с обложкой, описанием и внутренней прокруткой.
+[img]https://raw.githubusercontent.com/demagoc3-cpu/playstation_installer/main/docs/forum/media/update-2026-10-06/03-search-library/02-release-card.jpg[/img]
+
+Библиотека WEB: игры, дополнения и очередь установки.
+[img]https://raw.githubusercontent.com/demagoc3-cpu/playstation_installer/main/docs/forum/media/update-2026-10-06/03-search-library/03-library.jpg[/img]
+
+[/spoiler]
