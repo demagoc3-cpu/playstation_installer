@@ -52,7 +52,10 @@ try {
         $compiler = (Get-Command makensis.exe -ErrorAction SilentlyContinue).Source
         if (!$compiler) { $compiler = "${env:ProgramFiles(x86)}/NSIS/makensis.exe" }
         $installer = Join-Path $destination "PackageFlowSetup-$Version-x64.exe"
-        & $compiler "/DVERSION=$Version" "/DPAYLOAD=$payload" "/DOUTPUT=$installer" 'packaging/windows/installer.nsi'
+        foreach ($required in @('PackageFlow.exe', 'runtime/node.exe', 'server/.output/server/index.mjs', 'compose/Dockerfile', 'release.json')) {
+            if (!(Test-Path -LiteralPath (Join-Path $payload $required) -PathType Leaf)) { throw "Installer payload is incomplete: $required" }
+        }
+        & $compiler /INPUTCHARSET UTF8 "/DVERSION=$Version" "/DPAYLOAD=$payload" "/DOUTPUT=$installer" 'packaging/windows/installer.nsi'
         if ($LASTEXITCODE) { throw 'Setup.exe build failed' }
         Get-FileHash $installer -Algorithm SHA256 | Format-List
     }

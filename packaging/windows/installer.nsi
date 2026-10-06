@@ -87,7 +87,7 @@ Section "PackageFlow" Main
     Sleep 1000
   ${EndIf}
   SetOutPath "$INSTDIR"
-  File /r /x "*.pdb" "${PAYLOAD}/*"
+  File /r /x "*.pdb" "${PAYLOAD}\*"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "Software\PackageFlow" "InstallDirectory" "$INSTDIR"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PackageFlow" "DisplayName" "PackageFlow"
