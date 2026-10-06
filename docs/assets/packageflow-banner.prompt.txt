@@ -1,0 +1,17 @@
+Use case: ads-marketing / precise-object-edit.
+Asset type: updated wide PackageFlow banner for a Russian 4PDA release announcement and project README.
+Input image 1 is the existing banner to redesign, preserve its genuine PF monogram logo, PackageFlow brand wordmark, dark gaming mood, violet/cyan accents and Docker container icon. Input image 2 is the real current Windows setup wizard screenshot, use as a faithful screen insert. Input image 3 is the real Windows PS4 discovery/setup screenshot, supporting screen insert. Input image 4 is the actual PS4 catalog screenshot, supporting screen insert.
+Primary request: replace the outdated banner with a polished, cleaner current release banner emphasizing the new Windows EXE installer and setup wizard alongside the PS4 service. Use an ultrawide approximately 2.5:1 layout, ideally 2000 by 800 or similar. Left 45%: big genuine PF logo, PackageFlow wordmark and clearly legible restrained Russian feature list. Right 55%: large frontal readable Windows wizard screen (image 2 or 3) and a smaller overlapping PS4 catalog screen (image 4). Retain recognizable real UI, rounded violet buttons, header status cards, no invented controls or fake app features. No login names or exposed passwords/API keys.
+Text, exactly, only these main promotional lines:
+"PackageFlow"
+"Установка PKG и управление PS4"
+"Windows 1.10.6 · PS4 1.92"
+"Установщик EXE и мастер настройки"
+"Автообновление сервиса на PS4"
+"Поиск приставки и сопряжение"
+"Библиотека, файлы и сохранения"
+"Torznab + qBittorrent"
+Footer badges with tasteful small consistent icons:
+"Windows" "Docker Compose" "ПК / NAS + PS4" "RU / EN".
+Make Windows installer line prominent with a tasteful Windows/download icon; retain a recognizable Docker whale/container icon in footer. Dark navy and charcoal surfaces, restrained purple/cyan rim light, precise premium gaming software design, spacious typography, high contrast, clean rounded cards, balanced composition.
+Remove outdated WEB v1.10.2 / PS4 1.81 promotional versions, remove the former torrent details panel. Do not claim all features run natively on PS4; do not write 'Файлы прямо на PS4' or 'Поиск с карточками'. Do not add unrelated robots, mascots, office objects, or extra slogans. Brand logo must match the supplied real PF mark. Keep all text within comfortable margins, spell Russian words accurately, avoid tiny promotional text.

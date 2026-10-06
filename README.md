@@ -1,4 +1,4 @@
-![PackageFlow — WEB и приложение PS4](docs/assets/packageflow-banner.jpg)
+![PackageFlow — WEB и приложение PS4](docs/assets/packageflow-banner.png)
 
 # PackageFlow
 
