@@ -18,3 +18,5 @@
 12. [Решение проблем](troubleshooting.md)
 13. [API и разработка](development.md)
 14. [Дальнейший план](roadmap.md)
+
+- [Пресеты WEB и PS4](presets.md)

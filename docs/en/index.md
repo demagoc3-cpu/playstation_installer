@@ -18,3 +18,5 @@ Install WEB, pair your PS4, then add the library. Guides describe existing featu
 12. [Troubleshooting](troubleshooting.md)
 13. [API and development](development.md)
 14. [Roadmap](roadmap.md)
+
+- [WEB and PS4 presets](presets.md)
