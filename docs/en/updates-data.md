@@ -28,9 +28,21 @@ Keep `.data`, stop the server, obtain the desired release, install dependencies 
 
 ## Update PS4 app
 
-Use WEB → System information for service release checks and installation. Close the PS4 graphical app before replacing its PKG. The paired service handles normal updates; WEB → PyLoader is a fallback when unavailable. Follow the update task and launch the app after installation to check the service version. Do not resend a mutating request just because a reply was lost.
+### On the PS4 (from version 1.82)
 
-Native 1.68's Cancel game control needs the updated WEB command handler; update both parts. PKG installation does not activate HEN automatically.
+1. Open **Settings → Update** and press Cross. The service checks the latest published stable GitHub release.
+2. If a newer version is available, press Cross again and confirm with **Options**. Circle cancels the confirmation.
+3. The PS4 downloads the PKG itself; Settings displays download progress. After verification, the background service installs it: the interface closes automatically and the new version starts itself.
+
+The PS4 needs internet access; WEB and pairing are not required. Finish installations and file transfers and keep the PS4 powered on. Versions are compared using the service PKG, not the WEB release tag. Older and identical versions are skipped.
+
+The updater accepts `PackageFlowService-<version>.pkg` from `demagoc3-cpu/playstation_installer` releases, up to 25 MiB, with a SHA-256 digest in GitHub metadata. It verifies HTTPS, size, checksum, application identifiers and the version inside the PKG. After an interrupted download, check again. Do not resend installation if its outcome is uncertain; inspect it in WEB instead.
+
+### Through WEB
+
+**System information → PackageFlowService update** still supports GitHub checks, local PKG upload, installation and restart. Close the PS4 interface before replacing the PKG. The paired service handles normal updates; **WEB → PyLoader** is a fallback when the service is unavailable. After installation, launch the app and verify its version.
+
+Install PKG **1.82** through WEB or manually to get the independent updater for the first time. Installing a PKG does not activate HEN.
 
 ## Wallet settings
 
