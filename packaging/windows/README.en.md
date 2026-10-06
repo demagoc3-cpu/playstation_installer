@@ -22,9 +22,9 @@ Linux also requires Python 3, `curl`, `unzip`, `awk`, and `sha256sum`. The scrip
 Open PowerShell in the repository root. Install NSIS in its standard `Program Files (x86)/NSIS` directory or make `makensis.exe` available in PATH.
 
 ```powershell
-./packaging/windows/build.ps1 -Version 0.1.7
+./packaging/windows/build.ps1 -Version 1.10.5
 
-$setup = Get-Item './dist/windows/PackageFlowSetup-0.1.7-x64.exe'
+$setup = Get-Item './dist/windows/PackageFlowSetup-1.10.5-x64.exe'
 $hash = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 "$hash  $($setup.Name)" | Set-Content './dist/windows/SHA256SUMS.txt' -Encoding ascii
 ```
@@ -35,13 +35,13 @@ The script installs WEB dependencies, builds WEB, runs the core checks, publishe
 
 ```powershell
 # Reuse the current WEB build in .output
-./packaging/windows/build.ps1 -Version 0.1.7 -SkipWebBuild
+./packaging/windows/build.ps1 -Version 1.10.5 -SkipWebBuild
 
 # Prepare the complete application directory without Setup.exe
-./packaging/windows/build.ps1 -Version 0.1.7 -SkipInstaller
+./packaging/windows/build.ps1 -Version 1.10.5 -SkipInstaller
 
 # Name the local image built for Compose mode
-./packaging/windows/build.ps1 -Version 0.1.7 -DockerImage packageflow:local
+./packaging/windows/build.ps1 -Version 1.10.5 -DockerImage packageflow:local
 ```
 
 Use `-SkipWebBuild` after successfully building the current WEB sources. `-DockerImage` names the image the launcher builds from bundled WEB when starting Compose; it does not publish an image to a registry.
@@ -54,7 +54,7 @@ Check the tools and then start the build:
 
 ```bash
 bash packaging/windows/build.sh --check
-bash packaging/windows/build.sh --version 0.1.7
+bash packaging/windows/build.sh --version 1.10.5
 ```
 
 The repository root also provides `bash build-local.sh`. It works from an IDE because the script resolves its working directory automatically.
@@ -75,7 +75,7 @@ The script waits for the build to finish before packaging, downloads official Wi
 
 | Path | Contents |
 | --- | --- |
-| `dist/windows/PackageFlowSetup-0.1.7-x64.exe` | Installer for users |
+| `dist/windows/PackageFlowSetup-1.10.5-x64.exe` | Installer for users |
 | `dist/windows/SHA256SUMS.txt` | Installer checksum |
 | `dist/windows/payload/PackageFlow.exe` | Windows launcher and setup UI |
 | `dist/windows/payload/server/.output/` | Built WEB |
@@ -84,7 +84,7 @@ The script waits for the build to finish before packaging, downloads official Wi
 
 To run the unpacked distribution on Windows, open `PackageFlow.exe` inside the complete `payload` directory. Distribute `PackageFlowSetup-…-x64.exe` to users.
 
-The wizard downloads Prowlarr and FlareSolverr during search setup. Users install Docker Desktop and qBittorrent separately. The PS4 PKG is built in the PackageFlowService repository.
+During first setup in Windows mode, the wizard downloads Prowlarr, FlareSolverr and the official qBittorrent installer with SHA-256 verification. If qBittorrent is already installed, its executable is reused with a separate PackageFlow profile for new connections. Users install Docker Desktop separately. The PS4 PKG is built in the PackageFlowService repository.
 
 ## Checks
 

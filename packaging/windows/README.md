@@ -22,9 +22,9 @@
 Откройте PowerShell в корне проекта. NSIS должен быть доступен как `makensis.exe` либо установлен в стандартную папку `Program Files (x86)/NSIS`.
 
 ```powershell
-./packaging/windows/build.ps1 -Version 0.1.7
+./packaging/windows/build.ps1 -Version 1.10.5
 
-$setup = Get-Item './dist/windows/PackageFlowSetup-0.1.7-x64.exe'
+$setup = Get-Item './dist/windows/PackageFlowSetup-1.10.5-x64.exe'
 $hash = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 "$hash  $($setup.Name)" | Set-Content './dist/windows/SHA256SUMS.txt' -Encoding ascii
 ```
@@ -35,13 +35,13 @@ $hash = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 
 ```powershell
 # Использовать уже собранный WEB из .output
-./packaging/windows/build.ps1 -Version 0.1.7 -SkipWebBuild
+./packaging/windows/build.ps1 -Version 1.10.5 -SkipWebBuild
 
 # Подготовить полный комплект приложения без упаковки Setup.exe
-./packaging/windows/build.ps1 -Version 0.1.7 -SkipInstaller
+./packaging/windows/build.ps1 -Version 1.10.5 -SkipInstaller
 
 # Задать имя локального образа для режима Compose
-./packaging/windows/build.ps1 -Version 0.1.7 -DockerImage packageflow:local
+./packaging/windows/build.ps1 -Version 1.10.5 -DockerImage packageflow:local
 ```
 
 `-SkipWebBuild` используйте после успешной сборки актуального WEB. `-DockerImage` задаёт имя образа, который мастер создаст из готового WEB при запуске Compose; эта команда не публикует образ в реестр.
@@ -54,7 +54,7 @@ $hash = (Get-FileHash $setup.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 
 ```bash
 bash packaging/windows/build.sh --check
-bash packaging/windows/build.sh --version 0.1.7
+bash packaging/windows/build.sh --version 1.10.5
 ```
 
 В корне проекта также есть короткий запуск `bash build-local.sh`. Его можно запускать из IDE: рабочая папка определяется автоматически.
@@ -75,7 +75,7 @@ bash build-local.sh --skip-install
 
 | Файл или каталог | Содержимое |
 | --- | --- |
-| `dist/windows/PackageFlowSetup-0.1.7-x64.exe` | Установщик для передачи пользователям |
+| `dist/windows/PackageFlowSetup-1.10.5-x64.exe` | Установщик для передачи пользователям |
 | `dist/windows/SHA256SUMS.txt` | Контрольная сумма установщика |
 | `dist/windows/payload/PackageFlow.exe` | Windows-приложение запуска и настройки |
 | `dist/windows/payload/server/.output/` | Готовая сборка WEB |
@@ -84,7 +84,7 @@ bash build-local.sh --skip-install
 
 Для запуска распакованного комплекта на Windows открывайте `PackageFlow.exe` внутри полного каталога `payload`. Для передачи обычным пользователям используйте `PackageFlowSetup-…-x64.exe`.
 
-Prowlarr и FlareSolverr загружаются мастером при настройке поиска. Docker Desktop и qBittorrent устанавливаются пользователем отдельно. PKG службы PS4 собирается в репозитории PackageFlowService.
+При первой настройке в режиме Windows мастер загружает Prowlarr, FlareSolverr и официальный установщик qBittorrent с проверкой SHA-256. Если qBittorrent уже установлен, используется его исполняемый файл; новое подключение получает отдельный профиль PackageFlow. Docker Desktop устанавливается пользователем отдельно. PKG службы PS4 собирается в репозитории PackageFlowService.
 
 ## Проверка
 

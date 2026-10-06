@@ -1,4 +1,4 @@
-# PackageFlow for Windows — first test version
+# PackageFlow for Windows — installation and setup
 
 ## Status and setup activity
 
@@ -10,13 +10,28 @@ Windows uses visible Chromium for RuTracker compatibility. Source descriptions t
 
 ## Install and start
 
-1. Run `PackageFlowSetup-0.1.7-x64.exe` on Windows 10/11 x64. Node.js and .NET are bundled.
+On a fresh Windows installation the wizard starts WEB, prepares Prowlarr and FlareSolverr, installs qBittorrent if missing and connects downloads to WEB. Progress shows four steps. Games default to `Downloads\PackageFlow` in the user profile and can be changed with Apply. Windows may request administrator approval when installing qBittorrent. Once ready, enter your RuTracker credentials on the Search page.
+
+Interrupted setup resumes on the next launch; Prepare components retries it manually. A new qBittorrent connection uses a separate PackageFlow profile, a random password and an authenticated loopback Web UI. Existing saved connections are checked without replacing their settings. Stopping WEB leaves qBittorrent running to preserve downloads. Automatic preparation is available in Windows mode; Compose retains its manual setup steps.
+
+1. Run `PackageFlowSetup-…-x64.exe` on Windows 10/11 x64. Node.js and .NET are bundled.
 2. Choose Windows mode or Docker Compose in the setup wizard.
 3. Select your PKG folder and the computer's LAN IPv4. Default ports: WEB 3000, PS4 callback 3001.
 4. Save and start. Use **Allow PS4 access** to create private-network, local-subnet firewall rules; this step requests administrator permission.
-5. Enter the console IP and the pairing code from PackageFlow → Connections on PS4. Pairing can be done later.
+5. On the PS4 page, discover the console or enter its IP. If needed, install the service through PyLoader, launch it on PS4, enter the code from PackageFlow → Connections and click Pairing. Pairing can be done later.
 
 Persistent data lives in `%LOCALAPPDATA%\PackageFlow\data`. Closing the window leaves the launcher in the tray and the server running. Explicit stop/update is blocked by active transfers, installations and unverified operations.
+
+## Discover PS4 and install the service
+
+1. Turn on your console and connect it to the same LAN as the computer. Select the correct computer IPv4 on Installation.
+2. Click **Find PS4** on the PS4 page and select a discovered console. The wizard detects consoles and checks service/PyLoader availability. Turn on a console in rest mode yourself; manual IP entry remains available.
+3. If PackageFlow is not installed, enable **GoldHEN and PyLoader on port 9090** on PS4, then click **Install service**. WEB must be running. The wizard downloads the GitHub PKG, verifies SHA-256 and sends it through the normal PyLoader queue without prior pairing.
+4. Wait for installation in **Notifications → Downloads** on PS4. “PKG transferred” confirms file delivery; check the final installation result on the console. Launch PackageFlow, obtain the Connections code and pair it with the wizard.
+
+If the service is already running, the wizard directs you to pairing. An unconfirmed transfer is reported and is not automatically retried. Manual PKG installation from Releases remains available.
+
+![PS4 discovery and initial service installation](../screenshots/windows-pairing.png)
 
 ## RuTracker search
 
@@ -28,11 +43,24 @@ The launcher restores the RuTracker username and saved password. Saved launcher 
 
 Prowlarr tests the proxy by requesting `https://prowlarr.servarr.com/v1/ping`. A Cloudflare block for that address in the FlareSolverr log does not prove that RuTracker is blocked or the tracker password is incorrect. A `200` response from the local FlareSolverr homepage only confirms that the component is running.
 
-In installer 0.1.6, **Connect selected to WEB** tests an existing indexer without reinstalling its proxy or changing its tags. FlareSolverr setup has a separate button. If the standard proxy test fails, the wizard separately probes the test site and RuTracker through local FlareSolverr. Only a confirmed Cloudflare block on the test site combined with a successful RuTracker response permits Prowlarr `forceSave=true`, with an explanatory message. Other errors stop setup. Indexer authentication and search still undergo their normal test before connecting to WEB.
+**Apply to WEB** tests an existing indexer without reinstalling its proxy or changing its tags. FlareSolverr setup has a separate button. If the standard proxy test fails, the wizard separately probes the test site and RuTracker through local FlareSolverr. Only a confirmed Cloudflare block on the test site combined with a successful RuTracker response permits Prowlarr `forceSave=true`, with an explanatory message. Other errors stop setup. Indexer authentication and search still undergo their normal test before connecting to WEB.
+
+### RuTracker asks for a login CAPTCHA
+
+The message “Введите код подтверждения (символы, изображённые на картинке)” is RuTracker’s own CAPTCHA. The standard Prowlarr indexer form has no field for it.
+
+1. In native Windows mode, click **Sign in manually** on Search. This requires local FlareSolverr with the visible browser enabled.
+2. Sign in to RuTracker in the Chromium window, enter a CAPTCHA or complete a Cloudflare check if requested. The wizard keeps a dedicated session open until you confirm.
+3. Return to the wizard and click **I signed in — verify**. It verifies the browser login, separately tests the saved Prowlarr indexer and connects it to WEB if successful.
+4. If there is no saved indexer yet, enter the credentials in the wizard after signing in and click **Add and test RuTracker**.
+
+Browser cookies are not imported into Prowlarr. Manual login can clear a CAPTCHA restriction, but the indexer must still pass its own Test; failures are reported. This manual login flow is unavailable with Compose or remote FlareSolverr.
+
+![RuTracker setup and manual login](../screenshots/windows-search.png)
 
 ## Downloads
 
-Connect an existing qBittorrent with Web UI enabled. The download button opens the official website; qBittorrent installation is currently separate. Map its download directory to the games directory visible to PackageFlow.
+Windows automatic setup installs and connects qBittorrent. You can also connect an existing client with Web UI enabled on the Downloads page. The download button opens the official website for manual installation. Map its download directory to the games directory visible to PackageFlow.
 
 ## Docker Compose
 
@@ -44,19 +72,19 @@ Existing Windows services must be reachable from containers via `host.docker.int
 
 ## Updates and removal
 
-Updates check the latest stable GitHub Release for `PackageFlowSetup-<version>-x64.exe`, verify its size and GitHub SHA-256 digest, and start the installer only after stopping safely. PS4 service updates remain available in WEB and on the console. Removing the Windows application preserves settings, library, pairing, downloaded components and games.
+Updates choose the newest `PackageFlowSetup-<version>-x64.exe` version among the 100 most recent GitHub Releases, exclude drafts and prereleases, ignore PS4-only releases, verify its size and GitHub SHA-256 digest, and start the installer only after stopping safely. PS4 service updates remain available in WEB and on the console. Removing the Windows application preserves settings, library, pairing, downloaded components and games.
 
 ## Developer build
 
 Windows requirements: Node.js 22, .NET SDK 8, NSIS 3.
 
 ```powershell
-./packaging/windows/build.ps1 -Version 0.1.7 -DockerImage demagoc3/packageflow:latest
+./packaging/windows/build.ps1 -Version 1.10.5 -DockerImage demagoc3/packageflow:latest
 ```
 
-GitHub Actions → Windows installer also produces installer/checksum artifacts without publishing a release. Sources: `apps/windows-launcher`; packaging: `packaging/windows`. These documentation drafts are uncommitted for review.
+GitHub Actions → Windows installer also produces installer/checksum artifacts without publishing a release. Sources: `apps/windows-launcher`; packaging: `packaging/windows`.
 
-Compilation and automated tests do not constitute a real Windows test. Verify first launch, tray, firewall, Compose networking, tracker login, pairing and upgrade over an existing installation.
+The 1.10.5 interface and PS4 discovery were tested on an actual Windows computer; screenshots show the running wizard. Initial PyLoader PKG delivery was covered by automated tests with a simulated console. Installation on a fresh PS4, first launch on a new computer and Compose still require separate verification.
 
 ## Changes in 0.1.1
 
