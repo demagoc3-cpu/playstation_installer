@@ -1,13 +1,14 @@
+import { dataPath } from './data-path'
 import { existsSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+
 import { createError } from 'h3'
 import { writeJsonFile } from './json-store'
-import type { SearchResult } from '../../shared/types/search'
+import type { SearchResult, SearchPage } from '../../shared/types/search'
 import { searchTitleMetadata } from '../../shared/search-metadata'
 import { htmlText, publicWebUrl } from './search-source-parser'
 import { registerSearchResults } from './search-source'
 
-const settingsPath = resolve(process.cwd(), '.data/search-providers.json')
+const settingsPath = dataPath('search-providers.json')
 export interface SearchSettings { name: string; endpoint: string; apiKey: string; categories: string }
 export interface PublicSearchSettings { name: string; endpoint: string; categories: string; hasApiKey: boolean; configured: boolean }
 
@@ -82,7 +83,6 @@ export function parseTorznabResults(xml: string): SearchResult[] {
       seeders, leechers, peers, grabs: optionalNumber(torznabAttr(block, 'grabs')), published: tag(block, 'pubDate') || undefined,
       sourcePage, indexer, cover, description: description && description !== title ? description : undefined,
       categories, ...searchTitleMetadata(title, categories) })
-    if (results.length === 40) break
   }
   return results
 }
@@ -90,13 +90,31 @@ export function parseTorznabResults(xml: string): SearchResult[] {
 export function getSearchSettings() { return publicSettings(readSettings()) }
 export function saveSearchSettings(input: Partial<SearchSettings>) { const settings = validate(input); writeSettings(settings); return publicSettings(settings) }
 
-export async function searchPackages(query: string) {
+export function parseSearchPage(xml: string, offset: number, _limit: number): SearchPage {
+  const results = parseTorznabResults(xml)
+  // Count raw items: duplicates or unusable links still consume upstream offsets.
+  const count = [...xml.matchAll(/<item\b[\s\S]*?<\/item\s*>/gi)].length
+  const response = /<(?:[\w.-]+:)?response\b[^>]*>/i.exec(xml)?.[0] || ''
+  const pageNumber = (name: string) => { const value = optionalNumber(attr(response, name)); return Number.isSafeInteger(value) ? value : undefined }
+  const actualOffset = pageNumber('offset')
+  const total = pageNumber('total')
+  const nextOffset = offset + count
+  const repeated = actualOffset !== undefined && actualOffset < offset
+  return { results, offset, nextOffset, total,
+    // Without total, even a short page may be capped by the provider. Probe once more.
+    hasMore: !repeated && count > 0 && (total === undefined || nextOffset < total),
+    notice: repeated ? 'Источник не поддерживает следующую страницу результатов.' : undefined }
+}
+
+export async function searchPackagePage(query: string, offset = 0, limit = 50): Promise<SearchPage> {
+  if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw createError({ statusCode: 400, message: 'Неверные параметры страницы поиска' })
   const settings = readSettings()
   if (!existsSync(settingsPath)) throw createError({ statusCode: 409, message: 'Сначала настройте разрешённый Torznab-источник' })
   const verified = validate(settings)
   const request = new URL(verified.endpoint)
   request.searchParams.set('t', 'search'); request.searchParams.set('q', query.trim())
   request.searchParams.set('extended', '1')
+  request.searchParams.set('offset', String(offset)); request.searchParams.set('limit', String(limit))
   if (verified.categories) request.searchParams.set('cat', verified.categories)
   else request.searchParams.delete('cat')
   if (verified.apiKey) request.searchParams.set('apikey', verified.apiKey)
@@ -104,5 +122,10 @@ export async function searchPackages(query: string) {
   let response: Response, xml: string
   try { response = await fetch(request, { signal: controller.signal }); xml = await response.text() } catch { throw createError({ statusCode: 502, message: 'Источник поиска не ответил' }) } finally { clearTimeout(timer) }
   if (!response.ok) throw createError({ statusCode: 502, message: `Источник поиска вернул ошибку ${response.status}` })
-  return registerSearchResults(parseTorznabResults(xml).map(result => ({ ...result, indexer: result.indexer || verified.name })))
+  const page = parseSearchPage(xml, offset, limit)
+  page.results = registerSearchResults(page.results.map(result => ({ ...result, indexer: result.indexer || verified.name })))
+  return page
 }
+
+/** Preserve the array response for existing integrations. */
+export async function searchPackages(query: string) { return (await searchPackagePage(query)).results }

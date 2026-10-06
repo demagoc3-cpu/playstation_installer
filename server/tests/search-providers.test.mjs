@@ -66,7 +66,23 @@ test('Torznab PS4 category, saved credentials, XML links and upstream failures',
     assert.deepEqual(source.parseTorznabResults('<rss><channel/></rss>'), [])
     const item = '<item><title>Game</title><link>https://example.test/1</link></item>'
     assert.equal(source.parseTorznabResults(`<rss>${item.repeat(50)}</rss>`).length, 1)
-    assert.equal(source.parseTorznabResults(`<rss>${Array.from({ length: 50 }, (_, i) => item.replace('/1', `/${i}`)).join('')}</rss>`).length, 40)
+    assert.equal(source.parseTorznabResults(`<rss>${Array.from({ length: 50 }, (_, i) => item.replace('/1', `/${i}`)).join('')}</rss>`).length, 50)
+
+    // Raw upstream item counts determine offsets even when visible results are deduplicated.
+    const firstPage = source.parseSearchPage(`<rss><torznab:response offset="0" total="125"/>${item.repeat(50)}</rss>`, 0, 50)
+    assert.equal(firstPage.results.length, 1); assert.equal(firstPage.nextOffset, 50)
+    assert.equal(firstPage.total, 125); assert.equal(firstPage.hasMore, true)
+    const lastPage = source.parseSearchPage(`<rss><newznab:response offset='100' total='101'/>${item}</rss>`, 100, 50)
+    assert.equal(lastPage.nextOffset, 101); assert.equal(lastPage.hasMore, false)
+    // A provider may cap a page below our requested size without sending total.
+    assert.equal(source.parseSearchPage(`<rss>${item}</rss>`, 0, 50).hasMore, true)
+    assert.equal(source.parseSearchPage('<rss><channel/></rss>', 50, 50).hasMore, false)
+    assert.equal(source.parseSearchPage(`<rss><z:response offset="0" total="100"/>${item}</rss>`, 50, 50).hasMore, false)
+    body = `<rss><torznab:response offset="50" total="125"/>${item}</rss>`
+    const page = await source.searchPackagePage('Example', 50, 50)
+    assert.equal(request.searchParams.get('offset'), '50'); assert.equal(request.searchParams.get('limit'), '50')
+    assert.equal(page.nextOffset, 51); assert.equal(page.hasMore, true); assert.ok(page.results[0].id)
+    for (const [offset, limit] of [[-1, 50], [1.5, 50], [0, 101], [0, 0], [NaN, 50]]) await assert.rejects(source.searchPackagePage('Example', offset, limit), error => error.statusCode === 400)
 
     body = '<error code="100"/>'; await assert.rejects(source.searchPackages('Example'), /Torznab вернул ошибку/)
     body = '<html>Error</html>'; status = 503; await assert.rejects(source.searchPackages('Example'), /503/)

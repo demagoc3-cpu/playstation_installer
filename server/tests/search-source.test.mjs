@@ -46,6 +46,9 @@ test('release source parsing, metadata and public address boundaries', async () 
   assert.equal(isRuTrackerTopic(new URL('http://rutracker.org:3000/forum/viewtopic.php?t=6027023')), false)
   assert.throws(() => getSearchDetails('https://127.0.0.1'), /Результат поиска устарел/)
   const [registered] = registerSearchResults([{ title: 'Private target', source: 'magnet:?xt=urn:btih:one', sourcePage: 'http://127.0.0.1:3000/private' }])
+  const stable = registerSearchResults([{ title: 'Stable release', source: 'https://example.test/download?token=old', sourcePage: 'https://example.test/topic' }])[0]
+  const refreshed = registerSearchResults([{ title: 'Stable release', source: 'https://example.test/download?token=new', sourcePage: 'https://example.test/topic' }])[0]
+  assert.equal(stable.id, refreshed.id)
   const privateDetails = await getSearchDetails(registered.id)
   assert.equal(privateDetails.status, 'unavailable')
 })

@@ -30,3 +30,12 @@ export interface SearchDetails {
   status: 'available' | 'unavailable'
   message?: string
 }
+
+export interface SearchPage {
+  results: SearchResult[]
+  offset: number
+  nextOffset: number
+  total?: number
+  hasMore: boolean
+  notice?: string
+}

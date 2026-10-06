@@ -390,6 +390,7 @@
   "Пока событий нет.": "No events yet.",
   "Показать": "Show",
   "Показать QR": "Show QR",
+  "Источник не вернул следующую страницу результатов.": "The source did not return another page of results.",
   "Показать ещё": "Show more",
   "Показать ещё {0} копий": "Show {0} more backups",
   "Показать подходящие игры": "Show compatible games",
@@ -1241,5 +1242,11 @@
   "Сведения о релизе": "Release details",
   "Повторить": "Retry",
   "Подробнее": "Details",
-  "Русский": "Russian"
+  "Русский": "Russian",
+  "Загружаем ещё…": "Loading more…",
+  "Сортировка применяется ко всем загруженным результатам.": "Sorting applies to all loaded results.",
+  "Неверные параметры страницы поиска": "Invalid search page parameters",
+  "Источник не поддерживает следующую страницу результатов.": "The source does not support the next page of results.",
+  "Источник повторил предыдущие результаты. Следующая страница недоступна.": "The source repeated the previous results. The next page is unavailable.",
+  "Не удалось загрузить следующую страницу. Повторите попытку.": "Could not load the next page. Try again."
 }

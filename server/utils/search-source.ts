@@ -6,20 +6,22 @@ import { isIP } from 'node:net'
 import { createError } from 'h3'
 import type { SearchDetails, SearchResult } from '../../shared/types/search'
 import { parseSearchSource } from './search-source-parser'
+import { cachedSearchDetails } from './search-details-cache'
+import { readBrowserPage, browserRequestHeaders, closeSearchBrowser } from './search-browser-session'
+import { logEvent } from './event-log'
 
 const lifetime = 30 * 60 * 1000
 const maxBytes = 2 * 1024 * 1024
-const releases = new Map<string, { result: SearchResult; expires: number; details?: Promise<SearchDetails> }>()
+const releases = new Map<string, { result: SearchResult; expires: number }>()
 
 export function registerSearchResults(results: SearchResult[]) {
   for (const [id, item] of releases) if (item.expires < Date.now()) releases.delete(id)
   return results.map(result => {
-    const id = createHash('sha256').update(result.source + '\n' + result.title).digest('hex')
-    const previous = releases.get(id)
+    const id = createHash('sha256').update((result.sourcePage || result.source) + '\n' + result.title).digest('hex')
     const value = { ...result, id }
     releases.delete(id)
-    releases.set(id, { result: value, expires: Date.now() + lifetime, details: previous?.details })
-    while (releases.size > 500) releases.delete(releases.keys().next().value!)
+    releases.set(id, { result: value, expires: Date.now() + lifetime })
+    while (releases.size > 5000) releases.delete(releases.keys().next().value!)
     return value
   })
 }
@@ -52,7 +54,7 @@ async function readPublicPage(url: URL, signal: AbortSignal, redirects = 0): Pro
         if (options.all) callback(null, [address] as any)
         else callback(null, address.address, address.family)
       },
-      headers: { 'User-Agent': 'PackageFlow/1.0', Accept: 'text/html', 'Accept-Encoding': 'identity' }
+      headers: { 'User-Agent': 'PackageFlow/1.0', Accept: 'text/html', 'Accept-Encoding': 'identity', ...browserRequestHeaders(url) }
     }, response => {
       if ([301, 302, 303, 307, 308].includes(response.statusCode || 0) && response.headers.location) {
         response.resume()
@@ -89,40 +91,40 @@ async function readRuTrackerProxy(url: URL) {
   // The URL is server configuration; clients cannot choose a proxy or its target.
   const endpoint = new URL(process.env.PACKAGEFLOW_FLARESOLVERR_URL || 'http://127.0.0.1:8191')
   endpoint.pathname = endpoint.pathname.replace(/\/$/, '') + '/v1'
-  const response = await fetch(endpoint, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(50000),
-    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cmd: 'request.get', url: `${url.origin}/forum/viewtopic.php?t=${url.searchParams.get('t')}`, maxTimeout: 45000 }) })
-  if (!response.ok) throw new Error('Proxy unavailable')
-  const reader = response.body?.getReader()
-  if (!reader) throw new Error('Empty proxy response')
-  const chunks: Uint8Array[] = []; let size = 0
+  const page = await readBrowserPage(endpoint.toString(), `${url.origin}/forum/viewtopic.php?t=${url.searchParams.get('t')}`)
+  if (page.url && !isRuTrackerTopic(new URL(page.url))) throw new Error('Unexpected proxy redirect')
+  // Once HTTP accepts the verification cookies, close Chromium immediately.
+  // Keep only the short-lived, origin-scoped HTTP session in memory.
   try {
-    for (;;) { const next = await reader.read(); if (next.done) break; size += next.value.length; if (size > maxBytes * 3) throw new Error('Page too large'); chunks.push(next.value) }
-  } finally { await reader.cancel() }
-  const payload = JSON.parse(Buffer.concat(chunks).toString('utf8'))
-  if (payload.status !== 'ok' || payload.solution?.status !== 200 || typeof payload.solution.response !== 'string' || Buffer.byteLength(payload.solution.response) > maxBytes) throw new Error('Proxy source unavailable')
-  if (payload.solution.url && !isRuTrackerTopic(new URL(payload.solution.url))) throw new Error('Unexpected proxy redirect')
-  return payload.solution.response as string
+    const direct = await readPublicPage(url, AbortSignal.timeout(10000))
+    if (parseSearchSource(direct, url.toString()).status === 'available') {
+      await closeSearchBrowser(true)
+      return direct
+    }
+  } catch { /* This source still needs the existing browser session. */ }
+  return page.html
 }
 
-async function loadDetails(result: SearchResult): Promise<SearchDetails> {
+async function loadDetails(result: SearchResult, allowBrowser: boolean): Promise<SearchDetails> {
   if (!result.sourcePage) return { status: 'unavailable', fields: [], message: 'Источник не передал ссылку на страницу раздачи.' }
   try {
     const url = new URL(result.sourcePage)
     let html: string, usedProxy = false
+    const start = Date.now()
     try { html = await readPublicPage(url, AbortSignal.timeout(10000)) }
-    catch (error) { if (!isRuTrackerTopic(url)) throw error; usedProxy = true; html = await readRuTrackerProxy(url) }
+    catch (error) { if (!allowBrowser || !isRuTrackerTopic(url)) throw error; usedProxy = true; html = await readRuTrackerProxy(url) }
     let details = parseSearchSource(html, result.sourcePage)
-    if (details.status === 'unavailable' && !usedProxy && isRuTrackerTopic(url)) details = parseSearchSource(await readRuTrackerProxy(url), result.sourcePage)
+    if (details.status === 'unavailable' && !usedProxy && allowBrowser && isRuTrackerTopic(url)) {
+      details = parseSearchSource(await readRuTrackerProxy(url), result.sourcePage)
+      usedProxy = true
+    }
+    logEvent('info', `Описание поиска: ${usedProxy ? 'HTTP через FlareSolverr' : 'HTTP'}, ${Date.now() - start} мс, ${details.status}`)
     return details
   } catch { return { status: 'unavailable', fields: [], message: 'Не удалось получить описание из источника. Данные поиска сохранены; страницу раздачи можно открыть отдельно.' } }
 }
 
-export function getSearchDetails(id: string) {
+export function getSearchDetails(id: string, allowBrowser = false) {
   const item = releases.get(id)
   if (!item || item.expires < Date.now()) throw createError({ statusCode: 404, message: 'Результат поиска устарел. Повторите поиск.' })
-  if (!item.details) item.details = loadDetails(item.result).then(value => {
-    if (value.status === 'unavailable') item.details = undefined
-    return value
-  })
-  return item.details
+  return item.result.sourcePage ? cachedSearchDetails(item.result.sourcePage, () => loadDetails(item.result, allowBrowser), allowBrowser ? 'browser' : 'http') : loadDetails(item.result, allowBrowser)
 }
