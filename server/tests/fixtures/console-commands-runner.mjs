@@ -8,7 +8,7 @@ const root=process.cwd(), temp=mkdtempSync(resolve(tmpdir(),'packageflow-console
 process.chdir(temp);mkdirSync('.data')
 const calls={start:0,append:0,preview:0,reinstall:0,cancel:0};globalThis.commandCalls=calls
 globalThis.commandQueue={status:'idle',items:[]}
-const library=[{id:'base',titleId:'CUSA00001',fileName:'base.pkg',contentType:'PS4GD',installOrder:0},{id:'dlc',titleId:'CUSA00001',fileName:'dlc.pkg',contentType:'PS4AC',installOrder:2}]
+const library=[{title:'Game',size:1024,type:'Игра',contentId:'BASE',packageDigest:'a'.repeat(64),id:'base',titleId:'CUSA00001',fileName:'base.pkg',contentType:'PS4GD',installOrder:0},{title:'DLC',size:2048,type:'DLC',contentId:'DLC',packageDigest:'b'.repeat(64),id:'dlc',titleId:'CUSA00001',fileName:'dlc.pkg',contentType:'PS4AC',installOrder:2}]
 globalThis.commandLibrary=library
 registerHooks({
  resolve(s,c,next){try{return next(s,c)}catch(e){if(s.startsWith('.')&&!/\.[a-z]+$/.test(s))return next(s+'.ts',c);if(s==='h3')return {url:'mock:h3',shortCircuit:true};throw e}},
@@ -18,6 +18,8 @@ registerHooks({
   if(url.endsWith('/ps4-installer.ts'))return {format:'module',shortCircuit:true,source:'export const getLocalIp = async () => "10.1.10.47"'}
   if(url.endsWith('/installation-queue.ts'))return {format:'module',shortCircuit:true,source:`
    export const getInstallationQueue=()=>globalThis.commandQueue;
+   export const getInstallationHistory=()=>[];
+   export const cancelInstallationItem=(id,pkg,ip)=>{if(id!==globalThis.commandQueue.id)throw new Error("stale queue");globalThis.commandCalls.cancel++;globalThis.cancelledItem=pkg;return globalThis.commandQueue};
    export const cancelGameInstallation=(id,ip,game)=>{if(game!=='CUSA00001')throw new Error('wrong game');globalThis.commandCalls.cancel++;globalThis.cancelledGame=game;return globalThis.commandQueue};
    export const cancelInstallationQueue=()=>{globalThis.commandCalls.cancel++;return globalThis.commandQueue};
    export const cancelCurrentInstallation=(id,pkg,ip)=>{if(pkg!=='dlc')throw new Error('current changed');globalThis.commandCalls.cancel++;return globalThis.commandQueue};
@@ -52,6 +54,22 @@ try {
  const old=request(9,'cancel-all',{queueId:'old'});submitConsoleCommand(old,'3000');assert.equal((await finish(old)).state,'failed');assert.equal(calls.cancel,1);
  globalThis.reinstallState='failed';const rejected=request(10,'reinstall',{revision:plan.result.revision,confirmTitleId:plan.result.titleId});submitConsoleCommand(rejected,'3000');const rejectedResult=await finish(rejected);assert.equal(rejectedResult.state,'failed');assert.equal(rejectedResult.message,'Removal history full');
  const game=request(11,'cancel-game',{queueId:'shared'});submitConsoleCommand(game,'3000');assert.equal((await finish(game)).state,'accepted');assert.equal(globalThis.cancelledGame,'CUSA00001');const cancellations=calls.cancel;submitConsoleCommand(game,'3000');assert.equal(calls.cancel,cancellations);
+ const presets=await import(pathToFileURL(resolve(root,'server/utils/presets.ts')).href)
+ const preset=presets.mutatePreset({action:'create',name:'Racing'});presets.mutatePreset({action:'add',id:preset.id,packageIds:['base','dlc']})
+ globalThis.commandLibrary=[...library,{...library[1],id:'outside',fileName:'outside.pkg',contentId:'OTHER',packageDigest:'c'.repeat(64)}]
+ const presetAll=request(12,'install-preset',{gameId:preset.id});submitConsoleCommand(presetAll,'3000');assert.equal((await finish(presetAll)).state,'accepted');assert.deepEqual(globalThis.lastCommand.packageIds,['base','dlc'],'whole preset excludes other library packages');const appended=calls.append;submitConsoleCommand(presetAll,'3000');assert.equal(calls.append,appended)
+ const presetSelected=request(13,'selected',{presetId:preset.id,packageIds:['base']});submitConsoleCommand(presetSelected,'3000');assert.equal((await finish(presetSelected)).state,'accepted');assert.deepEqual(globalThis.lastCommand.packageIds,['base']);assert.throws(()=>submitConsoleCommand({...presetSelected,presetId:'another'},'3000'),'preset context is part of replay identity')
+ assert.throws(()=>submitConsoleCommand(request(14,'selected',{presetId:preset.id,packageIds:['outside']}),'3000'),'cannot install a package outside the preset')
+ globalThis.commandLibrary=library.slice(0,1);assert.throws(()=>submitConsoleCommand(request(15,'install-preset',{gameId:preset.id}),'3000'),/отсутствует/)
+ const available=request(16,'selected',{presetId:preset.id,packageIds:['base']});submitConsoleCommand(available,'3000');assert.equal((await finish(available)).state,'accepted','available package can be installed despite another missing preset file')
+ globalThis.commandLibrary=[...library,...Array.from({length:300},(_,i)=>({...library[0],id:`favorite-${i}`,titleId:`CUSA${String(i+2).padStart(5,'0')}`,fileName:`game-${i}.pkg`}))];
+ const favoriteIds=globalThis.commandLibrary.map(p=>p.titleId);
+ const favorites=request(17,'install-favorites',{gameId:'',favoriteIds});submitConsoleCommand(favorites,'3000');assert.equal((await finish(favorites)).state,'accepted');assert.equal(globalThis.lastCommand.packageIds.length,302,'favorites include all packages beyond the loaded page');assert.equal(new Set(globalThis.lastCommand.packageIds).size,302);const favoriteAppends=calls.append;submitConsoleCommand(favorites,'3000');assert.equal(calls.append,favoriteAppends,'full favorites is replay safe');assert.throws(()=>submitConsoleCommand({...favorites,favoriteIds:['CUSA00001']},'3000'));
+ assert.throws(()=>submitConsoleCommand(request(18,'install-favorites',{gameId:'',favoriteIds:['CUSA99999']}),'3000'),/отсутствуют/);
+ globalThis.commandQueue.items=[{packageId:'base',state:'installed',bytesSent:1024,detail:'Installed'},{packageId:'dlc',state:'pending',bytesSent:0,detail:'Waiting'}];
+ const clear=request(19,'clear-tasks',{gameId:''});submitConsoleCommand(clear,'3000');assert.equal((await finish(clear)).state,'accepted');assert.equal(consoleCommand(clear.requestId,clear.ip).result.cleared,1);assert.equal(globalThis.commandQueue.items.length,2,'clear hides rows without changing runner indices');
+ const unqueue=request(20,'cancel-item',{queueId:'shared',currentPackageId:'dlc'});submitConsoleCommand(unqueue,'3000');assert.equal((await finish(unqueue)).state,'accepted');assert.equal(globalThis.cancelledItem,'dlc');
+ globalThis.commandQueue.psIp='10.1.10.33';const foreignClear=request(21,'clear-tasks',{gameId:''});submitConsoleCommand(foreignClear,'3000');assert.equal((await finish(foreignClear)).state,'accepted');assert.equal(consoleCommand(foreignClear.requestId,foreignClear.ip).result.cleared,0,'native clear only affects its console');
  const id='f'.repeat(32);writeFileSync('.data/console-app-commands.json',JSON.stringify({version:1,records:[{id,ip:'10.1.10.32',fingerprint:'x',state:'pending',message:''}]}));assert.equal(consoleCommand(id,'10.1.10.32').state,'uncertain');assert.throws(()=>consoleCommand(id,'10.1.10.33'))
- console.log('Production native commands: same service queue, append, replay protection, foreign selections, confirmed reinstall and interrupted WEB: passed')
+ console.log('Production native commands: same service queue, append, replay protection, foreign selections, confirmed reinstall, portable presets, missing files and interrupted WEB: passed')
 }finally {process.chdir(root);rmSync(temp,{recursive:true,force:true})}

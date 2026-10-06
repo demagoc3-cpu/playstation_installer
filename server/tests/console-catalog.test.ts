@@ -50,3 +50,38 @@ test('labels keep filenames separately and count patches/backports and DLC witho
   assert.match(game.packages.find(p=>p.id==='patch')!.title,/Патч 01.20.*Русификация/)
   assert.equal(game.packages.find(p=>p.id==='dlc')!.title,'Costume pack')
 })
+
+test('native pages cover all 2800 packages without duplicates and search includes off-page packages', () => {
+  const source = Array.from({ length: 700 }, (_, group) => Array.from({ length: 4 }, (_, item) => pkg({
+    id: `pkg-${group}-${item}`, titleId: `CUSA${String(group).padStart(5, '0')}`,
+    title: item ? 'Extra content' : `Game ${group}`, type: item ? 'DLC' : 'Игра', installOrder: item ? 2 : 0,
+    fileName: `release-${group}-${item}.pkg`, contentId: `CONTENT-${group}-${item}`,
+  }))).flat()
+  const ids: string[] = []
+  for (let offset = 0; offset < 700; offset += 20) {
+    const page = buildConsoleCatalog(source, 'ru', { offset, limit: 20 })
+    assert.equal(page.games.length, 20)
+    assert.equal(page.total, 700)
+    assert.equal(page.totalPackages, 2800)
+    assert.equal(page.nextOffset, offset + 20)
+    assert.equal(page.hasMore, offset + 20 < 700)
+    ids.push(...page.games.flatMap(game => game.packages.map(item => item.id)))
+  }
+  assert.equal(ids.length, 2800)
+  assert.equal(new Set(ids).size, 2800)
+  const found = buildConsoleCatalog(source, 'ru', { q: 'CONTENT-699-3', limit: 20 })
+  assert.equal(found.total, 1)
+  assert.equal(found.games[0]!.title, 'Game 699')
+  assert.equal(found.games[0]!.packages.length, 4, 'a matching DLC keeps its full game branch')
+  const favorites = buildConsoleCatalog(source, 'ru', { favoriteIds: ['CUSA00699', 'CUSA00400'], limit: 20 })
+  assert.deepEqual(favorites.games.map(game => game.id), ['CUSA00400', 'CUSA00699'])
+  assert.equal(buildConsoleCatalog(source, 'ru', { favoriteIds: [] }).total, 0)
+  assert.equal(buildConsoleCatalog(source, 'ru', { q: 'no matches' }).total, 0)
+  assert.equal(buildConsoleCatalog(source, 'ru', { offset: 9999, limit: 20 }).offset, 680)
+  assert.equal(buildConsoleCatalog(source, 'ru', { offset: -1, limit: 999 }).games.length, 30)
+})
+
+ test('native density choices return the requested 10, 20 or 30 cards',()=>{
+ const source=Array.from({length:73},(_,i)=>pkg({id:`game-${i}`,titleId:`CUSA${String(i).padStart(5,'0')}`}))
+ for(const limit of [10,20,30]){const first=buildConsoleCatalog(source,'ru',{limit}),next=buildConsoleCatalog(source,'ru',{limit,offset:limit});assert.equal(first.games.length,limit);assert.equal(next.games.length,limit);assert.equal(new Set([...first.games,...next.games].map(g=>g.id)).size,limit*2);assert.equal(next.offset,limit)}
+ })

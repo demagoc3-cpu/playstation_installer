@@ -39,7 +39,7 @@ registerHooks({
   load(url, context, next) {
     if (url.endsWith('/server/utils/ps4-installer.ts')) return { format: 'module', shortCircuit: true, source: `
       export async function startInstaller() { globalThis.queueTestCalls.payload++; }
-      export async function sendPackage() { globalThis.queueTestCalls.commands++; }
+      export async function sendPackage() { globalThis.queueTestCalls.commands++; if (globalThis.queueTestPayloadRace && globalThis.queueTestCalls.commands === 1) await new Promise(resolve => { globalThis.finishPayloadSend = resolve; }); }
     ` }
     return next(url, context)
   },
@@ -81,7 +81,7 @@ globalThis.fetch = async (url, options) => {
     if (mode === 'busy-rejection') return response({ error: 'another_service_job_active', errorHex: '0x00000000' }, 409)
     assert.equal(calls.submit, mode === 'already-installed' ? 2 : 1, 'accepted task must never be POSTed twice')
     if (mode === 'icon') assert.equal(calls.icon, 1, 'BGFT icon must be on the console before task registration')
-    const body = JSON.parse(options.body); assert.equal(body.size, item.size); assert.equal(body.contentType, mode === 'already-installed' ? 'PS4AC' : mode.startsWith('mini-app') ? 'PS4GDE' : mode.startsWith('cancel-one') || mode === 'cancel-game' ? 'PS4GP' : 'PS4GD')
+    const body = JSON.parse(options.body); assert.equal(body.size, item.size); assert.equal(body.contentType, mode === 'already-installed' ? 'PS4AC' : mode.startsWith('mini-app') ? 'PS4GDE' : mode.startsWith('cancel-one') || mode === 'task-cancel-service' || mode === 'cancel-game' ? 'PS4GP' : 'PS4GD')
     currentJob = makeJob(body.requestId)
     currentJob.contentId = body.contentId
     throw new Error('Connection lost after PS4 accepted the task')
@@ -129,6 +129,75 @@ try {
     assert.equal(calls.service, 0); assert.equal(calls.payload, 1)
     queue.cancelInstallationQueue(); assert.equal(readQueue().status, 'cancelled')
     await delay(1550); assert.equal(calls.commands, 1)
+  } else if (mode === 'task-remove-pending') {
+    writeFileSync('.data/package-library.json', JSON.stringify({version:2,packages:[item,{...item,id:'two',title:'Queued DLC'}],deliveries:{}}))
+    writeFileSync('.data/installation-queue.json', JSON.stringify({version:1,transport:'payload',id:'tasks-test',status:'running',psIp:ip,createdAt:1,
+      items:[{packageId:'one',url:input.packageUrls.one,state:'waiting',detail:'Active',bytesSent:123,dispatchedAt:Date.now()},
+        {packageId:'two',url:input.packageUrls.one,state:'pending',detail:'',bytesSent:0}]}))
+    const queue = await load('installation-queue')
+    assert.throws(()=>queue.cancelInstallationItem('old','two',ip),/изменилось/)
+    assert.throws(()=>queue.cancelInstallationItem('tasks-test','two','192.168.88.148'),/изменилось/)
+    const result=queue.cancelInstallationItem('tasks-test','two',ip)
+    assert.equal(result.items.length,2);assert.equal(result.items[0].state,'waiting');assert.equal(result.items[1].state,'cancelled')
+    assert.match(result.items[1].detail,/не отправлен/)
+    assert.throws(()=>queue.cancelInstallationItem('tasks-test','two',ip),/изменилось/)
+    assert.equal(calls.commands,0)
+    queue.cancelInstallationQueue()
+    const failedQueue=readQueue();failedQueue.status='failed';failedQueue.items[0].state='failed';failedQueue.items[1].state='pending'
+    writeFileSync('.data/installation-queue.json',JSON.stringify(failedQueue))
+    const tasks=await load('installation-tasks')
+    assert(tasks.getInstallationTasks({categories:'queued'}).items[0].canCancel,'pending rows remain removable after a queue error')
+    queue.cancelInstallationItem('tasks-test','two',ip)
+    assert.equal(readQueue().status,'failed');assert.equal(readQueue().items[1].state,'cancelled');assert.equal(calls.commands,0)
+  } else if (mode === 'task-cancel-payload-race') {
+    globalThis.queueTestPayloadRace=true
+    writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages:[item,{...item,id:'two',title:'Next package'}],deliveries:{}}))
+    const queue=await load('installation-queue')
+    queue.startInstallationQueue({...input,transport:'payload',packageIds:['one','two'],packageUrls:{...input.packageUrls,two:input.packageUrls.one}})
+    await until(()=>calls.commands===1&&globalThis.finishPayloadSend)
+    const result=queue.cancelInstallationItem(readQueue().id,'one',ip)
+    assert.equal(result.items[0].state,'cancelled');assert.equal(result.items[1].state,'pending')
+    globalThis.finishPayloadSend()
+    await until(()=>calls.commands===2&&readQueue().items[1].state==='waiting')
+    assert.equal(readQueue().items[0].state,'cancelled','late send response never resurrects the cancelled item')
+    assert.equal(readQueue().items[1].state,'waiting','remaining queue continues')
+    queue.cancelInstallationQueue()
+  } else if (mode === 'task-clear') {
+    const current={version:1,transport:'payload',id:'clear-current',status:'running',psIp:ip,createdAt:1,items:[
+      {packageId:'one',state:'waiting',url:input.packageUrls.one,detail:'active',bytesSent:100,dispatchedAt:Date.now()+100000},
+      {packageId:'two',state:'pending',detail:'queued',bytesSent:0},
+      {packageId:'three',state:'installed',detail:'done',bytesSent:100},
+      {packageId:'four',state:'failed',detail:'failed',bytesSent:0}]}
+    writeFileSync('.data/installation-queue.json',JSON.stringify(current))
+    writeFileSync('.data/installation-history.json',JSON.stringify([{...current,id:'old',status:'completed',items:[{packageId:'old',state:'delivered',detail:'done',bytesSent:100}]}]))
+    const tasks=await load('installation-tasks'), visibility=await load('task-visibility')
+    const result=visibility.clearFinishedTasks([{hash:'a'.repeat(40),state:'uploading',progress:1},{hash:'b'.repeat(40),state:'downloading',progress:0.5}])
+    assert.equal(result.cleared,3);assert.equal(Object.keys(result.hiddenTorrents).length,1)
+    const after=tasks.getInstallationTasks();assert.deepEqual(after.counts,{active:1,queued:1,completed:0,failed:0});assert.equal(readQueue().items.length,4);assert.equal(readQueue().items[2].state,'installed');assert.equal(calls.commands,0)
+    assert.equal(visibility.clearFinishedTasks().cleared,0)
+    const next=readQueue();next.items[1].state='installed';writeFileSync('.data/installation-queue.json',JSON.stringify(next));assert.equal(tasks.getInstallationTasks().counts.completed,1,'future completions remain visible')
+    assert.equal(readFileSync('.data/task-visibility.json','utf8').includes('clear-current:three'),true,'cleanup persists across restart')
+  } else if (mode === 'task-history') {
+    const previous={version:1,transport:'payload',id:'previous',status:'completed',psIp:ip,createdAt:1,
+      items:Array.from({length:70},(_,index)=>({packageId:`old-${index}`,title:`Previous ${index}`,titleId:'CUSA00001',fileName:`Old-${index}.pkg`,size:1024,type:'DLC',state:index===0?'failed':'delivered',detail:'Previous detail',bytesSent:1024}))}
+    writeFileSync('.data/installation-queue.json',JSON.stringify(previous))
+    const queue=await load('installation-queue')
+    queue.startInstallationQueue({...input,transport:'payload'})
+    assert.equal(queue.getInstallationHistory()[0].items.length,70)
+    queue.cancelInstallationQueue()
+    const tasks=await load('installation-tasks')
+    const all=tasks.getInstallationTasks()
+    assert.equal(all.total,71);assert.equal(all.items.length,50);assert.equal(all.pages,2)
+    assert.equal(tasks.getInstallationTasks({page:2}).items.length,21)
+    const failed=tasks.getInstallationTasks({categories:'failed'})
+    assert.equal(failed.total,1);assert.equal(failed.items[0].fileName,'Old-0.pkg');assert.equal(failed.counts.completed,70)
+    assert.equal(tasks.getInstallationTasks({categories:''}).items.length,0)
+    const tree=tasks.getInstallationTasks({view:'tree'})
+    assert.equal(tree.unit,'games');assert.equal(tree.total,1);assert.equal(tree.items.length,71,'tree keeps a complete game branch on one page')
+    assert.equal(tree.items[0].type,'Игра');assert(tree.items.every(task=>task.groupTitle==='Test Game'))
+    assert.equal(tasks.getInstallationTasks({view:'tree',categories:'failed'}).items.length,1)
+
+    assert(!JSON.stringify(all).includes('http://'));assert(!JSON.stringify(all).includes('game.pkg\\'))
   } else if (mode === 'append') {
     writeFileSync('.data/package-library.json', JSON.stringify({ version: 2, packages: [item, { ...item, id: 'two', title: 'Queued Patch', contentType: 'PS4GP', installOrder: 1 }], deliveries: {} }))
     writeFileSync('.data/installation-queue.json', JSON.stringify({ version: 1, transport: 'payload', id: 'active', status: 'running', psIp: ip, createdAt: 1,
@@ -166,24 +235,25 @@ try {
     currentJob.state='installed';await until(()=>readQueue().status==='completed')
     assert.equal(readQueue().items[2].state,'installed');assert.equal(readQueue().items[3].state,'installed')
     assert.equal(calls.submit,1);assert.match(readQueue().message,/отменено — 2/)
-  } else if (mode === 'cancel-one' || mode === 'cancel-one-before-dispatch') {
+  } else if (mode === 'cancel-one' || mode === 'cancel-one-before-dispatch' || mode === 'task-cancel-service') {
     writeFileSync('.data/ps4-service-keys.json', JSON.stringify({[ip]:token}))
     writeFileSync('.data/package-library.json', JSON.stringify({version:2,packages:[item,{...item,id:'two',title:'Next package',contentType:'PS4GP',installOrder:1}],deliveries:{}}))
     const queue = await load('installation-queue')
-    if (mode === 'cancel-one') {
+    if (mode === 'cancel-one' || mode === 'task-cancel-service') {
       const id='11111111-1111-1111-1111-111111111111';currentJob=makeJob(id)
       writeFileSync('.data/installation-queue.json',JSON.stringify({version:1,transport:'service',id:'current-test',status:'running',psIp:ip,createdAt:1,
         items:[{packageId:'one',url:input.packageUrls.one,state:'receiving',detail:'',bytesSent:10,requestId:id,serviceDispatchedAt:1},
           {packageId:'two',url:input.packageUrls.one,state:'pending',detail:'',bytesSent:0}]}))
       assert.throws(()=>queue.cancelCurrentInstallation('old','one',ip))
       assert.throws(()=>queue.cancelCurrentInstallation('current-test','two',ip))
-      queue.cancelCurrentInstallation('current-test','one',ip)
+      if (mode === 'task-cancel-service') queue.cancelInstallationItem('current-test','one',ip)
+      else queue.cancelCurrentInstallation('current-test','one',ip)
     } else {
       globalThis.cancelBeforeDispatch=()=>queue.cancelCurrentInstallation(readQueue().id,'one',ip)
       queue.startInstallationQueue({...input,transport:'service',packageIds:['one','two'],packageUrls:{...input.packageUrls,two:input.packageUrls.one}})
     }
     await until(()=>calls.submit===1&&currentJob&&readQueue().items[1].serviceDispatchedAt)
-    assert.equal(readQueue().items[0].state,'cancelled');assert.equal(calls.cancel,mode==='cancel-one'?1:0)
+    assert.equal(readQueue().items[0].state,'cancelled');assert.equal(calls.cancel,mode==='cancel-one'||mode==='task-cancel-service'?1:0)
     assert.throws(()=>queue.cancelCurrentInstallation(readQueue().id,'one',ip))
     currentJob.state='installed';await until(()=>readQueue().status==='completed')
     assert.equal(readQueue().items[1].state,'installed');assert.equal(calls.submit,1);assert.match(readQueue().message,/с ошибкой — 0, отменено — 1/)

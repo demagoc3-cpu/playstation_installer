@@ -53,3 +53,33 @@ test('invalid page/size values are bounded and page overflow is clamped after re
   assert.equal(paginateLibrary(items, { page: 1 }).packages.at(-1)?.groupReadyDlc, 2, 'off-page DLC remains available')
   assert.equal(paginateLibrary(items, { page: 2 }).packages[0].groupTitle, 'Игра 6', 'branches split at a page boundary retain their full-library title')
 })
+
+test('WEB card pages count games and keep each matching branch on one page', () => {
+  for (const pageSize of [25, 50, 100]) {
+    const first = paginateLibrary(items, { pageSize, unit: 'games' })
+    assert.equal(first.unit, 'games')
+    assert.equal(first.total, 700)
+    assert.equal(first.pages, 700 / pageSize)
+    assert.equal(new Set(first.packages.map(item => item.titleId)).size, pageSize)
+    assert.equal(first.packages.length, pageSize * 4)
+    const ids = []
+    for (let page = 1; page <= first.pages; page++) ids.push(...paginateLibrary(items, { page, pageSize, unit: 'games' }).packages.map(item => item.id))
+    assert.equal(ids.length, 2800)
+    assert.equal(new Set(ids).size, 2800)
+  }
+  const found = paginateLibrary(items, { unit: 'games', q: 'content-2799' })
+  assert.equal(found.total, 1)
+  assert.deepEqual(found.packages.map(item => item.id), ['pkg-2796', 'pkg-2797', 'pkg-2798', 'pkg-2799'])
+  assert.equal(found.summary.packages, 2800)
+})
+
+
+test('game-name search returns the complete branch, including differently named DLC', () => {
+  const branch = items.slice(-4).map((item, index) => ({ ...item, title: index === 0 ? 'Little Nightmares II' : index === 1 ? 'Update 01.05' : 'Season Pass Bonus', fileName: `unrelated-${index}.pkg` }))
+  for (const q of ['little nightmares', 'CUSA00699', 'season pass', 'unrelated-1']) {
+    const found = paginateLibrary([...items.slice(0, -4), ...branch], { q, unit: 'games' })
+    assert.equal(found.total, 1)
+    assert.equal(found.packages.length, 4)
+    assert.deepEqual(found.packages.map(item => item.id), branch.map(item => item.id))
+  }
+})

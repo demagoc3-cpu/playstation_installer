@@ -5,5 +5,6 @@ import { buildConsoleCatalog } from '../../../utils/console-catalog'
 // service credentials or invented torrent sources are returned to the app.
 export default defineEventHandler(event => {
   setHeader(event, 'Cache-Control', 'no-store')
-  return buildConsoleCatalog(getLibraryPackages(), getQuery(event).lang === 'en' ? 'en' : 'ru')
+  const query = getQuery(event)
+  return buildConsoleCatalog(getLibraryPackages(), query.lang === 'en' ? 'en' : 'ru', query)
 })

@@ -7,8 +7,8 @@ import type { SearchResult, SearchPage } from '#shared/types/search'
 import { packageHasId } from '#shared/package-identity'
 import type { LibraryPage, LibrarySummary } from '#shared/library-pagination'
 type PackageType = 'Игра' | 'Патч' | 'Бэкпорт' | 'DLC'
-type Section = 'library' | 'console' | 'saves' | 'torrents' | 'search' | 'log' | 'ftp' | 'system' | 'donate'
-const SECTIONS: Section[] = ['library', 'console', 'saves', 'torrents', 'search', 'log', 'ftp', 'system', 'donate']
+type Section = 'library' | 'console' | 'saves' | 'torrents' | 'search' | 'log' | 'ftp' | 'system' | 'settings' | 'tasks' | 'presets' | 'donate'
+const SECTIONS: Section[] = ['library', 'console', 'saves', 'torrents', 'search', 'log', 'ftp', 'system', 'settings', 'tasks', 'presets', 'donate']
 const donationConfig = useRuntimeConfig().public.donation
 const donationBtc = String(donationConfig?.btc || '').trim()
 const donationUsdtTrc20 = String(donationConfig?.usdtTrc20 || '').trim()
@@ -21,7 +21,7 @@ interface TorrentItem { hash: string; name: string; state: string; size: number;
 interface TorrentFile { index: number; name: string; size: number; progress: number; priority: number }
 interface QbitStatus { baseUrl: string; username: string; downloadPath: string; remotePath?: string; hasPassword?: boolean; configured: boolean; ready: boolean; version: string }
 interface SearchSettings { name: string; endpoint: string; categories: string; hasApiKey: boolean; configured: boolean }
-interface InstallationQueueItem { packageId: string; state: 'pending' | 'sending' | 'waiting' | 'receiving' | 'installing' | 'verifying' | 'delivered' | 'installed' | 'unconfirmed' | 'skipped' | 'failed' | 'cancelled'; detail: string; bytesSent: number; completedAt?: number; installedAt?: number }
+interface InstallationQueueItem { packageId: string; title?: string; fileName?: string; size?: number; type?: string; cancelRequested?: boolean; state: 'pending' | 'sending' | 'waiting' | 'receiving' | 'installing' | 'verifying' | 'delivered' | 'installed' | 'unconfirmed' | 'skipped' | 'failed' | 'cancelled'; detail: string; bytesSent: number; completedAt?: number; installedAt?: number }
 interface InstallationQueue { id?: string; status: 'idle' | 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled'; transport?: InstallationTransport; currentIndex?: number; items: InstallationQueueItem[]; message?: string }
 
 const psIp = ref('10.1.200.5')
@@ -48,6 +48,8 @@ let librarySearchTimer: ReturnType<typeof setTimeout> | undefined
 let libraryMounted = false
 const tooltipPositions = reactive<Record<string, { top: string; left: string }>>({})
 const reinstallTarget = ref<PackageItem | null>(null)
+const maintenanceFlow = ref<any>(null)
+const maintenanceActive = computed(() => maintenanceFlow.value && !['completed', 'failed'].includes(maintenanceFlow.value.state))
 const expanded = ref(new Set<string>())
 const isSending = ref(false)
 const installationMethod = ref<InstallationTransport>('service')
@@ -107,7 +109,14 @@ const logProblems = computed(() => logEntries.value.filter((entry) => entry.leve
 let installationTimer: number | undefined
 let torrentRefreshRunning = false
 const totalSize = computed(() => formatBytes(librarySummary.value.size))
-const deliveredCount = computed(() => librarySummary.value.delivered)
+const showPresetPicker = ref(false)
+const showTransferred = ref(false)
+const transferredSelection = computed(() => selectedItems.value.filter(item => (['delivered', 'installed'].includes(item.state) && !!item.completedAt) || queueItems.value.some(entry => packageHasId(item, entry.packageId) && ['delivered', 'installed'].includes(entry.state))))
+const deliveredCount = computed(() => transferredSelection.value.length)
+const activeQueueItem = computed(() => ['running', 'cancelling'].includes(queueStatus.value) ? queueItems.value.find(item => ['sending', 'waiting', 'receiving', 'installing', 'verifying'].includes(item.state)) : undefined)
+const activeJobProgress = computed(() => activeQueueItem.value?.size ? Math.min(100, Math.round(activeQueueItem.value.bytesSent / activeQueueItem.value.size * 100)) : 0)
+async function taskTorrentAction(hash: string, action: 'pause' | 'resume' | 'delete') { const torrent = torrents.value.find(item => item.hash === hash); if (torrent) await controlTorrent(torrent, action) }
+
 const installedCount = computed(() => librarySummary.value.installed)
 const selectedItems = computed(() => [...selectedPackages.values()])
 const selectedReadyCount = computed(() => selectedItems.value.filter((item) => item.state === 'ready').length)
@@ -197,10 +206,10 @@ async function loadLibraryPage(background = false) {
   libraryController?.abort()
   const controller = new AbortController(), generation = ++libraryGeneration
   libraryController = controller
-  libraryBusy.value = true
+  libraryBusy.value = !background
   libraryError.value = ''
   try {
-    const result = await $fetch<LibraryPage<ServerPackage>>('/api/packages', { query: { psIp: psIp.value, page: libraryPage.value, pageSize: libraryPageSize.value, q: appliedLibraryQuery.value }, signal: controller.signal })
+    const result = await $fetch<LibraryPage<ServerPackage>>('/api/packages', { query: { psIp: psIp.value, page: libraryPage.value, pageSize: libraryPageSize.value, q: appliedLibraryQuery.value, unit: 'games' }, signal: controller.signal })
     if (generation !== libraryGeneration) return
     const previous = new Map([...selectedPackages.values(), ...packages.value].map(item => [item.id, item]))
     const next = result.packages.map(value => {
@@ -220,6 +229,7 @@ async function loadLibraryPage(background = false) {
     libraryPages.value = result.pages
     libraryTotal.value = result.total
     librarySummary.value = result.summary
+    if (!background) { const list = document.querySelector('.library-scroll'); if (list) list.scrollTop = 0 }
     syncSelection()
     // Reapply the saved queue when returning to a different page.
     applyInstallationQueue({ status: queueStatus.value, id: queueId.value, transport: queueMethod.value, items: queueItems.value })
@@ -245,7 +255,7 @@ watch(libraryQuery, () => {
 function changeLibraryPage(page: number) {
   if (libraryBusy.value || page < 1 || page > libraryPages.value) return
   libraryPage.value = page
-  void loadLibraryPage().then(() => document.querySelector('.library-tools')?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
+  void loadLibraryPage().then(() => { const list = document.querySelector('.library-scroll'); if (list) list.scrollTop = 0 })
 }
 function changeLibraryPageSize(value: number) {
   libraryPageSize.value = value
@@ -383,11 +393,11 @@ async function installItems(items: PackageItem[], librarySelection?: { scope: 'a
   if (isSending.value && !appending) { statusMessage.value = 'Очередь завершается или отменяется. Дождитесь ответа PS4.'; return }
   if (!appending && installationMethod.value === 'payload') {
     if (!connected.value) await connect()
-    if (!connected.value) { showIpEditor.value = true; return }
+    if (!connected.value) { showIpEditor.value = true; activeSection.value = 'settings'; return }
   } else if (!appending) {
     try {
       const status = await $fetch<{ ready: boolean; message: string }>('/api/ps4/service-installer', { query: { ip: psIp.value } })
-      if (!status.ready) { statusMessage.value = status.message; return }
+      if (!status.ready) { statusMessage.value = status.message; activeSection.value = 'settings'; return }
     } catch (error: any) { statusMessage.value = errorText(error) || 'Сервис недоступен'; return }
   }
   try {
@@ -454,34 +464,53 @@ onMounted(() => { void restoreInstallationMethod().then(restorePsIp).then((resto
   <main class="shell">
     <header class="topbar">
       <GithubStats />
-      <div class="brand"><img class="brand-logo" :src="`/brand/packageflow-${locale}.svg`" alt="PackageFlow" width="223" height="52"></div>
+      <div class="brand" :class="{ 'with-job': activeQueueItem || maintenanceActive }"><img class="brand-logo" :src="`/brand/packageflow-${locale}.svg`" alt="PackageFlow" width="223" height="52"><button v-if="activeQueueItem || maintenanceActive" class="global-job" :title="activeQueueItem?.fileName || activeQueueItem?.packageId || maintenanceFlow?.message" @click="activeSection = 'tasks'"><span aria-hidden="true">●</span> {{ t('Сейчас:') }} {{ activeQueueItem?.title || activeQueueItem?.fileName || maintenanceFlow?.title }}<template v-if="activeQueueItem"> · {{ activeJobProgress }}%</template></button></div>
       <div class="topbar-controls">
       <div class="connection">
         <span class="status-dot" :class="{ offline: !installationConnected }" />
         <span>{{ t(installationConnected ? 'PS4 подключена' : 'PS4 не подключена') }}</span>
-        <button class="ip-button" @click="showIpEditor = !showIpEditor">{{ psIp }}</button>
-        <form v-if="showIpEditor" class="ip-editor" @submit.prevent="connect">
-          <input v-model="psIp" inputmode="decimal"><button>{{ t("Подключить") }}</button>
-        </form>
+        <button class="ip-button" @click="activeSection = 'settings'">{{ psIp }}</button>
       </div>
       <LanguageSwitcher />
       </div>
     </header>
+    <PresetPicker v-if="showPresetPicker" :package-ids="selectedItems.map(item => item.id)" @close="showPresetPicker = false" @added="statusMessage = 'Выбранные пакеты добавлены в пресет'" />
+    <ReinstallGame :ip="psIp" :pkg="reinstallTarget" @close="reinstallTarget = null" @changed="refreshConsoleLibrary" @progress="maintenanceFlow = $event" />
     <nav class="sidebar" :aria-label="t(&quot;Разделы PackageFlow&quot;)">
       <span class="sidebar-caption">{{ t("РАЗДЕЛЫ") }}</span>
       <button :class="{ active: activeSection === 'library' }" :title="t(&quot;Библиотека&quot;)" @click="activeSection = 'library'"><span aria-hidden="true">▦</span><span class="nav-label">{{ t("Библиотека") }}</span><small v-if="isSending" class="nav-badge live" :title="t(&quot;Идёт установка&quot;)">●</small></button><button :class="{ active: activeSection === 'console' }" :title="t(&quot;На консоли&quot;)" @click="activeSection = 'console'"><span aria-hidden="true">▣</span><span class="nav-label">{{ t("На консоли") }}</span></button><button :class="{ active: activeSection === 'saves' }" :title="t(&quot;Сохранения&quot;)" @click="activeSection = 'saves'"><span aria-hidden="true">▤</span><span class="nav-label">{{ t("Сохранения") }}</span></button><button :class="{ active: activeSection === 'torrents' }" :title="t(&quot;Загрузки torrent&quot;)" @click="activeSection = 'torrents'"><span aria-hidden="true">⇣</span><span class="nav-label">{{ t("Загрузки") }}</span><small v-if="activeTorrents" class="nav-badge">{{ t(activeTorrents) }}</small></button><button :class="{ active: activeSection === 'search' }" :title="t(&quot;Поиск torrent&quot;)" @click="activeSection = 'search'"><span aria-hidden="true">⌕</span><span class="nav-label">{{ t("Поиск") }}</span></button><button :class="{ active: activeSection === 'log' }" :title="t(&quot;Журнал&quot;)" @click="activeSection = 'log'"><span aria-hidden="true">☰</span><span class="nav-label">{{ t("Журнал") }}</span><small v-if="logProblems" class="nav-badge warn">{{ t(logProblems) }}</small></button>
 
+      <button :class="{ active: activeSection === 'tasks' }" :title="t('Задания')" @click="activeSection = 'tasks'"><span aria-hidden="true">☷</span><span class="nav-label">{{ t('Задания') }}</span><small v-if="isSending" class="nav-badge live">●</small></button>
+      <button :class="{ active: activeSection === 'presets' }" :title="t('Пресеты')" @click="activeSection = 'presets'"><span aria-hidden="true">▤</span><span class="nav-label">{{ t('Пресеты') }}</span></button>
+      <button :class="{ active: activeSection === 'settings' }" :title="t('Настройки')" @click="activeSection = 'settings'"><span aria-hidden="true">⚙</span><span class="nav-label">{{ t('Настройки') }}</span></button>
       <button :class="{ active: activeSection === 'ftp' }" :title="t(&quot;Файлы консоли&quot;)" @click="activeSection = 'ftp'"><span aria-hidden="true">⇅</span><span class="nav-label">{{ t("Файлы") }}</span></button>
       <button :class="{ active: activeSection === 'system' }" :title="t(&quot;О системе&quot;)" @click="activeSection = 'system'"><span aria-hidden="true">ⓘ</span><span class="nav-label">{{ t("О системе") }}</span></button>
       <button v-if="hasDonations" class="donate-link" :class="{ active: activeSection === 'donate' }" :title="t(&quot;Поддержать проект&quot;)" @click="activeSection = 'donate'"><span aria-hidden="true">♥</span><span class="nav-label">{{ t("Поддержать") }}</span></button><span class="sidebar-note">PS4 {{ psIp }}</span>
     </nav>
-    <section v-show="activeSection === 'library'" class="content"><div class="intro"><div><p class="eyebrow">{{ t("ЛОКАЛЬНАЯ БИБЛИОТЕКА") }}</p><h1>{{ t("Игры и дополнения") }}</h1><p>{{ t("Пакеты автоматически объединяются по CUSA. Исходные файлы остаются в выбранной папке.") }}</p></div><div class="pickers"><button class="primary" @click="chooseFolder">{{ t("Выбрать папку") }}</button></div></div>
-      <section class="stats"><article><span>{{ t("ИГРЫ") }}</span><strong>{{ t(librarySummary.games) }}</strong><small>{{ t(librarySummary.packages) }} {{ t("пакетов") }}</small></article><article><span>{{ t("ВЫБРАНО") }}</span><strong>{{ t(selectedItems.length) }}</strong><small>{{ t(formatBytes(selectedItems.reduce((sum, item) => sum + item.size, 0))) }}</small></article><article><span>{{ t("ПЕРЕДАНО PS4") }}</span><strong>{{ t(deliveredCount) }}</strong><small>{{ t("из") }} {{ t(librarySummary.packages) }} {{ t("пакетов") }}</small></article><article><span>{{ t("УСТАНОВЛЕНО") }}</span><strong>{{ t(installedCount) }}</strong><small>{{ t("подтверждено или отмечено вручную") }}</small></article></section>
-      <ReinstallGame :ip="psIp" :pkg="reinstallTarget" @close="reinstallTarget = null" @changed="refreshConsoleLibrary" /><InstallationMethod :model-value="installationMethod" :ip="psIp" :disabled="isSending" @update:model-value="selectInstallationMethod" @status="serviceConnected = $event" />
+    <section v-show="activeSection === 'library'" class="content library-content">
+      <div class="library-overview"><h1>{{ t('Библиотека') }}</h1><span>{{ librarySummary.games }} {{ t('игр') }} · {{ librarySummary.packages }} {{ t('пакетов') }} · {{ t(totalSize) }}</span><span class="selection-count">{{ t('Выбрано:') }} {{ selectedItems.length }}</span><button class="transfer-summary" :disabled="!deliveredCount" @click="showTransferred = !showTransferred">{{ t('Передано PS4') }}: {{ deliveredCount }} / {{ selectedItems.length }}</button><span>{{ t('Установлено') }}: {{ installedCount }}</span><button class="tiny" @click="chooseFolder">{{ t('Выбрать папку') }}</button></div>
+      <div v-if="showTransferred && transferredSelection.length" class="transferred-list"><div><strong>{{ t('Переданы выбранные файлы') }}</strong><button class="tiny" @click="showTransferred = false">{{ t('Скрыть') }}</button></div><ul><li v-for="item in transferredSelection" :key="item.rowId">{{ item.fileName }}</li></ul></div>
       <section class="library" :aria-busy="libraryBusy">
+        <div class="library-tools">
+          <form class="library-search" @submit.prevent="searchLibrary">
+            <label class="library-search-label" for="library-search">{{ t('Поиск по библиотеке') }}</label>
+            <div class="library-search-input">
+              <span aria-hidden="true">⌕</span>
+              <input id="library-search" v-model="libraryQuery" type="search" :placeholder="t('Название, CUSA, Content ID или имя файла')" maxlength="256">
+              <button :style="{ visibility: libraryQuery ? 'visible' : 'hidden' }" :disabled="!libraryQuery" type="button" class="tiny" @click="libraryQuery = ''; searchLibrary()">{{ t('Сбросить') }}</button>
+              <button type="submit" class="secondary">{{ t('Найти') }}</button>
+            </div>
+            <small class="library-search-status"><span>{{ t('Поиск по всем пакетам библиотеки') }} · {{ t(totalSize) }}</span><span class="library-loading" :style="{ visibility: libraryBusy ? 'visible' : 'hidden' }" role="status">{{ t('Загружаем страницу библиотеки…') }}</span></small>
+          </form>
+          <div v-if="selectedItems.length" class="library-selection">
+            <span>{{ t('Выбор сохранён между страницами') }}</span>
+            <button type="button" class="tiny" @click="clearSelection">{{ t('Снять выбор') }}</button>
+          </div>
+        </div>
         <div class="library-head">
-          <div><h2>{{ t("Очередь установки") }}</h2><p>{{ t(statusMessage) }}</p></div>
+          <div class="library-status"><p :title="t(statusMessage)" role="status">{{ t(statusMessage) }}</p><button class="tiny" @click="activeSection = 'tasks'">{{ t('Задания') }}<template v-if="isSending"> · {{ t('Идёт установка') }}</template></button></div>
           <div class="actions">
+            <button class="secondary" :disabled="!selectedItems.length" @click="showPresetPicker = true">{{ t('Добавить в пресет') }}</button>
             <button class="secondary" :disabled="queueStatus === 'cancelling' || !selectedReadyCount" @click="installItems(selectedItems)">{{ t(queueStatus === 'running' ? 'Добавить выбранное' : 'Установить выбранное') }}</button>
             <button class="secondary" :disabled="queueStatus === 'cancelling' || !librarySummary.readyDlc" @click="installDlc()">{{ t(queueStatus === 'running' ? 'Добавить DLC' : 'Все DLC') }}</button>
             <button v-if="queueStatus === 'running'" class="danger" :disabled="isCancelling" @click="cancelInstallation">{{ t(isCancelling ? 'Отменяем…' : 'Отменить установку') }}</button>
@@ -489,85 +518,34 @@ onMounted(() => { void restoreInstallationMethod().then(restorePsIp).then((resto
             <button class="primary" :disabled="queueStatus === 'cancelling' || !anyReady" @click="installItems([], { scope: 'all' })">{{ t(queueStatus === 'running' ? 'Добавить всё' : 'Установить всё') }}</button>
           </div>
         </div>
-        <div class="library-tools">
-          <form class="library-search" @submit.prevent="searchLibrary">
-            <label class="library-search-label" for="library-search">{{ t('Поиск по библиотеке') }}</label>
-            <div class="library-search-input">
-              <span aria-hidden="true">⌕</span>
-              <input id="library-search" v-model="libraryQuery" type="search" :placeholder="t('Название, CUSA, Content ID или имя файла')" maxlength="256">
-              <button v-if="libraryQuery" type="button" class="tiny" @click="libraryQuery = ''; searchLibrary()">{{ t('Сбросить') }}</button>
-              <button type="submit" class="secondary">{{ t('Найти') }}</button>
-            </div>
-            <small>{{ t('Поиск по всем пакетам библиотеки') }} · {{ t(totalSize) }}</small>
-          </form>
-          <div v-if="selectedItems.length" class="library-selection">
-            <span>{{ t('Выбор сохранён между страницами') }}</span>
-            <button type="button" class="tiny" @click="clearSelection">{{ t('Снять выбор') }}</button>
-          </div>
-        </div>
         <LibraryPagination :page="libraryPage" :pages="libraryPages" :page-size="libraryPageSize" :total="libraryTotal" :busy="libraryBusy" @page="changeLibraryPage" @size="changeLibraryPageSize" />
+        <div class="library-scroll" tabindex="0" :aria-label="t('Список игр библиотеки')">
         <p v-if="libraryError" class="library-error" role="alert">{{ t(libraryError) }} <button class="tiny" @click="loadLibraryPage()">{{ t('Повторить') }}</button></p>
-        <p v-if="libraryBusy" class="library-loading" role="status">{{ t('Загружаем страницу библиотеки…') }}</p>
-        <p v-else-if="!groups.length && !libraryError" class="empty">{{ t(appliedLibraryQuery ? 'В библиотеке ничего не найдено. Измените запрос.' : 'Выберите файлы или папку. Для пути на ПК можно использовать «Сканировать путь» ниже.') }}</p>
-        <article v-for="group in groups" :key="group.id" class="game-group">
-          <div class="game-head">
-            <button class="expand" @click="toggleGroup(group.id)"><span :class="{ open: isOpen(group.id) }">›</span></button>
-            <div class="game-cover"><img v-if="group.cover" :src="group.cover" alt="" loading="lazy" decoding="async"><span v-else>{{ group.title.charAt(0) }}</span></div>
-            <button class="game-name" @click="toggleGroup(group.id)">
-              <strong>{{ group.title }}</strong>
-              <span>{{ t(group.id) }} · {{ t(group.items.length) }}<template v-if="group.total > group.items.length">{{ ` ${t("из")} ${t(group.total)}` }}</template> {{ t("пак.") }}<template v-if="group.total > group.items.length"> · {{ t("на странице") }}</template></span>
-              <span v-if="groupQueueCurrent(group)" class="group-current">{{ t("Сейчас:") }} {{ t(groupQueueCurrent(group)?.type) }} · {{ groupQueueCurrent(group)?.title }} · {{ t(groupQueueCurrent(group)?.detail) }}</span>
+        <p v-if="!libraryBusy && !groups.length && !libraryError" class="empty">{{ t(appliedLibraryQuery ? 'В библиотеке ничего не найдено. Измените запрос.' : 'Выберите файлы или папку. Для пути на ПК можно использовать «Сканировать путь» ниже.') }}</p>
+        <GameTreeBranch v-for="group in groups" :key="group.id" :title="group.title" :title-id="group.id" :cover="group.cover" :count="group.items.length" :total="group.total" :open="isOpen(group.id)" @toggle="toggleGroup(group.id)"><template #summary>              <span v-if="groupQueueCurrent(group)" class="group-current">{{ t("Сейчас:") }} {{ t(groupQueueCurrent(group)?.type) }} · {{ groupQueueCurrent(group)?.title }} · {{ t(groupQueueCurrent(group)?.detail) }}</span>
               <span v-if="groupQueuePending(group).length" class="group-pending">{{ t("В очереди:") }} {{ t(pendingSummary(groupQueuePending(group))) }}</span>
               <span v-if="groupQueueSkipped(group).length" class="group-skipped">{{ t("Пропущено:") }} {{ t(groupQueueSkipped(group).length) }} · {{ t(groupQueueSkipped(group)[0]?.detail) }}</span>
-            </button>
-            <div class="group-actions">
-              <label class="select-all"><input type="checkbox" :checked="group.items.every((item) => isSelected(item.rowId))" @change="setGroupSelected(group, ($event.target as HTMLInputElement).checked)"> {{ t("На странице") }}</label>
+</template><template #actions>              <label class="select-all"><input type="checkbox" :aria-label="t(`Выбрать ${group.title}`)" :checked="group.items.every((item) => isSelected(item.rowId))" @change="setGroupSelected(group, ($event.target as HTMLInputElement).checked)"></label>
               <button class="tiny" :disabled="queueStatus === 'cancelling' || !group.readyDlc" @click="installDlc(group)">DLC</button>
               <button class="tiny" :disabled="isSending" @click="reindexBranch(group)">{{ t("Переиндекс.") }}</button>
               <button class="tiny" :disabled="isSending" @click="removeBranch(group)">{{ t("Удалить ветку") }}</button>
-            </div>
-          </div>
-          <div v-if="isOpen(group.id)" class="package-list">
-            <div v-for="item in group.items" :key="item.rowId" class="package-row">
-              <input type="checkbox" :checked="isSelected(item.rowId)" @change="toggleSelected(item.rowId)">
-              <div class="cover"><img v-if="item.iconUrl" :src="item.iconUrl" alt="" loading="lazy" decoding="async"><span v-else>{{ t(item.type === 'Игра' ? item.title.charAt(0) : item.type) }}</span></div>
-              <div class="package-name">
-                <strong>{{ item.title }}</strong>
-                <div v-if="item.state === 'receiving' || item.state === 'installing' || item.state === 'delivered'" class="progress"><i :style="{ width: `${Math.min(100, item.bytesSent / item.size * 100)}%` }" /></div>
-              </div>
-              <div class="package-type-wrap">
-                <button type="button" class="type" :class="typeClass(item.type)" :aria-label="t(`Сведения о PKG: ${item.title}`)" :aria-describedby="`pkg-meta-${item.rowId}`" @mouseenter="placePackageTooltip($event, item.rowId)" @focus="placePackageTooltip($event, item.rowId)">{{ t(item.type) }}</button>
-                <div :id="`pkg-meta-${item.rowId}`" class="package-metadata-popover" :style="tooltipPositions[item.rowId]" role="tooltip">
-                  <strong>{{ t("Сведения о пакете") }}</strong>
-                  <dl>
-                    <dt>{{ t("Файл") }}</dt><dd>{{ item.fileName }}</dd>
-                    <dt>{{ t("Игра") }}</dt><dd>{{ item.titleId }}</dd>
-                    <dt>Content ID</dt><dd>{{ item.contentId }}</dd>
-                    <template v-if="item.appVersion"><dt>{{ t("Версия") }}</dt><dd>{{ t(item.appVersion) }}</dd></template>
-                    <template v-if="item.masterVersion"><dt>{{ t("Исходная версия") }}</dt><dd>{{ t(item.masterVersion) }}</dd></template>
-                    <template v-if="item.requiredFirmware"><dt>{{ t("Прошивка PKG") }}</dt><dd>{{ t(item.requiredFirmware) }}</dd></template>
-                    <template v-if="item.sdkFirmware"><dt>{{ t("Версия SDK") }}</dt><dd>{{ t(item.sdkFirmware) }}</dd></template>
-                    <dt>{{ t("Тип PKG") }}</dt><dd>{{ t(item.packageVolume === 'application' ? 'Игра' : item.packageVolume === 'patch' ? 'Патч' : item.packageVolume === 'add-on' ? 'DLC' : item.contentType || 'Неизвестен') }}</dd>
-                    <dt>{{ t("Категория") }}</dt><dd>{{ t(item.contentType) }}</dd>
-                    <dt>{{ t("Размер") }}</dt><dd>{{ t(formatBytes(item.size)) }}</dd>
-                    <template v-if="item.libraryRoot"><dt>{{ t("Папка") }}</dt><dd>{{ item.libraryRoot }}</dd></template>
-                    <template v-if="item.packageDigest"><dt>{{ t("Отпечаток PKG") }}</dt><dd>{{ item.packageDigest }}</dd></template>
-                  </dl>
-                </div>
-              </div>
-              <span class="size">{{ t(formatBytes(item.size)) }}</span>
-              <span class="state" :class="item.state">{{ t(item.detail) }}</span>
-              <div class="package-actions">
-                <button class="tiny install-one" :disabled="queueStatus === 'cancelling' || item.state !== 'ready'" @click="installOne(item)">{{ t(queueStatus === 'running' ? 'В очередь' : 'Установить') }}</button>
+</template><PackageTreeRow v-for="item in group.items" :key="item.rowId" :item="item" :checked="isSelected(item.rowId)" :progress="['receiving','installing','delivered'].includes(item.state) ? Math.min(100,item.bytesSent / item.size * 100) : undefined" @select="toggleSelected(item.rowId)"><template #actions>                <button class="tiny install-one" :disabled="queueStatus === 'cancelling' || item.state !== 'ready'" @click="installOne(item)">{{ t(queueStatus === 'running' ? 'В очередь' : 'Установить') }}</button>
                 <button v-if="item.contentType === 'PS4GD'" class="tiny" :disabled="isSending" @click="reinstallTarget = item">{{ t("Переустановить") }}</button>
                 <button class="tiny mark" :class="{ reset: item.state !== 'ready' }" :disabled="isSending && item.state !== 'ready' && item.state !== 'installed' && item.state !== 'delivered' && item.state !== 'failed'" :title="t(item.state === 'ready' ? 'Отметить как уже установленный' : 'Сбросить статус, чтобы установить заново')" @click="toggleInstalled(item)">{{ t(item.state === 'ready' ? 'Установлено' : 'Сбросить') }}</button>
                 <button class="remove" :title="t(&quot;Убрать из списка&quot;)" @click="removePackage(item)">×</button>
-              </div>
-            </div>
-          </div>
-        </article>
-        <LibraryPagination v-if="libraryTotal" :page="libraryPage" :pages="libraryPages" :page-size="libraryPageSize" :total="libraryTotal" :busy="libraryBusy" @page="changeLibraryPage" @size="changeLibraryPageSize" />
-      </section><section class="path-card"><div><strong>{{ t("Сканировать путь на ПК") }}</strong><p>{{ t("Альтернатива системному выбору папки. PKG никогда не копируются во временный кэш.") }}</p></div><button class="secondary" @click="scanServerFolder">{{ t("Указать путь") }}</button></section><p class="notice">{{ t("Статус «файл полностью передан» подтверждается по HTTP-раздаче пакета. PyLoader не возвращает финальный результат установки. PackageFlowService дополнительно сообщает состояние системного задания и подтверждение установки.") }}</p></section>
+</template></PackageTreeRow></GameTreeBranch>
+        </div>
+      </section>
+    </section>
+    <section v-show="activeSection === 'presets'" class="content tasks-content"><LibraryPresets :visible="activeSection === 'presets'" :ip="psIp" :transport="installationMethod" @changed="restoreInstallationQueue(); loadLibraryPage()" @library="activeSection = 'library'" /></section>
+      <section v-show="activeSection === 'tasks'" class="content tasks-content"><InstallationTasks :visible="activeSection === 'tasks'" :torrents="torrents" :maintenance="maintenanceFlow" :queue-status="queueStatus" :cancelling="isCancelling" @changed="restoreInstallationQueue" @torrent="taskTorrentAction" @stop="cancelInstallation" @resolve="resolveCancellation" /></section>
+    <section v-show="activeSection === 'settings'" class="content tool-page settings-content">
+      <p class="eyebrow">PackageFlow</p><h1>{{ t('Настройки') }}</h1>
+      <section class="settings-card"><h2>{{ t('Подключение к PS4') }}</h2><form class="settings-connection" @submit.prevent="connect"><label>{{ t('IP приставки') }}<input v-model="psIp" inputmode="decimal" :disabled="isSending" placeholder="192.168.1.10"></label><button class="primary" :disabled="isSending">{{ t('Сохранить и проверить') }}</button><span :class="{ ready: installationConnected }">{{ t(installationConnected ? 'PS4 подключена' : 'PS4 не подключена') }}</span></form><p class="page-status">{{ t(statusMessage) }}</p></section>
+      <h2 class="settings-pairing-title">{{ t('Способ установки и сопряжение') }}</h2><InstallationMethod :model-value="installationMethod" :ip="psIp" :disabled="isSending" @update:model-value="selectInstallationMethod" @status="serviceConnected = $event" />
+      <section class="settings-card"><h2>{{ t('Папка библиотеки') }}</h2><p>{{ t('Пакеты автоматически объединяются по CUSA. Исходные файлы остаются в выбранной папке.') }}</p><div class="actions"><button class="primary" @click="chooseFolder">{{ t('Выбрать папку') }}</button><button class="secondary" @click="scanServerFolder">{{ t('Сканировать путь на ПК') }}</button></div></section>
+      <section class="settings-card"><h2>{{ t('Другие подключения') }}</h2><div class="actions"><button class="secondary" @click="activeSection = 'torrents'; if (!showTorrentSettings) toggleTorrentSettings()">qBittorrent</button><button class="secondary" @click="activeSection = 'search'; showSearchSettings = true">Torznab</button></div><p>{{ t('Статус «файл полностью передан» подтверждается по HTTP-раздаче пакета. PyLoader не возвращает финальный результат установки. PackageFlowService дополнительно сообщает состояние системного задания и подтверждение установки.') }}</p></section>
+    </section>
     <section v-show="activeSection === 'torrents'" class="content tool-page"><p class="eyebrow">QBITTORRENT</p><h1>{{ t("Загрузки torrent") }}</h1><p class="page-status">{{ t(statusMessage) }}</p><section class="torrent-card"><div class="torrent-head"><div><h2>{{ t("Загрузки torrent") }}</h2><p>{{ t(qbit.ready ? `qBittorrent подключён${qbit.version ? ` · ${qbit.version}` : ''}` : 'Подключите qBittorrent Web UI (на этом ПК или в локальной сети), чтобы добавить разрешённую magnet- или .torrent-ссылку.') }}</p></div><div class="actions"><button class="secondary" @click="refreshTorrents">{{ t("Обновить") }}</button><button class="secondary" @click="toggleTorrentSettings">{{ t("Настроить") }}</button></div></div><form v-if="showTorrentSettings" class="torrent-settings" @submit.prevent="saveTorrentSettings"><label class="wide"><span>{{ t("Адрес qBittorrent Web UI — этот ПК, NAS или другой компьютер в сети") }}</span><input v-model="torrentSettings.baseUrl" placeholder="http://192.168.1.10:8080"></label><label><span>{{ t("Логин") }}</span><input v-model="torrentSettings.username" placeholder="admin" autocomplete="username"></label><label><span>{{ t("Пароль") }}</span><input v-model="torrentSettings.password" type="password" :placeholder="t(qbit.hasPassword ? 'пусто — оставить сохранённый' : '')" autocomplete="current-password"></label><label><span>{{ t("Папка загрузок на этом ПК — отсюда PackageFlow берёт PKG") }}</span><input v-model="torrentSettings.downloadPath" :placeholder="t(&quot;D:\\Torrents или /home/user/Downloads&quot;)"></label><label><span>{{ t("Та же папка в qBittorrent — если он на другом компьютере (необязательно)") }}</span><input v-model="torrentSettings.remotePath" placeholder="/downloads"></label><div class="wide"><button class="primary">{{ t("Сохранить и проверить") }}</button></div></form><form class="torrent-add" @submit.prevent="addTorrent"><input v-model="torrentSource" :disabled="!qbit.ready" :placeholder="t(&quot;Вставьте разрешённую magnet- или HTTPS .torrent-ссылку&quot;)"><label class="torrent-auto"><input v-model="installAfterDownload" type="checkbox" :disabled="!qbit.ready"> {{ t("Установить после загрузки") }}</label><button class="primary" :disabled="!qbit.ready || !torrentSource.trim()">{{ t("Скачать") }}</button></form><p v-if="!torrents.length && qbit.ready" class="empty">{{ t("Нет torrent-задач PackageFlow.") }}</p><div v-for="torrent in torrents" :key="torrent.hash" class="torrent-row"><div class="torrent-name"><strong>{{ torrent.name }}</strong><span>{{ t(formatBytes(torrent.downloaded)) }} {{ t("из") }} {{ t(formatBytes(torrent.size)) }} · {{ t(torrent.seeds) }} {{ t("сидов ·") }} {{ t(formatBytes(torrent.speed)) }}{{ t("/с") }}</span><div class="progress"><i :style="{ width: `${Math.round(torrent.progress * 100)}%` }" /></div></div><span class="torrent-percent">{{ t(Math.round(torrent.progress * 100)) }}%</span><label class="torrent-auto"><input type="checkbox" :checked="torrent.autoInstall" @change="setTorrentAutoInstall(torrent, ($event.target as HTMLInputElement).checked)"> {{ t("Автоустановка") }}</label><button class="tiny" @click="toggleTorrentFiles(torrent)">{{ t(torrentFiles[torrent.hash] ? 'Скрыть файлы' : 'Файлы') }}</button><button class="tiny" @click="controlTorrent(torrent, isTorrentStopped(torrent) ? 'resume' : 'pause')">{{ t(isTorrentStopped(torrent) ? 'Продолжить' : 'Пауза') }}</button><button class="remove" :title="t(&quot;Убрать задачу, не удаляя файлы&quot;)" @click="controlTorrent(torrent, 'delete')">×</button><div v-if="torrentFiles[torrent.hash]" class="torrent-files"><label v-for="file in torrentFiles[torrent.hash]" :key="file.index"><input type="checkbox" :checked="file.priority > 0" @change="setTorrentFile(torrent, file, ($event.target as HTMLInputElement).checked)"><span>{{ file.name }}</span><small>{{ t(formatBytes(file.size)) }} · {{ t(Math.round(file.progress * 100)) }}%</small></label></div></div></section></section><section v-show="activeSection === 'search'" class="content tool-page"><p class="eyebrow">TORZNAB</p><h1>{{ t("Поиск torrent") }}</h1><p class="page-status">{{ t(searchStatus) }}</p><section class="search-card"><div class="search-head"><div><p class="eyebrow">{{ t("РАЗРЕШЁННЫЙ ИСТОЧНИК") }}</p><h2>{{ t("Поиск torrent") }}</h2></div><button class="secondary" @click="showSearchSettings = !showSearchSettings">{{ t("Источник") }}</button></div><form v-if="showSearchSettings" class="search-settings" @submit.prevent="saveSearchSettings"><input v-model="searchSettings.name" :placeholder="t(&quot;Название источника&quot;)"><input v-model="searchSettings.endpoint" placeholder="URL Torznab API"><input v-model="searchSettings.apiKey" type="password" :placeholder="t(searchHasApiKey ? 'API‑ключ сохранён — пусто, чтобы оставить' : 'API‑ключ (если нужен)')"><input v-model="searchSettings.categories" :placeholder="t('Категории: 1180 (PS4)')" :title="t('Категории Torznab: номера через запятую, пусто — все')"><button class="primary">{{ t("Сохранить") }}</button></form><p v-if="showSearchSettings" class="search-note">{{ t("1180 — игры PS4. Пустое поле категорий — поиск по всем платформам.") }}</p><form class="search-form" @submit.prevent="searchTorrents"><input v-model="searchQuery" :disabled="!searchConfigured" :placeholder="t(&quot;Название пакета&quot;)"><button class="primary" :disabled="!searchConfigured || !searchQuery.trim() || searchBusy">{{ t(searchBusy ? 'Ищем…' : 'Найти') }}</button></form><p v-if="!searchConfigured" class="search-note">{{ t("Добавьте разрешённый Torznab‑источник через кнопку «Источник».") }}</p><SearchResults :results="searchResults" :busy="searchBusy" :loading-more="searchLoadingMore" :has-more="searchHasMore" :total="searchTotal" :ready="qbit.ready" :pending="searchDownloadPending" :message="searchDownloadMessage" :visible="activeSection === 'search'" :searched="searchWasRun" @download="downloadSearchResult" @load-more="loadMoreSearch" /></section></section><section v-show="activeSection === 'log'" class="content tool-page"><p class="eyebrow">{{ t("СОБЫТИЯ СЕРВЕРА") }}</p><h1>{{ t("Журнал") }}</h1><section class="log-card"><div class="log-head"><h2>{{ t("Журнал") }}</h2><p>{{ t("События сервера: запросы PS4, передача пакетов, qBittorrent и ошибки.") }}</p><button class="tiny" :disabled="!logEntries.length" @click="clearLog">{{ t("Очистить") }}</button></div><div ref="logBox" class="log-list"><p v-if="!logEntries.length" class="log-empty">{{ t("Пока событий нет.") }}</p><div v-for="entry in logEntries" :key="entry.id" class="log-line" :class="entry.level"><time>{{ t(logTime(entry.time)) }}</time><span>{{ t(entry.text) }}</span><b v-if="entry.count > 1">×{{ t(entry.count) }}</b></div></div></section></section>
     <section v-if="activeSection === 'donate' && hasDonations" class="content tool-page"><DonatePanel :btc="donationBtc" :usdt-trc20="donationUsdtTrc20" /></section><section v-if="activeSection === 'ftp'" class="content tool-page"><ConsoleFiles :ps-ip="psIp" /></section>
     <section v-if="activeSection === 'console'" class="content tool-page"><ConsoleApps :ip="psIp" @status="consoleConnected = $event" @changed="refreshConsoleLibrary" @saves="openSaves" /></section>
@@ -588,7 +566,9 @@ onMounted(() => { void restoreInstallationMethod().then(restorePsIp).then((resto
 .library-search-input input:focus { outline: 2px solid #8d70d4; outline-offset: 1px; }
 .library-search small, .library-selection { color: #a39ab3; font-size: 11px; }
 .library-selection { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
-.library-loading, .library-error { padding: 10px 20px; margin: 0; color: #bda5f3; font-size: 12px; }
+.library-search-status { display: flex; flex-wrap: wrap; gap: 8px 16px; min-height: 16px; }
+.library-loading { min-width: 235px; color: #bda5f3; }
+.library-error { padding: 10px 20px; margin: 0; color: #bda5f3; font-size: 12px; }
 .library-error { color: #ffa5ac; }
 .library .empty { padding: 24px 20px; }
 
@@ -676,4 +656,64 @@ onMounted(() => { void restoreInstallationMethod().then(restorePsIp).then((resto
 .files-page .more{margin:14px 16px}
 .files-page .hint{margin-top:14px}
 @media(max-width:720px){.files-page .toolbar{align-items:flex-start;flex-direction:column}.files-page .heading{display:none}.files-page .row{grid-template-columns:minmax(0,1fr) auto}.files-page .row span:nth-child(3){display:none}}
+
+/* Keep library controls outside the only scrolling list. */
+.shell > .library-content { height: calc(100dvh - 72px); min-height: 0; padding-top: 12px; padding-bottom: 12px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+.library-content > * { flex-shrink: 0; }
+.library-content .installation-method { margin: 0; padding: 9px 14px; }
+.library-content .installation-method .method-row { align-items: center; gap: 8px; }
+.library-content .installation-method label { flex-direction: row; align-items: center; font-size: 11px; }
+.library-content .installation-method select, .library-content .installation-method input { padding: 6px 8px; min-width: 210px; }
+.library-content .installation-method button { padding: 6px 10px; }
+.library-content .installation-method p { display: inline-block; margin: 5px 12px 0 0; font-size: 10px; }
+.library-content .intro { margin: 0; gap: 12px; }
+.library-content .intro .eyebrow { display: none; }
+.library-content .intro h1 { font-size: 22px; }
+.library-content .intro p:not(.eyebrow) { font-size: 10px; margin-top: 3px; }
+.library-content .stats { margin: 0; }
+.library-content .stats article { min-height: 0; padding: 8px 12px; }
+.library-content .stats strong { font-size: 17px; margin-top: 3px; }
+.library-content .stats small { margin-top: 2px; }
+.library-content > .library { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; margin: 0; }
+.library-content .library-tools { flex-shrink: 0; padding: 10px 16px; }
+.library-content .library-search { gap: 5px; }
+.library-content .library-search-input input { padding: 8px 11px; }
+.library-content .library-head { flex-shrink: 0; padding: 10px 16px; }
+.library-content .library-head .actions { gap: 6px; }
+.library-content .library-head .actions button { padding: 7px 10px; }
+.library-content .library-selection { margin-top: 5px; }
+.library-content .library-pagination { flex-shrink: 0; padding: 8px 16px; }
+.library-scroll { flex: 1 1 0; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #8266c4 #17131f; }
+.library-scroll:focus-visible { outline: 2px solid #8d70d4; outline-offset: -2px; }
+.library-content .path-card { margin: 0; padding: 6px 12px; }
+.library-content .path-card p { margin: 2px 0 0; font-size: 10px; }
+.library-content .path-card strong { font-size: 11px; }
+.library-content .path-card button { padding: 6px 10px; }
+.library-content .notice { margin: 0; font-size: 9px; line-height: 1.4; }
+@media (max-height: 780px) {
+ .shell > .library-content { gap: 6px; padding-top: 8px; padding-bottom: 8px; }
+ .library-content .stats article { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 1px 8px; padding: 5px 10px; }
+ .library-content .stats strong { margin: 0; text-align: right; }
+ .library-content .stats small { grid-column: 1 / -1; }
+}
+
+
+/* Library workspace: compact controls, all remaining height belongs to packages. */
+.shell > .library-content { max-width: none; width: 100%; margin: 0; padding: 12px 18px 12px 214px; gap: 8px; position: relative; }
+.library-overview { display: flex; align-items: center; gap: 16px; min-height: 34px; font-size: 11px; color: #a9a1b9; }
+.library-overview h1 { margin: 0; color: #ece7f5; font-size: 21px; }
+.library-overview > .tiny { margin-left: auto; }.selection-count { color: #c7b5ef; white-space: nowrap; }
+.transfer-summary { padding: 5px 8px; border: 1px solid #454052; border-radius: 7px; background: #282332; color: #a9d9b9; font-size: 11px; white-space: nowrap; }
+.transferred-list { position: absolute; top: 55px; right: 18px; z-index: 6; max-width: min(650px,80%); padding: 14px; border: 1px solid #6e5b86; border-radius: 10px; background: #272030; box-shadow: 0 15px 40px #0008; }
+.transferred-list > div { display: flex; align-items: center; justify-content: space-between; gap: 15px; font-size: 12px; }.transferred-list ul { max-height: 28vh; overflow: auto; padding-left: 20px; color: #c9bdd7; font-size: 11px; line-height: 1.8; overflow-wrap: anywhere; }
+.library-content .library-search-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.library-content .library-tools { border-top: 0; padding: 9px 12px; }.library-content .library-selection { position: absolute; right: 130px; top: 13px; margin: 0; }.library-content .library-selection > span { display: none; }
+.library-content .library-head { padding: 7px 12px; gap: 12px; }.library-status { display: flex; flex: 1; align-items: center; min-width: 0; gap: 10px; }.library-status p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }.library-status .tiny { white-space: nowrap; }
+.library-content .library-pagination { padding: 6px 12px; }.library-content .game-head { grid-template-columns: 26px 32px minmax(180px,1fr) auto; gap: 9px; padding: 7px 12px; }.library-content .game-cover { width: 32px; height: 40px; }.library-content .package-row { min-height: 54px; padding: 7px 12px 7px 24px; gap: 9px; }.library-content .cover { width: 32px; height: 38px; flex-basis: 32px; }
+.brand.with-job { flex-direction: column; gap: 0; }.brand.with-job .brand-logo { height: 43px; }.global-job { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0; border: 0; background: transparent; color: #c9b9ec; font-size: 9px; }.global-job span { color: #87d2aa; }
+.shell > .tasks-content { max-width: none; height: calc(100dvh - 72px); min-height: 0; padding: 18px 18px 14px 214px; }
+.settings-pairing-title { margin: 22px 0 -4px; font-size: 16px; }.settings-card { margin-top: 18px; padding: 20px; border: 1px solid #383041; border-radius: 12px; background: #1e1b25; }.settings-card h2 { margin: 0 0 14px; font-size: 16px; }.settings-card p { color: #a498b0; font-size: 12px; line-height: 1.6; }.settings-connection { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }.settings-connection label { display: grid; gap: 6px; color: #ad9dc1; font-size: 12px; }.settings-connection input { border: 1px solid #534660; border-radius: 8px; background: #16121d; padding: 10px; color: #ede3fc; }.settings-connection > span { color: #d68d88; font-size: 12px; padding-bottom: 9px; }.settings-connection > span.ready { color: #8fd2ae; }
+@media (max-width: 1100px) { .shell > .library-content,.shell > .tasks-content { padding-left: 78px; }.library-overview { gap: 9px; font-size: 10px; }.library-overview h1 { font-size: 18px; }.library-content .library-selection { right: 130px; }.sidebar { overflow-y: auto; }.settings-card .actions .secondary,.library-head .actions .secondary { display: inline-flex; }.library-head .library-status { flex: 0 1 130px; }.library-head .actions { flex-wrap: wrap; } }
+/* Common page notifications retain the original library font and colour. */
+.pf-notice{margin:0 0 4px;color:#85838b!important;font-family:Manrope,Arial,sans-serif!important;font-size:11px!important;line-height:1.5;min-height:16px}
 </style>

@@ -14,7 +14,7 @@ const range = computed(() => `${props.total ? (props.page - 1) * props.pageSize 
 
 <template>
   <nav class="library-pagination" :aria-label="t('Страницы библиотеки')">
-    <span class="page-range">{{ range }} {{ t('из') }} {{ total }} {{ t('пакетов') }}</span>
+    <span class="page-range">{{ range }} {{ t('из') }} {{ total }} {{ t('игр') }}</span>
     <label class="page-size">{{ t('На странице') }}
       <select :value="pageSize" :disabled="busy" @change="emit('size', Number(($event.target as HTMLSelectElement).value))">
         <option :value="25">25</option><option :value="50">50</option><option :value="100">100</option>

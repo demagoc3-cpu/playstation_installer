@@ -2,24 +2,20 @@
 const { t } = useAppLocale()
 
 const props = defineProps<{ ip: string; pkg: { id: string; title: string; url: string } | null }>()
-const emit = defineEmits<{ close: []; changed: [] }>()
+const emit = defineEmits<{ close: []; changed: []; progress: [flow: any] }>()
 const plan = ref<any>(); const flow = ref<any>(); const typed = ref(''); const message = ref(''); const busy = ref(false)
-const dismissedFlow = ref('')
 let generation = 0; let timer: ReturnType<typeof setInterval> | undefined; let completed = ''
-function dismissalKey() { return `packageflow:reinstall-dismissed:${props.ip}` }
-function restoreDismissal() { try { dismissedFlow.value = localStorage.getItem(dismissalKey()) || '' } catch { dismissedFlow.value = '' } }
-function dismissFlow() { if (!flow.value || !['completed', 'failed'].includes(flow.value.state)) return; dismissedFlow.value = flow.value.id; try { localStorage.setItem(dismissalKey(), flow.value.id) } catch { /* The current tab still hides this result. */ } }
 function error(e: any) { return e?.data?.message || e?.message || 'Нет ответа от PS4' }
-async function poll() { const id = generation; try { const value = await $fetch<any>('/api/ps4/maintenance', { query: { ip: props.ip } }); if (id !== generation) return; flow.value = value?.kind === 'reinstall' ? value : null; if (flow.value?.state === 'completed' && completed !== flow.value.id) { completed = flow.value.id; emit('changed') } } catch (e) { if (id === generation && flow.value) message.value = error(e) } }
+async function poll() { const id = generation; try { const value = await $fetch<any>('/api/ps4/maintenance', { query: { ip: props.ip } }); if (id !== generation) return; flow.value = value?.kind === 'reinstall' ? value : null; emit('progress', flow.value); if (flow.value?.state === 'completed' && completed !== flow.value.id) { completed = flow.value.id; emit('changed') } } catch (e) { if (id === generation && flow.value) message.value = error(e) } }
 async function prepare() { const pkg = props.pkg; const id = ++generation; typed.value = ''; message.value = ''; plan.value = undefined; if (!pkg) return; busy.value = true; try { const p = await $fetch('/api/ps4/reinstall', { query: { ip: props.ip, packageId: pkg.id } }); if (id === generation) plan.value = p } catch (e) { if (id === generation) message.value = error(e) } finally { if (id === generation) busy.value = false } }
-async function start() { if (!plan.value || !props.pkg || typed.value !== plan.value.details.app.titleId) return; const id = generation; busy.value = true; try { const f = await $fetch('/api/ps4/reinstall', { method: 'POST', body: { ip: props.ip, packageId: props.pkg.id, url: props.pkg.url, confirmTitleId: typed.value, revision: plan.value.details.revision } }); if (id === generation) { flow.value = f; emit('close') } } catch (e) { if (id === generation) { message.value = error(e); await poll() } } finally { if (id === generation) busy.value = false } }
+async function start() { if (!plan.value || !props.pkg || typed.value !== plan.value.details.app.titleId) return; const id = generation; busy.value = true; try { const f = await $fetch('/api/ps4/reinstall', { method: 'POST', body: { ip: props.ip, packageId: props.pkg.id, url: props.pkg.url, confirmTitleId: typed.value, revision: plan.value.details.revision } }); if (id === generation) { flow.value = f; emit('progress', f); emit('close') } } catch (e) { if (id === generation) { message.value = error(e); await poll() } } finally { if (id === generation) busy.value = false } }
 watch(() => [props.pkg?.id, props.ip], () => void prepare())
-watch(() => props.ip, () => { flow.value = undefined; restoreDismissal(); void poll() })
-onMounted(() => { restoreDismissal(); void poll(); timer = setInterval(() => { if (flow.value && !['completed', 'failed'].includes(flow.value.state)) void poll() }, 2500) })
+watch(() => props.ip, () => { flow.value = undefined; emit('progress', null); void poll() })
+onMounted(() => { void poll(); timer = setInterval(() => { if (flow.value && !['completed', 'failed'].includes(flow.value.state)) void poll() }, 2500) })
 onBeforeUnmount(() => { generation++; clearInterval(timer) })
 </script>
 <template>
-  <section v-if="flow && flow.id !== dismissedFlow" class="reinstall-progress" aria-live="polite"><div class="progress-heading"><strong>{{ t(flow.state === 'completed' ? 'Переустановка подтверждена PS4' : flow.state === 'failed' ? 'Переустановка остановлена' : `Переустановка: ${flow.title}`) }}</strong><button v-if="['completed', 'failed'].includes(flow.state)" class="dismiss" type="button" :aria-label="t(&quot;Скрыть уведомление о переустановке&quot;)" @click="dismissFlow">×</button></div><p>{{ t(flow.message) }}</p><button v-if="!['completed', 'failed'].includes(flow.state)" @click="poll">{{ t("Проверить результат") }}</button></section>
+
   <div v-if="pkg" class="backdrop"><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="reinstall-title"><h2 id="reinstall-title">{{ t("Переустановить «") }}{{ pkg.title }}»?</h2><p v-if="busy">{{ t("Читаем состав игры на PS4…") }}</p><p v-if="message" role="alert">{{ t(message) }}</p><template v-if="plan"><p>{{ t("PS4 сначала удалит игру и перечисленные дополнения. Затем установит выбранный базовый PKG из библиотеки. Сохранения остаются. Патчи, бэкпорты и DLC потребуется установить заново.") }}</p><ul><li v-for="c in plan.details.components" :key="`${c.kind}/${c.id}`">{{ t(c.kind === 'base' ? 'Игра' : c.kind === 'patch' ? 'Патч / бэкпорт' : 'DLC') }} — {{ c.title }}</li></ul><p>{{ t("Перед переустановкой остановите игру в «На консоли».") }}</p><label>{{ t("Введите") }} {{ plan.details.app.titleId }} {{ t("для подтверждения") }}<input v-model="typed" autocomplete="off" spellcheck="false"></label></template><div class="actions"><button :disabled="busy" @click="emit('close')">{{ t("Отмена") }}</button><button class="danger" :disabled="busy || !plan || typed !== plan.details.app.titleId" @click="start">{{ t("Удалить и переустановить") }}</button></div></section></div>
 </template>
 <style scoped>

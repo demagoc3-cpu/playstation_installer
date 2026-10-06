@@ -1,4 +1,7 @@
 import type { LocalPackage } from './package-library'
+import { librarySearchTokens, matchesLibrarySearch } from '../../shared/library-pagination.ts'
+
+export interface ConsoleCatalogQuery { offset?: unknown; limit?: unknown; q?: unknown; favoriteIds?: unknown }
 
 /** Compact display label; the exact source filename remains available separately. */
 export function consolePackageLabel(item: LocalPackage, language: 'ru' | 'en' = 'ru') {
@@ -9,17 +12,32 @@ export function consolePackageLabel(item: LocalPackage, language: 'ru' | 'en' = 
   return `${labels[item.type] || item.type}${item.appVersion ? ` ${item.appVersion}` : ''}${variant}`
 }
 
-export function buildConsoleCatalog(packages: LocalPackage[], language: 'ru' | 'en' = 'ru') {
+export function buildConsoleCatalog(packages: LocalPackage[], language: 'ru' | 'en' = 'ru', query: ConsoleCatalogQuery = {}) {
   const groups = new Map<string, LocalPackage[]>()
   for (const pkg of packages) {
     const key = pkg.titleId || pkg.id
-    groups.set(key, [...(groups.get(key) || []), pkg])
+    const items = groups.get(key)
+    if (items) items.push(pkg)
+    else groups.set(key, [pkg])
   }
+  const tokens = librarySearchTokens(query.q)
+  const favorites = Array.isArray(query.favoriteIds)
+    ? new Set(query.favoriteIds.slice(0, 1024).filter((id): id is string => typeof id === 'string' && /^[\w.-]{1,39}$/.test(id))) : undefined
+  const collator = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' })
+  const baseOf = (items: LocalPackage[]) => items.find(item => item.type === 'Игра') || items[0]!
+  const filtered = [...groups.entries()].filter(([id, items]) => (!favorites || favorites.has(id)) && items.some(item => matchesLibrarySearch(item, tokens)))
+    .sort(([aid, a], [bid, b]) => collator.compare(baseOf(a).title, baseOf(b).title) || collator.compare(aid, bid))
+  const limit = Number.isSafeInteger(Number(query.limit)) && Number(query.limit) > 0 ? Math.min(30, Number(query.limit)) : 24
+  const requested = Number.isSafeInteger(Number(query.offset)) && Number(query.offset) >= 0 ? Number(query.offset) : 0
+  const offset = Math.min(Math.floor(requested / limit) * limit, Math.max(0, Math.ceil(filtered.length / limit) - 1) * limit)
+  const nextOffset = Math.min(offset + limit, filtered.length)
   return {
     schemaVersion: 1,
     mode: 'web-library',
     capabilities: { download: false, install: true, localTorrent: false },
-    games: [...groups.entries()].slice(0, 24).map(([id, items]) => {
+    offset, limit, total: filtered.length, nextOffset, hasMore: nextOffset < filtered.length,
+    totalPackages: packages.length,
+    games: filtered.slice(offset, offset + limit).map(([id, items]) => {
       items.sort((a, b) => a.installOrder - b.installOrder || a.fileName.localeCompare(b.fileName))
       const base = items.find(item => item.type === 'Игра') || items[0]!
       const cover = items.find(item => item.iconSize > 0)
