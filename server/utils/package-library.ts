@@ -249,8 +249,7 @@ async function writeCover(source: string, icon: PackageIcon, destination: string
   } finally { await sourceHandle.close(); await destinationHandle.close() }
 }
 
-async function walk(directory: string, root: string, cache: FolderCache, found: StoredPackage[], oldItems: Map<string, StoredPackage>, limit: number): Promise<void> {
-  if (found.length >= limit) return
+async function walk(directory: string, root: string, cache: FolderCache, found: StoredPackage[], oldItems: Map<string, StoredPackage>): Promise<void> {
   let entries
   try { entries = await readdir(directory, { withFileTypes: true }) } catch (error) {
     if (directory === root) throw createError({ statusCode: 403, message: `Нет доступа к содержимому папки ${root}. Проверьте права чтения и подключение папки к контейнеру.` })
@@ -258,9 +257,8 @@ async function walk(directory: string, root: string, cache: FolderCache, found: 
     return
   }
   for (const entry of entries) {
-    if (found.length >= limit) return
     const path = resolve(directory, entry.name)
-    if (entry.isDirectory()) { if (entry.name !== '.packageflow') await walk(path, root, cache, found, oldItems, limit); continue }
+    if (entry.isDirectory()) { if (entry.name !== '.packageflow') await walk(path, root, cache, found, oldItems); continue }
     if (!entry.isFile() || !/\.(pkg|fpkg)$/i.test(entry.name)) continue
     const info = await stat(path).catch(() => undefined)
     if (!info) continue
@@ -294,7 +292,7 @@ export async function scanPackageFolder(directory: string, onlyTitleId?: string)
   const siteLibrary = readLibrary()
   const oldItems = new Map(siteLibrary.packages.map((item) => [item.id, item]))
   const found: StoredPackage[] = []
-  await walk(root, root, cache, found, oldItems, 500)
+  await walk(root, root, cache, found, oldItems)
   writeJson(cachePath(root), cache)
   // Re-read after asynchronous scanning so concurrent install confirmations
   // are preserved. Replacing entries in place keeps canonical IDs stable.

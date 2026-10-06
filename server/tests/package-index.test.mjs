@@ -70,3 +70,37 @@ test('PKG index merges mount aliases and copies while retaining variants, stable
     assert.ok(readFileSync(duplicate).length, 'removing an indexed package never deletes its sources')
   } finally { process.chdir(cwd); rmSync(work, { recursive: true, force: true }) }
 })
+
+test('PKG scan indexes more than 500 packages across folders on fresh and cached scans', async () => {
+  const cwd = process.cwd(), work = mkdtempSync(join(tmpdir(), 'pf-large-index-'))
+  const root = join(work, 'games'), nested = join(root, 'updates', 'nested'), excluded = join(root, '.packageflow')
+  mkdirSync(nested, { recursive: true }); mkdirSync(excluded)
+  const names = []
+  for (let index = 0; index < 800; index++) {
+    const name = `game-${String(index).padStart(4, '0')}.${index < 600 ? 'pkg' : 'FPKG'}`
+    names.push(name)
+    writeFileSync(join(index < 600 ? root : nested, name), fixture('gd', '01.00', `large-${index}`))
+  }
+  writeFileSync(join(excluded, 'ignored.pkg'), fixture('gd', '01.00', 'ignored'))
+  writeFileSync(join(root, 'invalid.pkg'), 'Not a PKG')
+  const bundle = join(work, 'library.mjs')
+  await build({ entryPoints: [resolve(cwd, 'server/utils/package-library.ts')], outfile: bundle, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent' })
+  globalThis.createError = createError
+  process.chdir(work)
+  try {
+    const api = await import(pathToFileURL(bundle).href)
+    const first = await api.scanPackageFolder(root)
+    assert.deepEqual(first.packages.map(item => item.fileName).sort(), names.slice().sort())
+    assert.equal(api.getLibraryPackages().length, 800)
+    const sentinel = first.packages.find(item => item.fileName === names.at(-1))
+    api.markPackageInstalled(sentinel.id, true)
+    const installedAt = api.getPackage(sentinel.id).installedAt
+    writeFileSync(join(nested, 'new.pkg'), fixture('gd', '01.00', 'new-after-cache'))
+    const again = await api.scanPackageFolder(root)
+    assert.deepEqual(again.packages.map(item => item.fileName).sort(), [...names, 'new.pkg'].sort())
+    assert.equal(api.getLibraryPackages().length, 801)
+    const ids = new Map(again.packages.map(item => [item.fileName, item.id]))
+    for (const item of first.packages) assert.equal(ids.get(item.fileName), item.id)
+    assert.equal(api.getPackage(sentinel.id).installedAt, installedAt)
+  } finally { process.chdir(cwd); rmSync(work, { recursive: true, force: true }) }
+})
