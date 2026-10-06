@@ -259,6 +259,8 @@ internal sealed partial class MainForm : Form
     {
         if (error is ProwlarrRequestException requestError)
         {
+            if (requestError.TrackerCaptchaRequired)
+                return T("RuTracker просит ввести код с картинки. Это отдельная проверка входа, а не сообщение о неверном пароле. Нажмите «Войти вручную»: окно останется открытым до вашего подтверждения. После входа мастер отдельно проверит Prowlarr один раз. Если капча потребуется повторно, текущий индексатор Prowlarr не сможет передать ответ на неё — не повторяйте попытки подряд.", "RuTracker requires a login CAPTCHA, which does not necessarily mean the password is wrong. Click ‘Sign in manually’: the window stays open until you confirm. The wizard then tests Prowlarr once. If CAPTCHA is still required, the current Prowlarr indexer cannot submit its answer; avoid repeated retries.");
             if (requestError.StatusCode is 401 or 403)
                 return T("Prowlarr отклонил доступ. Проверьте API-ключ Prowlarr.", "Prowlarr denied access. Check the Prowlarr API key.");
             if (requestError.RequestPath.StartsWith("api/v1/indexerproxy"))
@@ -388,7 +390,8 @@ internal sealed partial class MainForm : Form
                     if (item.Name.Contains("rutracker", StringComparison.OrdinalIgnoreCase)) await client.AttachRuTrackerProxy(item.Id, tag, lifetime.Token);
                 await LoadIndexers();
             }),
-            (T("Открыть Prowlarr", "Open Prowlarr"), () => { ProcessRunner.Open(ProwlarrClient.ValidateAddress(prowlarrUrl.Text).ToString()); return Task.CompletedTask; }));
+            (T("Открыть Prowlarr", "Open Prowlarr"), () => { ProcessRunner.Open(ProwlarrClient.ValidateAddress(prowlarrUrl.Text).ToString()); return Task.CompletedTask; }),
+            (T("Войти вручную", "Sign in manually"), ManualTrackerLogin));
         trackerUser = Field(page, T("Логин RuTracker", "RuTracker username"), settings.TrackerUsername);
         trackerPassword = Field(page, T("Пароль RuTracker", "RuTracker password"), LocalSecrets.Read(settings.ProtectedTrackerPassword), secret: true);
         Buttons(page, (T("Добавить RuTracker и проверить", "Add and test RuTracker"), async () =>
@@ -396,7 +399,16 @@ internal sealed partial class MainForm : Form
             EnsureStarted();
             var client = Client();
             int id;
-            var tag = installFlare.Checked ? await SetupFlareSolverr(client) : (int?)null;
+            // Reuse the proxy prepared on first launch. Re-testing the proxy here
+            // opens unrelated challenge browsers before every login attempt.
+            var address = settings.Mode == "compose" && settings.ManagedProwlarr ? "http://flaresolverr:8191/" : "http://127.0.0.1:8191/";
+            int? tag = null;
+            if (installFlare.Checked)
+            {
+                tag = await client.ExistingFlareSolverrTag(address, lifetime.Token);
+                if (tag == null) tag = await SetupFlareSolverr(client);
+                else await host.InstallFlareSolverr(DownloadProgress("FlareSolverr"), lifetime.Token);
+            }
             Report(T("RuTracker: проверяем авторизацию и индексатор…", "RuTracker: checking authentication and indexer…"));
             id = await client.AddRuTracker(trackerUser.Text, trackerPassword.Text, lifetime.Token, tag);
             settings.TrackerUsername = trackerUser.Text.Trim();

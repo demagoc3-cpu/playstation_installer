@@ -183,6 +183,54 @@ try
     Check(!proxyError!.Message.Contains("secret-password") && !proxyError.Message.Contains("private-key"), "Proxy diagnostics leaked upstream secrets.");
     Check(!failedProxyCalls.Contains("POST /api/v1/indexerproxy"), "Failed proxy was saved.");
 
+    using var captchaHttp = new HttpClient(new MockHandler(request => Task.FromResult(new HttpResponseMessage(
+        request.Method == HttpMethod.Get ? HttpStatusCode.OK : HttpStatusCode.BadRequest) {
+        Content = new StringContent(request.Method == HttpMethod.Get ? "{\"id\":1,\"name\":\"RuTracker.org\"}" :
+            """[{"errorMessage":"Credentials appears to be invalid. Response: Введите код подтверждения (символы, изображенные на картинке)","attemptedValue":"private-password private-cookie private-key"}]""", Encoding.UTF8, "application/json")
+    })));
+    try { await new ProwlarrClient(captchaHttp, "http://127.0.0.1:9696", "private-key").TestIndexer(1, default); throw new Exception("CAPTCHA must fail the indexer test."); }
+    catch (ProwlarrRequestException error) {
+        Check(error.TrackerCaptchaRequired && !error.ToString().Contains("private-password") && !error.ToString().Contains("private-cookie") && !error.ToString().Contains("private-key"), "CAPTCHA classification must preserve no upstream secrets.");
+    }
+    using var existingProxyHttp = new HttpClient(new MockHandler(request => {
+        Check(request.Method == HttpMethod.Get, "Looking up a prepared proxy must not retest it or open browsers.");
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(request.RequestUri!.AbsolutePath.EndsWith("/tag")
+            ? """[{"id":9,"label":"packageflow-rutracker"}]"""
+            : """[{"name":"PackageFlow FlareSolverr","implementation":"FlareSolverr","tags":[9],"fields":[{"name":"host","value":"http://127.0.0.1:8191/"}]}]""") });
+    }));
+    var preparedProxy = new ProwlarrClient(existingProxyHttp, "http://127.0.0.1:9696", "fixture-key");
+    Check(await preparedProxy.ExistingFlareSolverrTag("http://127.0.0.1:8191/", default) == 9, "A prepared matching proxy must be reused.");
+    Check(await preparedProxy.ExistingFlareSolverrTag("http://flaresolverr:8191/", default) == null, "A proxy for another runtime must not be reused.");
+    var manualCalls = new List<string>(); string? manualSession = null;
+    using var manualHttp = new HttpClient(new MockHandler(async request => {
+        Check(request.RequestUri!.ToString() == "http://127.0.0.1:8191/v1", "Manual login must use the local solver.");
+        var body = JsonNode.Parse(await request.Content!.ReadAsStringAsync())!;
+        var cmd = body["cmd"]!.GetValue<string>(); manualCalls.Add(cmd);
+        var name = body["session"]!.GetValue<string>();
+        if (cmd == "sessions.create") manualSession = name;
+        Check(name == manualSession, "All manual requests must keep the same private session.");
+        var result = cmd == "sessions.create" ? new JsonObject { ["status"] = "ok", ["session"] = name }
+            : cmd == "sessions.destroy" ? new JsonObject { ["status"] = "ok" }
+            : new JsonObject { ["status"] = "ok", ["solution"] = new JsonObject { ["status"] = 200,
+                ["url"] = "https://rutracker.org/forum/index.php", ["response"] = "<span id=\"logged-in-username\">account</span>" } };
+        return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(result.ToJsonString()) };
+    }));
+    await using (var manual = new RuTrackerManualLogin(manualHttp)) {
+        await manual.Open(default);
+        Check(manualCalls.SequenceEqual(new[] { "sessions.create", "request.get" }), "Manual window must remain open after its initial request.");
+        Check(await manual.Authenticated(default), "Confirm the logged-in page before accepting manual login.");
+    }
+    Check(manualCalls.Last() == "sessions.destroy", "Only close the manual session when the human completes or cancels the flow.");
+    foreach (var page in new[] {
+        """{"status":"ok","solution":{"status":200,"url":"https://rutracker.org/forum/login.php","response":"<form name=\"login\"></form>"}}""",
+        """{"status":"ok","solution":{"status":200,"url":"https://another.example/forum/index.php","response":"<span id=\"logged-in-username\">account</span>"}}""",
+        """{"status":"error","message":"private-cookie private-password"}"""
+    }) {
+        using var unverifiedHttp = new HttpClient(new MockHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(page) })));
+        await using var unverified = new RuTrackerManualLogin(unverifiedHttp);
+        Check(!await unverified.Authenticated(default), "A login form, foreign redirect or solver error must not count as an authenticated RuTracker page.");
+    }
+
     async Task TrackerFallbackScenario(string pingResult, string trackerResult, bool succeeds, bool existing = false, bool activationFailure = false)
     {
         var events = new List<string>();

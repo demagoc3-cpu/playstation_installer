@@ -5,11 +5,12 @@ namespace PackageFlow.Core;
 
 public sealed record TorznabConnection(string Endpoint, string ApiKey, int IndexerId);
 
-public sealed class ProwlarrRequestException(int statusCode, string requestPath)
+public sealed class ProwlarrRequestException(int statusCode, string requestPath, bool trackerCaptchaRequired = false)
     : InvalidOperationException($"Prowlarr ({statusCode}). Check the corresponding test and logs in Prowlarr.")
 {
     public int StatusCode { get; } = statusCode;
     public string RequestPath { get; } = requestPath;
+    public bool TrackerCaptchaRequired { get; } = trackerCaptchaRequired;
 }
 
 public sealed class ProwlarrClient(HttpClient http, string address, string apiKey)
@@ -29,9 +30,34 @@ public sealed class ProwlarrClient(HttpClient http, string address, string apiKe
         request.Headers.Add("X-Api-Key", apiKey);
         if (body != null) request.Content = JsonContent.Create(body);
         using var response = await http.SendAsync(request, ct);
-        // Never include upstream bodies: validation errors may echo credential fields.
+        // Classify only known validation messages. Never retain or expose the body:
+        // Prowlarr may echo passwords, API keys and cookies in validation fields.
         if (!response.IsSuccessStatusCode)
-            throw new ProwlarrRequestException((int)response.StatusCode, path);
+        {
+            var captcha = false;
+            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest && path.StartsWith("api/v1/indexer", StringComparison.Ordinal)
+                && !path.StartsWith("api/v1/indexerproxy", StringComparison.Ordinal))
+            {
+                try
+                {
+                    using var stream = await response.Content.ReadAsStreamAsync(ct);
+                    var buffer = new byte[65537];
+                    var length = 0;
+                    while (length < buffer.Length)
+                    {
+                        var read = await stream.ReadAsync(buffer.AsMemory(length), ct);
+                        if (read == 0) break;
+                        length += read;
+                    }
+                    if (length < buffer.Length && JsonNode.Parse(buffer.AsSpan(0, length)) is JsonArray errors)
+                        captcha = errors.Any(error => error?["errorMessage"]?.GetValue<string>()
+                            .Contains("Введите код подтверждения", StringComparison.OrdinalIgnoreCase) == true);
+                }
+                catch (System.Text.Json.JsonException) { }
+                catch (InvalidOperationException) { }
+            }
+            throw new ProwlarrRequestException((int)response.StatusCode, path, captcha);
+        }
         var content = await response.Content.ReadAsStringAsync(ct);
         return string.IsNullOrWhiteSpace(content) ? new JsonObject() : JsonNode.Parse(content) ?? new JsonObject();
     }
@@ -109,6 +135,20 @@ public sealed class ProwlarrClient(HttpClient http, string address, string apiKe
         var tags = item["tags"] as JsonArray ?? new JsonArray();
         if (item["tags"] == null) item["tags"] = tags;
         if (!tags.Any(t => t?.GetValue<int>() == id)) tags.Add(id);
+    }
+
+    public async Task<int?> ExistingFlareSolverrTag(string address, CancellationToken ct)
+    {
+        var host = ValidateAddress(address);
+        var tags = (await Request("api/v1/tag", HttpMethod.Get, null, ct)).AsArray();
+        var tagId = tags.FirstOrDefault(t => t?["label"]?.GetValue<string>() == "packageflow-rutracker")?["id"]?.GetValue<int>();
+        if (tagId == null) return null;
+        var proxies = (await Request("api/v1/indexerproxy", HttpMethod.Get, null, ct)).AsArray();
+        var proxy = proxies.FirstOrDefault(p => p?["name"]?.GetValue<string>() == "PackageFlow FlareSolverr"
+            && p?["implementation"]?.GetValue<string>() == "FlareSolverr"
+            && p?["tags"] is JsonArray assigned && assigned.Any(t => t?.GetValue<int>() == tagId));
+        var saved = proxy?["fields"]?.AsArray().FirstOrDefault(f => f?["name"]?.GetValue<string>() == "host")?["value"]?.GetValue<string>();
+        return Uri.TryCreate(saved, UriKind.Absolute, out var uri) && uri == host ? tagId : null;
     }
 
     public async Task<int> ConfigureFlareSolverr(string address, CancellationToken ct, string? probeAddress = null)
