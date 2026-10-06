@@ -28,3 +28,13 @@ node_modules
 
 # Local indexer database, tracker credentials and logs
 /prowlarr/
+
+# Windows launcher build outputs
+/apps/windows-launcher/**/bin/
+/apps/windows-launcher/**/obj/
+
+# Machine-specific SSH diagnostics are kept locally, not distributed.
+/scripts/windows/diagnostics/
+
+# Local release copy and generated recording assets.
+/output/

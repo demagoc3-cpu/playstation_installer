@@ -1,10 +1,11 @@
+import { dataPath } from './data-path'
 import { logEvent } from './event-log'
 import { existsSync, readFileSync } from 'node:fs'
 import { writeJsonFile } from './json-store'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { stat } from 'node:fs/promises'
 
-const settingsPath = resolve(process.cwd(), '.data/qbittorrent.json')
+const settingsPath = dataPath('qbittorrent.json')
 
 /**
  * downloadPath — the downloads folder as seen from this PC (PackageFlow reads PKGs there).

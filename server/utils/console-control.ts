@@ -1,13 +1,14 @@
+import { dataPath } from './data-path'
 import { createError } from 'h3'
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+
 import { writeDurableJson as writeJsonFile } from './durable-json'
 import { assertNoMaintenance } from './maintenance-store'
 import { ps4ServiceIp } from './ps4-service'
 import { authenticatedServiceRequest } from './ps4-service-installer'
 import { assertNoInstallation, assertNoRemoval } from './console-operation-store'
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-const file = resolve(process.cwd(), '.data/console-control.json')
+const file = dataPath('console-control.json')
 function address(v: unknown) { const ip = ps4ServiceIp(v); if (!ip) throw createError({ statusCode: 400, message: 'Укажите IP PS4' }); return ip }
 function read(): Record<string, any> { try { return JSON.parse(readFileSync(file, 'utf8')) } catch (e: any) { if (e.code === 'ENOENT') return {}; throw createError({ statusCode: 503, message: 'Журнал команд повреждён; повтор не отправлен' }) } }
 function check(v: any, input: any) {

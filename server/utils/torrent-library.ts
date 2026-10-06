@@ -1,8 +1,9 @@
+import { dataPath } from './data-path'
 import { existsSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+
 import { writeJsonFile } from './json-store'
 
-const indexPath = resolve(process.cwd(), '.data/torrent-library.json')
+const indexPath = dataPath('torrent-library.json')
 interface IndexedTorrent { indexedAt: number; packageIds: string[] }
 interface Index { version: 1; hashes: Record<string, number | IndexedTorrent>; autoInstalled?: Record<string, number> }
 const blank = (): Index => ({ version: 1, hashes: {} })

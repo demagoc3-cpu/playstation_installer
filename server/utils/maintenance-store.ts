@@ -1,8 +1,9 @@
+import { dataPath } from './data-path'
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+
 import { createError } from 'h3'
 import { writeDurableJson } from './durable-json'
-export const maintenanceFile = resolve(process.cwd(), '.data/console-maintenance.json')
+export const maintenanceFile = dataPath('console-maintenance.json')
 export function readMaintenance(): Record<string, any> {
   try { const data = JSON.parse(readFileSync(maintenanceFile, 'utf8')); if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Invalid ledger'); return data }
   catch (e: any) { if (e.code === 'ENOENT') return {}; throw createError({ statusCode: 503, message: 'Журнал обслуживания повреждён; новая команда не отправлена' }) }

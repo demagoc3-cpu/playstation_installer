@@ -1,3 +1,5 @@
+import { dataPath } from './data-path'
+import { createError } from 'h3'
 import { logEvent } from './event-log'
 import { assertNoRemoval } from './console-operation-store'
 import { readFile } from 'node:fs/promises'
@@ -36,7 +38,7 @@ async function timeoutFetch(url: string) {
   try { return await fetch(url, { signal: controller.signal }) } finally { clearTimeout(timer) }
 }
 
-const settingsPath = resolve(process.cwd(), '.data/ps4.json')
+const settingsPath = dataPath('ps4.json')
 
 /** Last console IP the user connected to; survives page reloads and server restarts. */
 export function getSavedPsIp() {
@@ -59,10 +61,13 @@ export async function getGoldHenStatus(psIp: string) {
 }
 
 export async function getLocalIp(remoteIp: string) {
-  // // In Docker (bridge network) the container sees only its internal address,
-  // // which the console cannot reach. PACKAGEFLOW_HOST_IP sets the PC's LAN IP.
-  // const override = process.env.PACKAGEFLOW_HOST_IP?.trim()
-  // if (override) return override
+  // Docker Desktop's bridge IP is not reachable by the console.
+  const override = process.env.PACKAGEFLOW_HOST_IP?.trim()
+  if (override) {
+    if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(override) || override.split('.').some(part => Number(part) > 255) || override === '0.0.0.0')
+      throw createError({ statusCode: 503, message: 'PACKAGEFLOW_HOST_IP должен содержать LAN IPv4 компьютера' })
+    return override
+  }
   return await new Promise<string>((resolve, reject) => {
     const socket = createSocket('udp4')
     socket.once('error', reject)

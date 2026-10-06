@@ -1,3 +1,4 @@
+import { dataPath } from './data-path'
 import { createHash, randomUUID } from 'node:crypto'
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -11,7 +12,7 @@ import { readSaveSet, readSetSlot, type SaveSet, type SaveSetSlot } from './save
 import { startSaveRestore } from './save-restore-actions'
 import { writeDurableJson } from './durable-json'
 
-const root = resolve(process.cwd(), '.data/save-set-restores')
+const root = dataPath('save-set-restores')
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const active = new Set<string>()
 

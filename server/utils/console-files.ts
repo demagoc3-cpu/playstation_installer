@@ -1,3 +1,4 @@
+import { dataPath } from './data-path'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync, renameSync, openSync, fsyncSync, closeSync } from 'node:fs'
 import { dirname, resolve, posix } from 'node:path'
@@ -7,7 +8,7 @@ import { ps4ServiceIp } from './ps4-service'
 import { logEvent } from './event-log'
 import type { ConsoleFileJob, ConsoleFileStat, ConsoleTrashItem, FileAction } from '../../shared/types/console-files'
 
-const root = resolve(process.cwd(), '.data/console-files')
+const root = dataPath('console-files')
 const active = new Set<string>()
 const pauseRequests = new Set<string>()
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

@@ -1,9 +1,10 @@
+import { dataPath } from './data-path'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createError } from 'h3'
 import { writeDurableJson } from './durable-json'
 
-const root = resolve(process.cwd(), '.data/save-restores')
+const root = dataPath('save-restores')
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export interface SaveRestoreRecord {

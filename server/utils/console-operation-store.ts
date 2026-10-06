@@ -1,11 +1,12 @@
+import { dataPath } from './data-path'
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { dirname } from 'node:path'
 import { createError } from 'h3'
 import { assertNoFileInstallation } from './console-file-install-store'
 import type { RemoveInput, RemoveOperation } from '../../shared/types/console-apps'
 
 export interface StoredRemoval { ip: string; input: RemoveInput; result: RemoveOperation; createdAt: number; pending: boolean; libraryUpdated?: boolean }
-const path = resolve(process.cwd(), '.data/ps4-remove-operations.json')
+const path = dataPath('ps4-remove-operations.json')
 export function readRemovals(): StoredRemoval[] {
   if (!existsSync(path)) return []
   try {
@@ -38,7 +39,7 @@ export function assertNoRemoval(ip: string) {
 }
 export function assertNoInstallation(ip: string) {
   assertNoFileInstallation(ip)
-  const queuePath = resolve(process.cwd(), '.data/installation-queue.json')
+  const queuePath = dataPath('installation-queue.json')
   if (!existsSync(queuePath)) return
   let q: any
   try { q = JSON.parse(readFileSync(queuePath, 'utf8')) } catch { throw createError({ statusCode: 503, message: 'Не удалось проверить очередь установки' }) }

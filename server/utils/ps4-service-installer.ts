@@ -1,10 +1,12 @@
+import { dataPath } from './data-path'
+import { syncServiceWebAddress } from './service-web-address'
 import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { dirname } from 'node:path'
 import { ps4ServiceIp } from './ps4-service'
 import { validServiceJob } from './installation-transport'
 import type { ServiceInstallCapabilities, ServiceInstallJob } from '../../shared/types/installation'
 
-const settingsPath = resolve(process.cwd(), '.data/ps4-service-keys.json')
+const settingsPath = dataPath('ps4-service-keys.json')
 type Settings = Record<string, string>
 function settings(): Settings {
   try { const data = JSON.parse(readFileSync(settingsPath, 'utf8')); return data && typeof data === 'object' && !Array.isArray(data) ? data : {} } catch { return {} }
@@ -155,15 +157,29 @@ export async function getServiceInstallerStatus(ip: string) {
   const configured = serviceKeyConfigured(ip)
   try {
     const c = capabilities(await request(ip, '/install/capabilities', 'GET'))
-    if (!c.ready) return { ready: false, configured, contentTypes: c.contentTypes, version: c.version, message: `API установки недоступен (${c.errorHex})` }
-    if (!configured) return { ready: false, configured, contentTypes: c.contentTypes, version: c.version, message: 'Введите код сопряжения с экрана запускателя PS4' }
+    if (!configured) return { ready: false, configured, paired: false, contentTypes: c.contentTypes, version: c.version, message: 'Введите код сопряжения с экрана запускателя PS4' }
     capabilities(await request(ip, '/install/session', 'GET', token(ip)))
-    return { ready: true, configured, localInstall: c.localInstall === true, contentTypes: c.contentTypes, version: c.version, message: c.contentTypes.includes('PS4GP') ? 'Сервис готов к установке игр, патчей и DLC' : 'Сервис готов к установке базовой игры; для патчей обновите PKG сервиса' }
+    // Pairing is authenticated independently from the installation API readiness.
+    if (!c.ready) return { ready: false, configured, paired: true, contentTypes: c.contentTypes, version: c.version, message: `API установки недоступен (${c.errorHex})` }
+    return { ready: true, configured, paired: true, localInstall: c.localInstall === true, contentTypes: c.contentTypes, version: c.version, message: c.contentTypes.includes('PS4GP') ? 'Сервис готов к установке игр, патчей и DLC' : 'Сервис готов к установке базовой игры; для патчей обновите PKG сервиса' }
   } catch (error: any) {
-    return { ready: false, configured, contentTypes: [], message: error?.statusCode === 404 ? 'Обновите PackageFlowService до PKG 1.17' : error?.statusCode ? error.message : 'Сервис не отвечает на порту 12801' }
+    // A stored key alone cannot prove pairing. Offline consoles are unknown;
+    // rejected authentication explicitly requires a new pairing code.
+    const paired = !configured || error?.statusCode === 401 || error?.statusCode === 403 ? false : null
+    return { ready: false, configured, paired, contentTypes: [], message: error?.statusCode === 404 ? 'Обновите PackageFlowService до PKG 1.17' : error?.statusCode ? error.message : 'Сервис не отвечает на порту 12801' }
   }
 }
-export async function saveServiceKey(ip: string, value: unknown) {
+/** Update the console's callback URL using its existing pairing, without a new code. */
+export async function updatePairedServiceWebAddress(ip: string, webUrl: string) {
+  const status = await getServiceInstallerStatus(ip)
+  if (status.paired !== true) return { updated: false, configured: status.configured, message: status.message }
+  const key = token(ip)
+  await syncServiceWebAddress(webUrl,
+    (route, body) => request(ip, `/files/${route}`, 'POST', key, body),
+    (id, bytes) => consoleFileWrite(ip, id, 0, bytes))
+  return { updated: true, configured: true, message: 'Адрес WEB на PS4 обновлён' }
+}
+export async function saveServiceKey(ip: string, value: unknown, webUrl?: string) {
   ip = consoleIp(ip)
   const code = typeof value === 'string' ? value.trim().toUpperCase() : ''
   if (!/^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(code)) throw createError({ statusCode: 400, message: 'Введите код вида F7Y-YUH с экрана PS4' })
@@ -189,6 +205,15 @@ export async function saveServiceKey(ip: string, value: unknown) {
   } catch {
     throw createError({ statusCode: 500, message: 'WEB не смог сохранить подключение. Откройте запускатель PS4 для нового кода и повторите сопряжение' })
   } finally { rmSync(tmp, { force: true }) }
+  if (webUrl) {
+    try {
+      await syncServiceWebAddress(webUrl,
+        (route, body) => request(ip, `/files/${route}`, 'POST', key, body),
+        (id, bytes) => consoleFileWrite(ip, id, 0, bytes))
+    } catch {
+      throw createError({ statusCode: 503, message: 'Ключ сопряжения сохранён, но PS4 не смогла сохранить новый адрес WEB. Проверьте службу и повторите сопряжение.' })
+    }
+  }
   // The saved key is never returned to the browser or printed to the event log.
   return { ready: true, configured: true, contentTypes: c.contentTypes, message: 'PS4 сопряжена с WEB; повторный ввод кода не требуется' }
 }

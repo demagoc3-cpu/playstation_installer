@@ -1,3 +1,4 @@
+import { dataPath } from './data-path'
 import { createHash, randomUUID } from 'node:crypto'
 import { copyFileSync, createWriteStream, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { resolve, sep } from 'node:path'
@@ -8,8 +9,8 @@ import { createSaveBackup, listSaveSlots, listSaveUsers } from './ps4-saves'
 import { readSaveBackup, saveBackupRoot, type SaveBackupManifest } from './save-backup-store'
 import { writeDurableJson } from './durable-json'
 
-const root = resolve(process.cwd(), '.data/save-sets')
-const archiveRoot = resolve(process.cwd(), '.data/save-set-archives')
+const root = dataPath('save-sets')
+const archiveRoot = dataPath('save-set-archives')
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const validName = /^[\p{L}\p{N}][\p{L}\p{N} _.-]{0,59}$/u
 const active = new Set<string>()

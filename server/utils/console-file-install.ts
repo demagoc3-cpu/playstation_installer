@@ -1,3 +1,4 @@
+import { assertDesktopWritable } from './desktop-lifecycle'
 import { randomUUID } from 'node:crypto'
 import { posix } from 'node:path'
 import { createError } from 'h3'
@@ -63,6 +64,7 @@ export async function listConsolePackageInstallations(value: unknown) {
   return current.filter(j => j.ip === ip).reverse()
 }
 export async function installConsolePackage(value: unknown, path: unknown, revision: unknown, requestId?: unknown) {
+  assertDesktopWritable()
   const ip = fileIp(value)
   if (requestId !== undefined) {
     if (typeof requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) fail('Неверный идентификатор установки', 400)

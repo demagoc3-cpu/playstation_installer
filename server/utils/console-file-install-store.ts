@@ -1,9 +1,10 @@
+import { dataPath } from './data-path'
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+
 import { createError } from 'h3'
 import { writeDurableJson } from './durable-json'
 import type { ConsolePackageInstallation } from '../../shared/types/console-file-install'
-const file = resolve(process.cwd(), '.data/console-file-installations.json')
+const file = dataPath('console-file-installations.json')
 export const localInstallActive = (record: ConsolePackageInstallation) => !record.rejected && (record.pending || !record.job || !['installed', 'failed', 'cancelled'].includes(record.job.state))
 export function readFileInstallations(): ConsolePackageInstallation[] {
   try {

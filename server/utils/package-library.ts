@@ -1,3 +1,4 @@
+import { dataPath } from './data-path'
 import { logEvent } from './event-log'
 import { createHash } from 'node:crypto'
 import { closeSync, createReadStream, existsSync, mkdirSync, openSync, readSync } from 'node:fs'
@@ -17,7 +18,7 @@ const SFO_BYTES = 128 * 1024
 const SFO_SEARCH_LIMIT = 32 * 1024 * 1024
 const SFO_SEARCH_CHUNK = 256 * 1024
 const COVER_CHUNK = 256 * 1024
-const siteLibraryPath = resolve(process.cwd(), '.data/package-library.json')
+const siteLibraryPath = dataPath('package-library.json')
 
 export interface LocalPackage {
   id: string
@@ -52,7 +53,7 @@ const blankLibrary = (): SiteLibrary => ({ version: 2, packages: [], deliveries:
 const hash = (value: string) => createHash('sha256').update(value).digest('hex').slice(0, 32)
 // PKG sources can be read-only (Docker bind mounts or NAS shares). Keep all
 // generated files in the writable application data volume, separately per root.
-const cacheDirectory = (root: string) => resolve(process.cwd(), '.data/package-cache', hash(root))
+const cacheDirectory = (root: string) => dataPath('package-cache', hash(root))
 const cachePath = (root: string) => join(cacheDirectory(root), 'index.json')
 const coversDirectory = (root: string) => join(cacheDirectory(root), 'covers')
 
@@ -334,6 +335,7 @@ export async function readPackageIcon(id: string) { const item = getPackage(id);
 // BGFT job, so their data is refused until the package is dispatched again.
 const blockedDeliveries = new Set<string>()
 const activeTransfers = new Map<string, Set<() => void>>()
+export function activePackageTransfers() { return [...activeTransfers.values()].some(transfers => transfers.size > 0) }
 
 /** Registers a running HTTP transfer so a cancel can cut it; returns an unregister function. */
 export function registerActiveTransfer(id: string, abort: () => void) {

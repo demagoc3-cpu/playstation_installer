@@ -17,6 +17,12 @@ node_modules
 .git
 .github
 docs
+dist
+output
+prowlarr
+apps/windows-launcher/**/bin
+apps/windows-launcher/**/obj
+scripts/windows/diagnostics
 *.log
 pnpm-lock.yaml
 pnpm-workspace.yaml

@@ -1,10 +1,11 @@
+import { dataPath } from './data-path'
 import { createHash, randomUUID } from 'node:crypto'
 import { createWriteStream, existsSync, lstatSync, readFileSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { resolve, sep } from 'node:path'
 import { createError } from 'h3'
 import archiver from 'archiver'
 
-export const saveBackupRoot = resolve(process.cwd(), '.data/save-backups')
+export const saveBackupRoot = dataPath('save-backups')
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 interface BackupFile { path: string; bytes: number; sha256: string }
 export interface SaveBackupManifest {

@@ -1,5 +1,6 @@
+import { dataPath } from './data-path'
 import { createHash } from 'node:crypto'
-import { resolve } from 'node:path'
+
 import { createError } from 'h3'
 import { readJsonFile, writeJsonFile } from './json-store'
 import { getLibraryPackages } from './package-library'
@@ -10,7 +11,7 @@ import { consoleSelection } from './console-app-data'
 import { ps4ServiceIp } from './ps4-service'
 
 type Record = { id: string; ip: string; fingerprint: string; state: string; message: string; result?: unknown }
-const file = resolve(process.cwd(), '.data/console-app-commands.json')
+const file = dataPath('console-app-commands.json')
 const live = new Set<string>()
 const read = () => readJsonFile<{ version: 1; records: Record[] }>(file, { version: 1, records: [] })
 const save = (record: Record) => { const all = read(); const index = all.records.findIndex(r => r.id === record.id); if (index < 0) all.records.push(record); else all.records[index] = record; writeJsonFile(file, all) }

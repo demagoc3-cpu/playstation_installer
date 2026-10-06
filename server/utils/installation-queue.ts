@@ -1,9 +1,11 @@
+import { assertDesktopWritable } from './desktop-lifecycle'
+import { dataPath } from './data-path'
 import { logEvent } from './event-log'
 import { assertNoFileInstallation } from './console-file-install-store'
 import { assertNoRemoval } from './console-operation-store'
 import { assertNoMaintenance } from './maintenance-store'
 import { existsSync, readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+
 import { writeJsonFile } from './json-store'
 import { blockPackageDelivery, getPackage, getPackageDelivery, markPackageInstalled, readPackageIcon, readPackageMetadata, resetPackageDelivery } from './package-library'
 import { sendPackage, startInstaller } from './ps4-installer'
@@ -50,7 +52,7 @@ interface InstallationQueue {
   message?: string
 }
 
-const queuePath = resolve(process.cwd(), '.data/installation-queue.json')
+const queuePath = dataPath('installation-queue.json')
 const WAIT_INTERVAL_MS = 1500
 const UNCONFIRMED_AFTER_MS = 20_000
 const STALLED_DLC_MS = 3 * 60_000
@@ -420,6 +422,7 @@ function createQueueItems(packageIds: string[], packageUrls: Record<string, stri
 }
 
 export function startInstallationQueue(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string }) {
+  assertDesktopWritable()
   assertNoMaintenance(input.psIp, input.maintenanceId)
   assertNoRemoval(input.psIp)
   assertNoFileInstallation(input.psIp)

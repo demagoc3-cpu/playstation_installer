@@ -1,3 +1,4 @@
+import { dataPath } from './data-path'
 import { createHash, randomUUID } from 'node:crypto'
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs'
 import { resolve, sep } from 'node:path'
@@ -8,8 +9,8 @@ import { type SaveSet, type SaveSetSlot } from './save-set-store'
 import { type SaveBackupManifest } from './save-backup-store'
 import { writeDurableJson } from './durable-json'
 
-const root = resolve(process.cwd(), '.data/save-sets')
-const uploadRoot = resolve(process.cwd(), '.data/save-set-uploads')
+const root = dataPath('save-sets')
+const uploadRoot = dataPath('save-set-uploads')
 const maxArchive = 1024 * 1024 * 1024
 const maxTotal = 2 * 1024 * 1024 * 1024
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i

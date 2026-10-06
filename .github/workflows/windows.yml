@@ -1,0 +1,49 @@
+name: Windows installer
+# Independent from docker.yml: packages the WEB build and Windows runtime.
+# No Docker image is built or pushed by this workflow. A v* tag triggers both
+# workflows separately; workflow_dispatch builds only this Windows artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Installer version (three numbers, for example 1.11.0)'
+        required: true
+        default: '0.1.7'
+      docker_image:
+        description: 'Matching PackageFlow Docker image'
+        required: true
+        default: 'demagoc3/packageflow:latest'
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install NSIS compiler
+        run: choco install nsis --yes --no-progress
+      - name: Build installer
+        shell: pwsh
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_IMAGE: ${{ inputs.docker_image }}
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { $env:INPUT_VERSION }
+          $image = if ($env:GITHUB_REF_TYPE -eq 'tag') { "demagoc3/packageflow:$version" } else { $env:INPUT_IMAGE }
+          ./packaging/windows/build.ps1 -Version $version -DockerImage $image
+          Get-FileHash dist/windows/PackageFlowSetup-*-x64.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist/windows/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PackageFlow-Windows-x64
+          if-no-files-found: error
+          path: |
+            dist/windows/PackageFlowSetup-*-x64.exe
+            dist/windows/SHA256SUMS.txt

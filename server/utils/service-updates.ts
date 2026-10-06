@@ -1,3 +1,4 @@
+import { dataPath } from './data-path'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -7,7 +8,7 @@ import { writeDurableJson } from './durable-json'
 import { beginUpdate } from './console-maintenance'
 import { ps4ServiceIp, readPs4Service } from './ps4-service'
 import { consoleRuntime } from './console-control'
-const directory = resolve(process.cwd(), '.data/service-updates')
+const directory = dataPath('service-updates')
 const repository = 'demagoc3-cpu/playstation_installer'
 export const updateLimit = 25 * 1024 * 1024
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/

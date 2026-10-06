@@ -1,8 +1,9 @@
-import { resolve } from 'node:path'
+import { dataPath } from './data-path'
+
 import { readJsonFile, writeJsonFile } from './json-store'
 import type { InstallationTransport } from '../../shared/types/installation'
 
-const path = resolve(process.cwd(), '.data/installation-preference.json')
+const path = dataPath('installation-preference.json')
 
 export function getInstallationPreference(): InstallationTransport {
   const value = readJsonFile<{ transport?: unknown }>(path, { transport: 'service' }).transport
