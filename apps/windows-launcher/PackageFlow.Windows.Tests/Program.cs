@@ -28,6 +28,18 @@ internal static class Smoke
     {
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
         var report = args.FirstOrDefault() ?? Path.Combine(Path.GetTempPath(), "PackageFlow-ui-tests.txt");
+        if (args.Contains("--discover")) {
+            try {
+                var flag = Array.IndexOf(args, "--discover");
+                var computerIp = args.ElementAtOrDefault(flag + 1) ?? throw new ArgumentException("Provide the test computer's LAN IP.");
+                var consoleIp = args.ElementAtOrDefault(flag + 2) ?? throw new ArgumentException("Provide the test console's IP.");
+                var local = System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces().SelectMany(network => network.GetIPProperties().UnicastAddresses)
+                    .First(address => address.Address.ToString() == computerIp);
+                var found = Ps4Discovery.Discover(local.Address.ToString(), local.IPv4Mask.ToString(), null, CancellationToken.None).GetAwaiter().GetResult();
+                Check(found.Any(device => device.Ip == consoleIp && device.Service), "The test PS4 service must be discovered on the Windows LAN.");
+                File.WriteAllLines(report, found.Select(device => $"PASS: PS4 {device.Ip}; service={device.Service}; PyLoader={device.PyLoader}; rest={device.RestMode}")); return 0;
+            } catch (Exception error) { File.WriteAllText(report, "FAIL: " + error); return 1; }
+        }
         if (args.Contains("--qbittorrent")) {
             try { QbittorrentTests.Run(report).GetAwaiter().GetResult(); return 0; }
             catch (Exception error) { File.WriteAllText(report, "FAIL: " + error); return 1; }

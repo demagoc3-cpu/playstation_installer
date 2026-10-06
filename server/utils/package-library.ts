@@ -317,6 +317,22 @@ export async function scanPackageFolder(directory: string, onlyTitleId?: string)
   return { directory: root, packages }
 }
 
+/** Register one internally verified package without scanning its staging directory. */
+export async function registerPackageFile(file: string) {
+  const path = resolve(file); const root = dirname(path); const name = basename(path)
+  const info = await stat(path); const metadata = await readPackageMetadata(path, name)
+  const id = hash(path)
+  const coverPath = metadata.icon.size ? join(coversDirectory(root), `${id}.png`) : undefined
+  if (coverPath) { mkdirSync(dirname(coverPath), { recursive: true }); await writeCover(path, metadata.icon, coverPath) }
+  const item: StoredPackage = { id, path, fileName: name, size: info.size, libraryRoot: root, sourceModifiedAt: info.mtimeMs, coverPath, ...metadata }
+  const library = readLibrary()
+  const index = library.packages.findIndex(previous => previous.path === path)
+  if (index >= 0) { const previous = library.packages[index]!; if (packageKey(previous) === packageKey(item)) item.installedAt = previous.installedAt; library.packages[index] = item }
+  else library.packages.push(item)
+  writeLibrary(library)
+  return publicItem(item)
+}
+
 export function getLibraryPackages() {
   return [...packageGroups(readLibrary().packages).values()].map(group => availablePackage(group))
     .filter((item): item is NonNullable<typeof item> => Boolean(item)).map(publicItem)

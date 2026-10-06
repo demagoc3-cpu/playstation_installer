@@ -339,10 +339,17 @@ internal sealed partial class MainForm : Form
 
     private void ConnectionPage()
     {
-        var page = Page(T("2. PS4", "2. PS4"), T("Запустите PackageFlow на PS4, откройте «Подключения» и получите код. Этот мастер использует то же сопряжение, что и WEB.", "Start PackageFlow on PS4, open Connections and get a code. This wizard uses the same pairing as WEB."));
+        var page = Page(T("2. PS4", "2. PS4"), T("Найдите приставку или введите IP. Если сервиса ещё нет, включите GoldHEN и PyLoader на PS4 и установите его. Затем запустите PackageFlow на приставке и получите код в «Подключениях».", "Find your console or enter its IP. If the service is missing, enable GoldHEN and PyLoader on PS4, then install it. Launch PackageFlow on the console and get a code in Connections."));
         psIp = Field(page, T("IP приставки", "Console IP"), settings.PsIp);
         pairCode = Field(page, T("Код сопряжения", "Pairing code"), secret: true);
+        detectedConsoles = Choice(page, T("Найденные приставки", "Discovered consoles"), [], -1);
+        detectedConsoles.SelectedIndexChanged += (_, _) => { if (detectedConsoles.SelectedItem is ConsoleChoice item) psIp.Text = item.Device.Ip; };
+        var setupCard = FieldCard(page, T("Первоначальная установка", "Initial installation")); setupCard.Height = 100;
+        consoleSetupStatus = new Label { Text = T("GoldHEN + PyLoader → установка PKG →\nзапуск сервиса на PS4 → код сопряжения", "GoldHEN + PyLoader → install PKG →\nlaunch service on PS4 → pairing code"), Dock = DockStyle.Bottom, Height = 50, ForeColor = Theme.Muted, Font = new Font("Segoe UI", 9) };
+        setupCard.Controls.Add(consoleSetupStatus);
         Buttons(page,
+            (T("Найти PS4", "Find PS4"), FindConsoles),
+            (T("Установить сервис", "Install service"), InstallConsoleService),
             (T("Проверить службу", "Check service"), async () =>
             {
                 EnsureStarted();

@@ -25,6 +25,16 @@ try
     Check(!migrated.AutomaticSetupPending && !migrated.ManagedQbittorrent, "Updating an existing installation must not enable automatic setup or replace its torrent client.");
     migrated.AutomaticSetupPending = true; migrated.Save(legacyPath);
     Check(LauncherSettings.Load(legacyPath).AutomaticSetupPending, "Interrupted first setup must resume on next launch.");
+    var nearby = Ps4Discovery.Candidates("10.1.10.31", "255.255.255.0");
+    Check(nearby.Length == 253 && !nearby.Contains("10.1.10.31") && !nearby.Contains("10.1.10.0") && !nearby.Contains("10.1.10.255"), "Discovery must omit this PC and network/broadcast addresses.");
+    Check(Ps4Discovery.Candidates("10.1.10.31", "255.255.0.0").SequenceEqual(nearby), "HTTP fallback on large LANs must be bounded to the nearest /24.");
+    Check(Ps4Discovery.Candidates("192.168.1.9", "255.255.255.248").SequenceEqual(new[] { "192.168.1.10", "192.168.1.11", "192.168.1.12", "192.168.1.13", "192.168.1.14" }), "Honor small actual subnets.");
+    foreach (var invalid in new[] { ("127.0.0.1", "255.255.255.0"), ("8.8.8.8", "255.255.255.0"), ("10.1.10.31", "255.0.255.0"), ("10.1.10.31", "0.0.0.0") })
+        await Reject(() => Task.Run(() => Ps4Discovery.Candidates(invalid.Item1, invalid.Item2)));
+    var announcement = "HTTP/1.1 200 Ok\nhost-type:PS4\nhost-name:Living room\ndevice-discovery-protocol-version:00020020\n";
+    Check(Ps4Discovery.ParseAnnouncement("10.1.10.32", announcement) is { Name: "Living room", RestMode: false, Service: false, PyLoader: false }, "PS4 discovery alone must not claim service or loader readiness.");
+    Check(Ps4Discovery.ParseAnnouncement("10.1.10.32", announcement.Replace("200 Ok", "620 Server Standby"))?.RestMode == true, "Show rest mode without waking the console.");
+    Check(Ps4Discovery.ParseAnnouncement("10.1.10.32", announcement.Replace("host-type:PS4", "host-type:PS5")) == null && Ps4Discovery.ParseAnnouncement("10.1.10.32", "HTTP/1.1 200 Ok\nhost-name:Not a console") == null, "Do not misidentify other devices as PS4.");
     var qbitSecret = "fixture-generated-password-not-default";
     var qbitConfig = QbittorrentBootstrap.Configuration(8090, qbitSecret, directory);
     Check(qbitConfig.Contains("WebUI\\Address=127.0.0.1") && qbitConfig.Contains("WebUI\\LocalHostAuth=true") && !qbitConfig.Contains(qbitSecret), "Managed Web UI must be authenticated on loopback and contain no plaintext password.");
