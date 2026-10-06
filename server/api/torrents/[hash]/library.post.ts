@@ -7,17 +7,19 @@ import { packageHasId } from '../../../../shared/package-identity'
 
 export default defineEventHandler(async (event) => {
   const hash = getRouterParam(event, 'hash') || ''
-  const body = await readBody<{ psIp?: string }>(event)
+  const body = await readBody<{ psIp?: string; summaryOnly?: boolean }>(event)
   const pcIp = await getLocalIp(body?.psIp || '')
   const host = getHeader(event, 'host') || 'localhost:3000'
   const port = host.match(/:(\d+)$/)?.[1] || '3000'
   const indexedPackageIds = getIndexedTorrentPackageIds(hash)
   if (indexedPackageIds) {
+    if (body?.summaryOnly) return { alreadyIndexed: true, count: indexedPackageIds.length }
     const indexed = getLibraryPackages().filter((item) => indexedPackageIds.some(id => packageHasId(item, id)))
     return { alreadyIndexed: true, packages: indexed.map((item) => ({ ...item, url: `http://${pcIp}:${port}/json/${item.id}.json` })) }
   }
   const result = await scanPackageFolder(await getCompletedTorrentDirectory(hash))
   markTorrentIndexed(hash, result.packages.map((item) => item.id))
   logEvent('info', `Торрент загружен: в библиотеку добавлено пакетов — ${result.packages.length}`)
+  if (body?.summaryOnly) return { alreadyIndexed: false, count: result.packages.length }
   return { alreadyIndexed: false, packages: result.packages.map((item) => ({ ...item, url: `http://${pcIp}:${port}/json/${item.id}.json` })) }
 })

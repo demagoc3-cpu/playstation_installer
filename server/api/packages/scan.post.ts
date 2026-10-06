@@ -3,7 +3,7 @@ import { scanPackageFolder } from '../../utils/package-library'
 import { getLocalIp } from '../../utils/ps4-installer'
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ directory?: string; psIp?: string; titleId?: string }>(event)
+  const body = await readBody<{ directory?: string; psIp?: string; titleId?: string; summaryOnly?: boolean }>(event)
   let result
   try { result = await scanPackageFolder(body?.directory || '', body?.titleId) }
   catch (error: any) {
@@ -14,6 +14,7 @@ export default defineEventHandler(async (event) => {
     throw error
   }
   logEvent('info', `Просканирована папка ${result.directory}: найдено пакетов — ${result.packages.length}`)
+  if (body?.summaryOnly) return { directory: result.directory, count: result.packages.length }
   const pcIp = await getLocalIp(body?.psIp || '')
   const host = getHeader(event, 'host') || 'localhost:3000'
   const port = host.match(/:(\d+)$/)?.[1] || '3000'

@@ -1,7 +1,7 @@
 import { dataPath } from './data-path'
 import { logEvent } from './event-log'
 import { createHash } from 'node:crypto'
-import { closeSync, createReadStream, existsSync, mkdirSync, openSync, readSync } from 'node:fs'
+import { closeSync, createReadStream, existsSync, mkdirSync, openSync, readSync, statSync } from 'node:fs'
 import { open, readdir, readFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import { readJsonFile as readJson, writeJsonFile as writeJson } from './json-store'
@@ -61,10 +61,21 @@ const coversDirectory = (root: string) => join(cacheDirectory(root), 'covers')
 // package and persisting each one made Windows fail on locked files.
 let deliveryCache: Record<string, DeliveryStatus> | undefined
 let deliveryFlushTimer: ReturnType<typeof setTimeout> | undefined
+let libraryFileCache: { stamp: string; library: SiteLibrary } | undefined
 
 function readLibraryFile() {
+  // Cover requests share the same index. Parsing thousands of records again
+  // for every cover blocks the event loop; the file stamp detects external edits.
+  let stamp: string
+  try {
+    const info = statSync(siteLibraryPath)
+    stamp = `${info.mtimeMs}:${info.ctimeMs}:${info.size}:${info.ino}`
+  } catch { libraryFileCache = undefined; return blankLibrary() }
+  if (libraryFileCache?.stamp === stamp) return libraryFileCache.library
   const library = readJson(siteLibraryPath, blankLibrary())
-  return library.version === 2 ? library : blankLibrary()
+  const value = library.version === 2 ? library : blankLibrary()
+  libraryFileCache = { stamp, library: value }
+  return value
 }
 
 function deliveries() {
@@ -80,6 +91,7 @@ function readLibrary() {
 
 function writeLibrary(library: SiteLibrary) {
   if (deliveryFlushTimer) { clearTimeout(deliveryFlushTimer); deliveryFlushTimer = undefined }
+  libraryFileCache = undefined
   writeJson(siteLibraryPath, { ...library, deliveries: deliveries() })
 }
 
@@ -334,6 +346,9 @@ export async function registerPackageFile(file: string) {
 export function getLibraryPackages() {
   return [...packageGroups(readLibrary().packages).values()].map(group => availablePackage(group))
     .filter((item): item is NonNullable<typeof item> => Boolean(item)).map(publicItem)
+}
+export function getDeliveredPackageIds() {
+  return new Set(Object.entries(deliveries()).filter(([, status]) => status.completedAt).map(([id]) => id))
 }
 export function getPackage(id: string) {
   const packages = readLibrary().packages, original = packages.find(item => item.id === id)

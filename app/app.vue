@@ -4,7 +4,8 @@ useHead(() => ({ htmlAttrs: { lang: locale.value } }))
 
 import type { InstallationTransport } from '../shared/types/installation'
 import type { SearchResult, SearchPage } from '#shared/types/search'
-import { packageHasId, packageIdentity } from '#shared/package-identity'
+import { packageHasId } from '#shared/package-identity'
+import type { LibraryPage, LibrarySummary } from '#shared/library-pagination'
 type PackageType = 'Игра' | 'Патч' | 'Бэкпорт' | 'DLC'
 type Section = 'library' | 'console' | 'saves' | 'torrents' | 'search' | 'log' | 'ftp' | 'system' | 'donate'
 const SECTIONS: Section[] = ['library', 'console', 'saves', 'torrents', 'search', 'log', 'ftp', 'system', 'donate']
@@ -13,9 +14,9 @@ const donationBtc = String(donationConfig?.btc || '').trim()
 const donationUsdtTrc20 = String(donationConfig?.usdtTrc20 || '').trim()
 const hasDonations = Boolean(donationBtc || donationUsdtTrc20)
 type PackageState = 'ready' | 'sending' | 'queued' | 'receiving' | 'installing' | 'delivered' | 'installed' | 'skipped' | 'failed'
-interface ServerPackage { id: string; sourceIds?: string[]; title: string; fileName: string; appVersion?: string; masterVersion?: string; requiredFirmware?: string; sdkFirmware?: string; packageVolume?: 'application' | 'patch' | 'add-on' | 'unknown'; packageDigest?: string; size: number; iconSize?: number; type: PackageType; titleId: string; installOrder: number; url: string; contentId: string; contentType: string; libraryRoot: string; installedAt?: number }
+interface ServerPackage { id: string; sourceIds?: string[]; title: string; groupTitle?: string; groupIconId?: string; groupPackages?: number; groupReadyDlc?: number; fileName: string; appVersion?: string; masterVersion?: string; requiredFirmware?: string; sdkFirmware?: string; packageVolume?: 'application' | 'patch' | 'add-on' | 'unknown'; packageDigest?: string; size: number; iconSize?: number; type: PackageType; titleId: string; installOrder: number; url: string; contentId: string; contentType: string; libraryRoot: string; installedAt?: number }
 interface PackageItem extends ServerPackage { rowId: string; state: PackageState; detail: string; bytesSent: number; completedAt?: number; iconUrl?: string }
-interface GameGroup { id: string; title: string; items: PackageItem[]; cover?: string }
+interface GameGroup { id: string; title: string; items: PackageItem[]; cover?: string; total: number; readyDlc: number }
 interface TorrentItem { hash: string; name: string; state: string; size: number; progress: number; downloaded: number; speed: number; eta: number; seeds: number; autoInstall: boolean }
 interface TorrentFile { index: number; name: string; size: number; progress: number; priority: number }
 interface QbitStatus { baseUrl: string; username: string; downloadPath: string; remotePath?: string; hasPassword?: boolean; configured: boolean; ready: boolean; version: string }
@@ -31,6 +32,20 @@ const showIpEditor = ref(false)
 const statusMessage = ref('Проверяем подключение к PlayStation…')
 const packages = ref<PackageItem[]>([])
 const selected = ref(new Set<string>())
+const selectedPackages = reactive(new Map<string, PackageItem>())
+const libraryQuery = ref('')
+const appliedLibraryQuery = ref('')
+const libraryPage = ref(1)
+const libraryPageSize = ref(25)
+const libraryPages = ref(1)
+const libraryTotal = ref(0)
+const libraryBusy = ref(false)
+const libraryError = ref('')
+const librarySummary = ref<LibrarySummary>({ packages: 0, games: 0, size: 0, installed: 0, delivered: 0, ready: 0, readyDlc: 0 })
+let libraryController: AbortController | undefined
+let libraryGeneration = 0
+let librarySearchTimer: ReturnType<typeof setTimeout> | undefined
+let libraryMounted = false
 const tooltipPositions = reactive<Record<string, { top: string; left: string }>>({})
 const reinstallTarget = ref<PackageItem | null>(null)
 const expanded = ref(new Set<string>())
@@ -91,19 +106,20 @@ const activeTorrents = computed(() => torrents.value.filter((torrent) => torrent
 const logProblems = computed(() => logEntries.value.filter((entry) => entry.level !== 'info').length)
 let installationTimer: number | undefined
 let torrentRefreshRunning = false
-const totalSize = computed(() => formatBytes(packages.value.reduce((sum, item) => sum + item.size, 0)))
-const deliveredCount = computed(() => packages.value.filter((item) => item.state === 'delivered').length)
-const installedCount = computed(() => packages.value.filter((item) => item.state === 'installed').length)
-const selectedItems = computed(() => packages.value.filter((item) => selected.value.has(item.rowId)))
+const totalSize = computed(() => formatBytes(librarySummary.value.size))
+const deliveredCount = computed(() => librarySummary.value.delivered)
+const installedCount = computed(() => librarySummary.value.installed)
+const selectedItems = computed(() => [...selectedPackages.values()])
 const selectedReadyCount = computed(() => selectedItems.value.filter((item) => item.state === 'ready').length)
-const anyReady = computed(() => packages.value.some((item) => item.state === 'ready'))
+const anyReady = computed(() => librarySummary.value.ready > 0)
 const groups = computed<GameGroup[]>(() => {
   const byTitle = new Map<string, PackageItem[]>()
   for (const item of packages.value) byTitle.set(item.titleId, [...(byTitle.get(item.titleId) || []), item])
   return [...byTitle.entries()].map(([id, items]) => {
     items.sort((a, b) => a.installOrder - b.installOrder || a.title.localeCompare(b.title) || (a.appVersion || '').localeCompare(b.appVersion || '', undefined, { numeric: true }) || a.fileName.localeCompare(b.fileName, undefined, { numeric: true }))
     const game = items.find((item) => item.type === 'Игра')
-    return { id, title: game?.title || `Игра ${id}`, items, cover: game?.iconUrl || items.find((item) => item.iconUrl)?.iconUrl }
+    const groupIconId = items[0]?.groupIconId
+    return { id, total: items[0]?.groupPackages || items.length, readyDlc: items[0]?.groupReadyDlc || 0, title: items[0]?.groupTitle || game?.title || `Игра ${id}`, items, cover: groupIconId ? `/api/packages/${groupIconId}?asset=icon` : game?.iconUrl || items.find((item) => item.iconUrl)?.iconUrl }
   }).sort((a, b) => a.title.localeCompare(b.title))
 })
 
@@ -152,8 +168,13 @@ function iconFor(item: ServerPackage) { return item.iconSize ? `/api/packages/${
 function isOpen(id: string) { return expanded.value.has(id) }
 function toggleGroup(id: string) { const next = new Set(expanded.value); next.has(id) ? next.delete(id) : next.add(id); expanded.value = next }
 function isSelected(id: string) { return selected.value.has(id) }
-function toggleSelected(id: string) { const next = new Set(selected.value); next.has(id) ? next.delete(id) : next.add(id); selected.value = next }
-function setGroupSelected(group: GameGroup, checked: boolean) { const next = new Set(selected.value); group.items.forEach((item) => checked ? next.add(item.rowId) : next.delete(item.rowId)); selected.value = next }
+function syncSelection() {
+  for (const id of selectedPackages.keys()) if (!selected.value.has(id)) selectedPackages.delete(id)
+  for (const item of packages.value) if (selected.value.has(item.rowId)) selectedPackages.set(item.rowId, item)
+}
+function toggleSelected(id: string) { const next = new Set(selected.value); next.has(id) ? next.delete(id) : next.add(id); selected.value = next; syncSelection() }
+function setGroupSelected(group: GameGroup, checked: boolean) { const next = new Set(selected.value); group.items.forEach((item) => checked ? next.add(item.rowId) : next.delete(item.rowId)); selected.value = next; syncSelection() }
+function clearSelection() { selected.value = new Set(); selectedPackages.clear() }
 function groupQueueCurrent(group: GameGroup) {
   if (queueStatus.value !== 'running' && queueStatus.value !== 'cancelling') return undefined
   const active = queueItems.value.find((entry) => ['sending', 'waiting', 'receiving', 'installing', 'verifying'].includes(entry.state) && group.items.some((item) => packageHasId(item, entry.packageId)))
@@ -168,35 +189,78 @@ function groupQueueSkipped(group: GameGroup) {
 }
 function pendingSummary(items: PackageItem[]) { return items.slice(0, 2).map((item) => `${item.type}: ${item.title}`).join(' · ') + (items.length > 2 ? ` · ещё ${items.length - 2}` : '') }
 async function connect() { showIpEditor.value = false; if (installationMethod.value === 'payload') statusMessage.value = 'Проверяем PyLoader на порту 9090…'; try { const result = await $fetch<{ ready: boolean }>('/api/ps4/status', { method: 'POST', body: { ip: psIp.value } }); connected.value = result.ready; if (installationMethod.value === 'payload') statusMessage.value = result.ready ? 'PyLoader готов к работе на PlayStation 4' : 'PyLoader не ответил на порту 9090' } catch (error: any) { connected.value = false; if (installationMethod.value === 'payload') statusMessage.value = errorText(error) || 'Не удалось проверить соединение с консолью' } }
-function samePackage(a: ServerPackage, b: ServerPackage) {
-  const identity = packageIdentity(a)
-  return packageHasId(a, b.id) || packageHasId(b, a.id) || Boolean(identity && identity === packageIdentity(b))
+function packageItem(item: ServerPackage): PackageItem {
+  return { ...item, title: item.titleId === 'PFLS00001' ? 'PackageFlowService' : item.title, rowId: item.id, state: item.installedAt ? 'installed' : 'ready', detail: item.installedAt ? 'Отмечен как установленный' : 'Готов к отправке', bytesSent: 0, iconUrl: iconFor(item) }
 }
-function appendPackages(items: ServerPackage[]) {
-  const additions: PackageItem[] = []
-  for (const item of items) {
-    const title = item.titleId === 'PFLS00001' ? 'PackageFlowService' : item.title
-    const matches = [...packages.value, ...additions].filter(entry => samePackage(entry, item))
-    const existing = matches.find(entry => ['sending', 'queued', 'receiving', 'installing'].includes(entry.state)) || matches[0]
-    if (existing) {
-      const duplicates = new Set(matches.filter(entry => entry !== existing).map(entry => entry.rowId))
-      const next = new Set(selected.value)
-      for (const entry of matches) if (duplicates.has(entry.rowId)) {
-        if (next.has(entry.rowId)) next.add(existing.rowId)
-        next.delete(entry.rowId); stopDeliveryWatch(entry)
-      }
-      packages.value = packages.value.filter(entry => !duplicates.has(entry.rowId))
-      for (let i = additions.length - 1; i >= 0; i--) if (duplicates.has(additions[i]!.rowId)) additions.splice(i, 1)
-      selected.value = next
-      Object.assign(existing, item, { title, iconUrl: iconFor(item) })
-      continue
-    }
-    additions.push({ ...item, title, rowId: `${Date.now()}-${Math.random().toString(36).slice(2)}`, state: item.installedAt ? 'installed' : 'ready', detail: item.installedAt ? 'Отмечен как установленный' : 'Готов к отправке', bytesSent: 0, iconUrl: iconFor(item) })
-  }
-  packages.value.push(...additions)
-  return additions
+async function loadLibraryPage(background = false) {
+  if (background && (libraryBusy.value || librarySearchTimer)) return
+  libraryController?.abort()
+  const controller = new AbortController(), generation = ++libraryGeneration
+  libraryController = controller
+  libraryBusy.value = true
+  libraryError.value = ''
+  try {
+    const result = await $fetch<LibraryPage<ServerPackage>>('/api/packages', { query: { psIp: psIp.value, page: libraryPage.value, pageSize: libraryPageSize.value, q: appliedLibraryQuery.value }, signal: controller.signal })
+    if (generation !== libraryGeneration) return
+    const previous = new Map([...selectedPackages.values(), ...packages.value].map(item => [item.id, item]))
+    const next = result.packages.map(value => {
+      const item = previous.get(value.id)
+      if (!item) return packageItem(value)
+      const wasInstalled = item.installedAt
+      Object.assign(item, value, { iconUrl: iconFor(value) })
+      // Queue polling supplies active states; a confirmed console removal resets them.
+      if (value.installedAt) { item.state = 'installed'; item.detail = 'Установка подтверждена PS4' }
+      else if (wasInstalled) { item.state = 'ready'; item.detail = 'Удалено на PS4; пакет готов к повторной установке'; item.bytesSent = 0 }
+      return item
+    })
+    const visible = new Set(next.map(item => item.rowId))
+    for (const item of packages.value) if (!visible.has(item.rowId)) stopDeliveryWatch(item)
+    packages.value = next
+    libraryPage.value = result.page
+    libraryPages.value = result.pages
+    libraryTotal.value = result.total
+    librarySummary.value = result.summary
+    syncSelection()
+    // Reapply the saved queue when returning to a different page.
+    applyInstallationQueue({ status: queueStatus.value, id: queueId.value, transport: queueMethod.value, items: queueItems.value })
+  } catch (error: any) {
+    if (generation !== libraryGeneration || controller.signal.aborted) return
+    libraryError.value = errorText(error) || 'Не удалось загрузить библиотеку'
+  } finally { if (generation === libraryGeneration) libraryBusy.value = false }
 }
-async function scanDirectory(directory: string) { try { statusMessage.value = 'Сканируем исходные файлы — они не будут скопированы…'; const result = await $fetch<{ packages: ServerPackage[] }>('/api/packages/scan', { method: 'POST', body: { directory, psIp: psIp.value } }); const additions = appendPackages(result.packages); statusMessage.value = additions.length ? `Добавлено пакетов: ${additions.length}` : 'Подходящих .pkg или .fpkg не найдено' } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось просканировать папку' } }
+function searchLibrary() {
+  if (librarySearchTimer) clearTimeout(librarySearchTimer)
+  librarySearchTimer = undefined
+  appliedLibraryQuery.value = libraryQuery.value.trim()
+  libraryPage.value = 1
+  void loadLibraryPage()
+}
+watch(libraryQuery, () => {
+  if (!libraryMounted) return
+  // Invalidate an old search immediately, before the debounce expires.
+  libraryController?.abort(); libraryGeneration++; libraryBusy.value = false
+  if (librarySearchTimer) clearTimeout(librarySearchTimer)
+  librarySearchTimer = setTimeout(searchLibrary, 300)
+}, { flush: 'sync' })
+function changeLibraryPage(page: number) {
+  if (libraryBusy.value || page < 1 || page > libraryPages.value) return
+  libraryPage.value = page
+  void loadLibraryPage().then(() => document.querySelector('.library-tools')?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
+}
+function changeLibraryPageSize(value: number) {
+  libraryPageSize.value = value
+  localStorage.setItem('packageflow-library-page-size', String(libraryPageSize.value))
+  libraryPage.value = 1
+  void loadLibraryPage()
+}
+async function scanDirectory(directory: string) {
+  try {
+    statusMessage.value = 'Сканируем исходные файлы — они не будут скопированы…'
+    const result = await $fetch<{ count: number }>('/api/packages/scan', { method: 'POST', body: { directory, psIp: psIp.value, summaryOnly: true } })
+    await loadLibraryPage()
+    statusMessage.value = result.count ? `Найдено пакетов: ${result.count}` : 'Подходящих .pkg или .fpkg не найдено'
+  } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось просканировать папку' }
+}
 async function scanServerFolder() { const directory = window.prompt(t('Введите полный путь к папке с .pkg/.fpkg на этом компьютере')); if (directory?.trim()) await scanDirectory(directory) }
 async function chooseFolder() {
   try {
@@ -214,7 +278,7 @@ async function chooseFolder() {
     await scanDirectory(result.directory)
   } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось выбрать папку' }
 }
-async function restoreLibrary() { try { const result = await $fetch<{ packages: ServerPackage[] }>('/api/packages', { query: { psIp: psIp.value } }); const additions = appendPackages(result.packages); if (additions.length) statusMessage.value = `Восстановлено из библиотеки: ${additions.length}` } catch { /* Подключение к библиотеке будет повторено при следующем запуске. */ } }
+async function restoreLibrary() { await loadLibraryPage(); if (librarySummary.value.packages) statusMessage.value = `Восстановлено из библиотеки: ${librarySummary.value.packages}` }
 let externalLibraryRefreshRunning = false
 async function refreshExternalLibrary() {
   if (document.visibilityState !== 'visible' || externalLibraryRefreshRunning) return
@@ -224,28 +288,33 @@ async function refreshExternalLibrary() {
 }
 let libraryTimer: ReturnType<typeof window.setInterval> | undefined
 onMounted(() => {
+  libraryMounted = true
+  const savedSize = Number(localStorage.getItem('packageflow-library-page-size'))
+  if ([25, 50, 100].includes(savedSize)) libraryPageSize.value = savedSize
   window.addEventListener('focus', refreshExternalLibrary)
   document.addEventListener('visibilitychange', refreshExternalLibrary)
   libraryTimer = window.setInterval(() => { if (activeSection.value === 'library') void refreshExternalLibrary() }, 10000)
 })
 onUnmounted(() => {
+  libraryMounted = false
+  libraryController?.abort(); libraryGeneration++
+  if (librarySearchTimer) clearTimeout(librarySearchTimer)
   window.removeEventListener('focus', refreshExternalLibrary)
   document.removeEventListener('visibilitychange', refreshExternalLibrary)
   if (libraryTimer) window.clearInterval(libraryTimer)
 })
 
-async function refreshConsoleLibrary() {
-  const result = await $fetch<{ packages: ServerPackage[] }>('/api/packages', { query: { psIp: psIp.value } })
-  for (const item of packages.value) {
-    const value = result.packages.find(p => samePackage(p, item))
-    if (value && item.installedAt && !value.installedAt) { stopDeliveryWatch(item); item.installedAt = undefined; item.state = 'ready'; item.detail = 'Удалено на PS4; пакет готов к повторной установке'; item.bytesSent = 0 }
-    else if (value?.installedAt && !item.installedAt) { item.installedAt = value.installedAt; item.state = 'installed'; item.detail = 'Установка подтверждена PS4' }
-  }
-  appendPackages(result.packages)
-}
-function applyInstallationQueue(queue: InstallationQueue) { const states: Record<InstallationQueueItem['state'], PackageState> = { pending: 'queued', sending: 'sending', waiting: 'queued', receiving: 'receiving', installing: 'installing', verifying: 'queued', delivered: 'delivered', installed: 'installed', unconfirmed: 'skipped', skipped: 'skipped', failed: 'failed', cancelled: 'ready' }; for (const queued of queue.items) { const item = packages.value.find((entry) => packageHasId(entry, queued.packageId)); if (!item) continue; item.state = states[queued.state]; item.detail = queued.detail; item.bytesSent = queued.bytesSent; item.completedAt = queued.completedAt; item.installedAt = queued.installedAt } isSending.value = queue.status === 'running' || queue.status === 'cancelling'; queueStatus.value = queue.status; queueId.value = queue.id || ''; queueItems.value = queue.items; queueMethod.value = queue.transport || 'payload'; if (queue.message) statusMessage.value = queue.message }
+async function refreshConsoleLibrary() { await loadLibraryPage(true) }
+function applyInstallationQueue(queue: InstallationQueue) { const states: Record<InstallationQueueItem['state'], PackageState> = { pending: 'queued', sending: 'sending', waiting: 'queued', receiving: 'receiving', installing: 'installing', verifying: 'queued', delivered: 'delivered', installed: 'installed', unconfirmed: 'skipped', skipped: 'skipped', failed: 'failed', cancelled: 'ready' }; for (const queued of queue.items) { const item = [...packages.value, ...selectedPackages.values()].find((entry) => packageHasId(entry, queued.packageId)); if (!item) continue; item.state = states[queued.state]; item.detail = queued.detail; item.bytesSent = queued.bytesSent; item.completedAt = queued.completedAt; item.installedAt = queued.installedAt } isSending.value = queue.status === 'running' || queue.status === 'cancelling'; queueStatus.value = queue.status; queueId.value = queue.id || ''; queueItems.value = queue.items; queueMethod.value = queue.transport || 'payload'; if (queue.message) statusMessage.value = queue.message }
 async function restoreInstallationQueue() { try { applyInstallationQueue(await $fetch<InstallationQueue>('/api/ps4/installation')) } catch { /* Библиотека и ручная установка остаются доступны, если сервер только запускается. */ } }
-async function importCompletedTorrent(item: TorrentItem) { if (item.progress < 1) return; try { const result = await $fetch<{ packages: ServerPackage[]; alreadyIndexed: boolean }>(`/api/torrents/${item.hash}/library`, { method: 'POST', body: { psIp: psIp.value } }); const additions = appendPackages(result.packages); if (additions.length) statusMessage.value = `Из torrent добавлено в библиотеку: ${additions.length} пак.`; /* Automatic installation is started by the server (torrent-autoinstall), even with this page closed. */ } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось запустить автоматическую установку torrent' } }
+async function importCompletedTorrent(item: TorrentItem) {
+  if (item.progress < 1) return
+  try {
+    const result = await $fetch<{ count: number; alreadyIndexed: boolean }>(`/api/torrents/${item.hash}/library`, { method: 'POST', body: { psIp: psIp.value, summaryOnly: true } })
+    if (!result.alreadyIndexed) { await loadLibraryPage(true); statusMessage.value = `Из torrent добавлено в библиотеку: ${result.count} пак.` }
+    /* Automatic installation runs on the server, even with this page closed. */
+  } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось запустить автоматическую установку torrent' }
+}
 /** Copies the saved settings into the form. Never while the form is open, or the 2 s poll would overwrite what the user types. */
 function toggleTorrentSettings() { if (!showTorrentSettings.value) syncTorrentForm(); showTorrentSettings.value = !showTorrentSettings.value }
 function syncTorrentForm() { torrentSettings.baseUrl = qbit.value.baseUrl; torrentSettings.username = qbit.value.username; torrentSettings.downloadPath = qbit.value.downloadPath; torrentSettings.remotePath = qbit.value.remotePath || ''; torrentSettings.password = '' }
@@ -307,9 +376,9 @@ function stopDeliveryWatch(item: PackageItem) { const timer = deliveryTimers.get
 async function checkDelivery(item: PackageItem) { if (item.state === 'failed' || item.state === 'delivered') { stopDeliveryWatch(item); return item.state === 'delivered' } try { const data = await $fetch<{ bytesSent: number; size: number; completedAt?: number }>(`/api/packages/${item.id}?asset=delivery`); item.bytesSent = Math.min(data.bytesSent, data.size); if (data.completedAt) { item.completedAt = data.completedAt; item.state = 'delivered'; item.detail = 'Файл полностью передан PlayStation; можно передавать следующий пакет'; stopDeliveryWatch(item); return true } if (data.bytesSent > 0) { item.state = 'receiving'; item.detail = `PS4 получила ${formatBytes(item.bytesSent)} из ${formatBytes(data.size)}` } } catch { /* Не подменяем статус догадкой после перезапуска сервера. */ } return false }
 function startDeliveryWatch(item: PackageItem) { stopDeliveryWatch(item); void checkDelivery(item); deliveryTimers.set(item.rowId, window.setInterval(() => void checkDelivery(item), 1500)) }
 function ordered(items: PackageItem[]) { return [...items].filter((item) => item.state === 'ready').sort((a, b) => a.installOrder - b.installOrder || a.title.localeCompare(b.title) || (a.appVersion || '').localeCompare(b.appVersion || '', undefined, { numeric: true }) || a.fileName.localeCompare(b.fileName, undefined, { numeric: true })) }
-async function installItems(items: PackageItem[]) {
+async function installItems(items: PackageItem[], librarySelection?: { scope: 'all' | 'dlc'; titleId?: string }) {
   const queue = ordered(items)
-  if (!queue.length) { statusMessage.value = 'Нет готовых выбранных пакетов'; return }
+  if (!queue.length && !librarySelection) { statusMessage.value = 'Нет готовых выбранных пакетов'; return }
   const appending = queueStatus.value === 'running' && !!queueId.value
   if (isSending.value && !appending) { statusMessage.value = 'Очередь завершается или отменяется. Дождитесь ответа PS4.'; return }
   if (!appending && installationMethod.value === 'payload') {
@@ -324,21 +393,53 @@ async function installItems(items: PackageItem[]) {
   try {
     const packageUrls = Object.fromEntries(queue.map(item => [item.id, item.url]))
     if (appending) {
-      applyInstallationQueue(await $fetch<InstallationQueue>('/api/ps4/installation/append', { method: 'POST', body: { ip: psIp.value, queueId: queueId.value, packageIds: queue.map(item => item.id), packageUrls } }))
-      statusMessage.value = `Добавлено в текущую очередь: ${queue.length} пак.`
-    } else applyInstallationQueue(await $fetch<InstallationQueue>('/api/ps4/installation', { method: 'POST', body: { ip: psIp.value, packageIds: queue.map(item => item.id), packageUrls, transport: installationMethod.value } }))
+      applyInstallationQueue(await $fetch<InstallationQueue>('/api/ps4/installation/append', { method: 'POST', body: { ip: psIp.value, queueId: queueId.value, packageIds: queue.map(item => item.id), packageUrls, librarySelection } }))
+      if (!librarySelection) statusMessage.value = `Добавлено в текущую очередь: ${queue.length} пак.`
+    } else applyInstallationQueue(await $fetch<InstallationQueue>('/api/ps4/installation', { method: 'POST', body: { ip: psIp.value, packageIds: queue.map(item => item.id), packageUrls, librarySelection, transport: installationMethod.value } }))
   } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось передать очередь установщику' }
 }
 function installOne(item: PackageItem) { return installItems([item]) }
-function installDlc(group?: GameGroup) { return installItems((group?.items || packages.value).filter((item) => item.type === 'DLC')) }
-async function toggleInstalled(item: PackageItem) { if (item.state !== 'ready') return resetPackage(item); try { await $fetch(`/api/packages/${item.id}/installed`, { method: 'POST', body: { installed: true } }); stopDeliveryWatch(item); item.installedAt = Date.now(); item.state = 'installed'; item.detail = 'Отмечен как установленный' } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось изменить отметку установки' } }
-async function resetPackage(item: PackageItem) { try { await $fetch(`/api/packages/${item.id}/reset`, { method: 'POST' }); stopDeliveryWatch(item); item.installedAt = undefined; item.completedAt = undefined; item.bytesSent = 0; item.state = 'ready'; item.detail = 'Готов к отправке'; statusMessage.value = `«${item.title}» можно установить заново` } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось сбросить статус пакета' } }
+function installDlc(group?: GameGroup) { return installItems([], { scope: 'dlc', titleId: group?.id }) }
+async function toggleInstalled(item: PackageItem) { if (item.state !== 'ready') return resetPackage(item); try { await $fetch(`/api/packages/${item.id}/installed`, { method: 'POST', body: { installed: true } }); stopDeliveryWatch(item); item.installedAt = Date.now(); item.state = 'installed'; item.detail = 'Отмечен как установленный'; await loadLibraryPage() } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось изменить отметку установки' } }
+async function resetPackage(item: PackageItem) { try { await $fetch(`/api/packages/${item.id}/reset`, { method: 'POST' }); stopDeliveryWatch(item); item.installedAt = undefined; item.completedAt = undefined; item.bytesSent = 0; item.state = 'ready'; item.detail = 'Готов к отправке'; statusMessage.value = `«${item.title}» можно установить заново`; await restoreInstallationQueue(); await loadLibraryPage() } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось сбросить статус пакета' } }
 const isCancelling = ref(false)
 async function cancelInstallation() { if (!window.confirm(t(queueMethod.value === 'service' ? 'Запросить отмену задания на PS4? WEB дождётся ответа консоли; следующие пакеты не будут отправлены.' : 'Отменить установку? Текущая передача на PS4 будет прервана, оставшиеся пакеты не будут отправлены.'))) return; isCancelling.value = true; try { applyInstallationQueue(await $fetch<InstallationQueue>('/api/ps4/installation/cancel', { method: 'POST' })) } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось отменить установку' } finally { isCancelling.value = false } }
 async function resolveCancellation() { if (!queueId.value || !window.confirm(t('Вы уже отменили эту загрузку в «Уведомления → Загрузки» на PS4? WEB снимет ожидание, но не сможет подтвердить результат установки.'))) return; isCancelling.value = true; try { applyInstallationQueue(await $fetch<InstallationQueue>('/api/ps4/installation/resolve-cancel', { method: 'POST', body: { id: queueId.value } })) } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось снять ожидание отмены' } finally { isCancelling.value = false } }
-async function removePackage(item: PackageItem) { if (!window.confirm(t(`Убрать «${item.title}» из библиотеки? Исходный PKG останется на диске.`))) return; try { await $fetch(`/api/packages/${item.id}`, { method: 'DELETE' }); stopDeliveryWatch(item); packages.value = packages.value.filter((entry) => entry.rowId !== item.rowId); const next = new Set(selected.value); next.delete(item.rowId); selected.value = next; statusMessage.value = 'Пакет удалён из списка. Исходный файл не изменён.' } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось удалить пакет из списка' } }
-async function reindexBranch(group: GameGroup) { const root = group.items[0]?.libraryRoot; if (!root) { statusMessage.value = 'Не найден исходный путь ветки. Просканируйте папку заново.'; return } try { statusMessage.value = `Переиндексируем ${group.id}…`; const result = await $fetch<{ packages: ServerPackage[] }>('/api/packages/scan', { method: 'POST', body: { directory: root, psIp: psIp.value, titleId: group.id } }); group.items.forEach(stopDeliveryWatch); const removedIds = new Set(group.items.map((item) => item.rowId)); packages.value = packages.value.filter((item) => !removedIds.has(item.rowId)); const next = new Set(selected.value); removedIds.forEach((id) => next.delete(id)); selected.value = next; const additions = appendPackages(result.packages); statusMessage.value = `Ветка переиндексирована: ${additions.length} пак.` } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось переиндексировать ветку' } }
-async function removeBranch(group: GameGroup) { if (!window.confirm(t(`Убрать всю ветку ${group.id}: игру, патчи и DLC? Исходные PKG останутся на диске.`))) return; try { await $fetch('/api/packages/branch', { method: 'DELETE', query: { titleId: group.id } }); group.items.forEach(stopDeliveryWatch); const ids = new Set(group.items.map((item) => item.rowId)); packages.value = packages.value.filter((item) => !ids.has(item.rowId)); const next = new Set(selected.value); ids.forEach((id) => next.delete(id)); selected.value = next; statusMessage.value = `Ветка ${group.id} удалена из библиотеки` } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось удалить ветку' } }
+function forgetBranchSelection(titleId: string) {
+  const next = new Set(selected.value)
+  for (const item of selectedPackages.values()) if (item.titleId === titleId) { next.delete(item.rowId); selectedPackages.delete(item.rowId) }
+  selected.value = next
+}
+async function removePackage(item: PackageItem) {
+  if (!window.confirm(t(`Убрать «${item.title}» из библиотеки? Исходный PKG останется на диске.`))) return
+  try {
+    await $fetch(`/api/packages/${item.id}`, { method: 'DELETE' })
+    stopDeliveryWatch(item)
+    const next = new Set(selected.value); next.delete(item.rowId); selected.value = next; selectedPackages.delete(item.rowId)
+    await loadLibraryPage()
+    statusMessage.value = 'Пакет удалён из списка. Исходный файл не изменён.'
+  } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось удалить пакет из списка' }
+}
+async function reindexBranch(group: GameGroup) {
+  const root = group.items[0]?.libraryRoot
+  if (!root) { statusMessage.value = 'Не найден исходный путь ветки. Просканируйте папку заново.'; return }
+  try {
+    statusMessage.value = `Переиндексируем ${group.id}…`
+    const result = await $fetch<{ count: number }>('/api/packages/scan', { method: 'POST', body: { directory: root, psIp: psIp.value, titleId: group.id, summaryOnly: true } })
+    group.items.forEach(stopDeliveryWatch); forgetBranchSelection(group.id)
+    await loadLibraryPage()
+    statusMessage.value = `Ветка переиндексирована: ${result.count} пак.`
+  } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось переиндексировать ветку' }
+}
+async function removeBranch(group: GameGroup) {
+  if (!window.confirm(t(`Убрать всю ветку ${group.id}: игру, патчи и DLC? Исходные PKG останутся на диске.`))) return
+  try {
+    await $fetch('/api/packages/branch', { method: 'DELETE', query: { titleId: group.id } })
+    group.items.forEach(stopDeliveryWatch); forgetBranchSelection(group.id)
+    await loadLibraryPage()
+    statusMessage.value = `Ветка ${group.id} удалена из библиотеки`
+  } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось удалить ветку' }
+}
 onBeforeUnmount(() => { deliveryTimers.forEach((timer) => window.clearInterval(timer)); if (torrentTimer) window.clearInterval(torrentTimer); if (installationTimer) window.clearInterval(installationTimer); if (logTimer) window.clearInterval(logTimer) })
 async function restorePsIp() { try { const saved = await $fetch<{ ip: string }>('/api/ps4/settings'); if (saved.ip) { psIp.value = saved.ip; return true } } catch { /* Сервер ещё запускается — останется адрес по умолчанию. */ } return false }
 // The open section lives in the URL hash (#torrents, #log…) so a reload keeps it.
@@ -375,42 +476,61 @@ onMounted(() => { void restoreInstallationMethod().then(restorePsIp).then((resto
       <button v-if="hasDonations" class="donate-link" :class="{ active: activeSection === 'donate' }" :title="t(&quot;Поддержать проект&quot;)" @click="activeSection = 'donate'"><span aria-hidden="true">♥</span><span class="nav-label">{{ t("Поддержать") }}</span></button><span class="sidebar-note">PS4 {{ psIp }}</span>
     </nav>
     <section v-show="activeSection === 'library'" class="content"><div class="intro"><div><p class="eyebrow">{{ t("ЛОКАЛЬНАЯ БИБЛИОТЕКА") }}</p><h1>{{ t("Игры и дополнения") }}</h1><p>{{ t("Пакеты автоматически объединяются по CUSA. Исходные файлы остаются в выбранной папке.") }}</p></div><div class="pickers"><button class="primary" @click="chooseFolder">{{ t("Выбрать папку") }}</button></div></div>
-      <section class="stats"><article><span>{{ t("ИГРЫ") }}</span><strong>{{ t(groups.length) }}</strong><small>{{ t(packages.length) }} {{ t("пакетов") }}</small></article><article><span>{{ t("ВЫБРАНО") }}</span><strong>{{ t(selectedItems.length) }}</strong><small>{{ t(formatBytes(selectedItems.reduce((sum, item) => sum + item.size, 0))) }}</small></article><article><span>{{ t("ПЕРЕДАНО PS4") }}</span><strong>{{ t(deliveredCount) }}</strong><small>{{ t("из") }} {{ t(packages.length) }} {{ t("пакетов") }}</small></article><article><span>{{ t("УСТАНОВЛЕНО") }}</span><strong>{{ t(installedCount) }}</strong><small>{{ t("подтверждено или отмечено вручную") }}</small></article></section>
+      <section class="stats"><article><span>{{ t("ИГРЫ") }}</span><strong>{{ t(librarySummary.games) }}</strong><small>{{ t(librarySummary.packages) }} {{ t("пакетов") }}</small></article><article><span>{{ t("ВЫБРАНО") }}</span><strong>{{ t(selectedItems.length) }}</strong><small>{{ t(formatBytes(selectedItems.reduce((sum, item) => sum + item.size, 0))) }}</small></article><article><span>{{ t("ПЕРЕДАНО PS4") }}</span><strong>{{ t(deliveredCount) }}</strong><small>{{ t("из") }} {{ t(librarySummary.packages) }} {{ t("пакетов") }}</small></article><article><span>{{ t("УСТАНОВЛЕНО") }}</span><strong>{{ t(installedCount) }}</strong><small>{{ t("подтверждено или отмечено вручную") }}</small></article></section>
       <ReinstallGame :ip="psIp" :pkg="reinstallTarget" @close="reinstallTarget = null" @changed="refreshConsoleLibrary" /><InstallationMethod :model-value="installationMethod" :ip="psIp" :disabled="isSending" @update:model-value="selectInstallationMethod" @status="serviceConnected = $event" />
-      <section class="library">
+      <section class="library" :aria-busy="libraryBusy">
         <div class="library-head">
           <div><h2>{{ t("Очередь установки") }}</h2><p>{{ t(statusMessage) }}</p></div>
           <div class="actions">
             <button class="secondary" :disabled="queueStatus === 'cancelling' || !selectedReadyCount" @click="installItems(selectedItems)">{{ t(queueStatus === 'running' ? 'Добавить выбранное' : 'Установить выбранное') }}</button>
-            <button class="secondary" :disabled="queueStatus === 'cancelling' || !packages.some((item) => item.type === 'DLC' && item.state === 'ready')" @click="installDlc()">{{ t(queueStatus === 'running' ? 'Добавить DLC' : 'Все DLC') }}</button>
+            <button class="secondary" :disabled="queueStatus === 'cancelling' || !librarySummary.readyDlc" @click="installDlc()">{{ t(queueStatus === 'running' ? 'Добавить DLC' : 'Все DLC') }}</button>
             <button v-if="queueStatus === 'running'" class="danger" :disabled="isCancelling" @click="cancelInstallation">{{ t(isCancelling ? 'Отменяем…' : 'Отменить установку') }}</button>
             <button v-if="queueStatus === 'cancelling'" class="secondary" :disabled="isCancelling" @click="resolveCancellation">{{ t(isCancelling ? 'Проверяем…' : 'Снять ожидание') }}</button>
-            <button class="primary" :disabled="queueStatus === 'cancelling' || !anyReady" @click="installItems(packages)">{{ t(queueStatus === 'running' ? 'Добавить всё' : 'Установить всё') }}</button>
+            <button class="primary" :disabled="queueStatus === 'cancelling' || !anyReady" @click="installItems([], { scope: 'all' })">{{ t(queueStatus === 'running' ? 'Добавить всё' : 'Установить всё') }}</button>
           </div>
         </div>
-        <p v-if="!groups.length" class="empty">{{ t("Выберите файлы или папку. Для пути на ПК можно использовать «Сканировать путь» ниже.") }}</p>
+        <div class="library-tools">
+          <form class="library-search" @submit.prevent="searchLibrary">
+            <label class="library-search-label" for="library-search">{{ t('Поиск по библиотеке') }}</label>
+            <div class="library-search-input">
+              <span aria-hidden="true">⌕</span>
+              <input id="library-search" v-model="libraryQuery" type="search" :placeholder="t('Название, CUSA, Content ID или имя файла')" maxlength="256">
+              <button v-if="libraryQuery" type="button" class="tiny" @click="libraryQuery = ''; searchLibrary()">{{ t('Сбросить') }}</button>
+              <button type="submit" class="secondary">{{ t('Найти') }}</button>
+            </div>
+            <small>{{ t('Поиск по всем пакетам библиотеки') }} · {{ t(totalSize) }}</small>
+          </form>
+          <div v-if="selectedItems.length" class="library-selection">
+            <span>{{ t('Выбор сохранён между страницами') }}</span>
+            <button type="button" class="tiny" @click="clearSelection">{{ t('Снять выбор') }}</button>
+          </div>
+        </div>
+        <LibraryPagination :page="libraryPage" :pages="libraryPages" :page-size="libraryPageSize" :total="libraryTotal" :busy="libraryBusy" @page="changeLibraryPage" @size="changeLibraryPageSize" />
+        <p v-if="libraryError" class="library-error" role="alert">{{ t(libraryError) }} <button class="tiny" @click="loadLibraryPage()">{{ t('Повторить') }}</button></p>
+        <p v-if="libraryBusy" class="library-loading" role="status">{{ t('Загружаем страницу библиотеки…') }}</p>
+        <p v-else-if="!groups.length && !libraryError" class="empty">{{ t(appliedLibraryQuery ? 'В библиотеке ничего не найдено. Измените запрос.' : 'Выберите файлы или папку. Для пути на ПК можно использовать «Сканировать путь» ниже.') }}</p>
         <article v-for="group in groups" :key="group.id" class="game-group">
           <div class="game-head">
             <button class="expand" @click="toggleGroup(group.id)"><span :class="{ open: isOpen(group.id) }">›</span></button>
-            <div class="game-cover"><img v-if="group.cover" :src="group.cover" alt=""><span v-else>{{ group.title.charAt(0) }}</span></div>
+            <div class="game-cover"><img v-if="group.cover" :src="group.cover" alt="" loading="lazy" decoding="async"><span v-else>{{ group.title.charAt(0) }}</span></div>
             <button class="game-name" @click="toggleGroup(group.id)">
               <strong>{{ group.title }}</strong>
-              <span>{{ t(group.id) }} · {{ t(group.items.length) }} {{ t("пак.") }}</span>
+              <span>{{ t(group.id) }} · {{ t(group.items.length) }}<template v-if="group.total > group.items.length">{{ ` ${t("из")} ${t(group.total)}` }}</template> {{ t("пак.") }}<template v-if="group.total > group.items.length"> · {{ t("на странице") }}</template></span>
               <span v-if="groupQueueCurrent(group)" class="group-current">{{ t("Сейчас:") }} {{ t(groupQueueCurrent(group)?.type) }} · {{ groupQueueCurrent(group)?.title }} · {{ t(groupQueueCurrent(group)?.detail) }}</span>
               <span v-if="groupQueuePending(group).length" class="group-pending">{{ t("В очереди:") }} {{ t(pendingSummary(groupQueuePending(group))) }}</span>
               <span v-if="groupQueueSkipped(group).length" class="group-skipped">{{ t("Пропущено:") }} {{ t(groupQueueSkipped(group).length) }} · {{ t(groupQueueSkipped(group)[0]?.detail) }}</span>
             </button>
             <div class="group-actions">
-              <label class="select-all"><input type="checkbox" :checked="group.items.every((item) => isSelected(item.rowId))" @change="setGroupSelected(group, ($event.target as HTMLInputElement).checked)"> {{ t("все") }}</label>
-              <button class="tiny" :disabled="queueStatus === 'cancelling' || !group.items.some((item) => item.type === 'DLC' && item.state === 'ready')" @click="installDlc(group)">DLC</button>
+              <label class="select-all"><input type="checkbox" :checked="group.items.every((item) => isSelected(item.rowId))" @change="setGroupSelected(group, ($event.target as HTMLInputElement).checked)"> {{ t("На странице") }}</label>
+              <button class="tiny" :disabled="queueStatus === 'cancelling' || !group.readyDlc" @click="installDlc(group)">DLC</button>
               <button class="tiny" :disabled="isSending" @click="reindexBranch(group)">{{ t("Переиндекс.") }}</button>
               <button class="tiny" :disabled="isSending" @click="removeBranch(group)">{{ t("Удалить ветку") }}</button>
             </div>
           </div>
-          <div v-show="isOpen(group.id)" class="package-list">
+          <div v-if="isOpen(group.id)" class="package-list">
             <div v-for="item in group.items" :key="item.rowId" class="package-row">
               <input type="checkbox" :checked="isSelected(item.rowId)" @change="toggleSelected(item.rowId)">
-              <div class="cover"><img v-if="item.iconUrl" :src="item.iconUrl" alt=""><span v-else>{{ t(item.type === 'Игра' ? item.title.charAt(0) : item.type) }}</span></div>
+              <div class="cover"><img v-if="item.iconUrl" :src="item.iconUrl" alt="" loading="lazy" decoding="async"><span v-else>{{ t(item.type === 'Игра' ? item.title.charAt(0) : item.type) }}</span></div>
               <div class="package-name">
                 <strong>{{ item.title }}</strong>
                 <div v-if="item.state === 'receiving' || item.state === 'installing' || item.state === 'delivered'" class="progress"><i :style="{ width: `${Math.min(100, item.bytesSent / item.size * 100)}%` }" /></div>
@@ -446,6 +566,7 @@ onMounted(() => { void restoreInstallationMethod().then(restorePsIp).then((resto
             </div>
           </div>
         </article>
+        <LibraryPagination v-if="libraryTotal" :page="libraryPage" :pages="libraryPages" :page-size="libraryPageSize" :total="libraryTotal" :busy="libraryBusy" @page="changeLibraryPage" @size="changeLibraryPageSize" />
       </section><section class="path-card"><div><strong>{{ t("Сканировать путь на ПК") }}</strong><p>{{ t("Альтернатива системному выбору папки. PKG никогда не копируются во временный кэш.") }}</p></div><button class="secondary" @click="scanServerFolder">{{ t("Указать путь") }}</button></section><p class="notice">{{ t("Статус «файл полностью передан» подтверждается по HTTP-раздаче пакета. PyLoader не возвращает финальный результат установки. PackageFlowService дополнительно сообщает состояние системного задания и подтверждение установки.") }}</p></section>
     <section v-show="activeSection === 'torrents'" class="content tool-page"><p class="eyebrow">QBITTORRENT</p><h1>{{ t("Загрузки torrent") }}</h1><p class="page-status">{{ t(statusMessage) }}</p><section class="torrent-card"><div class="torrent-head"><div><h2>{{ t("Загрузки torrent") }}</h2><p>{{ t(qbit.ready ? `qBittorrent подключён${qbit.version ? ` · ${qbit.version}` : ''}` : 'Подключите qBittorrent Web UI (на этом ПК или в локальной сети), чтобы добавить разрешённую magnet- или .torrent-ссылку.') }}</p></div><div class="actions"><button class="secondary" @click="refreshTorrents">{{ t("Обновить") }}</button><button class="secondary" @click="toggleTorrentSettings">{{ t("Настроить") }}</button></div></div><form v-if="showTorrentSettings" class="torrent-settings" @submit.prevent="saveTorrentSettings"><label class="wide"><span>{{ t("Адрес qBittorrent Web UI — этот ПК, NAS или другой компьютер в сети") }}</span><input v-model="torrentSettings.baseUrl" placeholder="http://192.168.1.10:8080"></label><label><span>{{ t("Логин") }}</span><input v-model="torrentSettings.username" placeholder="admin" autocomplete="username"></label><label><span>{{ t("Пароль") }}</span><input v-model="torrentSettings.password" type="password" :placeholder="t(qbit.hasPassword ? 'пусто — оставить сохранённый' : '')" autocomplete="current-password"></label><label><span>{{ t("Папка загрузок на этом ПК — отсюда PackageFlow берёт PKG") }}</span><input v-model="torrentSettings.downloadPath" :placeholder="t(&quot;D:\\Torrents или /home/user/Downloads&quot;)"></label><label><span>{{ t("Та же папка в qBittorrent — если он на другом компьютере (необязательно)") }}</span><input v-model="torrentSettings.remotePath" placeholder="/downloads"></label><div class="wide"><button class="primary">{{ t("Сохранить и проверить") }}</button></div></form><form class="torrent-add" @submit.prevent="addTorrent"><input v-model="torrentSource" :disabled="!qbit.ready" :placeholder="t(&quot;Вставьте разрешённую magnet- или HTTPS .torrent-ссылку&quot;)"><label class="torrent-auto"><input v-model="installAfterDownload" type="checkbox" :disabled="!qbit.ready"> {{ t("Установить после загрузки") }}</label><button class="primary" :disabled="!qbit.ready || !torrentSource.trim()">{{ t("Скачать") }}</button></form><p v-if="!torrents.length && qbit.ready" class="empty">{{ t("Нет torrent-задач PackageFlow.") }}</p><div v-for="torrent in torrents" :key="torrent.hash" class="torrent-row"><div class="torrent-name"><strong>{{ torrent.name }}</strong><span>{{ t(formatBytes(torrent.downloaded)) }} {{ t("из") }} {{ t(formatBytes(torrent.size)) }} · {{ t(torrent.seeds) }} {{ t("сидов ·") }} {{ t(formatBytes(torrent.speed)) }}{{ t("/с") }}</span><div class="progress"><i :style="{ width: `${Math.round(torrent.progress * 100)}%` }" /></div></div><span class="torrent-percent">{{ t(Math.round(torrent.progress * 100)) }}%</span><label class="torrent-auto"><input type="checkbox" :checked="torrent.autoInstall" @change="setTorrentAutoInstall(torrent, ($event.target as HTMLInputElement).checked)"> {{ t("Автоустановка") }}</label><button class="tiny" @click="toggleTorrentFiles(torrent)">{{ t(torrentFiles[torrent.hash] ? 'Скрыть файлы' : 'Файлы') }}</button><button class="tiny" @click="controlTorrent(torrent, isTorrentStopped(torrent) ? 'resume' : 'pause')">{{ t(isTorrentStopped(torrent) ? 'Продолжить' : 'Пауза') }}</button><button class="remove" :title="t(&quot;Убрать задачу, не удаляя файлы&quot;)" @click="controlTorrent(torrent, 'delete')">×</button><div v-if="torrentFiles[torrent.hash]" class="torrent-files"><label v-for="file in torrentFiles[torrent.hash]" :key="file.index"><input type="checkbox" :checked="file.priority > 0" @change="setTorrentFile(torrent, file, ($event.target as HTMLInputElement).checked)"><span>{{ file.name }}</span><small>{{ t(formatBytes(file.size)) }} · {{ t(Math.round(file.progress * 100)) }}%</small></label></div></div></section></section><section v-show="activeSection === 'search'" class="content tool-page"><p class="eyebrow">TORZNAB</p><h1>{{ t("Поиск torrent") }}</h1><p class="page-status">{{ t(searchStatus) }}</p><section class="search-card"><div class="search-head"><div><p class="eyebrow">{{ t("РАЗРЕШЁННЫЙ ИСТОЧНИК") }}</p><h2>{{ t("Поиск torrent") }}</h2></div><button class="secondary" @click="showSearchSettings = !showSearchSettings">{{ t("Источник") }}</button></div><form v-if="showSearchSettings" class="search-settings" @submit.prevent="saveSearchSettings"><input v-model="searchSettings.name" :placeholder="t(&quot;Название источника&quot;)"><input v-model="searchSettings.endpoint" placeholder="URL Torznab API"><input v-model="searchSettings.apiKey" type="password" :placeholder="t(searchHasApiKey ? 'API‑ключ сохранён — пусто, чтобы оставить' : 'API‑ключ (если нужен)')"><input v-model="searchSettings.categories" :placeholder="t('Категории: 1180 (PS4)')" :title="t('Категории Torznab: номера через запятую, пусто — все')"><button class="primary">{{ t("Сохранить") }}</button></form><p v-if="showSearchSettings" class="search-note">{{ t("1180 — игры PS4. Пустое поле категорий — поиск по всем платформам.") }}</p><form class="search-form" @submit.prevent="searchTorrents"><input v-model="searchQuery" :disabled="!searchConfigured" :placeholder="t(&quot;Название пакета&quot;)"><button class="primary" :disabled="!searchConfigured || !searchQuery.trim() || searchBusy">{{ t(searchBusy ? 'Ищем…' : 'Найти') }}</button></form><p v-if="!searchConfigured" class="search-note">{{ t("Добавьте разрешённый Torznab‑источник через кнопку «Источник».") }}</p><SearchResults :results="searchResults" :busy="searchBusy" :loading-more="searchLoadingMore" :has-more="searchHasMore" :total="searchTotal" :ready="qbit.ready" :pending="searchDownloadPending" :message="searchDownloadMessage" :visible="activeSection === 'search'" :searched="searchWasRun" @download="downloadSearchResult" @load-more="loadMoreSearch" /></section></section><section v-show="activeSection === 'log'" class="content tool-page"><p class="eyebrow">{{ t("СОБЫТИЯ СЕРВЕРА") }}</p><h1>{{ t("Журнал") }}</h1><section class="log-card"><div class="log-head"><h2>{{ t("Журнал") }}</h2><p>{{ t("События сервера: запросы PS4, передача пакетов, qBittorrent и ошибки.") }}</p><button class="tiny" :disabled="!logEntries.length" @click="clearLog">{{ t("Очистить") }}</button></div><div ref="logBox" class="log-list"><p v-if="!logEntries.length" class="log-empty">{{ t("Пока событий нет.") }}</p><div v-for="entry in logEntries" :key="entry.id" class="log-line" :class="entry.level"><time>{{ t(logTime(entry.time)) }}</time><span>{{ t(entry.text) }}</span><b v-if="entry.count > 1">×{{ t(entry.count) }}</b></div></div></section></section>
     <section v-if="activeSection === 'donate' && hasDonations" class="content tool-page"><DonatePanel :btc="donationBtc" :usdt-trc20="donationUsdtTrc20" /></section><section v-if="activeSection === 'ftp'" class="content tool-page"><ConsoleFiles :ps-ip="psIp" /></section>
@@ -458,6 +579,20 @@ onMounted(() => { void restoreInstallationMethod().then(restorePsIp).then((resto
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+.library-tools { padding: 18px 20px; border-top: 1px solid #30293e; background: #1d1926; scroll-margin-top: 84px; }
+.library-search { display: grid; gap: 8px; }
+.library-search-label { color: #eee8ff; font-size: 13px; font-weight: 700; }
+.library-search-input { display: flex; gap: 8px; align-items: center; }
+.library-search-input > span { color: #b69aff; font-size: 26px; }
+.library-search-input input { min-width: 0; flex: 1; padding: 11px 13px; border: 1px solid #493c60; border-radius: 9px; background: #14111c; color: #eee8ff; font: inherit; font-size: 12px; }
+.library-search-input input:focus { outline: 2px solid #8d70d4; outline-offset: 1px; }
+.library-search small, .library-selection { color: #a39ab3; font-size: 11px; }
+.library-selection { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+.library-loading, .library-error { padding: 10px 20px; margin: 0; color: #bda5f3; font-size: 12px; }
+.library-error { color: #ffa5ac; }
+.library .empty { padding: 24px 20px; }
+
+
 .topbar > .github-stats { justify-self: start; }
 .topbar > .brand { justify-self: center; }
 .topbar > .topbar-controls { justify-self: end; display: flex; align-items: center; gap: 14px; }

@@ -8,6 +8,16 @@ In WEB, select the PS4 IP and an installation method. PackageFlowService is the 
 
 Choose folder opens a picker on the **server's computer**, not a remote browser device. Enter path scans an existing server folder directly. Docker paths must be container paths such as `/games`. Scanning reads PKG/FPKG metadata, groups by CUSA and caches covers under `.data`; source files are not copied or modified.
 
+## Pages and library search
+
+WEB requests only the current page: **25 packages by default**, or **50 / 100**. The browser remembers the page size. Navigation above and below the list supports first, last and numbered pages.
+
+Library search checks the entire index by title, CUSA, Content ID, file name, package type and version before paginating the results. Library statistics cover the full collection.
+
+Packages remain grouped by CUSA; a large branch may span several pages. **Per page** selects only the visible packages in a branch. Selection survives page changes and searches; **Clear selection** clears it. **Install all / All DLC** use the complete library, and a branch's **DLC** action includes add-ons on other pages.
+
+![Search and pagination in a 2800-package test library](../screenshots/library-pagination.jpg)
+
 ## Install
 
 - Install on a package row: one package.
