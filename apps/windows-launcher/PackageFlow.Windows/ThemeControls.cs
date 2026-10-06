@@ -5,6 +5,11 @@ namespace PackageFlow.Windows;
 internal static class Theme
 {
     public static readonly Color Background = Color.FromArgb(19, 19, 31), Card = Color.FromArgb(30, 29, 46), Border = Color.FromArgb(57, 52, 78), Accent = Color.FromArgb(123, 96, 220), Muted = Color.FromArgb(174, 171, 196), Green = Color.FromArgb(112, 215, 166);
+    // Respect the invalid region when Windows repaints only part of a moved
+    // child window. Graphics.Clear can erase outside that region.
+    public static void Clear(PaintEventArgs e, Color color) {
+        using var brush = new SolidBrush(color); e.Graphics.FillRectangle(brush, e.ClipRectangle);
+    }
     public static GraphicsPath Shape(Rectangle bounds, int radius = 14)
     {
         var path = new GraphicsPath(); var d = Math.Min(radius * 2, Math.Min(bounds.Width, bounds.Height));
@@ -28,12 +33,25 @@ internal static class Theme
     }
 }
 
-internal class RoundedPanel : Panel
+internal class BufferedPanel : Panel
+{
+    public BufferedPanel() { DoubleBuffered = true; SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint, true); }
+}
+internal sealed class BufferedTable : TableLayoutPanel
+{
+    public BufferedTable() { DoubleBuffered = true; SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint, true); }
+}
+internal sealed class BufferedFlow : FlowLayoutPanel
+{
+    public BufferedFlow() { DoubleBuffered = true; SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint, true); }
+}
+
+internal class RoundedPanel : BufferedPanel
 {
     public RoundedPanel() { DoubleBuffered = true; BackColor = Theme.Card; }
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        e.Graphics.Clear(Parent?.BackColor ?? Theme.Background);
+        Theme.Clear(e, Parent?.BackColor ?? Theme.Background);
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = Theme.Shape(new Rectangle(0, 0, Width - 1, Height - 1));
         using var fill = new SolidBrush(BackColor); using var border = new Pen(Theme.Border);
@@ -46,12 +64,12 @@ internal class RoundedButton : Button
     public int? Glyph { get; init; }
     public bool WrapText { get; init; }
     private bool hover;
-    public RoundedButton() { FlatStyle = FlatStyle.Flat; FlatAppearance.BorderSize = 0; DoubleBuffered = true; Cursor = Cursors.Hand; }
+    public RoundedButton() { FlatStyle = FlatStyle.Flat; FlatAppearance.BorderSize = 0; DoubleBuffered = true; SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true); Cursor = Cursors.Hand; }
     protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
     protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g = e.Graphics; g.Clear(Parent?.BackColor ?? Theme.Background); g.SmoothingMode = SmoothingMode.AntiAlias;
+        var g = e.Graphics; Theme.Clear(e, Parent?.BackColor ?? Theme.Background); g.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = Theme.Shape(new Rectangle(1, 1, Width - 3, Height - 3), 11);
         var color = Enabled ? (hover ? ControlPaint.Light(BackColor, .12f) : BackColor) : Theme.Card;
         using var fill = new SolidBrush(color); using var border = new Pen(Focused ? Color.FromArgb(186, 160, 255) : Theme.Border);
@@ -77,7 +95,7 @@ internal sealed class LogoButton : RoundedButton
 }
 
 // Pages are ordinary panels: no native TabControl frame or white theme borders.
-internal sealed class PageHost : Panel
+internal sealed class PageHost : BufferedPanel
 {
     private int selected;
     public ControlCollection TabPages => Controls;
@@ -106,7 +124,7 @@ internal sealed class ActivityProgress : Control
     public ActivityProgress() { DoubleBuffered = true; Height = 5; }
     protected override void OnPaint(PaintEventArgs e)
     {
-        e.Graphics.Clear(Theme.Border); if (Value < 0) return;
+        Theme.Clear(e, Theme.Border); if (Value < 0) return;
         using var brush = new SolidBrush(Theme.Accent); e.Graphics.FillRectangle(brush, 0, 0, Width * Math.Clamp(Value, 0, 100) / 100, Height);
     }
 }
@@ -126,7 +144,7 @@ internal sealed class DarkChoice : Control
     }
     protected override void OnPaint(PaintEventArgs e)
     {
-        e.Graphics.Clear(Parent?.BackColor ?? Theme.Background); e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        Theme.Clear(e, Parent?.BackColor ?? Theme.Background); e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = Theme.Shape(new Rectangle(0, 0, Width - 1, Height - 1), 7);
         using var fill = new SolidBrush(BackColor); using var pen = new Pen(Focused ? Theme.Accent : Theme.Border);
         e.Graphics.FillPath(fill, path); e.Graphics.DrawPath(pen, path);
@@ -183,7 +201,7 @@ internal sealed class EventHistory : Control
     protected override void OnKeyDown(KeyEventArgs e) { base.OnKeyDown(e); if (e.KeyCode is Keys.Up or Keys.Down or Keys.PageUp or Keys.PageDown) { ScrollTo(offset + (e.KeyCode is Keys.Up or Keys.PageUp ? -1 : 1) * (e.KeyCode is Keys.PageUp or Keys.PageDown ? Rows : 1)); e.Handled = true; } }
     protected override void OnPaint(PaintEventArgs e)
     {
-        e.Graphics.Clear(BackColor);
+        Theme.Clear(e, BackColor);
         for (var row = 0; row < Rows && offset + row < Items.Count; row++) TextRenderer.DrawText(e.Graphics, Items[offset + row], Font, new Rectangle(0, row * Font.Height, Width - 16, Font.Height), ForeColor, TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
         if (Items.Count <= Rows) return;
         using var track = new SolidBrush(Theme.Border); using var thumb = new SolidBrush(Theme.Muted);

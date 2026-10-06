@@ -14,6 +14,11 @@ public sealed class LauncherSettings
     public string GamesDirectory { get; set; } = "";
     public bool AutoStart { get; set; }
     public bool SetupComplete { get; set; }
+    public bool AutomaticSetupPending { get; set; }
+    public bool ManagedQbittorrent { get; set; }
+    public int QbittorrentPort { get; set; } = 8090;
+    public string QbittorrentExecutable { get; set; } = "";
+    public string ProtectedQbittorrentPassword { get; set; } = "";
     public bool ManagedProwlarr { get; set; }
     public bool FlareSolverr { get; set; }
     public bool FlareSolverrVisibleBrowser { get; set; } = true;
@@ -35,6 +40,8 @@ public sealed class LauncherSettings
             throw new InvalidOperationException("Unsupported launcher settings.");
         if (Port is < 1024 or > 65535 || PayloadPort is < 1024 or > 65535 || Port == PayloadPort)
             throw new InvalidOperationException("Invalid server ports.");
+        if (QbittorrentPort is < 1024 or > 65535 || (ManagedQbittorrent && (QbittorrentPort == Port || QbittorrentPort == PayloadPort)))
+            throw new InvalidOperationException("Choose different WEB, PS4 and qBittorrent ports.");
         if (HostIp.Length > 0 && (!IPAddress.TryParse(HostIp, out var ip) || ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork || ip.Equals(IPAddress.Any) || IPAddress.IsLoopback(ip)))
             throw new InvalidOperationException("Choose the computer's LAN IPv4 address.");
         if (Mode == "compose" && HostIp.Length == 0) throw new InvalidOperationException("Docker Compose requires the computer's LAN IPv4 address.");

@@ -17,17 +17,17 @@ internal sealed partial class MainForm
     }
     private Control BuildHeader()
     {
-        var header = new TableLayoutPanel { Dock = DockStyle.Top, Height = 72, Padding = new Padding(20, 6, 20, 6), ColumnCount = 2, RowCount = 1 };
+        var header = new BufferedTable { Dock = DockStyle.Top, Height = 72, Padding = new Padding(20, 6, 20, 6), ColumnCount = 2, RowCount = 1 };
         header.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 530));
-        var brand = new Panel { Dock = DockStyle.Fill, Margin = Padding.Empty };
+        var brand = new BufferedPanel { Dock = DockStyle.Fill, Margin = Padding.Empty };
         brand.Controls.Add(new PictureBox { Image = Icon?.ToBitmap(), SizeMode = PictureBoxSizeMode.Zoom, Size = new Size(48, 48), Location = new Point(0, 5) });
         var title = new Label { Text = "PackageFlow", Font = new Font("Segoe UI", 23, FontStyle.Bold), Location = new Point(65, 0), Height = 40, Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
         var caption = new Label { Text = T("Установка • Подключение • Управление", "Install • Connect • Manage"), Font = new Font("Segoe UI", 9), Location = new Point(68, 40), Height = 20 };
         brand.Controls.Add(title); brand.Controls.Add(caption);
         brand.SizeChanged += (_, _) => { title.Width = Math.Max(1, brand.ClientSize.Width - 65); caption.Width = Math.Max(1, brand.ClientSize.Width - 68); };
-        var links = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(0, 14, 0, 0), Margin = Padding.Empty };
+        var links = new BufferedFlow { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(0, 14, 0, 0), Margin = Padding.Empty };
         void Add(Control control) { control.Margin = new Padding(6, 0, 0, 0); links.Controls.Add(control); }
         foreach (var link in new[] { (Name: "4PDA", Image: "4pda.png", Url: "https://4pda.to/forum/index.php?showtopic=1127073"), (Name: "GitHub", Image: "github.png", Url: "https://github.com/" + GithubProject.Repository) }) {
             var button = new LogoButton { Logo = Logo(link.Image), AccessibleName = link.Name, AccessibleDescription = link.Url, Width = 100, Height = 34, BackColor = link.Name == "4PDA" ? Color.White : Theme.Card, ForeColor = Color.White };

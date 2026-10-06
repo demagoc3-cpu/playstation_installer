@@ -9,11 +9,15 @@ using PackageFlow.Core;
 
 namespace PackageFlow.Windows;
 
-internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
+internal sealed partial class ServerHost(LauncherSettings settings, HttpClient http, string? userDirectory = null)
 {
     public static string DataDirectory => Path.Combine(Program.UserDirectory, "data");
     public static string SettingsPath => Path.Combine(Program.UserDirectory, "launcher.json");
     public static string ComposePath => Path.Combine(DataDirectory, "compose.json");
+    private string UserDirectory => userDirectory ?? Program.UserDirectory;
+    private string HostDataDirectory => Path.Combine(UserDirectory, "data");
+    private string HostSettingsPath => Path.Combine(UserDirectory, "launcher.json");
+    private string HostComposePath => Path.Combine(HostDataDirectory, "compose.json");
     private static string InstallDirectory => AppContext.BaseDirectory;
     private Process? server;
     private Process? prowlarr;
@@ -27,6 +31,7 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
 
     public static string[] LanAddresses() => NetworkInterface.GetAllNetworkInterfaces()
         .Where(i => i.OperationalStatus == OperationalStatus.Up && i.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+        .OrderByDescending(i => i.GetIPProperties().GatewayAddresses.Any(g => g.Address.AddressFamily == AddressFamily.InterNetwork && !g.Address.Equals(IPAddress.Any)))
         .SelectMany(i => i.GetIPProperties().UnicastAddresses)
         .Where(a => a.Address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a.Address) && !a.Address.ToString().StartsWith("169.254."))
         .Select(a => a.Address.ToString()).Distinct().ToArray();
@@ -56,23 +61,26 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
         Status?.Invoke("Checking the WEB server…");
         settings.Validate();
         if (await Adopt(ct)) {
-            if (settings.ManagedProwlarr && settings.Mode == "native") await InstallProwlarr(null, ct);
-            if (settings.FlareSolverr && settings.Mode == "native") await InstallFlareSolverr(null, ct);
+            if (!settings.AutomaticSetupPending && settings.Mode == "native") {
+                if (settings.ManagedProwlarr) await InstallProwlarr(null, ct);
+                if (settings.FlareSolverr) await InstallFlareSolverr(null, ct);
+                if (settings.ManagedQbittorrent) await StartQbittorrent(ct);
+            }
             Status?.Invoke("PackageFlow ready"); return;
         }
         if (string.IsNullOrEmpty(settings.ProtectedLauncherKey)) settings.ProtectedLauncherKey = LocalSecrets.Protect(LocalSecrets.Generate());
-        settings.Save(SettingsPath);
+        settings.Save(HostSettingsPath);
         // An unrelated development server must never be adopted or stopped.
         CheckPort(settings.Port); CheckPort(settings.PayloadPort);
-        Directory.CreateDirectory(Path.Combine(DataDirectory, "web"));
+        Directory.CreateDirectory(Path.Combine(HostDataDirectory, "web"));
         if (settings.Mode == "compose")
         {
             Status?.Invoke("Checking Docker Desktop…");
-            await ProcessRunner.Run("docker", ["info", "--format", "{{.OSType}}"], DataDirectory, ct);
-            await ProcessRunner.Run("docker", ["compose", "version"], DataDirectory, ct);
+            await ProcessRunner.Run("docker", ["info", "--format", "{{.OSType}}"], HostDataDirectory, ct);
+            await ProcessRunner.Run("docker", ["compose", "version"], HostDataDirectory, ct);
             if (settings.ManagedProwlarr) BootstrapProwlarr(true);
             var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(InstallDirectory, "release.json")))!;
-            File.WriteAllText(ComposePath, ComposeConfiguration.Generate(settings, DataDirectory, LocalSecrets.Read(settings.ProtectedLauncherKey), manifest["dockerImage"]!.GetValue<string>(), InstallDirectory));
+            File.WriteAllText(HostComposePath, ComposeConfiguration.Generate(settings, HostDataDirectory, LocalSecrets.Read(settings.ProtectedLauncherKey), manifest["dockerImage"]!.GetValue<string>(), InstallDirectory));
             Status?.Invoke("Downloading and starting containers…");
             // The installer already contains WEB: no Git, npm or unpublished image is needed.
             await Compose(["build", "packageflow"], ct);
@@ -86,7 +94,7 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
                 throw new FileNotFoundException("Install the complete PackageFlow distribution.");
             var info = ProcessRunner.Info(executable, [Path.Combine(directory, ".output", "server", "index.mjs")], directory);
             info.Environment["NODE_ENV"] = "production"; info.Environment["HOST"] = "0.0.0.0"; info.Environment["PORT"] = settings.Port.ToString();
-            info.Environment["PACKAGEFLOW_DATA_DIR"] = Path.Combine(DataDirectory, "web");
+            info.Environment["PACKAGEFLOW_DATA_DIR"] = Path.Combine(HostDataDirectory, "web");
             info.Environment["PACKAGEFLOW_PAYLOAD_PORT"] = settings.PayloadPort.ToString();
             info.Environment["PACKAGEFLOW_PUBLIC_PORT"] = settings.Port.ToString();
             info.Environment["PACKAGEFLOW_LAUNCHER_KEY"] = LocalSecrets.Read(settings.ProtectedLauncherKey);
@@ -113,9 +121,10 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
                 await Task.Delay(1000, ct);
             }
             if (!Started) throw new InvalidOperationException("PackageFlow did not start. The Compose image must match this Windows release.");
-            if (settings.Mode == "native") {
+            if (settings.Mode == "native" && !settings.AutomaticSetupPending) {
                 if (settings.ManagedProwlarr) await InstallProwlarr(null, ct);
                 if (settings.FlareSolverr) await InstallFlareSolverr(null, ct);
+                if (settings.ManagedQbittorrent) await StartQbittorrent(ct);
             }
             Status?.Invoke("PackageFlow ready");
         }
@@ -163,7 +172,7 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
         // Native managed Prowlarr may be adopted after a launcher crash.
         if (settings.ManagedProwlarr && settings.Mode == "native" && prowlarr == null)
         {
-            var folder = Path.Combine(Program.UserDirectory, "components", "prowlarr") + Path.DirectorySeparatorChar;
+            var folder = Path.Combine(UserDirectory, "components", "prowlarr") + Path.DirectorySeparatorChar;
             foreach (var process in Process.GetProcessesByName("Prowlarr"))
             {
                 try { if (process.MainModule?.FileName?.StartsWith(folder, StringComparison.OrdinalIgnoreCase) == true) { prowlarr = process; break; } } catch { process.Dispose(); }
@@ -171,7 +180,7 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
         }
         if (prowlarr is { HasExited: false }) { prowlarr.Kill(true); await prowlarr.WaitForExitAsync(ct); }
         if (settings.Mode == "native") {
-            var folder = Path.Combine(Program.UserDirectory, "components", "flaresolverr") + Path.DirectorySeparatorChar;
+            var folder = Path.Combine(UserDirectory, "components", "flaresolverr") + Path.DirectorySeparatorChar;
             foreach (var process in Process.GetProcessesByName("flaresolverr")) {
                 try {
                     if (process.MainModule?.FileName?.StartsWith(folder, StringComparison.OrdinalIgnoreCase) == true) {
@@ -193,11 +202,11 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
         return process;
     }
 
-    public Task<string> Compose(IEnumerable<string> arguments, CancellationToken ct) => ProcessRunner.Run("docker", new[] { "compose", "--file", ComposePath, "--project-name", "packageflow-desktop" }.Concat(arguments), DataDirectory, ct);
+    public Task<string> Compose(IEnumerable<string> arguments, CancellationToken ct) => ProcessRunner.Run("docker", new[] { "compose", "--file", HostComposePath, "--project-name", "packageflow-desktop" }.Concat(arguments), HostDataDirectory, ct);
 
     private void BootstrapProwlarr(bool container)
     {
-        var folder = Path.Combine(DataDirectory, "prowlarr"); Directory.CreateDirectory(folder);
+        var folder = Path.Combine(HostDataDirectory, "prowlarr"); Directory.CreateDirectory(folder);
         var path = Path.Combine(folder, "config.xml");
         if (File.Exists(path))
         {
@@ -216,7 +225,7 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
                 new XElement("AuthenticationRequired", "Enabled"), new XElement("UrlBase", ""))).Save(path);
         }
         settings.ProwlarrUrl = "http://127.0.0.1:9696";
-        settings.Save(SettingsPath);
+        settings.Save(HostSettingsPath);
     }
 
     public async Task InstallProwlarr(IProgress<int>? progress, CancellationToken ct)
@@ -227,14 +236,14 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
             try { using var probe = ProbeTimeout(ct); await new ProwlarrClient(http, settings.ProwlarrUrl, LocalSecrets.Read(settings.ProtectedProwlarrKey)).Indexers(probe.Token); Status?.Invoke("Prowlarr ready"); return; }
             catch (Exception) when (!ct.IsCancellationRequested) { }
         }
-        var components = Path.Combine(Program.UserDirectory, "components", "prowlarr");
+        var components = Path.Combine(UserDirectory, "components", "prowlarr");
         var executable = File.Exists(Path.Combine(components, "Prowlarr.exe")) ? Path.Combine(components, "Prowlarr.exe") : Path.Combine(components, "Prowlarr", "Prowlarr.exe");
         if (!File.Exists(executable))
         {
             Status?.Invoke("Downloading Prowlarr…");
             var asset = await ReleaseDownloads.Latest(http, "Prowlarr/Prowlarr", name => name.EndsWith("windows-core-x64.zip"), ct)
                 ?? throw new InvalidOperationException("No Windows x64 Prowlarr release.");
-            var zip = Path.Combine(Program.UserDirectory, "downloads", "prowlarr.zip");
+            var zip = Path.Combine(UserDirectory, "downloads", "prowlarr.zip");
             await ReleaseDownloads.Download(http, asset, zip, Progress(progress), ct);
             var staging = components + ".staging-" + Guid.NewGuid().ToString("N");
             try
@@ -252,8 +261,8 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
         CheckPort(9696);
         BootstrapProwlarr(false);
         Status?.Invoke("Starting Prowlarr…");
-        prowlarr = StartProcess(ProcessRunner.Info(executable, ["-nobrowser", "-data=" + Path.Combine(DataDirectory, "prowlarr")], Path.GetDirectoryName(executable)!));
-        settings.ManagedProwlarr = true; settings.Save(SettingsPath);
+        prowlarr = StartProcess(ProcessRunner.Info(executable, ["-nobrowser", "-data=" + Path.Combine(HostDataDirectory, "prowlarr")], Path.GetDirectoryName(executable)!));
+        settings.ManagedProwlarr = true; settings.Save(HostSettingsPath);
         var client = new ProwlarrClient(http, settings.ProwlarrUrl, LocalSecrets.Read(settings.ProtectedProwlarrKey));
         for (var attempt = 0; attempt < 90; attempt++)
         {
@@ -277,19 +286,19 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
     {
         Status?.Invoke("Checking FlareSolverr…");
         if (settings.Mode == "compose") {
-            settings.FlareSolverr = true; settings.Save(SettingsPath);
+            settings.FlareSolverr = true; settings.Save(HostSettingsPath);
             var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(InstallDirectory, "release.json")))!;
-            File.WriteAllText(ComposePath, ComposeConfiguration.Generate(settings, DataDirectory, LocalSecrets.Read(settings.ProtectedLauncherKey), manifest["dockerImage"]!.GetValue<string>(), InstallDirectory));
+            File.WriteAllText(HostComposePath, ComposeConfiguration.Generate(settings, HostDataDirectory, LocalSecrets.Read(settings.ProtectedLauncherKey), manifest["dockerImage"]!.GetValue<string>(), InstallDirectory));
             await Compose(["up", "-d", "--no-build", "--pull", "missing", "flaresolverr"], ct);
         } else if (!await FlareReady(ct)) {
             CheckPort(8191);
-            var components = Path.Combine(Program.UserDirectory, "components", "flaresolverr");
+            var components = Path.Combine(UserDirectory, "components", "flaresolverr");
             var executable = Directory.Exists(components) ? Directory.GetFiles(components, "flaresolverr.exe", SearchOption.AllDirectories).SingleOrDefault() : null;
             if (executable == null) {
                 Status?.Invoke("Downloading FlareSolverr…");
                 var asset = await ReleaseDownloads.Latest(http, "FlareSolverr/FlareSolverr", name => name == "flaresolverr_windows_x64.zip", ct)
                     ?? throw new InvalidOperationException("No Windows x64 FlareSolverr release.");
-                var zip = Path.Combine(Program.UserDirectory, "downloads", "flaresolverr.zip");
+                var zip = Path.Combine(UserDirectory, "downloads", "flaresolverr.zip");
                 await ReleaseDownloads.Download(http, asset, zip, Progress(progress), ct);
                 var staging = components + ".staging-" + Guid.NewGuid().ToString("N");
                 try {
@@ -313,7 +322,7 @@ internal sealed class ServerHost(LauncherSettings settings, HttpClient http)
             flareSolverr = StartProcess(info);
         }
         for (var attempt = 0; attempt < 90; attempt++) {
-            if (await FlareReady(ct)) { settings.FlareSolverr = true; settings.Save(SettingsPath); Status?.Invoke("FlareSolverr ready"); return; }
+            if (await FlareReady(ct)) { settings.FlareSolverr = true; settings.Save(HostSettingsPath); Status?.Invoke("FlareSolverr ready"); return; }
             if (flareSolverr?.HasExited == true) throw new InvalidOperationException("FlareSolverr stopped during startup.");
             await Task.Delay(1000, ct);
         }

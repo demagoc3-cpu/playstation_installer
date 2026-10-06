@@ -34,7 +34,7 @@ public static class ReleaseDownloads
 
     public static async Task<ReleaseAsset?> Latest(HttpClient http, string repository, Func<string, bool> select, CancellationToken ct)
     {
-        if (repository is not ("demagoc3-cpu/playstation_installer" or "Prowlarr/Prowlarr" or "FlareSolverr/FlareSolverr")) throw new ArgumentException("Unknown repository.");
+        if (repository is not ("demagoc3-cpu/playstation_installer" or "Prowlarr/Prowlarr" or "FlareSolverr/FlareSolverr" or "qbittorrent/qBittorrent")) throw new ArgumentException("Unknown repository.");
         using var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.github.com/repos/{repository}/releases/latest");
         request.Headers.UserAgent.ParseAdd("PackageFlow-Windows/0.1");
         using var response = await http.SendAsync(request, ct);

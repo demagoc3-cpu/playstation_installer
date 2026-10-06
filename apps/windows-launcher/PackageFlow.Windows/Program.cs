@@ -46,7 +46,7 @@ internal static class Program
             if (!File.Exists(ServerHost.SettingsPath))
             {
                 var language = args.FirstOrDefault(arg => arg.StartsWith("--language="))?.Split('=')[1];
-                if (language is "ru" or "en") new PackageFlow.Core.LauncherSettings { Language = language }.Save(ServerHost.SettingsPath);
+                new PackageFlow.Core.LauncherSettings { Language = language is "ru" or "en" ? language : "ru", AutomaticSetupPending = true }.Save(ServerHost.SettingsPath);
             }
             Application.Run(new MainForm(args.Contains("--background")));
         }

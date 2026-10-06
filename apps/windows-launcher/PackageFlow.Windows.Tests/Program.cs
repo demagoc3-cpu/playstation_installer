@@ -28,6 +28,10 @@ internal static class Smoke
     {
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
         var report = args.FirstOrDefault() ?? Path.Combine(Path.GetTempPath(), "PackageFlow-ui-tests.txt");
+        if (args.Contains("--qbittorrent")) {
+            try { QbittorrentTests.Run(report).GetAwaiter().GetResult(); return 0; }
+            catch (Exception error) { File.WriteAllText(report, "FAIL: " + error); return 1; }
+        }
         var lines = new List<string>();
         var testFolder = Path.Combine(Path.GetTempPath(), "PackageFlow-ui-" + Guid.NewGuid());
         Directory.CreateDirectory(testFolder);
@@ -35,6 +39,12 @@ internal static class Smoke
             var settings = new LauncherSettings { Language = "ru", GamesDirectory = testFolder, TrackerUsername = "fixture-user", ProtectedTrackerPassword = LocalSecrets.Protect("fixture-password") };
             using var form = new MainForm(false, settings) { WindowState = FormWindowState.Normal };
             form.Show(); Pump();
+            using (var surface = new Bitmap(80, 80)) {
+                using var graphics = Graphics.FromImage(surface); graphics.Clear(Color.Magenta);
+                Theme.Clear(new PaintEventArgs(graphics, new Rectangle(20, 20, 10, 10)), Theme.Background);
+                Check(surface.GetPixel(5, 5).ToArgb() == Color.Magenta.ToArgb() && surface.GetPixel(25, 25).ToArgb() == Theme.Background.ToArgb(), "Partial repaint must not erase pixels outside the invalid region.");
+            }
+            lines.Add("PASS: partial repaint respects the invalid region.");
             for (var i = 0; i < 20; i++) {
                 var choice = Field<DarkChoice>(form, "mode"); Select(choice, i % 2);
                 Check(choice.SelectedIndex == i % 2, "Dropdown selection must survive its close event.");
@@ -85,6 +95,21 @@ internal static class Smoke
             var actions = tabs.TabPages[0].Controls.OfType<TableLayoutPanel>().Single(p => p.Dock == DockStyle.Bottom);
             Check(actions.Controls.OfType<Button>().Any(b => b.Text == "Применить"), "Settings need an Apply button.");
             lines.Add("PASS: pairing card ordering, header logos, Apply button and folder picker.");
+            form.ClientSize = new Size(1100, 780); form.Location = new Point(25, 25); Pump();
+            foreach (var pageIndex in new[] { 0, 1, 2 }) {
+                tabs.SelectedIndex = pageIndex; Pump();
+                for (var i = 0; i < 12; i++) { form.Location = new Point(25 + i % 3 * 30, 25 + i % 2 * 18); Pump(); }
+                form.Location = new Point(25, 25); Pump();
+                using var moved = new Bitmap(form.ClientSize.Width, form.ClientSize.Height);
+                using (var graphics = Graphics.FromImage(moved)) graphics.CopyFromScreen(form.PointToScreen(Point.Empty), Point.Empty, moved.Size);
+                form.Invalidate(true); form.Update(); Pump();
+                using var repainted = new Bitmap(moved.Width, moved.Height);
+                using (var graphics = Graphics.FromImage(repainted)) graphics.CopyFromScreen(form.PointToScreen(Point.Empty), Point.Empty, repainted.Size);
+                var different = 0;
+                for (var y = 0; y < moved.Height; y += 3) for (var x = 0; x < moved.Width; x += 3) if (moved.GetPixel(x, y) != repainted.GetPixel(x, y)) different++;
+                Check(different < 30, "Window movement left stale pixels on page " + pageIndex + ": " + different);
+            }
+            lines.Add("PASS: moved windows match a full repaint on Installation, PS4 and Search.");
             settings.Save(Path.Combine(testFolder, "settings.json"));
             var stored = LauncherSettings.Load(Path.Combine(testFolder, "settings.json"));
             Check(!File.ReadAllText(Path.Combine(testFolder, "settings.json")).Contains("fixture-password") && LocalSecrets.Read(stored.ProtectedTrackerPassword) == "fixture-password", "Saved password must use Windows account protection.");

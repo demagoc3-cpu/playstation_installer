@@ -22,6 +22,17 @@ try
     var legacyPath = Path.Combine(directory, "legacy-launcher.json");
     File.WriteAllText(legacyPath, "{\"Schema\":1,\"Mode\":\"native\",\"FlareSolverr\":true}");
     var migrated = LauncherSettings.Load(legacyPath);
+    Check(!migrated.AutomaticSetupPending && !migrated.ManagedQbittorrent, "Updating an existing installation must not enable automatic setup or replace its torrent client.");
+    migrated.AutomaticSetupPending = true; migrated.Save(legacyPath);
+    Check(LauncherSettings.Load(legacyPath).AutomaticSetupPending, "Interrupted first setup must resume on next launch.");
+    var qbitSecret = "fixture-generated-password-not-default";
+    var qbitConfig = QbittorrentBootstrap.Configuration(8090, qbitSecret, directory);
+    Check(qbitConfig.Contains("WebUI\\Address=127.0.0.1") && qbitConfig.Contains("WebUI\\LocalHostAuth=true") && !qbitConfig.Contains(qbitSecret), "Managed Web UI must be authenticated on loopback and contain no plaintext password.");
+    var qbitHash = System.Text.RegularExpressions.Regex.Match(qbitConfig, @"@ByteArray\(([^:]+):([^\)]+)\)");
+    var qbitSalt = Convert.FromBase64String(qbitHash.Groups[1].Value);
+    var qbitDerived = Rfc2898DeriveBytes.Pbkdf2(Encoding.UTF8.GetBytes(qbitSecret), qbitSalt, 100000, HashAlgorithmName.SHA512, 64);
+    Check(Convert.ToBase64String(qbitDerived) == qbitHash.Groups[2].Value, "qBittorrent's PBKDF2 format must authenticate the generated password.");
+    Check(QbittorrentBootstrap.ProfileFile(directory).Contains("qBittorrent_PackageFlow") && QbittorrentBootstrap.IsWindowsAsset("qbittorrent_5.2.4_x64_setup.exe") && !QbittorrentBootstrap.IsWindowsAsset("qbittorrent_5.2.4_x86_setup.exe"), "Use the isolated profile and the official x64 installer.");
     Check(migrated.FlareSolverrVisibleBrowser, "Existing installations must enable the Windows Cloudflare compatibility mode.");
     migrated.FlareSolverrVisibleBrowser = false; migrated.Save(legacyPath);
     Check(!LauncherSettings.Load(legacyPath).FlareSolverrVisibleBrowser, "The user's hidden-browser choice must survive a restart.");

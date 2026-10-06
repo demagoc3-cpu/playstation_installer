@@ -39,6 +39,8 @@ internal sealed partial class MainForm : Form
         settings = previewSettings ?? LauncherSettings.Load(ServerHost.SettingsPath);
         this.background = background;
         Text = "PackageFlow for Windows";
+        DoubleBuffered = true;
+        SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint, true);
         Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath!) ?? SystemIcons.Application;
         tray.Icon = Icon;
         ClientSize = new Size(1180, 780); MinimumSize = new Size(980, 760);
@@ -58,7 +60,8 @@ internal sealed partial class MainForm : Form
             if (background && settings.SetupComplete) Hide();
             await RefreshHealth();
             healthTimer.Start();
-            if (settings.SetupComplete) await Act(() => host.Start(lifetime.Token), T("Запуск PackageFlow", "Starting PackageFlow"));
+            if (settings.AutomaticSetupPending && settings.Mode == "native") await Act(PrepareFirstRun, T("Первая настройка: подготавливаем компоненты", "First setup: preparing components"));
+            else if (settings.SetupComplete || settings.ManagedQbittorrent) await Act(() => host.Start(lifetime.Token), T("Запуск PackageFlow", "Starting PackageFlow"));
         };
     }
 
@@ -75,7 +78,7 @@ internal sealed partial class MainForm : Form
         foreach (var page in oldPages) page.Dispose();
         foreach (var surface in oldSurfaces) surface.Dispose();
         tabs.BackColor = BackColor;
-        navigation = new FlowLayoutPanel { Dock = DockStyle.Left, Width = 205, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(14, 22, 14, 0), BackColor = Color.FromArgb(23, 23, 38) };
+        navigation = new BufferedFlow { Dock = DockStyle.Left, Width = 205, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(14, 22, 14, 0), BackColor = Color.FromArgb(23, 23, 38) };
         var header = BuildHeader();
         Controls.Add(tabs); Controls.Add(navigation); Controls.Add(BuildHealthStrip()); Controls.Add(header); Controls.Add(BuildActivity());
         InstallationPage(); ConnectionPage(); SearchPage(); TorrentPage(); UpdatePage();
@@ -118,8 +121,8 @@ internal sealed partial class MainForm : Form
         var nav = new RoundedButton { Glyph = index, Text = index == 2 ? T("3. Поиск", "3. Search") : name, Tag = index, Width = 175, Height = 52, FlatStyle = FlatStyle.Flat, ForeColor = ForeColor,
             TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 0, 0), Margin = new Padding(0, 0, 0, 8) };
         nav.FlatAppearance.BorderSize = 0; nav.Click += (_, _) => tabs.SelectedIndex = index; navigation.Controls.Add(nav);
-        var page = new Panel { Dock = DockStyle.Fill, BackColor = BackColor, ForeColor = ForeColor, Padding = new Padding(18, 10, 18, 12) };
-        var heading = new TableLayoutPanel { Dock = DockStyle.Top, Height = 87, ColumnCount = 1, RowCount = 2 };
+        var page = new BufferedPanel { Dock = DockStyle.Fill, BackColor = BackColor, ForeColor = ForeColor, Padding = new Padding(18, 10, 18, 12) };
+        var heading = new BufferedTable { Dock = DockStyle.Top, Height = 87, ColumnCount = 1, RowCount = 2 };
         heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 41)); heading.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         heading.Controls.Add(new Label { Text = name, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 22, FontStyle.Bold) });
         var subtitle = new Label { Text = description, Dock = DockStyle.Fill, ForeColor = Theme.Muted, Padding = new Padding(0, 5, 0, 0) };
@@ -129,7 +132,7 @@ internal sealed partial class MainForm : Form
             var desired = 45 + subtitle.GetPreferredSize(new Size(heading.ClientSize.Width - 8, 0)).Height;
             if (heading.Height != desired) heading.Height = desired;
         };
-        var footer = new TableLayoutPanel { Dock = DockStyle.Bottom, Height = 70, RowCount = 1, ColumnCount = 0, Padding = new Padding(4, 8, 4, 4), BackColor = Color.FromArgb(23, 23, 38) };
+        var footer = new BufferedTable { Dock = DockStyle.Bottom, Height = 70, RowCount = 1, ColumnCount = 0, Padding = new Padding(4, 8, 4, 4), BackColor = Color.FromArgb(23, 23, 38) };
         footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         var flow = new CardFlow { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, AutoScroll = true, Tag = new PageLayout(footer, columns) };
         void ResizeFields() {
@@ -153,7 +156,7 @@ internal sealed partial class MainForm : Form
         card.Controls.Add(field); formFields.Add(field);
         if (secret) {
             var title = card.Controls.OfType<Label>().Single(); card.Controls.Remove(title);
-            var heading = new Panel { Dock = DockStyle.Top, Height = 32 };
+            var heading = new BufferedPanel { Dock = DockStyle.Top, Height = 32 };
             title.Dock = DockStyle.Fill;
             var reveal = new CheckBox { Text = T("Показать", "Show"), AccessibleName = T("Показать пароль", "Show password"), Dock = DockStyle.Right, Width = 88, Font = new Font("Segoe UI", 9) };
             reveal.CheckedChanged += (_, _) => field.UseSystemPasswordChar = !reveal.Checked;
@@ -194,7 +197,7 @@ internal sealed partial class MainForm : Form
     private TextBox FolderField(FlowLayoutPanel parent, string label, string value)
     {
         var field = Field(parent, label, value); var card = field.Parent!;
-        var line = new Panel { Dock = DockStyle.Bottom, Height = 29 };
+        var line = new BufferedPanel { Dock = DockStyle.Bottom, Height = 29 };
         card.Controls.Remove(field); field.Dock = DockStyle.Fill; field.Margin = Padding.Empty;
         var choose = new RoundedButton { Text = T("Выбрать…", "Browse…"), Width = 95, Dock = DockStyle.Right, BackColor = Theme.Accent, ForeColor = Color.White, Font = new Font("Segoe UI", 9), FlatStyle = FlatStyle.Flat };
         choose.FlatAppearance.BorderSize = 0;
@@ -239,6 +242,12 @@ internal sealed partial class MainForm : Form
         "Starting FlareSolverr and Chromium…" => "Запускаем FlareSolverr и Chromium…",
         "FlareSolverr ready" => "FlareSolverr работает",
         "Downloading FlareSolverr…" => "Загружаем FlareSolverr…",
+        "Checking qBittorrent…" => "Проверяем qBittorrent…",
+        "Downloading qBittorrent…" => "Загружаем qBittorrent…",
+        "Installing qBittorrent: approve the Windows administrator prompt…" => "Устанавливаем qBittorrent: подтвердите запрос администратора Windows…",
+        "Starting qBittorrent…" => "Запускаем qBittorrent и ожидаем Web UI…",
+        "Connecting qBittorrent to WEB…" => "Подключаем qBittorrent к WEB…",
+        "qBittorrent ready" => "qBittorrent подключён",
         "Checking Docker Desktop…" => "Проверяем Docker Desktop…",
         "Downloading and starting containers…" => "Подготавливаем и запускаем контейнеры…",
         "WEB ready" => "WEB работает, запускаем дополнительные компоненты…",
@@ -259,6 +268,7 @@ internal sealed partial class MainForm : Form
         }
         if (settings.Language != "ru") return error.Message;
         if (error is System.ComponentModel.Win32Exception && settings.Mode == "compose") return "Не удалось запустить Docker. Установите Docker Desktop, включите Linux-контейнеры и запустите его.";
+        if (error is System.ComponentModel.Win32Exception { NativeErrorCode: 1223 }) return "Запрос администратора Windows отменён. Нажмите «Подготовить компоненты», чтобы повторить установку qBittorrent.";
         if (error.Message.StartsWith("Prowlarr (")) return "Prowlarr не принял запрос. Проверьте API-ключ, логин и пароль трекера. Подробности доступны через «Открыть Prowlarr» → тест индексатора.";
         return error.Message switch
         {
@@ -268,6 +278,12 @@ internal sealed partial class MainForm : Form
             "Choose the computer's LAN IPv4 address." => "Выберите LAN IPv4 компьютера.",
             "Docker Compose requires the computer's LAN IPv4 address." => "Для Compose выберите LAN IPv4 компьютера.",
             "Invalid server ports." => "Укажите разные порты WEB и обратного подключения в диапазоне 1024–65535.",
+            "Choose different WEB, PS4 and qBittorrent ports." => "Порты WEB, обратного подключения PS4 и qBittorrent должны различаться.",
+            "The saved qBittorrent connection is unavailable. Check its settings in Downloads." => "Сохранённое подключение qBittorrent недоступно. Проверьте его настройки в «Загрузках».",
+            "qBittorrent installation did not complete. Retry automatic setup." => "Установка qBittorrent не завершена. Повторите подготовку компонентов.",
+            "No verified Windows x64 qBittorrent release." => "В официальном релизе qBittorrent не найден проверяемый установщик Windows x64.",
+            "qBittorrent Web UI did not start. Check the PackageFlow profile." => "Web UI qBittorrent не запустился. Проверьте профиль PackageFlow и повторите подготовку.",
+            "qBittorrent stopped during startup." => "qBittorrent завершился при запуске. Повторите подготовку компонентов.",
             "Release has no verifiable SHA-256 asset." => "В релизе нет проверяемой контрольной суммы SHA-256. Обновление не запущено.",
             "Download size or SHA-256 verification failed." => "Размер или SHA-256 загруженного файла не совпадает с релизом. Файл не запущен.",
             "This RuTracker definition requires manual authentication in Prowlarr." => "Этот индексатор требует дополнительной авторизации. Откройте Prowlarr и выполните её там.",
@@ -293,6 +309,7 @@ internal sealed partial class MainForm : Form
             (T("Остановить", "Stop"), () => host.Stop(lifetime.Token)),
             (T("Разрешить доступ PS4", "Allow PS4 access"), Firewall));
         Buttons(page, (T("Скачать Docker Desktop", "Download Docker Desktop"), () => { ProcessRunner.Open("https://docs.docker.com/desktop/setup/install/windows-install/"); return Task.CompletedTask; }));
+        Buttons(page, (T("Подготовить компоненты", "Prepare components"), PrepareFirstRun));
     }
     private LauncherSettings JsonSerializerClone(LauncherSettings source) => System.Text.Json.JsonSerializer.Deserialize<LauncherSettings>(System.Text.Json.JsonSerializer.Serialize(source))!;
     private void Restore(LauncherSettings previous)
@@ -406,7 +423,7 @@ internal sealed partial class MainForm : Form
             }),
             (T("Настроить позже", "Set up later"), () => { tabs.SelectedIndex = 3; return Task.CompletedTask; }));
     }
-    private async Task<int> SetupFlareSolverr(ProwlarrClient client)
+    private async Task<int> SetupFlareSolverr(ProwlarrClient client, bool showNotice = true)
     {
         if (!new Uri(prowlarrUrl.Text).IsLoopback)
             throw new InvalidOperationException(T("Для удалённого Prowlarr настройте адрес FlareSolverr в его интерфейсе. Автоматическая установка предназначена для этого компьютера.", "For remote Prowlarr configure the FlareSolverr address in its interface. Automatic setup is for this computer."));
@@ -414,8 +431,9 @@ internal sealed partial class MainForm : Form
         var address = settings.Mode == "compose" && settings.ManagedProwlarr ? "http://flaresolverr:8191/" : "http://127.0.0.1:8191/";
         Report(T("FlareSolverr: проверяем доступ к RuTracker и сохраняем прокси…", "FlareSolverr: checking RuTracker access and saving proxy…"));
         var tag = await client.ConfigureFlareSolverr(address, lifetime.Token, "http://127.0.0.1:8191/");
-        if (client.UsedTrackerFallback)
+        if (client.UsedTrackerFallback && showNotice)
             MessageBox.Show(this, T("Cloudflare блокирует проверочный сайт Prowlarr. Главная страница RuTracker открывается через FlareSolverr, прокси сохранён. Далее требуется проверка входа и поиска: на этих страницах может появиться отдельная проверка Cloudflare.", "Cloudflare blocks the Prowlarr test site. The RuTracker homepage opens through FlareSolverr and the proxy has been saved. Authentication and search still need to be tested: those pages may require a separate Cloudflare challenge."), "PackageFlow", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        else if (client.UsedTrackerFallback) Report(T("FlareSolverr: RuTracker доступен, прокси сохранён; проверочный сайт Prowlarr заблокирован.", "FlareSolverr: RuTracker is reachable and the proxy is saved; Prowlarr's test site is blocked."));
         return tag;
     }
     private sealed record Indexer(int Id, string Name) { public override string ToString() => Name; }

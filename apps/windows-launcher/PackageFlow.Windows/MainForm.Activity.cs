@@ -17,7 +17,7 @@ internal sealed partial class MainForm
     private Control BuildHealthStrip()
     {
         healthCards.Clear();
-        var strip = new Panel { Dock = DockStyle.Top, Height = 100, Padding = new Padding(14, 0, 14, 10), BackColor = BackColor };
+        var strip = new BufferedPanel { Dock = DockStyle.Top, Height = 100, Padding = new Padding(14, 0, 14, 10), BackColor = BackColor };
         foreach (var name in new[] { "WEB", "Pairing", "qBittorrent", "Prowlarr", "FlareSolverr" })
         {
             var card = new StatusCard(name == "Pairing" ? T("Сопряжение", "Pairing") : name);
@@ -40,7 +40,7 @@ internal sealed partial class MainForm
 
     private Control BuildActivity()
     {
-        var activity = new Panel { Dock = DockStyle.Bottom, Height = 78, Padding = new Padding(20, 6, 20, 8), BackColor = BackColor };
+        var activity = new BufferedPanel { Dock = DockStyle.Bottom, Height = 78, Padding = new Padding(20, 6, 20, 8), BackColor = BackColor };
         status.Dock = DockStyle.Top; status.Height = 31; status.Padding = new Padding(0, 5, 0, 3);
         activity.Controls.Add(events); activity.Controls.Add(status); activity.Controls.Add(progress);
         return activity;
