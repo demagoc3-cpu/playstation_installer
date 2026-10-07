@@ -9,7 +9,7 @@ process.chdir(dir); mkdirSync('.data'); writeFileSync('base.pkg', Buffer.alloc(1
 registerHooks({ resolve(specifier, context, next) { try { return next(specifier, context) } catch (error) { if (specifier.startsWith('.') && !/\.[a-z]+$/.test(specifier)) return next(`${specifier}.ts`, context); throw error } } })
 const { createError } = await import(pathToFileURL(resolve(root,'node_modules/h3/dist/index.mjs'))); globalThis.createError = createError
 const util = await import(pathToFileURL(resolve(root, 'server/utils/presets.ts')))
-const base = { id:'base', title:'Racing Test', fileName:'base.pkg', size:1024,type:'Игра',titleId:'CUSA00001',contentId:'EP0000-CUSA00001_00-ABCDEFGHIJKLMNOP',contentType:'PS4GD',packageDigest:'a'.repeat(64),iconSize:0,installOrder:0,path:resolve('base.pkg'),libraryRoot:dir,sourceModifiedAt:1,icon:{offset:0,size:0} }
+const base = { id:'base', title:'Racing Test', fileName:'base.pkg', size:1024,type:'Игра',titleId:'CUSA00001',contentId:'EP0000-CUSA00001_00-ABCDEFGHIJKLMNOP',contentType:'PS4GD',packageDigest:'a'.repeat(64),iconSize:16,installOrder:0,path:resolve('base.pkg'),libraryRoot:dir,sourceModifiedAt:1,icon:{offset:0,size:0} }
 const patch = { ...base,id:'patch',title:'Update',fileName:'patch.pkg',type:'Патч',size:2048,installOrder:1,packageDigest:'b'.repeat(64),path:resolve('patch.pkg') }
 writeFileSync('patch.pkg',Buffer.alloc(2048))
 const saveLibrary = packages => writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages,deliveries:{}}))
@@ -21,6 +21,20 @@ try {
   assert.equal(util.presetPage(preset.id,{q:'Racing'}).items.length,2,'search includes the entire game branch')
   assert.equal(util.listPresets({q:'Любимые'}).items.length,1,'preset search includes description');assert.equal(util.presetPage(preset.id).description,'Любимые гонки');assert.equal(util.presetPage(preset.id).covers.length,1,'one thumbnail per game, not per DLC');
   const exportData=util.exportPresets(preset.id)
+  globalThis.defineEventHandler = handler => handler
+  globalThis.readBody = async event => event.body
+  globalThis.setHeader = () => {}
+  const nativeHandler = (await import(pathToFileURL(resolve(root, 'server/api/catalog/v1/presets.post.ts')))).default
+  const nativeList = await nativeHandler({ body: { limit: 10, lang: 'ru' } })
+  assert.equal(nativeList.games[0].title, 'Гонки')
+  assert.equal(nativeList.games[0].gameCount, 1)
+  assert.equal(nativeList.games[0].size, 3072)
+  assert.equal(nativeList.games[0].packageCount, 2)
+  assert.deepEqual(nativeList.games[0].covers, ['/api/packages/base?asset=icon'])
+  assert.ok(nativeList.games[0].covers.every(url => typeof url === 'string' && url.startsWith('/api/packages/')))
+  const nativeContents = await nativeHandler({ body: { presetId: preset.id, limit: 10 } })
+  assert.equal(nativeContents.games[0].size, 3072)
+  assert.deepEqual(nativeContents.games[0].packages.map(item => item.id), ['base', 'patch'])
   assert.ok(!JSON.stringify(exportData).includes(dir),'no computer paths in portable exports')
   assert.deepEqual(util.presetSelection(preset.id).map(item=>item.id),['base','patch'])
   saveLibrary([{...base,id:'new-base',fileName:'renamed.pkg',path:resolve('base.pkg')},patch])

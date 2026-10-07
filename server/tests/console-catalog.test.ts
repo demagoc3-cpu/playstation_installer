@@ -21,6 +21,16 @@ test('console catalog groups packages and orders the base before its patch', () 
   assert.equal(result.games[0]!.packages[0]!.size, 6_600_000_000)
   assert.equal(result.games[0]!.packages[1]!.firmware, '09.00')
   assert.equal(result.games[0]!.cover, '/api/packages/patch?asset=icon')
+  assert.equal(result.games[0]!.size, 13_200_000_000, 'table shows the complete branch size')
+})
+
+test('saved favorite aliases and different CUSA case resolve the whole branch while stale entries are skipped', () => {
+  const library = [pkg({ sourceIds: ['old-base'] }), pkg({ id: 'dlc', type: 'DLC', installOrder: 2 }), pkg({ id: 'other', titleId: 'CUSA00002' })]
+  for (const id of ['old-base', 'cusa00001']) {
+    const result = buildConsoleCatalog(library, 'ru', { favoriteIds: [id, 'removed-game'] })
+    assert.equal(result.total, 1)
+    assert.deepEqual(result.games[0]!.packages.map(item => item.id), ['base', 'dlc'])
+  }
 })
 
 test('catalog advertises service installation without local downloads or private paths', () => {

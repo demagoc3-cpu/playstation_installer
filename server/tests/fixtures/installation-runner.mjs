@@ -26,7 +26,7 @@ writeFileSync('.data/package-library.json', JSON.stringify({ version: 2, package
 const ip = '192.168.88.147'
 const token = 'abcdef0123456789abcdef0123456789'
 const input = { psIp: ip, packageIds: ['one'], packageUrls: { one: 'http://192.168.88.10:3000/json/one.json' } }
-const calls = { payload: 0, commands: 0, service: 0, submit: 0, pair: 0, cancel: 0, icon: 0 }
+const calls = { payload: 0, commands: 0, service: 0, submit: 0, pair: 0, cancel: 0, release: 0, icon: 0 }
 globalThis.queueTestCalls = calls
 globalThis.createError = value => Object.assign(new Error(value.message), value)
 registerHooks({
@@ -76,18 +76,23 @@ globalThis.fetch = async (url, options) => {
   }
   if (path === '/files/upload/finish' && mode === 'icon') return response({ completed: true })
   if (path === '/install/jobs' && options.method === 'POST') {
+    if (mode === 'removed-job') assert.equal(calls.release, 1, 'the daemon must release its stale reservation before the successor')
     calls.submit++
     if (mode === 'already-installed' && calls.submit === 1) return response({ error: 'component_already_installed', errorHex: '0x00000000' }, 409)
     if (mode === 'busy-rejection') return response({ error: 'another_service_job_active', errorHex: '0x00000000' }, 409)
     assert.equal(calls.submit, mode === 'already-installed' ? 2 : 1, 'accepted task must never be POSTed twice')
     if (mode === 'icon') assert.equal(calls.icon, 1, 'BGFT icon must be on the console before task registration')
-    const body = JSON.parse(options.body); assert.equal(body.size, item.size); assert.equal(body.contentType, mode === 'already-installed' ? 'PS4AC' : mode.startsWith('mini-app') ? 'PS4GDE' : mode.startsWith('cancel-one') || mode === 'task-cancel-service' || mode === 'cancel-game' ? 'PS4GP' : 'PS4GD')
+    const body = JSON.parse(options.body); assert.equal(body.size, item.size); assert.equal(body.contentType, mode === 'already-installed' ? 'PS4AC' : mode.startsWith('mini-app') ? 'PS4GDE' : mode.startsWith('cancel-one') || mode === 'task-cancel-service' || ['cancel-game','cancel-selected','cancel-branches'].includes(mode) ? 'PS4GP' : 'PS4GD')
     currentJob = makeJob(body.requestId)
     currentJob.contentId = body.contentId
     throw new Error('Connection lost after PS4 accepted the task')
   }
   assert(currentJob && path.startsWith(`/install/jobs/${currentJob.jobId}`))
   if (offline && !path.endsWith('/cancel')) throw new Error('Temporary connection loss')
+  if (path.endsWith('/release')) {
+    assert.ok(!currentJob.installing, 'never release while AppInst is active'); calls.release++; currentJob.state='cancelled'
+    if (mode === 'removed-job') throw new Error('Reply lost after the daemon released its reservation')
+  }
   if (path.endsWith('/cancel')) { calls.cancel++; if (mode !== 'cancel-stuck') currentJob.state = 'cancelled' }
   return response(currentJob)
 }
@@ -104,7 +109,15 @@ async function until(check) {
   while (!check()) { assert(Date.now() < deadline, `timed out in ${mode}`); await delay(30) }
 }
 try {
-  if (mode === 'preference') {
+  if (mode === 'removed-job') {
+    writeFileSync('.data/ps4-service-keys.json', JSON.stringify({[ip]:token}))
+    const next={...item,id:'two',title:'Second Game',titleId:'CUSA00002',contentId:'EP0000-CUSA00002_00-ABCDEFGHIJKLMNOP'};
+    writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages:[item,next],deliveries:{}}));
+    const removedId='11111111-1111-1111-1111-111111111111';
+    currentJob=makeJob(removedId);Object.assign(currentJob,{state:'uncertain',error:-2137456615,errorHex:'0x80990019',pollError:-2137456615,installing:true});
+    writeFileSync('.data/installation-queue.json',JSON.stringify({version:1,id:'removed-queue',status:'running',transport:'service',psIp:ip,createdAt:1,items:[{packageId:'one',url:input.packageUrls.one,state:'verifying',detail:'',bytesSent:0,requestId:removedId,serviceDispatchedAt:1},{packageId:'two',url:'http://192.168.88.10:3000/json/two.json',state:'pending',detail:'',bytesSent:0}]}));
+    const queue=await load('installation-queue');queue.ensureInstallationQueueRunning();await until(()=>readQueue().items[0].serviceTaskId===43);assert.equal(calls.submit,0,'wait while PS4 still reports installation in progress');currentJob.installing=false;await until(()=>calls.submit===1);assert.equal(readQueue().items[0].state,'unconfirmed','removed PS4 task is terminal without claiming installation');assert.equal(currentJob.contentId,next.contentId);currentJob.state='installed';await until(()=>readQueue().status==='completed');assert.equal(readQueue().items[1].state,'installed');assert.equal(calls.submit,1,'successor is dispatched once');
+  } else if (mode === 'preference') {
     const preference = await load('installation-preference')
     assert.equal(preference.getInstallationPreference(), 'service')
     assert.equal(preference.setInstallationPreference('payload'), 'payload')
@@ -210,7 +223,7 @@ try {
     assert.throws(() => queue.appendInstallationQueue({ psIp: ip, queueId: 'active', packageIds: ['two'], packageUrls: {} }), /уже находятся/)
     assert.throws(() => queue.appendInstallationQueue({ psIp: ip, queueId: 'old', packageIds: ['two'], packageUrls: {} }), /изменилась/)
     queue.cancelInstallationQueue()
-  } else if (mode === 'cancel-game') {
+  } else if (['cancel-game','cancel-selected','cancel-branches'].includes(mode)) {
     writeFileSync('.data/ps4-service-keys.json', JSON.stringify({[ip]:token}))
     const packages = [item, {...item,id:'patch',contentType:'PS4GP',installOrder:1},
       {...item,id:'other',titleId:'CUSA00002',contentId:'EP0000-CUSA00002_00-ABCDEFGHIJKLMNOP',contentType:'PS4GP'},
@@ -226,8 +239,12 @@ try {
     assert.throws(()=>queue.cancelGameInstallation('old',ip,'CUSA00001'))
     assert.throws(()=>queue.cancelGameInstallation('game-test','192.168.88.148','CUSA00001'))
     assert.throws(()=>queue.cancelGameInstallation('game-test',ip,'CUSA00003'))
-    const result=queue.cancelGameInstallation('game-test',ip,'CUSA00001')
-    assert.equal(result.items[0].cancelRequested,true);assert.equal(result.items[1].cancelRequested,true)
+    if(mode==='cancel-selected'){
+      assert.throws(()=>queue.cancelInstallationItems('old',['one','patch'],ip));assert.throws(()=>queue.cancelInstallationItems('game-test',['one'],'192.168.88.148'))
+    }
+    const result=mode==='cancel-selected'?queue.cancelInstallationItems('game-test',['one','patch','done'],ip):mode==='cancel-branches'?queue.cancelGameInstallations('game-test',ip,['CUSA00001']):queue.cancelGameInstallation('game-test',ip,'CUSA00001')
+    assert.equal(result.items[0].cancelRequested,true);assert.equal(result.items[1].state,'cancelled')
+    assert.equal(result.items[1].serviceDispatchedAt,undefined,'queued branch package is removed before dispatch')
     assert.equal(result.items[2].cancelRequested,undefined);assert.equal(result.items[3].cancelRequested,undefined)
     await until(()=>calls.submit===1&&readQueue().items[2].serviceDispatchedAt)
     assert.equal(calls.cancel,1);assert.equal(readQueue().items[0].state,'cancelled');assert.equal(readQueue().items[1].state,'cancelled')

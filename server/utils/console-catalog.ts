@@ -1,7 +1,20 @@
 import type { LocalPackage } from './package-library'
 import { librarySearchTokens, matchesLibrarySearch } from '../../shared/library-pagination.ts'
+import { packageHasId } from '../../shared/package-identity.ts'
 
 export interface ConsoleCatalogQuery { offset?: unknown; limit?: unknown; q?: unknown; favoriteIds?: unknown }
+
+/** Saved favorites may predate a reindex or contain removed games. Resolve
+ * package aliases to their whole branch; missing entries do not hide valid ones. */
+export function resolveConsoleFavorites(packages: LocalPackage[], ids: string[]) {
+  const groups = new Set<string>(), missing: string[] = []
+  for (const id of new Set(ids)) {
+    const matches = packages.filter(pkg => (pkg.titleId || pkg.id).toUpperCase() === id.toUpperCase() || packageHasId(pkg, id))
+    if (!matches.length) missing.push(id)
+    for (const pkg of matches) groups.add(pkg.titleId || pkg.id)
+  }
+  return { groups, missing }
+}
 
 /** Compact display label; the exact source filename remains available separately. */
 export function consolePackageLabel(item: LocalPackage, language: 'ru' | 'en' = 'ru') {
@@ -22,7 +35,7 @@ export function buildConsoleCatalog(packages: LocalPackage[], language: 'ru' | '
   }
   const tokens = librarySearchTokens(query.q)
   const favorites = Array.isArray(query.favoriteIds)
-    ? new Set(query.favoriteIds.slice(0, 1024).filter((id): id is string => typeof id === 'string' && /^[\w.-]{1,39}$/.test(id))) : undefined
+    ? resolveConsoleFavorites(packages, query.favoriteIds.slice(0, 1024).filter((id): id is string => typeof id === 'string' && /^[\w.-]{1,39}$/.test(id))).groups : undefined
   const collator = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' })
   const baseOf = (items: LocalPackage[]) => items.find(item => item.type === 'Игра') || items[0]!
   const filtered = [...groups.entries()].filter(([id, items]) => (!favorites || favorites.has(id)) && items.some(item => matchesLibrarySearch(item, tokens)))
@@ -50,6 +63,7 @@ export function buildConsoleCatalog(packages: LocalPackage[], language: 'ru' | '
           : 'Packages from your WEB library. Choose the game, patches, backports and DLC. PackageFlowService installs the selected PKGs directly from WEB. The app and WEB share one installation queue.',
         cover: cover ? `/api/packages/${cover.id}?asset=icon` : '',
         packageCount: items.length,
+        size: items.reduce((sum, item) => sum + item.size, 0),
         patchCount: items.filter(p => p.type === 'Патч' || p.type === 'Бэкпорт').length,
         dlcCount: items.filter(p => p.type === 'DLC').length,
         packages: items.slice(0, 128).map(item => ({

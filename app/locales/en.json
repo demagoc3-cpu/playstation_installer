@@ -1377,5 +1377,8 @@
   "Какие игры входят в эту подборку": "Which games belong to this collection",
   "Убрать": "Remove",
   "Пакеты: {title}": "Packages: {title}",
-  "Не удалось сохранить пресет": "Could not save preset"
+  "Не удалось сохранить пресет": "Could not save preset",
+  "Отменить всю ветку игры вместе с патчами и DLC?": "Cancel the entire game branch including patches and DLC?",
+  "Не удалось отменить ветку": "Could not cancel the game branch",
+  "Отменить ветку": "Cancel branch"
 }

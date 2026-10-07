@@ -43,6 +43,14 @@ async function cancel(task: InstallationTask) {
   catch (error: any) { message.value = error?.data?.message || 'Не удалось отменить задание' }
   finally { pending.value = '' }
 }
+async function cancelBranch(items: InstallationTask[]) {
+  const targets = items.filter(task => task.canCancel), task = targets[0]
+  if (!task || pending.value || !window.confirm(t('Отменить всю ветку игры вместе с патчами и DLC?'))) return
+  pending.value = `branch:${task.id}`; message.value = ''
+  try { await $fetch('/api/ps4/installation/branch-cancel', { method: 'POST', body: { queueId: task.queueId, gameId: task.titleId || task.packageId, ip: task.psIp } }); emit('changed'); await refresh() }
+  catch (error: any) { message.value = error?.data?.message || 'Не удалось отменить ветку' }
+  finally { pending.value = '' }
+}
 function torrentCategory(item: Torrent): TaskCategory {
   if (/error|missingFiles|unknown/i.test(item.state)) return 'failed'
   if (item.progress >= 1) return 'completed'
@@ -81,7 +89,7 @@ function go(value: number) { page.value = value; void refresh().then(() => { con
     <div class="task-filters"><div class="task-views" :aria-label="t('Вид заданий')"><button :aria-pressed="view === 'tree'" @click="selectView('tree')">{{ t('Дерево') }}</button><button :aria-pressed="view === 'table'" @click="selectView('table')">{{ t('Таблица') }}</button></div><label><input type="checkbox" :checked="categories.length === TASK_CATEGORIES.length" :indeterminate="categories.length > 0 && categories.length < TASK_CATEGORIES.length" @change="setAll(($event.target as HTMLInputElement).checked)"> {{ t('Все') }}</label><label v-for="category in TASK_CATEGORIES" :key="category"><input v-model="categories" :value="category" type="checkbox"> {{ t(labels[category]) }} <small>{{ data.counts[category] + torrentCounts[category] }}</small></label></div>
     <div class="task-list" tabindex="0" :aria-label="t('Список заданий')">
       <template v-if="view === 'tree'">
-        <GameTreeBranch v-for="group in taskGroups" :key="group.key" :title="group.title" :title-id="group.titleId" :cover="group.icon ? `/api/packages/${group.icon}?asset=icon` : undefined" :count="group.items.length" :open="treeOpen(group)" @toggle="treeExpanded[group.key]=!treeOpen(group)"><InstallationTaskRow v-for="task in group.items" :key="task.id" :task="task" :busy="!!pending" @cancel="cancel" /></GameTreeBranch>
+        <GameTreeBranch v-for="group in taskGroups" :key="group.key" :title="group.title" :title-id="group.titleId" :cover="group.icon ? `/api/packages/${group.icon}?asset=icon` : undefined" :count="group.items.length" :open="treeOpen(group)" @toggle="treeExpanded[group.key]=!treeOpen(group)"><template #actions><button v-if="group.items.some(task => task.canCancel)" :disabled="!!pending" @click="cancelBranch(group.items)">{{ t('Отменить ветку') }}</button></template><InstallationTaskRow v-for="task in group.items" :key="task.id" :task="task" :busy="!!pending" @cancel="cancel" /></GameTreeBranch>
       </template>
       <InstallationTaskTable v-else-if="data.items.length" :tasks="data.items" :busy="!!pending" @cancel="cancel" />
       <article v-for="item in otherTorrents" :key="item.hash" class="torrent-job"><div><strong>{{ item.name }}</strong><span>qBittorrent · {{ t(labels[torrentCategory(item)]) }} · {{ Math.round(item.progress * 100) }}%</span></div><button v-if="/paused|stopped/i.test(item.state)" @click="torrentAction(item, 'resume')">{{ t('Продолжить') }}</button><button @click="torrentAction(item, 'delete')">{{ t('Убрать задачу') }}</button></article>
