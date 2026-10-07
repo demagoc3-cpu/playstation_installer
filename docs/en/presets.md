@@ -10,7 +10,7 @@ Select games or individual packages in the library and click **Add to preset**. 
 
 ## PS4
 
-Update WEB and install **PackageFlowService 1.95**. Open **Presets** after pairing. Cross opens a collection and then a game card, where individual packages can be selected. Options inside a collection asks for confirmation before installing the entire preset. Circle returns to the preset list and Square refreshes it. **Install preset** is also shown above the opened collection; press Up from the first row to focus it. **R2** cycles **10/20/30 cards** with paged loading.
+Update WEB and install **PackageFlowService 2.01**. Open **Presets** after pairing. Cross opens a collection and then a game card, where individual packages can be selected. Options inside a collection asks for confirmation before installing the entire preset. Circle returns to the preset list and Square refreshes it. **R1 Install** in the bottom bar installs the highlighted preset from the list or the entire opened collection, with confirmation. There is no upper install button. Presets use four cards per row, up to five fanned covers with rounded frames, and a single games/files/size line. **R2** cycles **10/20/30 cards and table view** in the catalog; the chosen view persists across restarts and updates. Lists load in pages.
 
 ## Export and import
 
@@ -26,6 +26,8 @@ Packages on another computer are matched by PKG digest and Content ID; without a
 
 **Create preset** opens a name and description dialog. Rectangular cards show up to five game covers, description, counts, size and installation. Library, presets and tasks share the same game tree, PKG metadata, notification fonts and status colours.
 
-PS4 favorites persist across restarts and updates. **Install favorites** queues games, patches and DLC from every page; the card badge matches the menu icon.
+PS4 favorites persist across restarts and updates. **R1 Install** in the bottom bar queues games, patches and DLC from every page; the card badge matches the menu icon.
 
-In PS4 Tasks, **L1** hides completed and failed entries while keeping active and waiting jobs. Category checkboxes filter the list; Cross on a waiting package removes it from the queue. **R1** switches history pages. Clearing does not delete PKGs or installed games.
+In PS4 Tasks, **L1** hides completed and failed entries while keeping active and waiting jobs. Category checkboxes filter the list; Cross selects an active or waiting task. **Options** offers cancellation of selected packages, their whole game branches, the current task or the entire queue. Selection persists across pages in the current queue; a branch includes its game, patches and DLC. **R1** switches history pages. Clearing does not delete PKGs or installed games.
+
+![PS4 2.01 presets — renderer preview with test data](../screenshots/ps4-presets-2.01.png)

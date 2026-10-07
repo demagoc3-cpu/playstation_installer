@@ -43,11 +43,11 @@ PackageFlowService 1.69 supports `PS4GDE` mini apps such as GameBaTo through the
 
 ## Library in the PS4 service
 
-Service **1.95** requests **10/20/30 game groups** at a time; **R2** switches page size. Moving below the last row loads
+Service **2.01** requests **10/20/30 game groups** at a time; **R2** cycles 10/20/30 cards and table view. The chosen view persists across restarts and updates. Moving below the last row loads
 the next batch; moving above the first row loads the previous one. Other games
 and their covers stay out of console memory. The counter and scrollbar reflect
 the entire filtered library. Triangle search runs on WEB across all titles,
-CUSA, content IDs and filenames. Favorites persist across restarts and updates; bulk installation includes their packages from every page. Update WEB and install PackageFlowService **1.95**.
+CUSA, content IDs and filenames. Favorites persist across restarts and updates; bulk installation includes their packages from every page. Update WEB and install PackageFlowService **2.01**.
 
 
 ## WEB tasks
