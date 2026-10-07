@@ -1,10 +1,11 @@
 param(
-    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '0.1.7',
+    [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.10.7',
     [string]$DockerImage = 'demagoc3/packageflow:latest',
     [switch]$SkipWebBuild,
     [switch]$SkipInstaller
 )
 $ErrorActionPreference = 'Stop'
+if (([version]$Version).Major -eq 10) { throw '10.x.x is an erroneous installer version. Use 1.x.x (for example 1.10.7); rebuild the EXE, do not just rename it.' }
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $destination = Join-Path $repo 'dist/windows'
 $payload = Join-Path $destination 'payload'

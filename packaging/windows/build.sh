@@ -3,7 +3,7 @@
 set -euo pipefail
 
 export PF_REPO="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-export PF_VERSION="${PF_VERSION:-0.1.7}"
+export PF_VERSION="${PF_VERSION:-1.10.7}"
 export PF_PAYLOAD="$PF_REPO/dist/windows/payload"
 PF_NODE_VERSION="${PF_NODE_VERSION:-22.23.3}"
 PF_DOCKER_IMAGE="${PF_DOCKER_IMAGE:-demagoc3/packageflow:latest}"
@@ -22,12 +22,13 @@ while (($#)); do
     --skip-installer) skip_installer=1; shift ;;
     --check) check_only=1; shift ;;
     --help|-h)
-      printf '%s\n' 'bash packaging/windows/build.sh [--version 0.1.7] [--check] [--skip-install] [--skip-web-build] [--skip-installer]' 'Overrides: PF_NPM_CLI, PF_DOTNET, PF_MAKENSIS, NSISDIR, PF_NODE_VERSION, PF_DOCKER_IMAGE'
+      printf '%s\n' 'bash packaging/windows/build.sh [--version 1.10.7] [--check] [--skip-install] [--skip-web-build] [--skip-installer]' 'Overrides: PF_NPM_CLI, PF_DOTNET, PF_MAKENSIS, NSISDIR, PF_NODE_VERSION, PF_DOCKER_IMAGE'
       exit 0 ;;
     *) fail "Неизвестный параметр: $1" ;;
   esac
 done
-[[ "$PF_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'Версия должна состоять из трёх чисел, например 0.1.7'
+[[ "$PF_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'Версия должна состоять из трёх чисел, например 1.10.7'
+((10#${PF_VERSION%%.*} != 10)) || fail '10.x.x — ошибочная версия установщика. Укажите 1.x.x (например 1.10.7) и пересоберите EXE, а не переименовывайте его.'
 [[ "$PF_NODE_VERSION" =~ ^22\.[0-9]+\.[0-9]+$ ]] || fail 'PF_NODE_VERSION должен задавать версию Node.js 22'
 cd -- "$PF_REPO"
 

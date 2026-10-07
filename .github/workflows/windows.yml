@@ -8,7 +8,7 @@ on:
       version:
         description: 'Installer version (three numbers, for example 1.11.0)'
         required: true
-        default: '0.1.7'
+        default: '1.10.7'
       docker_image:
         description: 'Matching PackageFlow Docker image'
         required: true

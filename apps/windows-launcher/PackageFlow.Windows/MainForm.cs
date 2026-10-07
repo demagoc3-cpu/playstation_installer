@@ -522,7 +522,7 @@ internal sealed partial class MainForm : Form
             {
                 var release = await ReleaseDownloads.LatestWindows(http, lifetime.Token);
                 if (release == null) { MessageBox.Show(this, T("Windows-установщик пока не опубликован в стабильных релизах.", "Stable releases do not contain a Windows installer yet."), "PackageFlow"); return; }
-                if (!Version.TryParse(release.Version.TrimStart('v'), out var target) || target <= CurrentVersion())
+                if (!ReleaseDownloads.IsNewerWindows(release, CurrentVersion()))
                 { MessageBox.Show(this, T("Новая версия не найдена.", "No newer version available."), "PackageFlow"); return; }
                 if (MessageBox.Show(this, T($"Доступна {release.Version}. Скачать и установить?", $"{release.Version} is available. Download and install?"), "PackageFlow", MessageBoxButtons.YesNo) != DialogResult.Yes) return;
                 var destination = Path.Combine(Program.UserDirectory, "downloads", release.Name);

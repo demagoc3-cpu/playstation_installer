@@ -70,6 +70,18 @@ try
     }));
     var windowsRelease = await ReleaseDownloads.LatestWindows(windowsHttp, default);
     Check(windowsRelease?.Version == "0.1.7" && windowsRelease.Name == "PackageFlowSetup-0.1.7-x64.exe", "Compare the stable installer version, not the unrelated release tag, and ignore preview EXEs.");
+    var repairedAssets = new JsonArray();
+    foreach (var version in new[] { "10.1.8", "1.10.7", "10.1.7", "1.10.6", "0.1.7" })
+        repairedAssets.Add(new JsonObject { ["tag_name"] = "v1.10.6", ["draft"] = false, ["prerelease"] = false, ["assets"] = new JsonArray(new JsonObject { ["name"] = $"PackageFlowSetup-{version}-x64.exe", ["size"] = 100, ["digest"] = "sha256:" + new string('a', 64), ["browser_download_url"] = $"https://github.com/demagoc3-cpu/playstation_installer/releases/download/v1.10.6/PackageFlowSetup-{version}-x64.exe" }) });
+    using var repairedHttp = new HttpClient(new MockHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(repairedAssets.ToJsonString()) })));
+    var repairedRelease = await ReleaseDownloads.LatestWindows(repairedHttp, default);
+    Check(repairedRelease?.Version == "1.10.7", "Erroneous 10.x.x assets must not hide corrected 1.x.x releases.");
+    Check(ReleaseDownloads.IsNewerWindows(repairedRelease!, new Version(1, 10, 6, 0)), "A corrected newer build must be offered.");
+    Check(!ReleaseDownloads.IsNewerWindows(repairedRelease!, new Version(1, 10, 7, 0)) && !ReleaseDownloads.IsNewerWindows(repairedRelease!, new Version(1, 10, 8, 0)), "Do not reinstall the same three-part version or offer a downgrade.");
+    Check(!ReleaseDownloads.IsNewerWindows(repairedRelease! with { Version = "10.1.8" }, new Version(1, 10, 7, 0)), "Never offer an erroneous 10.x.x installer.");
+    Check(!ReleaseDownloads.IsNewerWindows(repairedRelease!, new Version(10, 1, 8, 0)), "An already installed invalid major requires one manual repair, not an automatic downgrade.");
+    repairedAssets.RemoveAt(1); repairedAssets.RemoveAt(2); repairedAssets.RemoveAt(2);
+    Check(await ReleaseDownloads.LatestWindows(repairedHttp, default) == null, "A repository containing only erroneous Windows builds has no valid update.");
     windowsAssets[2]!["assets"]![0]!["digest"] = "";
     await Reject(() => ReleaseDownloads.LatestWindows(windowsHttp, default));
     var compose = JsonNode.Parse(ComposeConfiguration.Generate(settings, directory, "test-token", "test/image:1"))!;

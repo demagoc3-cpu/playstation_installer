@@ -4,7 +4,7 @@ Unicode true
 !include "LogicLib.nsh"
 
 !ifndef VERSION
-  !define VERSION "0.1.7"
+  !define VERSION "1.10.7"
 !endif
 !ifndef PAYLOAD
   !define PAYLOAD "../../dist/windows/payload"

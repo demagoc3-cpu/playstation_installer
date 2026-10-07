@@ -25,11 +25,23 @@ public static class ReleaseDownloads
             foreach (var asset in release?["assets"]?.AsArray() ?? [])
             {
                 var match = System.Text.RegularExpressions.Regex.Match(asset?["name"]?.GetValue<string>() ?? "", @"^PackageFlowSetup-(\d+\.\d+\.\d+)-x64\.exe$");
-                if (!match.Success || !Version.TryParse(match.Groups[1].Value, out var version) || (newest != null && version <= newest)) continue;
+                if (!match.Success || !Version.TryParse(match.Groups[1].Value, out var version) || !ValidWindowsVersion(version) || (newest != null && version <= newest)) continue;
                 selected = asset; newest = version;
             }
         }
         return selected == null ? null : VerifiedAsset(selected, repository, newest!.ToString());
+    }
+
+    // 10.x.x installers were accidentally published instead of 1.x.x. Do not
+    // offer that invalid release line again after a user repairs their install.
+    private static bool ValidWindowsVersion(Version version) => version.Major != 10;
+
+    public static bool IsNewerWindows(ReleaseAsset release, Version installed)
+    {
+        if (!Version.TryParse(release.Version, out var target) || !ValidWindowsVersion(target)) return false;
+        // Release filenames contain three numbers; assembly versions have four.
+        return new Version(target.Major, target.Minor, Math.Max(0, target.Build))
+            > new Version(installed.Major, installed.Minor, Math.Max(0, installed.Build));
     }
 
     public static async Task<ReleaseAsset?> Latest(HttpClient http, string repository, Func<string, bool> select, CancellationToken ct)
