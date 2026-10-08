@@ -1,5 +1,10 @@
+import { contentBranchKey } from './content-platform.ts'
+import type { ContentPlatform, ContentFormat } from './types/consoles.ts'
 export interface LibraryEntry {
   id: string
+  platform?: ContentPlatform
+  format?: ContentFormat
+  contentType?: string
   title: string
   fileName: string
   titleId: string
@@ -36,7 +41,7 @@ export function librarySearchTokens(value: unknown) {
   return normalize(typeof value === 'string' ? value.trim().slice(0, 256) : '').split(/\s+/).filter(Boolean)
 }
 export function matchesLibrarySearch(item: LibraryEntry, tokens: string[]) {
-  const text = normalize([item.title, item.fileName, item.titleId, item.contentId, item.type, item.appVersion].join(' '))
+  const text = normalize([item.title, item.fileName, item.titleId, item.contentId, item.type, item.appVersion, item.platform, item.format].join(' '))
   return tokens.every(token => text.includes(token))
 }
 
@@ -48,11 +53,11 @@ export function paginateLibrary<T extends LibraryEntry>(items: T[], query: Libra
   const branches = new Map<string, { title: string; iconId?: string; hasGame: boolean; packages: number; readyDlc: number }>()
   const summary: LibrarySummary = { packages: items.length, games: 0, size: 0, installed: 0, delivered: 0, ready: 0, readyDlc: 0 }
   for (const item of items) {
-    const branch = branches.get(item.titleId)
+    const branch = branches.get(contentBranchKey(item))
     if (!branch || (item.type === 'Игра' && !branch.hasGame)) {
-      branches.set(item.titleId, { title: item.titleId === 'PFLS00001' ? 'PackageFlowService' : item.title, iconId: item.iconSize ? item.id : branch?.iconId, hasGame: item.type === 'Игра', packages: branch?.packages || 0, readyDlc: branch?.readyDlc || 0 })
+      branches.set(contentBranchKey(item), { title: item.titleId === 'PFLS00001' ? 'PackageFlowService' : item.title, iconId: item.iconSize ? item.id : branch?.iconId, hasGame: item.type === 'Игра', packages: branch?.packages || 0, readyDlc: branch?.readyDlc || 0 })
     } else if (!branch.iconId && item.iconSize) branch.iconId = item.id
-    const current = branches.get(item.titleId)!
+    const current = branches.get(contentBranchKey(item))!
     current.packages++
     if (item.type === 'DLC' && !item.installedAt) current.readyDlc++
     summary.size += item.size
@@ -64,18 +69,18 @@ export function paginateLibrary<T extends LibraryEntry>(items: T[], query: Libra
   const compare = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' }).compare
   const unit = query.unit === 'games' ? 'games' : 'packages'
   // A game card is one complete CUSA branch, even when its DLC has another name.
-  const matchingIds = new Set(items.filter(item => matchesLibrarySearch(item, tokens)).map(item => item.titleId))
-  const filtered = items.filter(item => unit === 'games' ? matchingIds.has(item.titleId) : matchesLibrarySearch(item, tokens)).sort((a, b) =>
-    compare(branches.get(a.titleId)!.title, branches.get(b.titleId)!.title) || compare(a.titleId, b.titleId) ||
+  const matchingIds = new Set(items.filter(item => matchesLibrarySearch(item, tokens)).map(item => contentBranchKey(item)))
+  const filtered = items.filter(item => unit === 'games' ? matchingIds.has(contentBranchKey(item)) : matchesLibrarySearch(item, tokens)).sort((a, b) =>
+    compare(branches.get(contentBranchKey(a))!.title, branches.get(contentBranchKey(b))!.title) || compare(a.titleId, b.titleId) ||
     a.installOrder - b.installOrder || compare(a.title, b.title) || compare(a.appVersion || '', b.appVersion || '') || compare(a.fileName, b.fileName) || compare(a.id, b.id))
-  const gameIds = unit === 'games' ? [...new Set(filtered.map(item => item.titleId))] : []
+  const gameIds = unit === 'games' ? [...new Set(filtered.map(item => contentBranchKey(item)))] : []
   const total = unit === 'games' ? gameIds.length : filtered.length, pages = Math.max(1, Math.ceil(total / pageSize))
   const requestedPage = Number(query.page)
   const page = Math.min(pages, Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1)
   const pageIds = new Set(gameIds.slice((page - 1) * pageSize, page * pageSize))
-  const slice = unit === 'games' ? filtered.filter(item => pageIds.has(item.titleId)) : filtered.slice((page - 1) * pageSize, page * pageSize)
+  const slice = unit === 'games' ? filtered.filter(item => pageIds.has(contentBranchKey(item))) : filtered.slice((page - 1) * pageSize, page * pageSize)
   const packages = slice.map(item => {
-    const branch = branches.get(item.titleId)!
+    const branch = branches.get(contentBranchKey(item))!
     return { ...item, groupTitle: branch.title, groupIconId: branch.iconId, groupPackages: branch.packages, groupReadyDlc: branch.readyDlc }
   })
   return { packages, page, pageSize, pages, total, unit, summary }

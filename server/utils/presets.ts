@@ -1,3 +1,5 @@
+import { currentConsolePlatform } from './console-scope'
+import { contentForConsole, contentBranchKey } from '../../shared/content-platform'
 import { randomUUID } from 'node:crypto'
 import { createError } from 'h3'
 import { dataPath } from './data-path'
@@ -24,21 +26,22 @@ function indexLibrary(library: LocalPackage[]) {
     id: new Map(library.flatMap(item => [item.id, ...(item.sourceIds || [])].map(id => [id, item] as const))),
     digest: new Map(library.filter(item => item.packageDigest).map(item => [JSON.stringify([item.titleId, item.contentId, item.packageDigest.toUpperCase(), item.size]), item])),
     file: new Map(library.map(item => [JSON.stringify([item.titleId, item.contentId, item.fileName, item.size]), item])),
-    branches: new Map(library.filter(item => item.type === 'Игра').map(item => [item.titleId, item])),
+    branches: new Map(library.filter(item => item.type === 'Игра').map(item => [contentBranchKey(item), item])),
   }
 }
 export function resolvePreset(preset: Preset, library = getLibraryPackages()) {
   const index = indexLibrary(library)
   return preset.packages.map(ref => {
-    const pkg = ref.digest ? index.digest.get(JSON.stringify([ref.titleId, ref.contentId, ref.digest.toUpperCase(), ref.size])) : index.file.get(JSON.stringify([ref.titleId, ref.contentId, ref.fileName, ref.size]))
-    const base = index.branches.get(ref.titleId)
-    const item: PresetItem = { ...ref, appVersion: pkg?.appVersion, masterVersion: pkg?.masterVersion, requiredFirmware: pkg?.requiredFirmware, sdkFirmware: pkg?.sdkFirmware, contentType: pkg?.contentType, packageDigest: pkg?.packageDigest, key: presetPackageKey(ref), title: pkg?.title || ref.title, groupTitle: base?.title || ref.groupTitle, size: pkg?.size ?? ref.size, packageId: pkg?.id, available: !!pkg, iconId: base?.iconSize ? base.id : pkg?.iconSize ? pkg.id : undefined, installed: !!pkg?.installedAt }
+    const exact = index.id.get(ref.id)
+    const pkg = exact && exact.contentId === ref.contentId && exact.size === ref.size && (!ref.digest || exact.packageDigest.toUpperCase() === ref.digest.toUpperCase()) ? exact : ref.digest ? index.digest.get(JSON.stringify([ref.titleId, ref.contentId, ref.digest.toUpperCase(), ref.size])) : index.file.get(JSON.stringify([ref.titleId, ref.contentId, ref.fileName, ref.size]))
+    const base = index.branches.get(contentBranchKey(pkg || ref))
+    const item: PresetItem = { ...ref, platform: pkg?.platform || ref.platform, format: pkg?.format || ref.format, signature: pkg?.signature, appVersion: pkg?.appVersion, masterVersion: pkg?.masterVersion, requiredFirmware: pkg?.requiredFirmware, sdkFirmware: pkg?.sdkFirmware, contentType: pkg?.contentType, packageDigest: pkg?.packageDigest, key: presetPackageKey(ref), title: pkg?.title || ref.title, groupTitle: base?.title || ref.groupTitle, size: pkg?.size ?? ref.size, packageId: pkg?.id, available: !!pkg, iconId: base?.iconSize ? base.id : pkg?.iconSize ? pkg.id : undefined, installed: !!pkg?.installedAt }
     return { item, pkg }
-  })
+  }).filter(entry => { const target = currentConsolePlatform(); return !target || (!entry.pkg && !entry.item.platform) || contentForConsole(entry.pkg || entry.item, target) })
 }
 export function presetSummary(preset: Preset, library = getLibraryPackages()) {
   const resolved = resolvePreset(preset, library)
-  return { id: preset.id, name: preset.name, description: preset.description || "", covers: [...new Map(resolved.map(entry => [entry.item.titleId, { title: entry.item.groupTitle, iconId: entry.item.iconId }])).values()].slice(0, 5), games: new Set(preset.packages.map(item => item.titleId || item.contentId)).size, files: resolved.length, size: resolved.reduce((sum, entry) => sum + entry.item.size, 0), available: resolved.filter(entry => entry.pkg).length, missing: resolved.filter(entry => !entry.pkg).length, updatedAt: preset.updatedAt }
+  return { id: preset.id, name: preset.name, description: preset.description || "", covers: [...new Map(resolved.map(entry => [contentBranchKey(entry.item), { title: entry.item.groupTitle, iconId: entry.item.iconId }])).values()].slice(0, 5), games: new Set(resolved.map(entry => contentBranchKey(entry.item))).size, files: resolved.length, size: resolved.reduce((sum, entry) => sum + entry.item.size, 0), available: resolved.filter(entry => entry.pkg).length, missing: resolved.filter(entry => !entry.pkg).length, updatedAt: preset.updatedAt }
 }
 export function listPresets(query: { page?: unknown; pageSize?: unknown; q?: unknown } = {}) {
   const library = getLibraryPackages(), tokens = librarySearchTokens(query.q)
@@ -49,11 +52,11 @@ export function listPresets(query: { page?: unknown; pageSize?: unknown; q?: unk
 }
 export function presetPage(id: unknown, query: { page?: unknown; pageSize?: unknown; q?: unknown } = {}) {
   const preset = getPreset(id), library = getLibraryPackages(), resolved = resolvePreset(preset, library), tokens = librarySearchTokens(query.q)
-  const matching = new Set(resolved.filter(entry => matchesLibrarySearch({ ...entry.item, installOrder: 0, title: `${entry.item.groupTitle} ${entry.item.title}` }, tokens)).map(entry => entry.item.titleId))
-  const groups = [...new Set(resolved.filter(entry => matching.has(entry.item.titleId)).map(entry => entry.item.titleId))]
+  const matching = new Set(resolved.filter(entry => matchesLibrarySearch({ ...entry.item, installOrder: 0, title: `${entry.item.groupTitle} ${entry.item.title}` }, tokens)).map(entry => contentBranchKey(entry.item)))
+  const groups = [...new Set(resolved.filter(entry => matching.has(contentBranchKey(entry.item))).map(entry => contentBranchKey(entry.item)))]
   const size = [10, 20, 25, 30, 50, 100].includes(Number(query.pageSize)) ? Number(query.pageSize) : 25
   const pages = Math.max(1, Math.ceil(groups.length / size)), page = Math.min(pages, Math.max(1, Math.floor(Number(query.page) || 1))), ids = new Set(groups.slice((page - 1) * size, page * size))
-  return { ...presetSummary(preset, library), items: resolved.filter(entry => ids.has(entry.item.titleId)).map(entry => entry.item), page, pages, total: groups.length }
+  return { ...presetSummary(preset, library), items: resolved.filter(entry => ids.has(contentBranchKey(entry.item))).map(entry => entry.item), page, pages, total: groups.length }
 }
 export function mutatePreset(body: any) {
   assertDesktopWritable()
@@ -71,7 +74,7 @@ export function mutatePreset(body: any) {
     for (const id of new Set<string>(body.packageIds)) {
       const pkg = index.id.get(id)
       if (!pkg) throw createError({ statusCode: 409, message: 'Библиотека изменилась. Обновите выбор пакетов.' })
-      const ref: PresetPackage = { id: pkg.id, titleId: pkg.titleId, contentId: pkg.contentId, ...(/^[a-f0-9]{64}$/i.test(pkg.packageDigest || '') && !/^0+$/.test(pkg.packageDigest) ? { digest: pkg.packageDigest.toUpperCase() } : {}), fileName: pkg.fileName, title: pkg.title, groupTitle: index.branches.get(pkg.titleId)?.title || pkg.titleId, type: pkg.type, size: pkg.size }
+      const ref: PresetPackage = { id: pkg.id, platform: pkg.platform, format: pkg.format, titleId: pkg.titleId, contentId: pkg.contentId, ...(/^[a-f0-9]{64}$/i.test(pkg.packageDigest || '') && !/^0+$/.test(pkg.packageDigest) ? { digest: pkg.packageDigest.toUpperCase() } : {}), fileName: pkg.fileName, title: pkg.title, groupTitle: index.branches.get(contentBranchKey(pkg))?.title || pkg.titleId, type: pkg.type, size: pkg.size }
       refs.set(presetPackageKey(ref), ref)
     }
     preset.packages = [...refs.values()]
@@ -96,7 +99,8 @@ export function importPresets(body: any) {
     const refs = new Map<string, PresetPackage>()
     for (const ref of preset.packages) {
       if (!ref || ['id','titleId','contentId','fileName','title','groupTitle','type'].some(key => typeof ref[key] !== 'string' || ref[key].length > 1024 || /[\x00-\x1f]/.test(ref[key])) || !Number.isSafeInteger(ref.size) || ref.size < 0 || (ref.digest !== undefined && (typeof ref.digest !== 'string' || !/^[a-f0-9]{64}$/i.test(ref.digest)))) throw createError({ statusCode: 400, message: 'Некорректные сведения о пакете в пресете' })
-      const safe: PresetPackage = { id: ref.id, titleId: ref.titleId, contentId: ref.contentId, fileName: ref.fileName, title: ref.title, groupTitle: ref.groupTitle, type: ref.type, size: ref.size, ...(ref.digest ? { digest: ref.digest.toUpperCase() } : {}) }
+      if ((ref.platform !== undefined && !['ps4', 'ps5', 'unknown'].includes(ref.platform)) || (ref.format !== undefined && !['pkg', 'folder', 'ufs2', 'exfat', 'pfs', 'ffpfsc', 'unknown'].includes(ref.format))) throw createError({ statusCode: 400, message: 'Неверная платформа или формат в пресете' })
+      const safe: PresetPackage = { id: ref.id, ...(ref.platform ? { platform: ref.platform } : {}), ...(ref.format ? { format: ref.format } : {}), titleId: ref.titleId, contentId: ref.contentId, fileName: ref.fileName, title: ref.title, groupTitle: ref.groupTitle, type: ref.type, size: ref.size, ...(ref.digest ? { digest: ref.digest.toUpperCase() } : {}) }
       refs.set(presetPackageKey(safe), safe)
     }
     return { id: randomUUID(), name: name(preset.name), description: description(preset.description), packages: [...refs.values()], createdAt: now, updatedAt: now }

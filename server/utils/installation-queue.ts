@@ -1,10 +1,13 @@
+import { inConsoleScope, currentConsoleIp, consoleDataPath } from './console-scope'
+import { readJsonFile } from './json-store'
+import { contentPlatform, contentFormat } from '../../shared/content-platform'
 import { assertDesktopWritable } from './desktop-lifecycle'
 import { dataPath } from './data-path'
 import { logEvent } from './event-log'
 import { assertNoFileInstallation } from './console-file-install-store'
 import { assertNoRemoval } from './console-operation-store'
 import { assertNoMaintenance } from './maintenance-store'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 
 import { writeJsonFile } from './json-store'
 import { blockPackageDelivery, getPackage, getLibraryPackages, getPackageDelivery, markPackageInstalled, readPackageIcon, readPackageMetadata, resetPackageDelivery } from './package-library'
@@ -57,21 +60,24 @@ interface InstallationQueue {
   message?: string
 }
 
-const queuePath = dataPath('installation-queue.json')
-const historyPath = dataPath('installation-history.json')
+const queuePath = () => consoleDataPath('installation-queue.json')
+const historyPath = () => consoleDataPath('installation-history.json')
 const WAIT_INTERVAL_MS = 1500
 const UNCONFIRMED_AFTER_MS = 20_000
 const STALLED_DLC_MS = 3 * 60_000
 const STALLED_PATCH_MS = 10 * 60_000
 const STALLED_GAME_MS = 15 * 60_000
 const STALLED_CANCEL_RETRY_MS = 60_000
-let runner: Promise<void> | undefined
+const runners = new Map<string, Promise<void>>()
+const runnerKey = () => currentConsoleIp() || 'legacy'
 
 const blankQueue = (): InstallationQueue => ({ version: 1, status: 'idle', items: [] })
 
 function readQueue(): InstallationQueue {
   try {
-    const queue = JSON.parse(readFileSync(queuePath, 'utf8')) as InstallationQueue
+    const legacy = readJsonFile<InstallationQueue>(dataPath('installation-queue.json'), blankQueue())
+    const path = existsSync(queuePath()) ? queuePath() : (!currentConsoleIp() || legacy.psIp === currentConsoleIp()) ? dataPath('installation-queue.json') : queuePath()
+    const queue = JSON.parse(readFileSync(path, 'utf8')) as InstallationQueue
     if (queue.version !== 1 || !Array.isArray(queue.items)) return blankQueue()
     try { queue.transport = installationTransport(queue.transport) }
     catch { queue.status = 'failed'; queue.message = 'Неизвестный сохранённый способ установки; повтор не отправлен' }
@@ -81,7 +87,7 @@ function readQueue(): InstallationQueue {
 
 function writeQueue(queue: InstallationQueue) {
   queue.updatedAt = Date.now()
-  writeJsonFile(queuePath, queue)
+  writeJsonFile(queuePath(), queue)
 }
 
 function publicQueue(queue: InstallationQueue) {
@@ -94,15 +100,15 @@ function publicQueue(queue: InstallationQueue) {
   }) }
 }
 
-export function getInstallationHistory(): InstallationQueue[] {
+function getInstallationHistoryScoped(): InstallationQueue[] {
   try {
-    const history = JSON.parse(readFileSync(historyPath, 'utf8'))
+    const history = readJsonFile<any[]>(existsSync(historyPath()) ? historyPath() : dataPath('installation-history.json'), []).filter(queue => !currentConsoleIp() || queue.psIp === currentConsoleIp())
     return Array.isArray(history) ? history.filter(queue => queue.version === 1 && queue.id && Array.isArray(queue.items)).slice(0, 10) : []
   } catch { return [] }
 }
 function archiveQueue(queue: InstallationQueue) {
   if (!queue.id || !queue.items.length) return
-  writeJsonFile(historyPath, [publicQueue(queue), ...getInstallationHistory().filter(previous => previous.id !== queue.id)].slice(0, 10))
+  writeJsonFile(historyPath(), [publicQueue(queue), ...getInstallationHistory().filter(previous => previous.id !== queue.id)].slice(0, 10))
 }
 
 const pause = () => new Promise<void>((resolve) => setTimeout(resolve, WAIT_INTERVAL_MS))
@@ -191,6 +197,8 @@ async function runQueue() {
   try {
     while (true) {
       let queue = readQueue()
+      const profile = readJsonFile<{ consoles?: Array<{ ip: string; platform: string }> }>(dataPath('console-profiles.json'), {}).consoles?.find(item => item.ip === queue.psIp)
+      if (profile?.platform === 'ps5' && ['running', 'cancelling'].includes(queue.status)) { queue.status = 'failed'; queue.message = 'Сохранённая очередь PS4 не может выполняться на профиле PS5. Повтор не отправлен.'; writeQueue(queue); return }
       if (queue.status === 'cancelling' && queue.transport === 'service' && queue.psIp) {
         await cancelServicePass(queue)
         if (readQueue().status !== 'cancelling') return
@@ -432,36 +440,41 @@ async function runQueue() {
       writeQueue(queue)
     }
   } finally {
-    runner = undefined
+    runners.delete(runnerKey())
     const final = readQueue()
     if (final.status === 'cancelling' || (final.status === 'running' && final.items.some(item => ACTIVE_STATES.includes(item.state)))) ensureInstallationQueueRunning()
   }
 }
 
 /** Restarts a persisted queue after a browser or server reload without re-sending its current job. */
-export function ensureInstallationQueueRunning() {
+function ensureInstallationQueueRunningScoped() {
   const queue = readQueue()
-  if ((queue.status === 'running' || queue.status === 'cancelling') && !runner) runner = runQueue()
+  if ((queue.status === 'running' || queue.status === 'cancelling') && !runners.has(runnerKey())) { const key = runnerKey(); const running = Promise.resolve().then(runQueue); runners.set(key, running) }
   return publicQueue(queue)
 }
 
-export function getInstallationQueue() {
-  if (existsSync(queuePath)) ensureInstallationQueueRunning()
+function getInstallationQueueScoped() {
+  ensureInstallationQueueRunning()
   return publicQueue(readQueue())
 }
 
 function createQueueItems(packageIds: string[], packageUrls: Record<string, string>, transport: InstallationTransport): InstallationQueueItem[] {
   return packageIds.map((packageId) => {
     const item = getPackage(packageId)
+    if (contentPlatform(item) !== 'ps4' || contentFormat(item) !== 'pkg') throw createError({ statusCode: 400, message: 'Установщик PS4 принимает только пакеты PS4. Для PS5 нужен соответствующий backend.' })
     if (transport === 'service' && !['PS4GD', 'PS4GP', 'PS4AC', 'PS4AL', 'PS4GDE'].includes(item.contentType)) throw createError({ statusCode: 400, message: 'Этот тип PKG пока не поддерживается сервисом PS4' })
-    const url = packageUrls[packageId]
+    let url = packageUrls[packageId]
     if (!url || !/^https?:\/\//.test(url)) throw createError({ statusCode: 400, message: `Не найден PS4 URL для «${item.title}»` })
+    const address = new URL(url)
+    if (address.pathname === `/json/${packageId}.json` && currentConsoleIp()) { address.searchParams.set('console', currentConsoleIp()!); url = address.toString() }
     return { packageId, title: item.title, fileName: item.fileName, size: item.size, type: item.type, titleId: item.titleId, url, state: 'pending', detail: 'Ожидает очереди', bytesSent: 0 }
   })
 }
 
-export function startInstallationQueue(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string }) {
+function startInstallationQueueScoped(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string }) {
   assertDesktopWritable()
+  const profiles = readJsonFile<{ consoles?: Array<{ ip: string; platform: string }> }>(dataPath('console-profiles.json'), {})
+  if (profiles.consoles?.some(item => item.ip === input.psIp && item.platform === 'ps5')) throw createError({ statusCode: 409, message: 'Установка на PS5 через маршрут PS4 недоступна. Нужен подтверждённый backend PS5.' })
   assertNoMaintenance(input.psIp, input.maintenanceId)
   assertNoRemoval(input.psIp)
   assertNoFileInstallation(input.psIp)
@@ -470,6 +483,7 @@ export function startInstallationQueue(input: { psIp: string; packageIds: string
   let transport: InstallationTransport
   try { transport = input.transport === undefined ? getInstallationPreference() : installationTransport(input.transport) }
   catch { throw createError({ statusCode: 400, message: 'Неизвестный способ установки' }) }
+  if (transport === 'payload' && persistedConsoleIps().some(ip => ip !== input.psIp && inConsoleScope(ip, () => { const q = readQueue(); return q.transport === 'payload' && ['running', 'cancelling'].includes(q.status) }))) throw createError({ statusCode: 409, message: 'PyLoader уже используется другой приставкой. Дождитесь завершения её очереди.' })
   if (transport === 'service' && !serviceKeyConfigured(input.psIp)) throw createError({ statusCode: 409, message: 'Сначала введите код сопряжения с экрана PS4' })
   const packageIds = [...new Set(input.packageIds)]
   if (!packageIds.length) throw createError({ statusCode: 400, message: 'Нет пакетов для установки' })
@@ -483,7 +497,7 @@ export function startInstallationQueue(input: { psIp: string; packageIds: string
 }
 
 /** Appends new packages without touching a job already accepted by PS4. */
-export function appendInstallationQueue(input: { psIp: string; queueId: string; packageIds: string[]; packageUrls: Record<string, string> }) {
+function appendInstallationQueueScoped(input: { psIp: string; queueId: string; packageIds: string[]; packageUrls: Record<string, string> }) {
   const queue = readQueue()
   if (queue.status !== 'running' || !queue.id || queue.id !== input.queueId || queue.psIp !== input.psIp)
     throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите страницу и повторите добавление.' })
@@ -495,6 +509,17 @@ export function appendInstallationQueue(input: { psIp: string; queueId: string; 
   if (!packageIds.length) throw createError({ statusCode: 409, message: 'Выбранные пакеты уже находятся в очереди.' })
   const additions = createQueueItems(packageIds, input.packageUrls, queue.transport || 'payload')
   queue.items.push(...additions)
+  // Preserve every active/finished index while ordering the pending tail by game,
+  // then base, patch and DLC. This also handles additions to an earlier branch.
+  const metadata=new Map<string,ReturnType<typeof getPackage>>()
+  const packageFor=(id:string)=>{let item=metadata.get(id);if(!item){item=getPackage(id);metadata.set(id,item)}return item}
+  const pending = queue.items.filter((item,index) => item.state === 'pending' && index !== queue.currentIndex).sort((a,b) => {
+    const left = packageFor(a.packageId), right = packageFor(b.packageId)
+    return (left.titleId || left.id).localeCompare(right.titleId || right.id) || left.installOrder-right.installOrder ||
+      (left.appVersion || '').localeCompare(right.appVersion || '',undefined,{numeric:true})
+  })
+  let pendingIndex=0
+  queue.items=queue.items.map((item,index)=>item.state==='pending' && index !== queue.currentIndex?pending[pendingIndex++]!:item)
   writeQueue(queue)
   logEvent('info', `К текущей очереди добавлено пакетов: ${additions.length}`)
   ensureInstallationQueueRunning()
@@ -502,7 +527,7 @@ export function appendInstallationQueue(input: { psIp: string; queueId: string; 
 }
 
 /** Capture the exact current package, so a delayed click cannot cancel its successor. */
-export function cancelCurrentInstallation(expectedId: string, packageId: string, ip: string) {
+function cancelCurrentInstallationScoped(expectedId: string, packageId: string, ip: string) {
   const queue = readQueue()
   const index = queue.items.findIndex(item => ACTIVE_STATES.includes(item.state))
   if (queue.id !== expectedId || queue.psIp !== ip || queue.transport !== 'service' || queue.status !== 'running' || index < 0 || queue.items[index]!.packageId !== packageId)
@@ -513,7 +538,7 @@ export function cancelCurrentInstallation(expectedId: string, packageId: string,
 }
 
 /** Mutate a selection in one snapshot. Indices remain stable for the running worker. */
-export function cancelInstallationItems(expectedId: string, packageIds: string[], ip: string) {
+function cancelInstallationItemsScoped(expectedId: string, packageIds: string[], ip: string) {
   assertDesktopWritable()
   const queue = readQueue(), selected = new Set(packageIds)
   const targets = queue.items.filter(item => selected.has(item.packageId) && ACTIVE_STATES.includes(item.state)
@@ -523,12 +548,12 @@ export function cancelInstallationItems(expectedId: string, packageIds: string[]
   if (queue.maintenanceId) throw createError({ statusCode: 409, message: 'Идёт обновление сервиса; дождитесь его завершения.' })
   return cancelQueueSelection(queue, targets, false)
 }
-export function cancelInstallationItem(expectedId: string, packageId: string, ip: string) {
+function cancelInstallationItemScoped(expectedId: string, packageId: string, ip: string) {
   return cancelInstallationItems(expectedId, [packageId], ip)
 }
 
 /** All active packages of the selected game branches, including off-page patches/DLC. */
-export function cancelGameInstallations(expectedId: string, ip: string, gameIds: string[]) {
+function cancelGameInstallationsScoped(expectedId: string, ip: string, gameIds: string[]) {
   assertDesktopWritable()
   const queue = readQueue(), selected = new Set(gameIds)
   if (queue.id !== expectedId || queue.psIp !== ip || !['running', 'failed'].includes(queue.status) || queue.maintenanceId)
@@ -540,7 +565,7 @@ export function cancelGameInstallations(expectedId: string, ip: string, gameIds:
   if (!targets.length) throw createError({ statusCode: 409, message: 'У этой игры больше нет активных пакетов' })
   return cancelQueueSelection(queue, targets, true)
 }
-export function cancelGameInstallation(expectedId: string, ip: string, gameId: string) {
+function cancelGameInstallationScoped(expectedId: string, ip: string, gameId: string) {
   return cancelGameInstallations(expectedId, ip, [gameId])
 }
 function cancelQueueSelection(queue: InstallationQueue, targets: InstallationQueue['items'], branch: boolean) {
@@ -562,7 +587,7 @@ function cancelQueueSelection(queue: InstallationQueue, targets: InstallationQue
  * progress is cut and the console's further requests for them are refused.
  * A BGFT job already accepted by the PS4 then fails on the console side.
  */
-export function cancelInstallationQueue() {
+function cancelInstallationQueueScoped() {
   const queue = readQueue()
   if (queue.status === 'cancelling') return publicQueue(queue)
   if (queue.status !== 'running') return publicQueue(queue)
@@ -589,7 +614,7 @@ export function cancelInstallationQueue() {
 
 /** Releases a stale WEB queue after the user has checked Downloads on PS4.
  * No BGFT or package request is sent, and accepted jobs are never marked installed. */
-export function resolveCancelledQueue(expectedId: string) {
+function resolveCancelledQueueScoped(expectedId: string) {
   const queue = readQueue()
   if (queue.status !== 'cancelling' || !queue.id || queue.id !== expectedId)
     throw createError({ statusCode: 409, message: 'Очередь уже изменилась. Обновите страницу.' })
@@ -609,7 +634,7 @@ export function resolveCancelledQueue(expectedId: string) {
 }
 
 /** Release only a failed or already cancelling WEB queue after PS4 has no live job. */
-export function clearStaleInstallationQueue(ip: string, expectedId: string) {
+function clearStaleInstallationQueueScoped(ip: string, expectedId: string) {
   const queue = readQueue()
   if (queue.psIp !== ip || queue.id !== expectedId || !['failed', 'cancelling', 'cancelled'].includes(queue.status))
     throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите состояние и повторите проверку.' })
@@ -626,7 +651,7 @@ export function clearStaleInstallationQueue(ip: string, expectedId: string) {
 }
 
 /** Forgets a package's queue history so it can be installed again from scratch. */
-export function forgetQueuedPackage(packageId: string) {
+function forgetQueuedPackageScoped(packageId: string) {
   const queue = readQueue()
   const item = queue.items.find((entry) => entry.packageId === packageId)
   if (!item) return
@@ -645,3 +670,27 @@ function formatBytes(value: number) {
   const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1)
   return `${(value / 1024 ** index).toFixed(index >= 3 ? 1 : 0)} ${units[index]}`
 }
+
+export function getInstallationHistory(ip?: string): InstallationQueue[] { return inConsoleScope(ip, () => getInstallationHistoryScoped()) }
+export function ensureInstallationQueueRunning(ip?: string) { return inConsoleScope(ip, () => ensureInstallationQueueRunningScoped()) }
+export function getInstallationQueue(ip?: string) { return inConsoleScope(ip, () => getInstallationQueueScoped()) }
+export function startInstallationQueue(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string }) { return inConsoleScope(input.psIp, () => startInstallationQueueScoped(input)) }
+export function appendInstallationQueue(input: { psIp: string; queueId: string; packageIds: string[]; packageUrls: Record<string, string> }) { return inConsoleScope(input.psIp, () => appendInstallationQueueScoped(input)) }
+export function cancelCurrentInstallation(expectedId: string, packageId: string, ip: string) { return inConsoleScope(ip, () => cancelCurrentInstallationScoped(expectedId, packageId, ip)) }
+export function cancelInstallationItems(expectedId: string, packageIds: string[], ip: string) { return inConsoleScope(ip, () => cancelInstallationItemsScoped(expectedId, packageIds, ip)) }
+export function cancelInstallationItem(expectedId: string, packageId: string, ip: string) { return inConsoleScope(ip, () => cancelInstallationItemScoped(expectedId, packageId, ip)) }
+export function cancelGameInstallations(expectedId: string, ip: string, gameIds: string[]) { return inConsoleScope(ip, () => cancelGameInstallationsScoped(expectedId, ip, gameIds)) }
+export function cancelGameInstallation(expectedId: string, ip: string, gameId: string) { return inConsoleScope(ip, () => cancelGameInstallationScoped(expectedId, ip, gameId)) }
+export function cancelInstallationQueue(ip?: string) { return inConsoleScope(ip, () => cancelInstallationQueueScoped()) }
+export function resolveCancelledQueue(expectedId: string, ip?: string) { return inConsoleScope(ip, () => resolveCancelledQueueScoped(expectedId)) }
+export function clearStaleInstallationQueue(ip: string, expectedId: string) { return inConsoleScope(ip, () => clearStaleInstallationQueueScoped(ip, expectedId)) }
+export function forgetQueuedPackage(packageId: string, ip?: string) { return inConsoleScope(ip, () => forgetQueuedPackageScoped(packageId)) }
+
+/** Resume each persisted console, independent of the browser's selected profile. */
+function persistedConsoleIps() {
+  const root = dataPath('consoles'), result = existsSync(root) ? readdirSync(root, { withFileTypes: true }).filter(item => item.isDirectory() && /^(?:\d{1,3}\.){3}\d{1,3}$/.test(item.name)).map(item => item.name) : []
+  const legacy = readJsonFile<InstallationQueue>(dataPath('installation-queue.json'), blankQueue())
+  if (legacy.psIp && !result.includes(legacy.psIp)) result.push(legacy.psIp)
+  return result
+}
+export function resumeConsoleQueues() { for (const ip of persistedConsoleIps()) ensureInstallationQueueRunning(ip) }

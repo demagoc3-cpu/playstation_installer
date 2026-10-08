@@ -1,8 +1,9 @@
+import { filterContent } from '../../shared/content-platform'
 import { getLibraryPackages } from './package-library'
 import { getInstallationQueue } from './installation-queue'
 import { getLocalIp } from './ps4-installer'
 
-export interface LibraryInstallationSelection { scope: 'all' | 'dlc'; titleId?: string }
+export interface LibraryInstallationSelection { scope: 'all' | 'dlc'; titleId?: string; platform?: 'all' | 'ps4' | 'ps5' }
 
 /** Bulk actions resolve the full library here instead of downloading it to WEB. */
 export async function libraryInstallationInput(selection: LibraryInstallationSelection, psIp: string, host: string) {
@@ -10,9 +11,9 @@ export async function libraryInstallationInput(selection: LibraryInstallationSel
     (selection.titleId !== undefined && (typeof selection.titleId !== 'string' || !selection.titleId.trim()))) {
     throw createError({ statusCode: 400, message: 'Неверный выбор пакетов библиотеки' })
   }
-  const queue = getInstallationQueue()
+  const queue = getInstallationQueue(psIp)
   const excluded = new Set(queue.psIp === psIp ? queue.items.filter(item => item.state !== 'cancelled').map(item => item.packageId) : [])
-  const items = getLibraryPackages().filter(item => !item.installedAt &&
+  const items = filterContent(getLibraryPackages(psIp), selection.platform, 'ps4').filter(item => !item.installedAt &&
     ![item.id, ...(item.sourceIds || [])].some(id => excluded.has(id)) &&
     (selection.scope !== 'dlc' || item.type === 'DLC') && (!selection.titleId || item.titleId === selection.titleId))
     .sort((a, b) => a.installOrder - b.installOrder || a.title.localeCompare(b.title) || (a.appVersion || '').localeCompare(b.appVersion || '', undefined, { numeric: true }) || a.fileName.localeCompare(b.fileName, undefined, { numeric: true }))

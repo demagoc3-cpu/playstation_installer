@@ -1,3 +1,5 @@
+import { legacyConsoleIp } from '../../../utils/console-scope'
+import { filterContent } from '../../../../shared/content-platform'
 import { getLibraryPackages } from '../../../utils/package-library'
 import { buildConsoleCatalog } from '../../../utils/console-catalog'
 
@@ -6,5 +8,5 @@ import { buildConsoleCatalog } from '../../../utils/console-catalog'
 export default defineEventHandler(event => {
   setHeader(event, 'Cache-Control', 'no-store')
   const query = getQuery(event)
-  return buildConsoleCatalog(getLibraryPackages(), query.lang === 'en' ? 'en' : 'ru', query)
+  return buildConsoleCatalog(filterContent(getLibraryPackages(query.ip?.toString() || legacyConsoleIp()), 'ps4'), query.lang === 'en' ? 'en' : 'ru', query)
 })

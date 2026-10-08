@@ -20,7 +20,7 @@ export async function bootstrapService(value: unknown, id: string, baseUrl: stri
   } catch (error: any) { if (error.statusCode === 409) throw error }
   if (!(await getGoldHenStatus(ip)).ready)
     throw createError({ statusCode: 502, message: 'На PS4 включите GoldHEN и PyLoader на порту 9090, затем повторите установку сервиса.' })
-  const active = getInstallationQueue()
+  const active = getInstallationQueue(ip)
   if (active.status === 'running' || active.status === 'cancelling')
     throw createError({ statusCode: 409, message: 'Очередь уже работает. Дождитесь завершения текущей установки.' })
   const artifact = serviceArtifact(id)

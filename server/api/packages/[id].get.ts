@@ -1,3 +1,5 @@
+import { inConsoleScope, legacyConsoleIp } from '../../utils/console-scope'
+import { contentFormat } from '../../../shared/content-platform'
 import { logEvent } from '../../utils/event-log'
 import { Transform } from 'node:stream'
 import type { ReadStream } from 'node:fs'
@@ -46,7 +48,7 @@ function streamRange(event: H3Event, file: ReadStream, id: string, fileName: str
   return sendStream(event, file.pipe(counter))
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler((event) => inConsoleScope(getQuery(event).console?.toString() || legacyConsoleIp(), async () => {
   const id = getRouterParam(event, 'id') || ''
   const asset = getQuery(event).asset
   if (asset === 'delivery') return getPackageDelivery(id)
@@ -57,6 +59,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const item = getPackage(id)
+  if (contentFormat(item) === 'folder') throw createError({ statusCode: 409, message: 'Папка передаётся через протокол файлов PS5' })
   if (isDeliveryBlocked(id)) throw createError({ statusCode: 410, message: 'Installation cancelled' })
   const range = getHeader(event, 'range')
   recordPackageRequest(id)
@@ -85,4 +88,4 @@ export default defineEventHandler(async (event) => {
   setHeader(event, 'Content-Range', `bytes ${start}-${end}/${item.size}`)
   setHeader(event, 'Content-Length', end - start + 1)
   return streamRange(event, getPackageStream(id, { start, end }).stream, id, item.fileName, start, end, start === 0 && end === item.size - 1)
-})
+}))

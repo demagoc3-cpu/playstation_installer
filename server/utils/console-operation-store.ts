@@ -39,7 +39,8 @@ export function assertNoRemoval(ip: string) {
 }
 export function assertNoInstallation(ip: string) {
   assertNoFileInstallation(ip)
-  const queuePath = dataPath('installation-queue.json')
+  const scoped = dataPath('consoles', ip, 'installation-queue.json')
+  const queuePath = existsSync(scoped) ? scoped : dataPath('installation-queue.json')
   if (!existsSync(queuePath)) return
   let q: any
   try { q = JSON.parse(readFileSync(queuePath, 'utf8')) } catch { throw createError({ statusCode: 503, message: 'Не удалось проверить очередь установки' }) }

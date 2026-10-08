@@ -88,7 +88,7 @@ function updateStored(r: StoredRemoval) {
   const all = readRemovals(); const index = all.findIndex(x => x.input.requestId === r.input.requestId && x.ip === r.ip)
   if (index < 0) throw new Error('Removal ledger entry disappeared')
   if (r.result.state === 'removed' && !r.libraryUpdated) {
-    for (const id of clearConsoleInstallation(r.input.titleId, r.input.kind, r.input.componentId)) forgetQueuedPackage(id)
+    for (const id of clearConsoleInstallation(r.input.titleId, r.input.kind, r.input.componentId, r.ip)) forgetQueuedPackage(id, r.ip)
     r.libraryUpdated = true
     logEvent('info', `PS4 подтвердила удаление ${r.input.titleId}: ${r.input.kind} / ${r.input.componentId}`)
   }

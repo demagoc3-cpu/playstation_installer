@@ -1,3 +1,4 @@
+import type { ContentPlatform, ContentFormat, PackageSignature } from './consoles'
 export type TaskCategory = 'active' | 'queued' | 'completed' | 'failed'
 export const TASK_CATEGORIES: TaskCategory[] = ['active', 'queued', 'completed', 'failed']
 export function installationTaskCategory(state: string): TaskCategory {
@@ -7,6 +8,7 @@ export function installationTaskCategory(state: string): TaskCategory {
   return 'completed'
 }
 export interface InstallationTask {
+  platform?: ContentPlatform; format?: ContentFormat; signature?: PackageSignature
   id: string; queueId: string; packageId: string; psIp: string; title: string; fileName: string; type: string; size: number
   titleId: string; groupTitle: string; groupIconId?: string; contentId?: string; appVersion?: string; masterVersion?: string; requiredFirmware?: string; sdkFirmware?: string; contentType?: string; packageDigest?: string
   state: string; category: TaskCategory; detail: string; bytesSent: number; createdAt: number; completedAt?: number

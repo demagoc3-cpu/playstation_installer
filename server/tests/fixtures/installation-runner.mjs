@@ -2,7 +2,7 @@
 // devices are simulated: payload commands and console HTTP replies.
 import assert from 'node:assert/strict'
 import { registerHooks } from 'node:module'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -24,6 +24,10 @@ if (mode === 'icon') {
 }
 writeFileSync('.data/package-library.json', JSON.stringify({ version: 2, packages: [item], deliveries: {} }))
 const ip = '192.168.88.147'
+writeFileSync('.data/ps4.json', JSON.stringify({ ip }))
+mkdirSync(`.data/consoles/${ip}`, { recursive: true })
+const queueFile = mode === 'legacy' ? '.data/installation-queue.json' : `.data/consoles/${ip}/installation-queue.json`
+const historyFile = `.data/consoles/${ip}/installation-history.json`
 const token = 'abcdef0123456789abcdef0123456789'
 const input = { psIp: ip, packageIds: ['one'], packageUrls: { one: 'http://192.168.88.10:3000/json/one.json' } }
 const calls = { payload: 0, commands: 0, service: 0, submit: 0, pair: 0, cancel: 0, release: 0, icon: 0 }
@@ -102,8 +106,8 @@ const load = name => import(name === 'installation-queue' && process.env.PACKAGE
     ? pathToFileURL(process.env.PACKAGEFLOW_SERVICE_CLIENT_TEST_BUNDLE).href
     : pathToFileURL(resolve(root, `server/utils/${name}.ts`)).href)
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms))
-const readQueue = () => JSON.parse(readFileSync('.data/installation-queue.json', 'utf8'))
-const installed = () => JSON.parse(readFileSync('.data/package-library.json', 'utf8')).packages[0].installedAt
+const readQueue = () => JSON.parse(readFileSync(existsSync(`.data/consoles/${ip}/installation-queue.json`) ? `.data/consoles/${ip}/installation-queue.json` : queueFile, 'utf8'))
+const installed = () => JSON.parse(readFileSync('.data/package-library.json', 'utf8')).installations?.[ip]?.[`path:${item.path}`]
 async function until(check) {
   const deadline = Date.now() + 8000
   while (!check()) { assert(Date.now() < deadline, `timed out in ${mode}`); await delay(30) }
@@ -115,7 +119,7 @@ try {
     writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages:[item,next],deliveries:{}}));
     const removedId='11111111-1111-1111-1111-111111111111';
     currentJob=makeJob(removedId);Object.assign(currentJob,{state:'uncertain',error:-2137456615,errorHex:'0x80990019',pollError:-2137456615,installing:true});
-    writeFileSync('.data/installation-queue.json',JSON.stringify({version:1,id:'removed-queue',status:'running',transport:'service',psIp:ip,createdAt:1,items:[{packageId:'one',url:input.packageUrls.one,state:'verifying',detail:'',bytesSent:0,requestId:removedId,serviceDispatchedAt:1},{packageId:'two',url:'http://192.168.88.10:3000/json/two.json',state:'pending',detail:'',bytesSent:0}]}));
+    writeFileSync(queueFile,JSON.stringify({version:1,id:'removed-queue',status:'running',transport:'service',psIp:ip,createdAt:1,items:[{packageId:'one',url:input.packageUrls.one,state:'verifying',detail:'',bytesSent:0,requestId:removedId,serviceDispatchedAt:1},{packageId:'two',url:'http://192.168.88.10:3000/json/two.json',state:'pending',detail:'',bytesSent:0}]}));
     const queue=await load('installation-queue');queue.ensureInstallationQueueRunning();await until(()=>readQueue().items[0].serviceTaskId===43);assert.equal(calls.submit,0,'wait while PS4 still reports installation in progress');currentJob.installing=false;await until(()=>calls.submit===1);assert.equal(readQueue().items[0].state,'unconfirmed','removed PS4 task is terminal without claiming installation');assert.equal(currentJob.contentId,next.contentId);currentJob.state='installed';await until(()=>readQueue().status==='completed');assert.equal(readQueue().items[1].state,'installed');assert.equal(calls.submit,1,'successor is dispatched once');
   } else if (mode === 'preference') {
     const preference = await load('installation-preference')
@@ -125,7 +129,7 @@ try {
     assert.throws(() => preference.setInstallationPreference('auto'))
     assert.equal(preference.getInstallationPreference(), 'payload')
   } else if (mode === 'legacy') {
-    writeFileSync('.data/installation-queue.json', JSON.stringify({ version: 1, status: 'running', psIp: ip, createdAt: 1,
+    writeFileSync(queueFile, JSON.stringify({ version: 1, status: 'running', psIp: ip, createdAt: 1,
       items: [{ packageId: 'one', url: input.packageUrls.one, state: 'waiting', detail: '', bytesSent: 0, dispatchedAt: Date.now() - 25000 }] }))
     const queue = await load('installation-queue'); queue.ensureInstallationQueueRunning()
     await until(() => readQueue().status === 'completed')
@@ -144,7 +148,7 @@ try {
     await delay(1550); assert.equal(calls.commands, 1)
   } else if (mode === 'task-remove-pending') {
     writeFileSync('.data/package-library.json', JSON.stringify({version:2,packages:[item,{...item,id:'two',title:'Queued DLC'}],deliveries:{}}))
-    writeFileSync('.data/installation-queue.json', JSON.stringify({version:1,transport:'payload',id:'tasks-test',status:'running',psIp:ip,createdAt:1,
+    writeFileSync(queueFile, JSON.stringify({version:1,transport:'payload',id:'tasks-test',status:'running',psIp:ip,createdAt:1,
       items:[{packageId:'one',url:input.packageUrls.one,state:'waiting',detail:'Active',bytesSent:123,dispatchedAt:Date.now()},
         {packageId:'two',url:input.packageUrls.one,state:'pending',detail:'',bytesSent:0}]}))
     const queue = await load('installation-queue')
@@ -157,7 +161,7 @@ try {
     assert.equal(calls.commands,0)
     queue.cancelInstallationQueue()
     const failedQueue=readQueue();failedQueue.status='failed';failedQueue.items[0].state='failed';failedQueue.items[1].state='pending'
-    writeFileSync('.data/installation-queue.json',JSON.stringify(failedQueue))
+    writeFileSync(queueFile,JSON.stringify(failedQueue))
     const tasks=await load('installation-tasks')
     assert(tasks.getInstallationTasks({categories:'queued'}).items[0].canCancel,'pending rows remain removable after a queue error')
     queue.cancelInstallationItem('tasks-test','two',ip)
@@ -181,19 +185,19 @@ try {
       {packageId:'two',state:'pending',detail:'queued',bytesSent:0},
       {packageId:'three',state:'installed',detail:'done',bytesSent:100},
       {packageId:'four',state:'failed',detail:'failed',bytesSent:0}]}
-    writeFileSync('.data/installation-queue.json',JSON.stringify(current))
-    writeFileSync('.data/installation-history.json',JSON.stringify([{...current,id:'old',status:'completed',items:[{packageId:'old',state:'delivered',detail:'done',bytesSent:100}]}]))
+    writeFileSync(queueFile,JSON.stringify(current))
+    writeFileSync(historyFile,JSON.stringify([{...current,id:'old',status:'completed',items:[{packageId:'old',state:'delivered',detail:'done',bytesSent:100}]}]))
     const tasks=await load('installation-tasks'), visibility=await load('task-visibility')
     const result=visibility.clearFinishedTasks([{hash:'a'.repeat(40),state:'uploading',progress:1},{hash:'b'.repeat(40),state:'downloading',progress:0.5}])
     assert.equal(result.cleared,3);assert.equal(Object.keys(result.hiddenTorrents).length,1)
     const after=tasks.getInstallationTasks();assert.deepEqual(after.counts,{active:1,queued:1,completed:0,failed:0});assert.equal(readQueue().items.length,4);assert.equal(readQueue().items[2].state,'installed');assert.equal(calls.commands,0)
     assert.equal(visibility.clearFinishedTasks().cleared,0)
-    const next=readQueue();next.items[1].state='installed';writeFileSync('.data/installation-queue.json',JSON.stringify(next));assert.equal(tasks.getInstallationTasks().counts.completed,1,'future completions remain visible')
+    const next=readQueue();next.items[1].state='installed';writeFileSync(queueFile,JSON.stringify(next));assert.equal(tasks.getInstallationTasks().counts.completed,1,'future completions remain visible')
     assert.equal(readFileSync('.data/task-visibility.json','utf8').includes('clear-current:three'),true,'cleanup persists across restart')
   } else if (mode === 'task-history') {
     const previous={version:1,transport:'payload',id:'previous',status:'completed',psIp:ip,createdAt:1,
       items:Array.from({length:70},(_,index)=>({packageId:`old-${index}`,title:`Previous ${index}`,titleId:'CUSA00001',fileName:`Old-${index}.pkg`,size:1024,type:'DLC',state:index===0?'failed':'delivered',detail:'Previous detail',bytesSent:1024}))}
-    writeFileSync('.data/installation-queue.json',JSON.stringify(previous))
+    writeFileSync(queueFile,JSON.stringify(previous))
     const queue=await load('installation-queue')
     queue.startInstallationQueue({...input,transport:'payload'})
     assert.equal(queue.getInstallationHistory()[0].items.length,70)
@@ -213,7 +217,7 @@ try {
     assert(!JSON.stringify(all).includes('http://'));assert(!JSON.stringify(all).includes('game.pkg\\'))
   } else if (mode === 'append') {
     writeFileSync('.data/package-library.json', JSON.stringify({ version: 2, packages: [item, { ...item, id: 'two', title: 'Queued Patch', contentType: 'PS4GP', installOrder: 1 }], deliveries: {} }))
-    writeFileSync('.data/installation-queue.json', JSON.stringify({ version: 1, transport: 'payload', id: 'active', status: 'running', psIp: ip, createdAt: 1,
+    writeFileSync(queueFile, JSON.stringify({ version: 1, transport: 'payload', id: 'active', status: 'running', psIp: ip, createdAt: 1,
       items: [{ packageId: 'one', url: input.packageUrls.one, state: 'waiting', detail: 'PS4 скачивает пакет', bytesSent: 1234, dispatchedAt: Date.now() }] }))
     const queue = await load('installation-queue')
     const result = queue.appendInstallationQueue({ psIp: ip, queueId: 'active', packageIds: ['two'], packageUrls: { two: 'http://192.168.88.10:3000/json/two.json' } })
@@ -230,7 +234,7 @@ try {
       {...item,id:'done',contentType:'PS4AC',installOrder:2}]
     writeFileSync('.data/package-library.json', JSON.stringify({version:2,packages,deliveries:{}}))
     const id='11111111-1111-1111-1111-111111111111';currentJob=makeJob(id)
-    writeFileSync('.data/installation-queue.json', JSON.stringify({version:1,transport:'service',id:'game-test',status:'running',psIp:ip,createdAt:1,
+    writeFileSync(queueFile, JSON.stringify({version:1,transport:'service',id:'game-test',status:'running',psIp:ip,createdAt:1,
       items:[{packageId:'one',url:input.packageUrls.one,state:'receiving',detail:'',bytesSent:10,requestId:id,serviceDispatchedAt:1},
         {packageId:'patch',url:input.packageUrls.one,state:'pending',detail:'',bytesSent:0},
         {packageId:'other',url:input.packageUrls.one,state:'pending',detail:'',bytesSent:0},
@@ -258,7 +262,7 @@ try {
     const queue = await load('installation-queue')
     if (mode === 'cancel-one' || mode === 'task-cancel-service') {
       const id='11111111-1111-1111-1111-111111111111';currentJob=makeJob(id)
-      writeFileSync('.data/installation-queue.json',JSON.stringify({version:1,transport:'service',id:'current-test',status:'running',psIp:ip,createdAt:1,
+      writeFileSync(queueFile,JSON.stringify({version:1,transport:'service',id:'current-test',status:'running',psIp:ip,createdAt:1,
         items:[{packageId:'one',url:input.packageUrls.one,state:'receiving',detail:'',bytesSent:10,requestId:id,serviceDispatchedAt:1},
           {packageId:'two',url:input.packageUrls.one,state:'pending',detail:'',bytesSent:0}]}))
       assert.throws(()=>queue.cancelCurrentInstallation('old','one',ip))
@@ -342,7 +346,7 @@ try {
       writeFileSync('.data/package-library.json', JSON.stringify({ version: 2, packages: [item, { ...item, id: 'two', title: 'Next Package' }], deliveries: {} }))
       const id = '11111111-1111-1111-1111-111111111111'
       currentJob = { ...makeJob(id), state: 'installing', downloadedBytes: item.size, installing: false, updating: 0 }
-      writeFileSync('.data/installation-queue.json', JSON.stringify({ version: 1, transport: 'service', id: 'recovered', status: 'running', psIp: ip, createdAt: 1,
+      writeFileSync(queueFile, JSON.stringify({ version: 1, transport: 'service', id: 'recovered', status: 'running', psIp: ip, createdAt: 1,
         items: [
           { packageId: 'one', url: input.packageUrls.one, state: 'installing', detail: '', bytesSent: item.size, requestId: id, serviceDispatchedAt: 1,
             serviceIdleSince: Date.now() - 16 * 60_000, serviceProgress: `${item.size}:${item.size}:::` },
@@ -360,7 +364,7 @@ try {
       writeFileSync('.data/package-library.json', JSON.stringify({ version: 2, packages: [item, { ...item, id: 'two', title: 'Next Package' }], deliveries: {} }))
       const id = '11111111-1111-1111-1111-111111111111'
       currentJob = { ...makeJob(id), state: 'failed', error: -2137456521, errorHex: '0x80990077' }
-      writeFileSync('.data/installation-queue.json', JSON.stringify({ version: 1, transport: 'service', id: 'recovered', status: 'running', psIp: ip, createdAt: 1,
+      writeFileSync(queueFile, JSON.stringify({ version: 1, transport: 'service', id: 'recovered', status: 'running', psIp: ip, createdAt: 1,
         items: [
           { packageId: 'one', url: input.packageUrls.one, state: 'installing', detail: '', bytesSent: item.size, requestId: id, serviceDispatchedAt: 1 },
           { packageId: 'two', url: input.packageUrls.one, state: 'pending', detail: 'Ожидает очереди', bytesSent: 0 },
@@ -377,7 +381,7 @@ try {
     } else if (mode === 'restart') {
       writeFileSync('.data/ps4-service-keys.json', JSON.stringify({ [ip]: token }))
       const id = '11111111-1111-1111-1111-111111111111'; currentJob = { ...makeJob(id), state: 'installed' }
-      writeFileSync('.data/installation-queue.json', JSON.stringify({ version: 1, transport: 'service', id: 'restored', status: 'running', psIp: ip, createdAt: 1,
+      writeFileSync(queueFile, JSON.stringify({ version: 1, transport: 'service', id: 'restored', status: 'running', psIp: ip, createdAt: 1,
         items: [{ packageId: 'one', url: input.packageUrls.one, state: 'sending', detail: '', bytesSent: 0, requestId: id, serviceDispatchedAt: 1 }] }))
       const queue = await load('installation-queue'); queue.ensureInstallationQueueRunning()
       await until(() => readQueue().status === 'completed')
@@ -388,7 +392,7 @@ try {
       if (mode === 'icon') {
         const queue = await load('installation-queue')
         const fixedId = '11111111-1111-1111-1111-111111111111'
-        writeFileSync('.data/installation-queue.json', JSON.stringify({ version: 1, transport: 'service', id: 'icon', status: 'running', psIp: ip, createdAt: 1,
+        writeFileSync(queueFile, JSON.stringify({ version: 1, transport: 'service', id: 'icon', status: 'running', psIp: ip, createdAt: 1,
           items: [{ packageId: 'one', url: input.packageUrls.one, state: 'pending', detail: '', bytesSent: 0, requestId: fixedId }] }))
         queue.ensureInstallationQueueRunning()
         await until(() => calls.icon === 1 && calls.submit === 1)

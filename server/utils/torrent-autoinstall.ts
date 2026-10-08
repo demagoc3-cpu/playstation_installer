@@ -1,4 +1,6 @@
 import { logEvent } from './event-log'
+import { assertTorrentInstallTarget } from './torrent-console'
+import { filterContent } from '../../shared/content-platform'
 import { selectAutomaticPackages } from './automatic-package-selection'
 import { getInstallationQueue, startInstallationQueue } from './installation-queue'
 import { getInstallationPreference } from './installation-preference'
@@ -35,11 +37,12 @@ export async function runTorrentAutoInstall() {
   const ready = torrents.filter((torrent) => torrent.autoInstall && torrent.progress >= 1 && !UNSETTLED_STATE.test(torrent.state) && !wasAutoInstallHandled(torrent.hash))
   if (!ready.length) return
 
-  const psIp = getSavedPsIp()
-  if (!psIp) return logWait('Автоустановка ждёт: не указан IP PS4. Подключите приставку на странице PackageFlow.')
-  if (['running', 'cancelling'].includes(getInstallationQueue().status)) return // the current queue finishes first
-
   const torrent = ready[0]!
+  const psIp = torrent.installIp || getSavedPsIp()
+  if (!psIp) return logWait('Автоустановка ждёт: не указан IP PS4. Подключите приставку на странице PackageFlow.')
+  try { assertTorrentInstallTarget(psIp) } catch (error: any) { return logWait(error.message) }
+  if (['running', 'cancelling'].includes(getInstallationQueue(psIp).status)) return // the current queue finishes first
+
   try {
     let packageIds = getIndexedTorrentPackageIds(torrent.hash)
     if (!packageIds) {
@@ -48,8 +51,8 @@ export async function runTorrentAutoInstall() {
       markTorrentIndexed(torrent.hash, packageIds)
     }
     const ids = new Set(packageIds)
-    const library = getLibraryPackages()
-    const candidates = library.filter((item) => ids.has(item.id) || item.sourceIds?.some(id => ids.has(id)))
+    const library = getLibraryPackages(psIp)
+    const candidates = filterContent(library, 'ps4', 'ps4').filter((item) => ids.has(item.id) || item.sourceIds?.some(id => ids.has(id)))
     const transport = getInstallationPreference()
     let consoleSnapshot: Parameters<typeof selectAutomaticPackages>[2]
     if (transport === 'service') {

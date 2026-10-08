@@ -8,7 +8,7 @@ export default defineEventHandler(async event => {
   const body = await readBody<{ ip?: string; queueId?: string; jobId?: string }>(event)
   const ip = ps4ServiceIp(body?.ip)
   if (!ip) throw createError({ statusCode: 400, message: 'Укажите IP PS4' })
-  const queue = getInstallationQueue()
+  const queue = getInstallationQueue(ip)
   if (queue.psIp === ip && ['running', 'cancelling', 'failed'].includes(queue.status) && queue.id !== body?.queueId)
     throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите состояние.' })
   const active = await getActiveServiceInstallJob(ip)
@@ -20,7 +20,7 @@ export default defineEventHandler(async event => {
   }
   const after = await getActiveServiceInstallJob(ip)
   if (after) throw createError({ statusCode: 409, message: 'Служба ещё видит активное задание. Очистка WEB не выполнялась.' })
-  const latest = getInstallationQueue()
+  const latest = getInstallationQueue(ip)
   const cleared = latest.psIp === ip && latest.id === body?.queueId && ['failed', 'cancelling', 'cancelled'].includes(latest.status)
     ? clearStaleInstallationQueue(ip, latest.id!) : null
   return { activeJob: null, queue: cleared, message: cleared ? 'Зависшее ожидание снято; можно повторить установку.' : 'Активных заданий PS4 нет.' }

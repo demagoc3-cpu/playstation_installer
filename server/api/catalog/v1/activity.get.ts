@@ -20,14 +20,14 @@ export default defineEventHandler(async event => {
   if (q.source === 'tasks') {
     await getMaintenance(ip)
     const mask = Math.max(0, Math.min(15, Number(q.mask ?? 15))), names = ['active','queued','completed','failed']
-    const data = getInstallationTasks({ ip, page: q.page, view: 'table', categories: names.filter((_,i) => mask & (1 << i)).join(',') }), queue = getInstallationQueue()
+    const data = getInstallationTasks({ ip, page: q.page, view: 'table', categories: names.filter((_,i) => mask & (1 << i)).join(',') }), queue = getInstallationQueue(ip)
     const active = data.active // Active jobs remain pinned above filtered history.
     return { tasks: [...active, ...data.items].map(task => ({ id: task.packageId, queueId: task.queueId, title: task.title, groupTitle: task.groupTitle, titleId: task.titleId, fileName: task.fileName, size: task.size, kind: ({'Игра':'game','Патч':'patch','Бэкпорт':'backport','DLC':'dlc'} as Record<string,string>)[task.type] || 'game', state: task.state, detail: task.detail, canCancel: task.canCancel, progress: task.state === 'installed' ? 100 : task.size ? Math.max(0, Math.min(99, Math.floor(task.bytesSent/task.size*100))) : 0 })),
       currentPackageId: queue.psIp === ip && queue.status === 'running' ? active[0]?.packageId || '' : '', queueStatus: queue.psIp === ip ? queue.status : 'idle', queueId: queue.psIp === ip ? queue.id || '' : '', taskPage: data.page, taskPages: data.pages, taskTotal: data.total, counts: data.counts, message: '' }
   }
   // This also advances the existing maintenance flow after a reinstall.
   const maintenance = await getMaintenance(ip)
-  const queue = getInstallationQueue()
+  const queue = getInstallationQueue(ip)
   return { tasks: consoleQueueTasks(queue, ip, getLibraryPackages(), q.lang === 'en' ? 'en' : 'ru'), message: maintenance?.kind === 'reinstall' && !['completed', 'failed'].includes(maintenance.state) ? maintenance.message : '',
     currentPackageId: queue.psIp === ip && queue.status === 'running' ? queue.items.find(i => ['pending','sending','waiting','receiving','installing','verifying'].includes(i.state))?.packageId || '' : '',
     queueStatus: queue.psIp === ip ? queue.status : 'idle', queueId: queue.psIp === ip ? queue.id || '' : '' }

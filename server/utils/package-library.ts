@@ -1,8 +1,12 @@
+import { readPs5ImageMetadata, readPs5FolderMetadata } from './ps5-content-metadata'
+import { inConsoleScope, currentConsoleIp, legacyConsoleIp, consoleDeliveryKey } from './console-scope'
+import { contentPlatform, contentFormat } from '../../shared/content-platform'
+import type { ContentPlatform, ContentFormat, PackageSignature } from '../../shared/types/consoles'
 import { dataPath } from './data-path'
 import { logEvent } from './event-log'
 import { createHash } from 'node:crypto'
 import { closeSync, createReadStream, existsSync, mkdirSync, openSync, readSync, statSync } from 'node:fs'
-import { open, readdir, readFile, stat } from 'node:fs/promises'
+import { open, readdir, readFile, writeFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve } from 'node:path'
 import { readJsonFile as readJson, writeJsonFile as writeJson } from './json-store'
 import { packageIdentity } from '../../shared/package-identity'
@@ -22,6 +26,9 @@ const siteLibraryPath = dataPath('package-library.json')
 
 export interface LocalPackage {
   id: string
+  platform?: ContentPlatform
+  format?: ContentFormat
+  signature?: PackageSignature
   sourceIds?: string[]
   title: string
   fileName: string
@@ -47,7 +54,7 @@ interface StoredPackage extends LocalPackage { path: string; sourceModifiedAt: n
 interface DeliveryStatus { requests: number; bytesSent: number; ranges: Array<{ start: number; end: number }>; startedAt?: number; completedAt?: number; lastActivityAt?: number; partial?: boolean }
 interface FolderCacheEntry { size: number; modifiedAt: number; item: StoredPackage }
 interface FolderCache { version: 4; packages: Record<string, FolderCacheEntry> }
-interface SiteLibrary { version: 2; packages: StoredPackage[]; deliveries: Record<string, DeliveryStatus> }
+interface SiteLibrary { version: 2; packages: StoredPackage[]; deliveries: Record<string, DeliveryStatus>; installations?: Record<string, Record<string, number>> }
 
 const blankLibrary = (): SiteLibrary => ({ version: 2, packages: [], deliveries: {} })
 const hash = (value: string) => createHash('sha256').update(value).digest('hex').slice(0, 32)
@@ -102,9 +109,13 @@ function scheduleDeliveryFlush() {
     try { writeLibrary(readLibraryFile()) } catch (error) { logEvent('warn', 'Не удалось сохранить прогресс передачи:', error) }
   }, 1000)
 }
-function publicItem({ path: _, sourceModifiedAt: __, coverPath: ___, icon: ____, ...item }: StoredPackage): LocalPackage { return item }
+function publicItem({ path: _, sourceModifiedAt: __, coverPath: ___, icon: ____, ...item }: StoredPackage): LocalPackage {
+  const ip = currentConsoleIp(), library = readLibraryFile()
+  const installedAt = ip ? library.installations === undefined && ip === legacyConsoleIp() ? item.installedAt : library.installations?.[ip]?.[packageKey({ ...item, path: _, sourceModifiedAt: __ } as StoredPackage)] : item.installedAt
+  return { ...item, platform: contentPlatform(item), format: contentFormat(item), signature: item.signature || 'unknown', installedAt }
+}
 
-const packageKey = (item: StoredPackage) => packageIdentity(item) || `path:${resolve(item.path)}`
+const packageKey = (item: StoredPackage) => contentPlatform(item) === 'ps5' ? JSON.stringify(['ps5', resolve(item.path), contentFormat(item), item.contentId, item.appVersion, item.size, item.sourceModifiedAt]) : packageIdentity(item) || `path:${resolve(item.path)}`
 function packageGroups(items: StoredPackage[]) {
   const groups = new Map<string, StoredPackage[]>()
   for (const item of items) {
@@ -239,7 +250,7 @@ export async function readPackageMetadataFromReader(handle: PackageReader, fileN
     const icon = extractIconEntry(entries)
     const sdkFirmware = packedFirmware(values.get('PUBTOOLINFO')?.match(/(?:^|[,\s])sdk_ver=([0-9a-fA-F]{8})(?:[,\s]|$)/i)?.[1] || '')
     const contentType = headerContentType === 0x1c ? 'PS4AL' : headerContentType === 0x1b ? 'PS4AC' : `PS4${category.toUpperCase()}`
-    return { title, titleId, appVersion: values.get('APP_VER') || '', masterVersion: values.get('VERSION') || '', requiredFirmware, sdkFirmware, packageVolume: volumeType(data), installOrder: isDlc ? 2 : type === 'Игра' ? 0 : 1, contentId, contentType, packageDigest: data.subarray(0xfe0, 0x1000).toString('hex').toUpperCase(), icon, iconSize: icon.size, type }
+    return { platform: 'ps4' as const, format: 'pkg' as const, signature: 'unknown' as const, title, titleId, appVersion: values.get('APP_VER') || '', masterVersion: values.get('VERSION') || '', requiredFirmware, sdkFirmware, packageVolume: volumeType(data), installOrder: isDlc ? 2 : type === 'Игра' ? 0 : 1, contentId, contentType, packageDigest: data.subarray(0xfe0, 0x1000).toString('hex').toUpperCase(), icon, iconSize: icon.size, type }
 }
 
 async function writeCover(source: string, icon: PackageIcon, destination: string) {
@@ -261,7 +272,20 @@ async function writeCover(source: string, icon: PackageIcon, destination: string
   } finally { await sourceHandle.close(); await destinationHandle.close() }
 }
 
+async function cachePs5Cover(root: string, id: string, cover?: Buffer) {
+  if (!cover || cover.length > 2 * 1024 * 1024 || !cover.subarray(0, 8).equals(PNG_MAGIC)) return undefined
+  const path = join(coversDirectory(root), `${id}.png`); mkdirSync(dirname(path), { recursive: true }); await writeFile(path, cover); return path
+}
+
 async function walk(directory: string, root: string, cache: FolderCache, found: StoredPackage[], oldItems: Map<string, StoredPackage>): Promise<void> {
+  if (existsSync(join(directory, 'sce_sys', 'param.json')) && existsSync(join(directory, 'eboot.bin'))) {
+    try {
+      const metadata = await readPs5FolderMetadata(directory), id = hash(directory), coverPath = await cachePs5Cover(root, id, metadata.cover)
+      const { cover: _, modifiedAt, ...properties } = metadata
+      found.push({ ...properties, id, path: directory, fileName: basename(directory), libraryRoot: root, sourceModifiedAt: modifiedAt, icon: { offset: 0, size: coverPath ? metadata.cover!.length : 0 }, iconSize: coverPath ? metadata.cover!.length : 0, coverPath })
+    } catch (error) { logEvent('warn', `Пропущена папка PS5 ${directory}`, error) }
+    return
+  }
   let entries
   try { entries = await readdir(directory, { withFileTypes: true }) } catch (error) {
     if (directory === root) throw createError({ statusCode: 403, message: `Нет доступа к содержимому папки ${root}. Проверьте права чтения и подключение папки к контейнеру.` })
@@ -271,7 +295,7 @@ async function walk(directory: string, root: string, cache: FolderCache, found: 
   for (const entry of entries) {
     const path = resolve(directory, entry.name)
     if (entry.isDirectory()) { if (entry.name !== '.packageflow') await walk(path, root, cache, found, oldItems); continue }
-    if (!entry.isFile() || !/\.(pkg|fpkg)$/i.test(entry.name)) continue
+    if (!entry.isFile() || !/\.(pkg|fpkg|ffpkg|ufs2|exfat|pfs|ffpfs|ffpfsc)$/i.test(entry.name)) continue
     const info = await stat(path).catch(() => undefined)
     if (!info) continue
     const key = relative(root, path)
@@ -280,11 +304,16 @@ async function walk(directory: string, root: string, cache: FolderCache, found: 
       found.push({ ...cached.item, libraryRoot: root, installedAt: oldItems.get(cached.item.id)?.installedAt })
       continue
     }
-    const metadata = await readPackageMetadata(path, entry.name).catch(() => undefined)
-    if (!metadata) continue
     const id = hash(path)
-    const coverPath = metadata.icon.size ? join(coversDirectory(root), `${id}.png`) : undefined
-    if (coverPath) { mkdirSync(dirname(coverPath), { recursive: true }); await writeCover(path, metadata.icon, coverPath).catch(() => undefined) }
+    let metadata: (Omit<LocalPackage, 'id' | 'fileName' | 'size' | 'libraryRoot'> & { icon: PackageIcon }) | undefined = await readPackageMetadata(path, entry.name).catch(() => undefined)
+    let ps5Cover: string | undefined
+    if (!metadata) {
+      const value = await readPs5ImageMetadata(path).catch(() => undefined)
+      if (value) { const { cover, ...properties } = value; ps5Cover = await cachePs5Cover(root, id, cover); metadata = { ...properties, icon: { offset: 0, size: ps5Cover ? cover!.length : 0 }, iconSize: ps5Cover ? cover!.length : 0 } }
+    }
+    if (!metadata) continue
+    const coverPath = ps5Cover || (metadata.icon.size ? join(coversDirectory(root), `${id}.png`) : undefined)
+    if (coverPath && !ps5Cover) { mkdirSync(dirname(coverPath), { recursive: true }); await writeCover(path, metadata.icon, coverPath).catch(() => undefined) }
     const item: StoredPackage = { id, path, fileName: entry.name, size: info.size, libraryRoot: root, sourceModifiedAt: info.mtimeMs, coverPath, ...metadata }
     const previous = oldItems.get(id)
     if (previous && packageKey(previous) === packageKey(item)) item.installedAt = previous.installedAt
@@ -343,12 +372,19 @@ export async function registerPackageFile(file: string) {
   return publicItem(item)
 }
 
-export function getLibraryPackages() {
+export function getLibraryPackages(ip?: string): LocalPackage[] {
+  if (ip && ip !== currentConsoleIp()) return inConsoleScope(ip, () => getLibraryPackages())
   return [...packageGroups(readLibrary().packages).values()].map(group => availablePackage(group))
     .filter((item): item is NonNullable<typeof item> => Boolean(item)).map(publicItem)
 }
+/** Compact badges for an already loaded page; no source-file scan per device. */
+export function installedPackageIdsForConsole(ip: string, packageIds: string[]) {
+  const library=readLibraryFile(), visible=new Set(packageIds), legacy=legacyConsoleIp()
+  return library.packages.filter(item=>visible.has(item.id) && (library.installations === undefined && ip === legacy ? item.installedAt : library.installations?.[ip]?.[packageKey(item)])).map(item=>item.id)
+}
 export function getDeliveredPackageIds() {
-  return new Set(Object.entries(deliveries()).filter(([, status]) => status.completedAt).map(([id]) => id))
+  const ip = currentConsoleIp(), prefix = ip ? `${ip}:` : ''
+  return new Set(Object.entries(deliveries()).filter(([id, status]) => status.completedAt && (prefix ? id.startsWith(prefix) : !id.includes(':'))).map(([id]) => prefix ? id.slice(prefix.length) : id))
 }
 export function getPackage(id: string) {
   const packages = readLibrary().packages, original = packages.find(item => item.id === id)
@@ -368,35 +404,54 @@ export function activePackageTransfers() { return [...activeTransfers.values()].
 
 /** Registers a running HTTP transfer so a cancel can cut it; returns an unregister function. */
 export function registerActiveTransfer(id: string, abort: () => void) {
-  const transfers = activeTransfers.get(id) || new Set<() => void>()
+  const key = consoleDeliveryKey(id)
+  const transfers = activeTransfers.get(key) || new Set<() => void>()
   transfers.add(abort)
-  activeTransfers.set(id, transfers)
+  activeTransfers.set(key, transfers)
   touchDelivery(id)
-  return () => { transfers.delete(abort); if (!transfers.size) activeTransfers.delete(id); touchDelivery(id) }
+  return () => { transfers.delete(abort); if (!transfers.size) activeTransfers.delete(key); touchDelivery(id) }
 }
 
-export function isDeliveryBlocked(id: string) { return blockedDeliveries.has(id) }
+export function isDeliveryBlocked(id: string) { return blockedDeliveries.has(consoleDeliveryKey(id)) }
 
 /** Refuses further PS4 requests for the package and drops transfers in progress. */
 export function blockPackageDelivery(id: string) {
-  blockedDeliveries.add(id)
-  for (const abort of [...(activeTransfers.get(id) || [])]) { try { abort() } catch { /* already closed */ } }
-  activeTransfers.delete(id)
+  const key = consoleDeliveryKey(id)
+  blockedDeliveries.add(key)
+  for (const abort of [...(activeTransfers.get(key) || [])]) { try { abort() } catch { /* already closed */ } }
+  activeTransfers.delete(key)
 }
 
 /** Starts a fresh, independently observable HTTP delivery for a new PS4 job. */
 export function resetPackageDelivery(id: string) {
-  blockedDeliveries.delete(id)
+  blockedDeliveries.delete(consoleDeliveryKey(id))
   const library = readLibrary()
   if (!library.packages.some((item) => item.id === id)) throw createError({ statusCode: 404, message: 'Пакет не найден' })
-  delete library.deliveries[id]
+  delete library.deliveries[consoleDeliveryKey(id)]
   writeLibrary(library)
 }
 
-export function markPackageInstalled(id: string, installed: boolean) {
+function ensureConsoleInstallations(library: SiteLibrary) {
+  if (!library.installations) {
+    library.installations = {}
+    const owner = legacyConsoleIp()
+    if (owner) library.installations[owner] = Object.fromEntries(library.packages.filter(item => item.installedAt).map(item => [packageKey(item), item.installedAt!]))
+  }
+  return library.installations
+}
+
+export function markPackageInstalled(id: string, installed: boolean, ip?: string): LocalPackage {
+  if (ip && ip !== currentConsoleIp()) return inConsoleScope(ip, () => markPackageInstalled(id, installed))
   const library = readLibrary()
   const item = library.packages.find((entry) => entry.id === id)
   if (!item) throw createError({ statusCode: 404, message: 'Пакет не найден' })
+  const target = currentConsoleIp()
+  if (target) {
+    const states = ensureConsoleInstallations(library), state = states[target] ||= {}
+    if (installed && (item.packageVolume === 'patch' || item.contentType === 'PS4GP')) for (const other of library.packages) if (other.titleId === item.titleId && contentPlatform(other) === contentPlatform(item) && (other.packageVolume === 'patch' || other.contentType === 'PS4GP')) delete state[packageKey(other)]
+    if (installed) state[packageKey(item)] = Date.now(); else delete state[packageKey(item)]
+    writeLibrary(library); return publicItem(item)
+  }
   if (installed && item.contentType === 'PS4GP') {
     for (const other of library.packages) {
       if (other.id !== id && other.titleId === item.titleId && other.contentType === 'PS4GP') other.installedAt = undefined
@@ -408,12 +463,13 @@ export function markPackageInstalled(id: string, installed: boolean) {
   return publicItem(item)
 }
 
-export function clearConsoleInstallation(titleId: string, kind: string, componentId: string) {
+export function clearConsoleInstallation(titleId: string, kind: string, componentId: string, ip?: string): string[] {
+  if (ip && ip !== currentConsoleIp()) return inConsoleScope(ip, () => clearConsoleInstallation(titleId, kind, componentId))
   const library = readLibrary(); const affected: string[] = []
   for (const item of library.packages) {
     if (item.titleId !== titleId) continue
     if (kind === 'game' || (kind === 'patch' && item.contentType === 'PS4GP') ||
-      (['dlc', 'dlcs'].includes(kind) && item.type === 'DLC' && (kind === 'dlcs' || item.contentId.slice(20) === componentId))) { item.installedAt = undefined; affected.push(item.id) }
+      (['dlc', 'dlcs'].includes(kind) && item.type === 'DLC' && (kind === 'dlcs' || item.contentId.slice(20) === componentId))) { if (currentConsoleIp()) delete (ensureConsoleInstallations(library)[currentConsoleIp()!] ||= {})[packageKey(item)]; else item.installedAt = undefined; affected.push(item.id) }
   }
   writeLibrary(library); return affected
 }
@@ -429,11 +485,12 @@ export function removePackageFromLibrary(id: string) {
   writeLibrary(library)
 }
 
-export function removePackageBranch(titleId: string) {
+export function removePackageBranch(titleId: string, platform?: string) {
   const library = readLibrary()
-  const removed = library.packages.filter((item) => item.titleId === titleId)
+  const removed = library.packages.filter(item => item.titleId === titleId && (!platform || contentPlatform(item) === platform))
   if (!removed.length) throw createError({ statusCode: 404, message: 'Ветка игры не найдена' })
-  library.packages = library.packages.filter((item) => item.titleId !== titleId)
+  const ids = new Set(removed.map(item => item.id))
+  library.packages = library.packages.filter(item => !ids.has(item.id))
   removed.forEach((item) => delete library.deliveries[item.id])
   writeLibrary(library)
   return { removed: removed.length }
@@ -441,14 +498,14 @@ export function removePackageBranch(titleId: string) {
 
 /** Any request from the console (manifest or data) proves it accepted the job. */
 export function recordPackageRequest(id: string) {
-  const delivery = deliveries()[id] ||= { requests: 0, bytesSent: 0, ranges: [] }
+  const delivery = deliveries()[consoleDeliveryKey(id)] ||= { requests: 0, bytesSent: 0, ranges: [] }
   delivery.requests += 1
   delivery.startedAt ||= Date.now()
   delivery.lastActivityAt = Date.now()
   scheduleDeliveryFlush()
 }
 
-function touchDelivery(id: string) { const delivery = deliveries()[id]; if (delivery) delivery.lastActivityAt = Date.now() }
+function touchDelivery(id: string) { const delivery = deliveries()[consoleDeliveryKey(id)]; if (delivery) delivery.lastActivityAt = Date.now() }
 
 // BGFT skips the first 64 KiB (fetched separately as a bootstrap chunk) and
 // stops at the end of the package content (the PFS image); the bytes after it
@@ -462,6 +519,7 @@ function requiredEnd(item: StoredPackage) {
   const cached = requiredEndCache.get(item.id)
   if (cached) return cached
   let end = item.size
+  if (contentPlatform(item) !== 'ps4' || contentFormat(item) !== 'pkg') return end
   try {
     const header = Buffer.alloc(0x40)
     const handle = openSync(item.path, 'r')
@@ -479,14 +537,16 @@ function covers(ranges: DeliveryStatus['ranges'], from: number, to: number) {
 
 /** Marks the delivery complete once the downloadable region is covered, or the console went quiet after receiving data. */
 function settleDelivery(item: StoredPackage, delivery: DeliveryStatus) {
+  if (contentFormat(item) === 'folder') return false
   if (delivery.completedAt) return false
   const end = requiredEnd(item)
-  if (covers(delivery.ranges, Math.min(BOOTSTRAP_BYTES, end - 1), end - 1) || delivery.bytesSent >= item.size) {
+  const ps4Pkg = contentPlatform(item) === 'ps4' && contentFormat(item) === 'pkg'
+  if (covers(delivery.ranges, ps4Pkg ? Math.min(BOOTSTRAP_BYTES, end - 1) : 0, end - 1) || delivery.bytesSent >= item.size) {
     delivery.completedAt = Date.now()
     return true
   }
   const quiet = delivery.lastActivityAt && Date.now() - delivery.lastActivityAt >= IDLE_COMPLETE_MS
-  if (delivery.bytesSent > 0 && quiet && !activeTransfers.has(item.id)) {
+  if (ps4Pkg && delivery.bytesSent > 0 && quiet && !activeTransfers.has(consoleDeliveryKey(item.id))) {
     delivery.completedAt = Date.now()
     delivery.partial = true
     return true
@@ -499,20 +559,20 @@ export function recordPackageDelivery(id: string, start: number, end: number, co
   if (end < start) return
   const item = readLibraryFile().packages.find((entry) => entry.id === id)
   if (!item) return
-  const delivery = deliveries()[id] ||= { requests: 0, bytesSent: 0, ranges: [] }
+  const delivery = deliveries()[consoleDeliveryKey(id)] ||= { requests: 0, bytesSent: 0, ranges: [] }
   delivery.startedAt ||= Date.now()
   delivery.lastActivityAt = Date.now()
   const ranges = [...delivery.ranges, { start, end }].sort((a, b) => a.start - b.start)
   delivery.ranges = ranges.reduce<Array<{ start: number; end: number }>>((merged, range) => { const previous = merged.at(-1); if (previous && range.start <= previous.end + 1) previous.end = Math.max(previous.end, range.end); else merged.push({ ...range }); return merged }, [])
   delivery.bytesSent = delivery.ranges.reduce((total, range) => total + range.end - range.start + 1, 0)
-  if (completed) delivery.completedAt ||= Date.now()
+  if (completed && start === 0 && end >= item.size - 1) delivery.completedAt ||= Date.now()
   else settleDelivery(item, delivery)
   scheduleDeliveryFlush()
 }
 
 export function getPackageDelivery(id: string) {
   const item = getPackage(id)
-  const delivery = deliveries()[id] || { requests: 0, bytesSent: 0, ranges: [] }
-  if (settleDelivery(item, delivery)) { deliveries()[id] = delivery; scheduleDeliveryFlush() }
+  const delivery = deliveries()[consoleDeliveryKey(id)] || { requests: 0, bytesSent: 0, ranges: [] }
+  if (settleDelivery(item, delivery)) { deliveries()[consoleDeliveryKey(id)] = delivery; scheduleDeliveryFlush() }
   return { ...delivery, size: item.size, requiredSize: requiredEnd(item) }
 }

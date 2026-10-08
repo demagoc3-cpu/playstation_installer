@@ -101,13 +101,13 @@ export async function getQbitStatus() {
   try { return { ...settings, ready: true, version: await (await request('/app/version')).text() } } catch { return { ...settings, ready: false, version: '' } }
 }
 
-export async function addTorrent(source: string, installAfterDownload = false) {
+export async function addTorrent(source: string, installAfterDownload = false, installIp?: string) {
   if (!/^magnet:\?xt=urn:btih:/i.test(source) && !/^https?:\/\//i.test(source)) throw createError({ statusCode: 400, message: 'Добавьте magnet-ссылку или HTTPS-ссылку на .torrent' })
   const settings = validateSettings(readSettings())
   const response = await request('/torrents/add', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ urls: source, savepath: settings.remotePath || settings.downloadPath, tags: installAfterDownload ? 'packageflow,packageflow-auto-install' : 'packageflow' })
+    body: new URLSearchParams({ urls: source, savepath: settings.remotePath || settings.downloadPath, tags: installAfterDownload ? `packageflow,packageflow-auto-install${installIp ? `,packageflow-target-${installIp}` : ''}` : 'packageflow' })
   })
   const result = await response.text()
   if (/^fails/i.test(result.trim())) throw createError({ statusCode: 502, message: 'qBittorrent не принял торрент-задачу' })
@@ -121,16 +121,23 @@ export async function getTorrents() {
   const torrents = await response.json() as Array<Record<string, unknown>>
   return torrents.map((torrent) => ({
     hash: String(torrent.hash || ''), name: String(torrent.name || 'Без названия'), state: String(torrent.state || 'unknown'), size: Number(torrent.size || 0), progress: Number(torrent.progress || 0),
-    downloaded: Number(torrent.downloaded || 0), speed: Number(torrent.dlspeed || 0), eta: Number(torrent.eta || 0), seeds: Number(torrent.num_seeds || 0), autoInstall: torrentTags(torrent).includes('packageflow-auto-install'), contentPath: String(torrent.content_path || ''), savePath: String(torrent.save_path || '')
+    downloaded: Number(torrent.downloaded || 0), speed: Number(torrent.dlspeed || 0), eta: Number(torrent.eta || 0), seeds: Number(torrent.num_seeds || 0), autoInstall: torrentTags(torrent).includes('packageflow-auto-install'), installIp: torrentTags(torrent).find(tag => /^packageflow-target-(?:\d{1,3}\.){3}\d{1,3}$/.test(tag))?.slice('packageflow-target-'.length), contentPath: String(torrent.content_path || ''), savePath: String(torrent.save_path || '')
   }))
 }
 
-export async function setTorrentAutoInstall(hash: string, enabled: boolean) {
+export async function setTorrentAutoInstall(hash: string, enabled: boolean, installIp?: string) {
   if (!/^[a-f0-9]{40}$/i.test(hash)) throw createError({ statusCode: 400, message: 'Некорректный идентификатор торрент-задачи' })
+  if (enabled && installIp) {
+    const existing = (await getTorrents()).find(item => item.hash === hash)
+    if (existing?.installIp && existing.installIp !== installIp) await request('/torrents/removeTags', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ hashes: hash, tags: `packageflow-target-${existing.installIp}` })
+    })
+  }
   await request(enabled ? '/torrents/addTags' : '/torrents/removeTags', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ hashes: hash, tags: 'packageflow-auto-install' })
+    body: new URLSearchParams({ hashes: hash, tags: `packageflow-auto-install${enabled && installIp ? `,packageflow-target-${installIp}` : ''}` })
   })
 }
 

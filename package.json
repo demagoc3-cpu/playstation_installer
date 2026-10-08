@@ -12,6 +12,7 @@
     "start": "node .output/server/index.mjs"
   },
   "dependencies": {
+    "@noble/hashes": "2.4.0",
     "archiver": "^7.0.1",
     "cheerio": "^1.2.0",
     "nuxt": "^4.5.2",

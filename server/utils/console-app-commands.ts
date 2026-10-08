@@ -1,3 +1,5 @@
+import { inConsoleScope } from './console-scope'
+import { filterContent } from '../../shared/content-platform'
 import { clearFinishedTasks } from './task-visibility'
 import { getPreset, resolvePreset, presetSelection } from './presets'
 import { dataPath } from './data-path'
@@ -49,11 +51,11 @@ export function submitConsoleCommand(body: any, port: string) {
     throw createError({ statusCode: 400, message: 'Не указано текущее задание' })
   let packages, missingFavorites = 0
   try { packages = control || body.action === 'clear-tasks' ? [] : body.action === 'install-favorites' ? (() => {
-    const library = getLibraryPackages(), { groups, missing } = resolveConsoleFavorites(library, body.favoriteIds)
+    const library = filterContent(getLibraryPackages(ip), 'ps4'), { groups, missing } = resolveConsoleFavorites(library, body.favoriteIds)
     if (!groups.size) throw new Error('Избранные игры отсутствуют в библиотеке. Обновите список избранного.')
     missingFavorites = missing.length
     return library.filter(pkg => groups.has(pkg.titleId || pkg.id)).sort((a,b) => (a.titleId || a.id).localeCompare(b.titleId || b.id) || a.installOrder - b.installOrder || a.fileName.localeCompare(b.fileName))
-  })() : body.action === 'install-preset' ? presetSelection(body.gameId) : consoleSelection(body.presetId ? resolvePreset(getPreset(body.presetId)).flatMap(entry => entry.pkg ? [entry.pkg] : []) : getLibraryPackages(), body.gameId, body.action, body.packageIds) }
+  })() : body.action === 'install-preset' ? inConsoleScope(ip, () => presetSelection(body.gameId)) : consoleSelection(body.presetId ? inConsoleScope(ip, () => resolvePreset(getPreset(body.presetId))).flatMap(entry => entry.pkg ? [entry.pkg] : []) : filterContent(getLibraryPackages(ip), 'ps4'), body.gameId, body.action, body.packageIds) }
   catch (e: any) { throw createError({ statusCode: 400, message: e.message }) }
   const record: Record = { id: body.requestId, ip, fingerprint, state: 'pending', message: 'WEB проверяет команду' }
   // Persist before any side effect. Lost responses are polled, never resubmitted.
@@ -61,10 +63,10 @@ export function submitConsoleCommand(body: any, port: string) {
   void (async () => {
     try {
       if (body.action === 'clear-tasks') { record.result = clearFinishedTasks([], ip); record.message = 'Завершённые задания и ошибки убраны из списка' } else if (control) {
-        const active = getInstallationQueue()
+        const active = getInstallationQueue(ip)
         if (active.id !== body.queueId || active.psIp !== ip || active.transport !== 'service' || !(['cancel-item', 'cancel-game', 'cancel-items', 'cancel-games'].includes(body.action) ? ['running', 'failed'].includes(active.status) : ['running', 'cancelling'].includes(active.status)))
           throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите «Задания»' })
-        const queue = body.action === 'cancel-items' ? cancelInstallationItems(body.queueId, body.packageIds, ip) : body.action === 'cancel-games' ? cancelGameInstallations(body.queueId, ip, body.gameIds) : body.action === 'cancel-item' ? cancelInstallationItem(body.queueId, body.currentPackageId, ip) : body.action === 'cancel-current' ? cancelCurrentInstallation(body.queueId, body.currentPackageId, ip) : body.action === 'cancel-game' ? cancelGameInstallation(body.queueId, ip, body.gameId) : cancelInstallationQueue()
+        const queue = body.action === 'cancel-items' ? cancelInstallationItems(body.queueId, body.packageIds, ip) : body.action === 'cancel-games' ? cancelGameInstallations(body.queueId, ip, body.gameIds) : body.action === 'cancel-item' ? cancelInstallationItem(body.queueId, body.currentPackageId, ip) : body.action === 'cancel-current' ? cancelCurrentInstallation(body.queueId, body.currentPackageId, ip) : body.action === 'cancel-game' ? cancelGameInstallation(body.queueId, ip, body.gameId) : cancelInstallationQueue(ip)
         record.result = { queueId: queue.id }; record.message = 'Отмена запрошена; ожидаем подтверждение PS4'
       } else if (body.action === 'reinstall-preview') {
         const plan = await reinstallPlan(ip, packages[0]!.id)
@@ -80,7 +82,7 @@ export function submitConsoleCommand(body: any, port: string) {
           record.result = { queueId: flow.id }; record.message = flow.message
           if (flow.state === 'failed' || flow.state === 'uncertain') record.state = flow.state
         } else {
-          const active = getInstallationQueue()
+          const active = getInstallationQueue(ip)
           if (active.status === 'running' && (active.psIp !== ip || active.transport !== 'service'))
             throw createError({ statusCode: 409, message: 'Работает другая очередь. Дождитесь её завершения.' })
           const queue = active.status === 'running'

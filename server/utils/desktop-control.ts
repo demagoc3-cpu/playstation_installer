@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { createError, getHeader, type H3Event } from 'h3'
 import { dataPath } from './data-path'
 import { activePackageTransfers } from './package-library'
@@ -24,8 +24,11 @@ function ledger(file: string, fallback: any) {
 export function desktopActivity() {
   const reasons: string[] = []
   if (desktopRequests()) reasons.push('request')
-  const queue = ledger('installation-queue.json', {})
-  if (['running', 'cancelling'].includes(queue.status)) reasons.push('installation')
+  const consoles = existsSync(dataPath('consoles')) ? readdirSync(dataPath('consoles'), { withFileTypes: true }).filter(item => item.isDirectory() && /^(?:\d{1,3}\.){3}\d{1,3}$/.test(item.name)).map(item => item.name) : []
+  const scoped = consoles.map(ip => ledger(`consoles/${ip}/installation-queue.json`, {}))
+  const old = ledger('installation-queue.json', {})
+  const queues = [...scoped, ...(!scoped.some(queue => queue.psIp === old.psIp) ? [old] : [])]
+  if (queues.some(queue => ['running', 'cancelling'].includes(queue.status))) reasons.push('installation')
   if (activePackageTransfers()) reasons.push('transfer')
   const maintenance = ledger('console-maintenance.json', {})
   if (Object.values(maintenance).some((r: any) => !['completed', 'failed'].includes(r?.state))) reasons.push('maintenance')

@@ -1,17 +1,18 @@
+import { contentBranchKey } from '../../shared/content-platform.ts'
 import type { LocalPackage } from './package-library'
 import { librarySearchTokens, matchesLibrarySearch } from '../../shared/library-pagination.ts'
 import { packageHasId } from '../../shared/package-identity.ts'
 
-export interface ConsoleCatalogQuery { offset?: unknown; limit?: unknown; q?: unknown; favoriteIds?: unknown }
+export interface ConsoleCatalogQuery { offset?: unknown; limit?: unknown; q?: unknown; favoriteIds?: unknown; groupByPlatform?: boolean }
 
 /** Saved favorites may predate a reindex or contain removed games. Resolve
  * package aliases to their whole branch; missing entries do not hide valid ones. */
-export function resolveConsoleFavorites(packages: LocalPackage[], ids: string[]) {
+export function resolveConsoleFavorites(packages: LocalPackage[], ids: string[], groupByPlatform = false) {
   const groups = new Set<string>(), missing: string[] = []
   for (const id of new Set(ids)) {
-    const matches = packages.filter(pkg => (pkg.titleId || pkg.id).toUpperCase() === id.toUpperCase() || packageHasId(pkg, id))
+    const matches = packages.filter(pkg => (groupByPlatform ? contentBranchKey(pkg) : pkg.titleId || pkg.id).toUpperCase() === id.toUpperCase() || (pkg.titleId || pkg.id).toUpperCase() === id.toUpperCase() || packageHasId(pkg, id))
     if (!matches.length) missing.push(id)
-    for (const pkg of matches) groups.add(pkg.titleId || pkg.id)
+    for (const pkg of matches) groups.add(groupByPlatform ? contentBranchKey(pkg) : pkg.titleId || pkg.id)
   }
   return { groups, missing }
 }
@@ -28,14 +29,14 @@ export function consolePackageLabel(item: LocalPackage, language: 'ru' | 'en' = 
 export function buildConsoleCatalog(packages: LocalPackage[], language: 'ru' | 'en' = 'ru', query: ConsoleCatalogQuery = {}) {
   const groups = new Map<string, LocalPackage[]>()
   for (const pkg of packages) {
-    const key = pkg.titleId || pkg.id
+    const key = query.groupByPlatform ? contentBranchKey(pkg) : pkg.titleId || pkg.id
     const items = groups.get(key)
     if (items) items.push(pkg)
     else groups.set(key, [pkg])
   }
   const tokens = librarySearchTokens(query.q)
   const favorites = Array.isArray(query.favoriteIds)
-    ? resolveConsoleFavorites(packages, query.favoriteIds.slice(0, 1024).filter((id): id is string => typeof id === 'string' && /^[\w.-]{1,39}$/.test(id))).groups : undefined
+    ? resolveConsoleFavorites(packages, query.favoriteIds.slice(0, 1024).filter((id): id is string => typeof id === 'string' && /^[\w.:-]{1,48}$/.test(id)), query.groupByPlatform).groups : undefined
   const collator = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' })
   const baseOf = (items: LocalPackage[]) => items.find(item => item.type === 'Игра') || items[0]!
   const filtered = [...groups.entries()].filter(([id, items]) => (!favorites || favorites.has(id)) && items.some(item => matchesLibrarySearch(item, tokens)))

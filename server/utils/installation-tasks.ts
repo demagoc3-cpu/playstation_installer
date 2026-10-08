@@ -5,10 +5,10 @@ import { installationTaskCategory, installationTaskGroupKey, TASK_CATEGORIES, ty
 
 export function getInstallationTasks(query: { categories?: unknown; page?: unknown; view?: unknown; ip?: string } = {}) {
   const visibility = getTaskVisibility(), hidden = new Set(visibility.hidden)
-  const current = getInstallationQueue()
-  const history = getInstallationHistory().filter(queue => queue.id !== current.id)
+  const current = getInstallationQueue(query.ip)
+  const history = getInstallationHistory(query.ip).filter(queue => queue.id !== current.id)
   const queues = [current, ...history].filter(queue => !query.ip || queue.psIp === query.ip)
-  const library = getLibraryPackages()
+  const library = getLibraryPackages(query.ip)
   const packages = new Map(library.flatMap(item => [item.id, ...(item.sourceIds || [])].map(id => [id, item] as const)))
   const branches = new Map<string, { title: string; iconId?: string; hasBase: boolean }>()
   for (const item of library) {
@@ -29,7 +29,7 @@ export function getInstallationTasks(query: { categories?: unknown; page?: unkno
     tasks.push({ id: `${queue.id}:${item.packageId}`, queueId: queue.id || '', packageId: item.packageId, psIp: queue.psIp || '',
       title: item.title || pkg?.title || item.packageId, fileName: item.fileName || pkg?.fileName || item.packageId,
       type: item.type || pkg?.type || 'PKG', size: item.size ?? pkg?.size ?? 0, state: item.state, category,
-      contentId: pkg?.contentId, appVersion: pkg?.appVersion, masterVersion: pkg?.masterVersion, requiredFirmware: pkg?.requiredFirmware, sdkFirmware: pkg?.sdkFirmware, contentType: pkg?.contentType, packageDigest: pkg?.packageDigest,
+      platform: pkg?.platform, format: pkg?.format, signature: pkg?.signature, contentId: pkg?.contentId, appVersion: pkg?.appVersion, masterVersion: pkg?.masterVersion, requiredFirmware: pkg?.requiredFirmware, sdkFirmware: pkg?.sdkFirmware, contentType: pkg?.contentType, packageDigest: pkg?.packageDigest,
       titleId, groupTitle: branch?.title || pastBaseTitles.get(titleId) || titleId || item.title || item.packageId, groupIconId: branch?.iconId,
       detail: item.detail, bytesSent: item.bytesSent, createdAt: queue.createdAt || 0, completedAt: item.completedAt || item.installedAt,
       transport: queue.transport || 'payload', cancelRequested: !!item.cancelRequested,

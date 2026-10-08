@@ -95,3 +95,12 @@ test('native pages cover all 2800 packages without duplicates and search include
  const source=Array.from({length:73},(_,i)=>pkg({id:`game-${i}`,titleId:`CUSA${String(i).padStart(5,'0')}`}))
  for(const limit of [10,20,30]){const first=buildConsoleCatalog(source,'ru',{limit}),next=buildConsoleCatalog(source,'ru',{limit,offset:limit});assert.equal(first.games.length,limit);assert.equal(next.games.length,limit);assert.equal(new Set([...first.games,...next.games].map(g=>g.id)).size,limit*2);assert.equal(next.offset,limit)}
  })
+
+test('v2 favorites and branches keep PS4 and PS5 separate', () => {
+  const source = [pkg({ id: 'ps4', platform: 'ps4', format: 'pkg', titleId: 'SAME00001' }),
+    pkg({ id: 'ps5', platform: 'ps5', format: 'folder', titleId: 'SAME00001', contentType: 'PS5GD' })]
+  const all = buildConsoleCatalog(source, 'ru', { groupByPlatform: true })
+  assert.equal(all.total, 2)
+  assert.deepEqual(buildConsoleCatalog(source, 'ru', { groupByPlatform: true, favoriteIds: ['ps5:SAME00001'] }).games.map(game => game.id), ['ps5:SAME00001'])
+  assert.deepEqual(buildConsoleCatalog(source, 'ru', { groupByPlatform: true, favoriteIds: ['ps4'] }).games.map(game => game.id), ['ps4:SAME00001'])
+})

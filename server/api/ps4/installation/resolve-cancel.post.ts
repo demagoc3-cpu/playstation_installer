@@ -7,5 +7,5 @@ export default defineEventHandler(async event => {
   const body = await readBody(event)
   if (!body || typeof body.id !== 'string' || !/^[0-9a-f-]{36}$/.test(body.id))
     throw createError({ statusCode: 400, message: 'Неизвестная очередь установки' })
-  return resolveCancelledQueue(body.id)
+  return resolveCancelledQueue(body.id, body.ip)
 })

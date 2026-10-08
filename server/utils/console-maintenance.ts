@@ -83,13 +83,13 @@ export async function getMaintenance(ipValue: unknown) {
       else if (['failed', 'partial'].includes(r.state)) { flow.state = 'failed'; flow.message = r.message || 'Удаление не завершено; установка не начата' }
       else if (r.state === 'removed') {
         flow.state = 'installing'; flow.installDispatch = true; flow.message = flow.bundle ? 'Удаление подтверждено. Устанавливаем игру, патчи и DLC по очереди' : 'Удаление подтверждено. Устанавливаем выбранный базовый PKG'; set(ip, flow)
-        const previous = getInstallationQueue()
+        const previous = getInstallationQueue(ip)
         if (previous.id === flow.id) flow.queue = previous
         else flow.queue = startInstallationQueue({ psIp: ip, packageIds: flow.bundle?.packageIds || [flow.packageId], packageUrls: flow.bundle?.packageUrls || { [flow.packageId]: flow.url }, transport: 'service', maintenanceId: flow.id })
       }
     }
     if (flow.kind === 'reinstall' && flow.installDispatch) {
-      const q = getInstallationQueue()
+      const q = getInstallationQueue(ip)
       if (q.id !== flow.id) { flow.state = 'uncertain'; flow.message = 'Очередь переустановки не найдена. Повтор не отправлен' }
       else { flow.queue = q; flow.message = q.message; if (q.status === 'completed') flow.state = q.items.every(i => i.state === 'installed') ? 'completed' : 'failed'; else if (['failed', 'cancelled'].includes(q.status)) flow.state = 'failed' }
     }

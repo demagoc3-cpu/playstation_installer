@@ -7,11 +7,22 @@ const path = dataPath('task-visibility.json')
 type Visibility = { version: 1; hidden: string[]; torrents: Record<string, string> }
 export const taskVisibilityKey = (queueId: string | undefined, item: { packageId: string; state: string; completedAt?: number; installedAt?: number; bytesSent: number; detail: string }) => `${queueId}:${item.packageId}:${JSON.stringify([item.state, item.completedAt || item.installedAt || 0, item.bytesSent, item.detail])}`
 export const getTaskVisibility = () => readJsonFile<Visibility>(path, { version: 1, hidden: [], torrents: {} })
+/** qBittorrent history is shared; clearing it must preserve every console's history. */
+export function clearFinishedTorrentTasks(torrents: unknown) {
+  assertDesktopWritable()
+  const state=getTaskVisibility()
+  if (!Array.isArray(torrents) || torrents.length>10000) throw createError({statusCode:400,message:'Неверный список загрузок'})
+  for(const item of torrents) {
+    if (!item || typeof item.hash!=='string' || !/^[a-f0-9]{40,64}$/i.test(item.hash) || typeof item.state!=='string' || item.state.length>64 || !Number.isFinite(item.progress)) continue
+    if (item.progress>=1 || /error|missingFiles|unknown/i.test(item.state)) state.torrents[item.hash]=`${item.state}:${item.progress}`
+  }
+  writeJsonFile(path,state);return {hiddenTorrents:state.torrents}
+}
 export function clearFinishedTasks(torrents: unknown = [], ip?: string) {
   assertDesktopWritable()
   const state = getTaskVisibility(), hidden = new Set(state.hidden)
   let cleared = 0
-  for (const queue of [getInstallationQueue(), ...getInstallationHistory()]) for (const item of queue.items) {
+  for (const queue of [getInstallationQueue(ip), ...getInstallationHistory(ip)]) for (const item of queue.items) {
     if ((ip && queue.psIp !== ip) || !['completed', 'failed'].includes(installationTaskCategory(item.state))) continue
     const id = taskVisibilityKey(queue.id, item)
     if (!hidden.has(id)) { hidden.add(id); cleared++ }
@@ -22,8 +33,8 @@ export function clearFinishedTasks(torrents: unknown = [], ip?: string) {
     state.torrents[item.hash] = `${item.state}:${item.progress}`
   }
   // Keep queue records intact: the runner and installation confirmation use their indices.
-  const retained = new Set([getInstallationQueue(), ...getInstallationHistory()].flatMap(queue => queue.items.map(item => taskVisibilityKey(queue.id, item))))
-  state.hidden = [...hidden].filter(id => retained.has(id))
+  const retained = new Set([getInstallationQueue(ip), ...getInstallationHistory(ip)].flatMap(queue => queue.items.map(item => taskVisibilityKey(queue.id, item))))
+  state.hidden = ip ? [...hidden] : [...hidden].filter(id => retained.has(id))
   writeJsonFile(path, state)
   return { cleared, hiddenTorrents: state.torrents }
 }

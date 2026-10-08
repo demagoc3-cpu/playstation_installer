@@ -1,3 +1,5 @@
+import { filterContent } from '../../../../shared/content-platform'
+import { legacyConsoleIp } from '../../../utils/console-scope'
 import { getLibraryPackages } from '../../../utils/package-library'
 import { buildConsoleCatalog, type ConsoleCatalogQuery } from '../../../utils/console-catalog'
 
@@ -9,5 +11,5 @@ export default defineEventHandler(async event => {
   if (!body || typeof body !== 'object' || (body.favoriteIds !== undefined && (!Array.isArray(body.favoriteIds) || body.favoriteIds.length > 1024))) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid catalog query' })
   }
-  return buildConsoleCatalog(getLibraryPackages(), body.lang === 'en' ? 'en' : 'ru', body)
+  return buildConsoleCatalog(filterContent(getLibraryPackages(legacyConsoleIp()), 'ps4'), body.lang === 'en' ? 'en' : 'ru', body)
 })
