@@ -14,6 +14,8 @@ WEB requests only the current page: **25 game cards by default**, or **50 / 100*
 
 Library search checks the entire index by title, CUSA, Content ID, file name, package type and version before paginating the results. When any package matches, the result contains its **complete CUSA branch**, including differently named patches and DLC. Library statistics cover the full collection.
 
+Catalog pages use the saved scan index. WEB reads cached covers without checking every original file on a NAS for each request. Rescan after adding or removing files; disconnected sources may remain listed until then. Before delivery, WEB checks the selected source and uses an available duplicate when possible.
+
 Packages remain grouped by CUSA; each game branch stays on one page. **Per page** selects only the visible packages in a branch. Selection survives page changes and searches; **Clear selection** clears it. **Install all / All DLC** use the complete library, and a branch's **DLC** action includes add-ons on other pages.
 
 ![Search and pagination in a 2800-package test library](../screenshots/library-pagination-scroll.png)

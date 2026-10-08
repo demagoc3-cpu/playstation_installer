@@ -374,8 +374,16 @@ export async function registerPackageFile(file: string) {
 
 export function getLibraryPackages(ip?: string): LocalPackage[] {
   if (ip && ip !== currentConsoleIp()) return inConsoleScope(ip, () => getLibraryPackages())
-  return [...packageGroups(readLibrary().packages).values()].map(group => availablePackage(group))
-    .filter((item): item is NonNullable<typeof item> => Boolean(item)).map(publicItem)
+  // Display/search/pagination use the last scan's index. Probing every source
+  // (especially SMB paths) synchronously per page blocks all HTTP responses.
+  // getPackage/open/stat still validate the selected source before delivery;
+  // rescanning updates the index when files are added, removed or disconnected.
+  return [...packageGroups(readLibrary().packages).values()].map(group => {
+    const source = group[0]!, cover = group.find(item => item.coverPath && item.iconSize > 0)
+    const installedAt = Math.max(0, ...group.map(item => item.installedAt || 0)) || undefined
+    return publicItem({ ...source, installedAt, coverPath: cover?.coverPath,
+      iconSize: cover?.iconSize || 0, sourceIds: [...new Set(group.map(item => item.id))] })
+  })
 }
 /** Compact badges for an already loaded page; no source-file scan per device. */
 export function installedPackageIdsForConsole(ip: string, packageIds: string[]) {
@@ -393,8 +401,26 @@ export function getPackage(id: string) {
   return item
 }
 export function getPackageStream(id: string, options?: { start?: number; end?: number }) { const item = getPackage(id); return { item, stream: createReadStream(item.path, options) } }
-export function getPackageIconStream(id: string) { const item = getPackage(id); if (!item.coverPath || !existsSync(item.coverPath)) throw createError({ statusCode: 404, message: 'Кэш обложки не найден. Пересканируйте папку.' }); return createReadStream(item.coverPath) }
-export async function readPackageIcon(id: string) { const item = getPackage(id); if (!item.coverPath || !existsSync(item.coverPath)) return undefined; return readFile(item.coverPath) }
+function indexedPackageCover(id: string) {
+  const packages = readLibraryFile().packages, original = packages.find(item => item.id === id)
+  if (!original) return undefined
+  // Cached artwork is independent of the large original package. A NAS source
+  // being asleep must not stall the icon HTTP route or force a source rescan.
+  return packages.find(item => packageKey(item) === packageKey(original) && item.coverPath && item.iconSize > 0)?.coverPath
+}
+export function getPackageIconStream(id: string) {
+  const cover = indexedPackageCover(id)
+  let size = 0
+  try { if (cover) { const info = statSync(cover); if (info.isFile()) size = info.size } } catch { /* Missing cache uses a placeholder. */ }
+  if (!cover || size < PNG_MAGIC.length || size > 2 * 1024 * 1024) throw createError({ statusCode: 404, message: 'Кэш обложки не найден. Пересканируйте папку.' })
+  return createReadStream(cover)
+}
+export async function readPackageIcon(id: string) {
+  const cover = indexedPackageCover(id)
+  if (!cover) return undefined
+  const data = await readFile(cover).catch(() => undefined)
+  return data && data.length >= PNG_MAGIC.length && data.length <= 2 * 1024 * 1024 ? data : undefined
+}
 
 // Packages whose installation was cancelled: the console may keep retrying the
 // BGFT job, so their data is refused until the package is dispatched again.
