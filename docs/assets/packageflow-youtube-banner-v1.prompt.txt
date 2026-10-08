@@ -1,0 +1,21 @@
+Generation mode: built-in image_gen; generation followed by canvas expansion.
+Final export: packageflow-youtube-banner-v1.jpg, 2560x1440, JPEG quality 95.
+YouTube requirements: https://support.google.com/youtube/answer/10456525
+
+INITIAL PROMPT
+Use case: logo-brand / ads-marketing.
+Asset: a finished YouTube CHANNEL BANNER for PackageFlow, one image, exact 2560 x 1440 pixels, 16:9. NOT a thumbnail, NOT a square logo, NOT a device mockup.
+Reference 1: our newly created circular glowing PF avatar; match the white italic interlocking PF monogram and violet-blue-cyan identity.
+Reference 2: existing PackageFlow wordmark; reproduce the exact name and visual character.
+Canvas backdrop: deep midnight navy and black-violet, elegant soft electric-blue light trails and minimal flowing geometric layers, refined gaming/software visual design with excellent contrast, polished professional quality.
+VERY IMPORTANT YOUTUBE CROP GEOMETRY: all branding and all text fit wholly inside the centered horizontal rectangle x=570 to 1990, y=550 to 880 on the 2560x1440 canvas. Keep the logo and title compact, not large. The overall center brand lockup must be no more than 1360 pixels wide and 300 pixels tall. Leave large decorative empty areas above and below. Do not draw safe-area guides.
+Central horizontal brand lockup: a circular PF emblem about 230 pixels in diameter on the left, to its right the exact bold typographic name "PackageFlow", with "Package" white and "Flow" in violet-blue-cyan. Under the title in smaller perfectly readable white/light lavender type, exact Russian tagline "Удобная установка игр на PlayStation". The emblem and name/tagline form a single centered compact balanced group. Preserve the PF monogram shape faithfully. Spell PackageFlow exactly with uppercase P and F.
+Peripheral decoration only outside the central text zone: a tasteful cinematic gamepad silhouette with blue-violet rim light in the far left area, a few elegant floating package/storage cubes with cyan-violet edge light in the far right area. They should harmonize with the center, not compete. Decorative objects can be cropped on mobile. No giant hardware in the central lockup. No screenshots, no invented software UI, no identifiable game covers, no extra captions or logos, no version numbers, no YouTube play button, no watermark. The final image should feel spacious, distinctive and cohesive with the attached avatar.
+Deliver a single beautiful ready-to-upload banner with crisp typography and clean details.
+
+CANVAS EXPANSION PROMPT
+Edit target: attached PackageFlow YouTube banner. Precise canvas expansion only.
+The current image is 1983x793, which is too wide for the required YouTube upload. Produce a FULL 16:9 landscape image, exactly 2560x1440 pixels. Expand canvas vertically, preserving the existing artwork as a centered horizontal strip; extend its dark navy background, blue/violet light trails and subtle atmosphere into the new space above and below. Do NOT crop the existing art. Do NOT stretch or distort any logo, text or controller. Preserve the original exact PF shape, all typography, colours, tagline wording and left/right decorative content.
+Important sizing: the preserved artwork should occupy a roughly 2560x1024 centered strip within the 2560x1440 canvas, with about 208 pixels of new background above and below. Keep central logo/title/tagline wholly within centered x=508..2052 and y=509..931. Preserve the relative scale of the original so the central branding is not enlarged to fill the canvas. The top and bottom added areas contain only matching dark atmospheric design, no new text or focal objects. No visible seams, no border or safe-area guides, no watermark.
+Text must stay exactly "PackageFlow" and "Удобная установка игр на PlayStation".
+Output the full 2560x1440 16:9 image, not another ultrawide strip.
