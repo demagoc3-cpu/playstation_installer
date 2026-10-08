@@ -7,7 +7,8 @@ import { readJsonFile, writeJsonFile } from './json-store'
 import { writeDurableJson } from './durable-json'
 import { getSavedPsIp, getGoldHenStatus } from './ps4-installer'
 import { ps4ServiceIp, readPs4Service, getPs4SystemSnapshot } from './ps4-service'
-import { getServiceInstallerStatus, saveServiceKey } from './ps4-service-installer'
+import { getServiceInstallerStatus, saveServiceKey, updatePairedServiceWebAddress } from './ps4-service-installer'
+import { ps5WebAddressHeaders, ps5WebAddressAccepted } from './ps5-web-address'
 import type { ConsoleProfile, ConsoleProfiles, ConsoleCapabilities, ConsolePlatform } from '../../shared/types/consoles'
 
 const profilePath = () => dataPath('console-profiles.json')
@@ -45,13 +46,14 @@ const operationMethods = {
   '/api/v1/transfers/begin': 'POST', '/api/v1/transfers/status': 'GET', '/api/v1/transfers/chunk': 'POST',
   '/api/v1/transfers/commit': 'POST', '/api/v1/transfers/cancel': 'POST', '/api/v1/operations/status': 'GET',
   '/api/v1/install/staged': 'POST', '/api/v1/install/status': 'GET', '/api/v1/installer/job': 'GET',
+  '/api/v1/web/config': 'POST',
 } as const
 /** Fixed endpoints only. Callers cannot supply an address, credential or arbitrary path. */
 export async function ps5OperationRequest(consoleId: string, path: keyof typeof operationMethods,
   headers: Record<string, string> = {}, body?: Uint8Array, signal?: AbortSignal) {
   const profile = getConsoleProfile(consoleId), token = ps5Token(profile.ip)
   if (profile.platform !== 'ps5' || !ps4ServiceIp(profile.ip) || !token) throw createError({ statusCode: 409, message: 'Требуется сопряжение PS5' })
-  if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Offset|Installer-Job)$/.test(key))) throw new Error('Invalid PS5 operation')
+  if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Offset|Installer-Job|Web-Host|Web-Port|Console-Id)$/.test(key))) throw new Error('Invalid PS5 operation')
   const response = await fetch(`http://${profile.ip}:8095${path}`, { method: operationMethods[path],
     headers: { ...headers, Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/octet-stream' } : {}) },
     body: body as BodyInit | undefined, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) })
@@ -180,6 +182,19 @@ export async function refreshConsoleProfiles() {
   return getConsoleProfiles()
 }
 
+/** The app obtains the paired server from its local service, as on PS4. */
+export async function updatePairedConsoleWebAddress(id: unknown, webUrl: string) {
+  const profile = getConsoleProfile(id)
+  if (profile.platform === 'ps4') return updatePairedServiceWebAddress(profile.ip, webUrl)
+  const headers = ps5WebAddressHeaders(webUrl, profile.id)
+  const response = await ps5OperationRequest(profile.id, '/api/v1/web/config', headers)
+  if (response.status === 404)
+    throw createError({ statusCode: 409, message: 'Обновите службу PS5 для автоматического адреса WEB' })
+  if (response.status !== 200 || !ps5WebAddressAccepted(response.body, headers))
+    throw createError({ statusCode: 502, message: 'Служба PS5 не подтвердила сохранение адреса WEB' })
+  return { updated: true, configured: true, message: 'Адрес WEB на PS5 обновлён' }
+}
+
 export async function pairConsoleProfile(id: unknown, code: unknown, webUrl: string) {
   const profile = getConsoleProfile(id)
   if (profile.platform === 'ps4') await saveServiceKey(profile.ip, code, webUrl)
@@ -192,6 +207,14 @@ export async function pairConsoleProfile(id: unknown, code: unknown, webUrl: str
     if (response.status !== 200 || response.body?.apiVersion !== 'v1' || !/^[0-9a-f]{64}$/.test(response.body?.token || ''))
       throw createError({ statusCode: response.status === 401 ? 401 : 409, message: 'Сопряжение PS5 не выполнено. Проверьте код и откройте новое окно сопряжения.' })
     writeDurableJson(keyPath(), { ...readJsonFile(keyPath(), {}), [profile.ip]: response.body.token })
+    try {
+      await updatePairedConsoleWebAddress(profile.id, webUrl)
+    } catch {
+      // Older services still pair. Keep the saved token and report only the
+      // missing address synchronization, so the user does not pair again.
+      const profiles = await probeConsoleProfile(profile.id)
+      return { ...profiles, webAddress: { updated: false, message: 'Сопряжение сохранено. Для автоматического адреса WEB обновите службу PS5 и обновите адрес WEB в подключении.' } }
+    }
   }
   return probeConsoleProfile(profile.id)
 }

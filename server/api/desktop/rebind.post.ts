@@ -5,6 +5,7 @@ import { getLocalIp, getSavedPsIp } from '../../utils/ps4-installer'
 import { ps4ServiceIp } from '../../utils/ps4-service'
 import { serviceWebAddress } from '../../utils/service-web-address'
 import { getRequestURL } from 'h3'
+import { consoleProfileForIp, updatePairedConsoleWebAddress } from '../../utils/console-profiles'
 
 export default defineEventHandler(async event => {
   assertDesktopControl(event)
@@ -15,6 +16,7 @@ export default defineEventHandler(async event => {
     const ip = ps4ServiceIp(body?.ip || getSavedPsIp())
     if (!ip) return { updated: false, configured: false, message: 'PS4 ещё не настроена' }
     const port = process.env.PACKAGEFLOW_PUBLIC_PORT || getRequestURL(event).port || process.env.PORT || '3000'
-    return await updatePairedServiceWebAddress(ip, serviceWebAddress(await getLocalIp(ip), port))
+    const profile = consoleProfileForIp(ip), url = serviceWebAddress(await getLocalIp(ip), port)
+    return profile ? await updatePairedConsoleWebAddress(profile.id, url) : await updatePairedServiceWebAddress(ip, url)
   } finally { done() }
 })
