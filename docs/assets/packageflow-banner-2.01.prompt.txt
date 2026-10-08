@@ -1,0 +1,17 @@
+Generated with the built-in image_gen tool on 2026-10-07.
+Reference images: previous PackageFlow banner and PS4 2.01 renderer preview on test data.
+
+Use case: ads-marketing.
+Asset type: polished wide release banner for PackageFlow Russian 4PDA forum and GitHub README, 2000x800 approximately, 2.5:1.
+Input Image 1 is the PREVIOUS BANNER: preserve exact white PF monogram in rounded violet/cyan square and PackageFlow wordmark, dark charcoal/navy gaming software visual identity, restrained cyan/violet lighting and recognizable Docker/Windows badges. Replace outdated release information.
+Input Image 2 is a faithful renderer preview of PS4 service 2.01 presets: use it as the main screen insert on right, preserve the four compact cards per row, rounded bordered fanned mini game covers, titles, single games/files/GB metadata row, bottom controller hints. It is a preview, not a photograph of actual hardware. Do not invent UI, statuses or game covers.
+Left 42% logo/wordmark and spacious Russian copy. Right 58% a readable mostly frontal PS4 presets screen framed as a software panel; no perspective distortion that makes content illegible. Add two small tasteful feature icons for queue actions and catalog table, without additional fake screenshots.
+Exact large title: "PackageFlow"
+Exact subtitle: "Пресеты и очередь — удобнее"
+Four short feature lines, exactly:
+"Компактные пресеты с обложками"
+"Установка избранного • R1"
+"Выбор пакетов и отмена ветки"
+"Каталог: плитки или таблица"
+Footer equal badges, exactly: "Windows EXE" "Docker Compose" "PS4 2.01" "RU / EN".
+No WEB or Windows version numbers, no obsolete 1.95 or 10.x.x. Accurate Cyrillic, comfortable margins, clear typography. No robots, mascots, watermarks or new slogans. Keep all design content within border and screen readable.
