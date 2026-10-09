@@ -1,44 +1,83 @@
-![PackageFlow — WEB и приложение PS4](docs/assets/packageflow-banner-2.01.png)
+<p align="center">
+  <img src="public/favicon.svg" width="120" height="120" alt="Логотип PackageFlow">
+</p>
 
-# PackageFlow
+<h1 align="center">PackageFlow</h1>
 
-**Установка PKG на PlayStation 4 по сети и управление консолью.** WEB на ПК/NAS и приложение PackageFlowService на PS4 используют общую библиотеку и очередь. Пакеты передаются напрямую из вашей папки по HTTP, без USB и промежуточного копирования. Для Windows доступен **установщик EXE с мастером настройки и управления**.
+<p align="center">
+  <strong>Ваша библиотека. Ваша консоль. Установка по сети.</strong><br>
+  Установка PKG на PlayStation 4, управление библиотекой и заданиями<br>
+  из браузера или приложения на приставке.
+</p>
 
-[Релизы и PKG](https://github.com/demagoc3-cpu/playstation_installer/releases) · [Документация RU](docs/ru/index.md) · [Documentation EN](docs/en/index.md) · [Тема 4PDA](https://4pda.to/forum/index.php?showtopic=1127073)
+<p align="center">
+  <a href="https://github.com/demagoc3-cpu/playstation_installer/releases/latest"><img src="https://img.shields.io/github/v/release/demagoc3-cpu/playstation_installer?label=release&amp;color=8B6FD6&amp;style=flat" alt="Актуальный релиз"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/WEB_license-MIT-3DA86A?style=flat" alt="Лицензия WEB: MIT"></a>
+  <a href="#установка"><img src="https://img.shields.io/badge/platforms-Windows_%C2%B7_Linux_%C2%B7_macOS_%C2%B7_Docker-64748B?style=flat" alt="Windows, Linux, macOS, Docker"></a>
+  <br>
+  <a href="docs/ru/ps4-app.md"><img src="https://img.shields.io/badge/console-PS4_%2B_GoldHEN-0070D1?style=flat" alt="PS4 с GoldHEN"></a>
+  <a href="docs/README.md"><img src="https://img.shields.io/badge/languages-RU_%2F_EN-8B6FD6?style=flat" alt="Русский и английский"></a>
+  <a href="https://discord.gg/Xj6EPJyAq"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&amp;logoColor=white&amp;style=flat" alt="Присоединиться к Discord"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/demagoc3-cpu/playstation_installer/releases">Скачать</a> ·
+  <a href="docs/ru/index.md">Документация RU</a> ·
+  <a href="docs/en/index.md">Documentation EN</a> ·
+  <a href="https://discord.gg/Xj6EPJyAq">Discord</a> ·
+  <a href="https://4pda.to/forum/index.php?showtopic=1127073">4PDA</a>
+</p>
+
+---
+
+## О проекте
+
+**PackageFlow** объединяет WEB на компьютере или NAS и **PackageFlowService** на PS4. Добавьте свои PKG в библиотеку, выберите игру вместе с патчами и DLC и отправьте установку из браузера или с геймпада.
+
+Консоль получает файлы напрямую с компьютера по HTTP. Промежуточное копирование на USB не требуется. WEB открывается в браузере на компьютере, телефоне или планшете; интерфейс приставки позволяет работать с той же библиотекой и очередью.
 
 ## Возможности
 
-- **Библиотека:** обложки, группировка игры, патчей и DLC, страницы по 25/50/100 карточек игр с внутренней прокруткой, поиск по всей библиотеке, установка выбранного или всего комплекта, переустановка.
-- **[Пресеты](docs/ru/presets.md):** подборки с названием, описанием и обложками, количеством файлов и размером. Установка всего пресета или выбранных пакетов из WEB и PS4, редактирование, экспорт и импорт списка.
-- **Общие задания WEB / PS4:** дерево игр с патчами и DLC или таблица, прогресс, фильтры, отмена выбранных пакетов или всей ветки игры и очистка завершённых записей и ошибок. Основной способ — PackageFlowService, резервный — PyLoader.
-- **Приложение PS4:** Full HD, геймпад, штатная клавиатура, сопряжение, автообновление и настройки службы. Сохранение избранного, установка всего избранного, каталог по 10/20/30 карточек или таблица с сохранением вида, выбор заданий и отмена ветки игры.
-- **Файлы и консоль:** файловый менеджер, локальные PKG, установленные приложения, сохранения и сведения о системе.
-- **Поиск и загрузки:** Prowlarr/Jackett, карточки с описанием и обложкой, qBittorrent и автоустановка.
-- **Мастер Windows:** автоматическая подготовка WEB, Prowlarr, FlareSolverr и qBittorrent; поиск PS4 в сети, первоначальная установка сервиса через PyLoader и сопряжение. Выбор и индексация папки PKG, статусы подключений, журнал, автозапуск и обновление из GitHub.
-- **RU / EN:** переключение языка с сохранением выбора.
+| Раздел | Что доступно |
+|---|---|
+| **Библиотека** | Обложки, поиск, страницы каталога, группировка игры с патчами и DLC, установка выбранных пакетов или всего комплекта. Локальные и подключённые сетевые папки. |
+| **Пресеты** | Собственные подборки игр, редактирование состава, установка всей подборки, импорт и экспорт списка. |
+| **Задания** | Общая очередь WEB и PS4, прогресс, дерево или таблица, фильтры, отмена пакетов и веток игры, история установок. |
+| **Приложение PS4** | Управление геймпадом, штатная клавиатура, каталог и избранное, пресеты, задания, сопряжение и настройки службы. |
+| **Файлы и консоль** | Файловый менеджер, локальные PKG, установленные приложения, сохранения и сведения о системе. |
+| **Поиск и загрузки** | Интеграция с Prowlarr / Jackett и qBittorrent, карточки раздач и автоматическая установка после загрузки. |
+| **Windows** | Установщик EXE, мастер настройки, поиск PS4 в сети, установка сервиса, сопряжение, автозапуск и обновления. |
+| **Языки** | Русский и английский с сохранением выбора. |
 
-## Быстрый запуск
+## Как это работает
 
-Нужна **PS4 с активным GoldHEN** и компьютер в той же локальной сети. WEB работает на Windows, Linux и macOS.
+**Папки с PKG → библиотека WEB → очередь PackageFlowService → установка на PS4.**
 
-### Windows — установщик
+WEB хранит каталог и отдаёт файлы, фоновая служба на PS4 управляет установкой. Основной способ подключения — PackageFlowService; для первоначальной установки сервиса и резервного подключения доступен PyLoader.
 
-1. Скачайте **`PackageFlowSetup-…-x64.exe`** из [Releases](https://github.com/demagoc3-cpu/playstation_installer/releases) и установите на **Windows 10/11 x64**. WEB, Node.js и среда .NET уже входят в комплект. В конце установки можно добавить ярлык на рабочий стол.
-2. При первом запуске мастер сам подготовит WEB, Prowlarr, FlareSolverr и qBittorrent. Ход настройки виден внизу окна. При установке qBittorrent подтвердите запрос администратора Windows.
-3. На шаге **«PS4»** нажмите **«Найти PS4»** или введите IP. Если сервиса ещё нет, включите **GoldHEN и PyLoader (порт 9090)** на приставке и нажмите **«Установить сервис»**. Дождитесь установки PKG на PS4, запустите PackageFlow, получите код в **«Подключениях»**, введите его в мастере и нажмите **«Сопряжение»** в мастере. PKG также можно установить вручную из Releases.
-4. На шаге **«Поиск»** введите логин и пароль RuTracker и нажмите **«Добавить RuTracker и проверить»**. Если трекер просит капчу, используйте **«Войти вручную»** — окно браузера дождётся подтверждения входа. Откройте WEB и устанавливайте игры; свою папку PKG выберите на шаге **«Установка»** → **«Применить»**.
+> Для работы нужна PS4 с активным **GoldHEN** и доступом к компьютеру / NAS по сети. Компьютер, на котором запущен WEB, должен оставаться включённым во время установки.
 
-Мастер показывает состояние всех подключений. Прерванную подготовку можно повторить кнопкой **«Подготовить компоненты»**. Уже настроенное подключение qBittorrent сохраняется; для нового создаётся отдельный профиль PackageFlow. Поиск и сопряжение можно настроить позже.
+## Установка
 
-Если у вас установлен ошибочный Windows-билд **10.x.x**, один раз скачайте исправленный **1.10.7** и запустите поверх. Настройки и библиотека сохранятся. Переименование старого EXE не меняет версию приложения. [Публикация установщика и восстановление обновлений](packaging/windows/README.md#публикация-в-github-releases).
+### Windows 10 / 11 x64
 
-Также доступен режим **Docker Compose** — для него нужны установленный и запущенный Docker Desktop. Подробности: [руководство Windows](docs/ru/windows.md).
+1. Скачайте **`PackageFlowSetup-…-x64.exe`** из [Releases](https://github.com/demagoc3-cpu/playstation_installer/releases/latest). WEB, Node.js и среда .NET входят в комплект.
+2. Запустите мастер и подготовьте компоненты. Поиск и загрузки можно настроить позже.
+3. Добавьте PS4. Установите PackageFlowService через мастер с помощью GoldHEN и PyLoader или вручную из PKG релиза.
+4. Запустите приложение на приставке, получите код в **«Подключениях»** и выполните сопряжение. Добавьте свои PKG и откройте WEB: **`http://localhost:3000`**.
 
-### Linux, macOS и запуск из исходников
+[Подробное руководство Windows →](docs/ru/windows.md)
 
-[Docker для Linux и NAS](docs/ru/docker.md) позволяет запускать готовый образ.
+### Docker · Linux · NAS
 
-Для запуска из исходников установите **Node.js 22 LTS и pnpm**, затем:
+Готовый Docker-образ позволяет запустить WEB на сервере или NAS. Подключите папки с PKG и сохраните каталог данных между обновлениями.
+
+[Запуск через Docker Compose →](docs/ru/docker.md)
+
+<details>
+<summary><strong>Запуск из исходников — Linux, macOS и Windows</strong></summary>
+
+Понадобятся **Node.js 22 LTS** и **pnpm**.
 
 ```sh
 git clone https://github.com/demagoc3-cpu/playstation_installer.git
@@ -48,71 +87,58 @@ pnpm build
 pnpm start
 ```
 
-1. Откройте WEB: `http://localhost:3000`. Установите и запустите PKG PackageFlow на PS4 из [Releases](https://github.com/demagoc3-cpu/playstation_installer/releases).
-2. В WEB откройте **«Настройки»**, укажите IP приставки и выберите способ установки. В приложении PS4 откройте **«Подключения»** и введите полученный код в WEB. [Настройка адреса WEB и сопряжения](docs/ru/ps4-app.md).
-3. Добавьте папку PKG в **«Библиотеку»** и запускайте установки из браузера или приложения PS4.
+Откройте **`http://localhost:3000`**, настройте IP приставки и сопряжение в WEB, затем добавьте папку PKG в библиотеку. Установите и запустите PackageFlowService на PS4 из [Releases](https://github.com/demagoc3-cpu/playstation_installer/releases).
 
-ПК/NAS должен оставаться включённым при установке из его библиотеки. Торренты скачивает qBittorrent на ПК/NAS, установкой управляет сервис. PS5 не поддерживается.
-
-Для пресетов, сохранения избранного и новых кнопок на консоли установите **PackageFlowService 2.01** вместе с обновлённым WEB. [Библиотека и задания](docs/ru/library.md) · [Пресеты и управление на PS4](docs/ru/presets.md).
-
-## Скриншоты
-
-WEB показан на тестовой библиотеке из **2800 пакетов**. Снимки PS4 — предпросмотр интерфейса **2.01**; они не являются отчётом о проверке на приставке. В мастер Windows входит тот же WEB.
-
-| WEB — библиотека и полные ветки игр | WEB — карточки пресетов |
-|---|---|
-| [![Библиотека: поиск, игра, патчи и DLC](docs/screenshots/library-current.png)](docs/screenshots/library-current.png) | [![Пресеты с обложками, количеством файлов и размером](docs/screenshots/web-presets-cards.png)](docs/screenshots/web-presets-cards.png) |
-
-| WEB — задания с единым деревом и статусами | PS4 — 30 карточек каталога |
-|---|---|
-| [![Общая очередь, фильтры и очистка заданий](docs/screenshots/web-tasks-tree.png)](docs/screenshots/web-tasks-tree.png) | [![Каталог PackageFlowService 2.01: R2 переключает 10/20/30 карточек и таблицу](docs/screenshots/ps4-catalog-30-2.01.png)](docs/screenshots/ps4-catalog-30-2.01.png) |
-
-<details>
-<summary>Создание и состав пресета, таблица заданий и управление на PS4</summary>
-
-![Окно создания пресета с названием и описанием](docs/screenshots/web-preset-editor.png)
-
-![Состав пресета: игра, патчи и DLC](docs/screenshots/web-presets.png)
-
-![Задания в виде таблицы](docs/screenshots/web-tasks-table.png)
-
-![Задания на PS4: фильтры, выбор пакетов, отмена ветки, L1 для очистки, R1 для страниц](docs/screenshots/ps4-tasks-2.01.png)
-
-![Пресеты PS4: четыре карточки в ряд, обложки веером и установка по R1](docs/screenshots/ps4-presets-2.01.png)
-
-![Каталог PS4 в табличном режиме](docs/screenshots/ps4-catalog-table-2.01.png)
-
-![Избранное на PS4: сохранение и установка всего списка](docs/screenshots/ps4-favorites-2.01.png)
+[Требования, сеть и автозапуск →](docs/ru/getting-started.md)
 
 </details>
 
-| Мастер Windows — установка и статусы | Мастер Windows — поиск PS4 и установка сервиса |
+## Интерфейс
+
+| Библиотека WEB | Пресеты |
 |---|---|
-| [![Настройка Windows и состояние компонентов](docs/screenshots/windows-setup.png)](docs/screenshots/windows-setup.png) | [![Поиск PS4, установка сервиса и сопряжение в мастере Windows](docs/screenshots/windows-pairing.png)](docs/screenshots/windows-pairing.png) |
+| [![Библиотека с обложками и составом игры](docs/screenshots/library-current.png)](docs/screenshots/library-current.png) | [![Подборки с обложками](docs/screenshots/web-presets-cards.png)](docs/screenshots/web-presets-cards.png) |
+
+| Задания WEB | Приложение PS4 |
+|---|---|
+| [![Очередь игр, патчей и DLC](docs/screenshots/web-tasks-tree.png)](docs/screenshots/web-tasks-tree.png) | [![Предпросмотр каталога приложения PS4](docs/screenshots/ps4-catalog-30-2.01.png)](docs/screenshots/ps4-catalog-30-2.01.png) |
+
+<sub>Скриншоты WEB получены на тестовой библиотеке. Изображение PS4 — предпросмотр интерфейса.</sub>
 
 <details>
-<summary>Мастер Windows — RuTracker и ручной вход при капче</summary>
+<summary>Ещё скриншоты: Windows, файлы, избранное и пресеты PS4</summary>
 
-![Настройка RuTracker и кнопка ручного входа](docs/screenshots/windows-search.png)
+![Мастер Windows: настройка и состояние компонентов](docs/screenshots/windows-setup.png)
+
+![Мастер Windows: поиск PS4 и сопряжение](docs/screenshots/windows-pairing.png)
+
+![Пресеты в приложении PS4](docs/screenshots/ps4-presets-2.01.png)
+
+![Избранное в приложении PS4](docs/screenshots/ps4-favorites-2.01.png)
+
+![Файловый менеджер WEB](docs/screenshots/files.png)
 
 </details>
 
-<details>
-<summary>Поиск — карточка раздачи с обложкой и описанием</summary>
+## Документация и поддержка
 
-![Карточка поиска с внутренней прокруткой](docs/screenshots/search-details.jpg)
+| Нужна помощь с… | Руководство |
+|---|---|
+| Первым запуском и сетью | [Установка WEB](docs/ru/getting-started.md) · [Windows](docs/ru/windows.md) · [Docker](docs/ru/docker.md) |
+| Приставкой и сопряжением | [Приложение PS4](docs/ru/ps4-app.md) |
+| Библиотекой и установками | [Библиотека и задания](docs/ru/library.md) · [Пресеты](docs/ru/presets.md) |
+| Поиском и загрузками | [Поиск](docs/ru/search.md) · [qBittorrent](docs/ru/torrents.md) |
+| Ошибками и обновлениями | [Решение проблем](docs/ru/troubleshooting.md) · [Обновления и данные](docs/ru/updates-data.md) |
+| API и разработкой | [Документация разработчика](docs/ru/development.md) |
 
-</details>
+**Общение, вопросы и обратная связь:** [Discord](https://discord.gg/Xj6EPJyAq) · [Тема на 4PDA](https://4pda.to/forum/index.php?showtopic=1127073).
 
-## Документация
+Нашли ошибку? [Создайте Issue](https://github.com/demagoc3-cpu/playstation_installer/issues) и укажите версии WEB и сервиса, описание действий и текст ошибки.
 
-Подробные инструкции по всем разделам: **[Русский](docs/ru/index.md)** · **[English](docs/en/index.md)**.
-
-[План развития](docs/ru/roadmap.md) · [API и разработка](docs/ru/development.md) · [Сообщить об ошибке](https://github.com/demagoc3-cpu/playstation_installer/issues)
+[Полная документация RU](docs/ru/index.md) · [Full documentation EN](docs/en/index.md)
 
 ## Лицензия
 
-WEB — [MIT](LICENSE). PackageFlowService распространяется готовым PKG, его исходники приватные. Сторонний payload DirectPackageInstaller — GPL-3.0: [уведомления](THIRD_PARTY_NOTICES.md).
+WEB распространяется по лицензии [MIT](LICENSE). PackageFlowService доступен готовым PKG; его исходники приватные. Сторонний payload DirectPackageInstaller — GPL-3.0: [уведомления о сторонних компонентах](THIRD_PARTY_NOTICES.md).
 
-Проект предназначен для собственных резервных копий и homebrew, не распространяет игры и не связан с Sony.
+PackageFlow предназначен для собственных резервных копий и homebrew, не распространяет игры и не связан с Sony.
