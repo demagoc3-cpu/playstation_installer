@@ -624,7 +624,7 @@ onMounted(() => { void restoreInstallationMethod().then(restoreConsoles).then((r
       <p class="eyebrow">PackageFlow</p><h1>{{ t('Настройки') }}</h1>
       <section class="settings-card"><h2>{{ t('Подключения приставок') }}</h2><p>{{ t('Сопряжение и способ установки настраиваются отдельно для каждого устройства.') }}</p><button class="secondary" @click="activeSection='devices'">{{ t('Открыть устройства') }}</button></section>
       <section v-if="!activeConsole" class="settings-card"><p>{{ t('Добавьте приставку и выберите её для установки.') }}</p></section>
-
+      <Ps4ServiceUpdates v-if="activeSection === 'settings' && activeConsole?.platform === 'ps4'" :ip="activeConsole.ip" :name="activeConsole.name" />
       <section class="settings-card"><h2>{{ t('Папка библиотеки') }}</h2><p>{{ t('Игры PS4 объединяются по CUSA, PS5 — по PPSA. Исходные файлы остаются в выбранной папке.') }}</p><div class="actions"><button class="primary" @click="chooseFolder">{{ t('Выбрать папку') }}</button><button class="secondary" @click="scanServerFolder">{{ t('Сканировать путь на ПК') }}</button></div></section>
       <section class="settings-card"><h2>{{ t('Другие подключения') }}</h2><div class="actions"><button class="secondary" @click="activeSection = 'torrents'; if (!showTorrentSettings) toggleTorrentSettings()">qBittorrent</button><button class="secondary" @click="activeSection = 'search'; showSearchSettings = true">Torznab</button></div><p>{{ t('Статус «файл полностью передан» подтверждается по HTTP-раздаче пакета. PyLoader не возвращает финальный результат установки. PackageFlowService дополнительно сообщает состояние системного задания и подтверждение установки.') }}</p></section>
     </section>

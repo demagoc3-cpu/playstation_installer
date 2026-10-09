@@ -756,6 +756,7 @@
   "Для запуска и остановки установите PKG 1.19": "Install PKG 1.19 to launch and stop applications",
   "Для новых операций обновите PackageFlowService до PKG 1.52": "Update PackageFlowService to PKG 1.52 for new operations",
   "Для обновления из WEB сначала установите PKG 1.19 вручную": "Install PKG 1.19 manually before updating from WEB",
+  "Для обновления закройте интерфейс приложения на PS4. Фоновый сервис должен продолжать работать.": "Close the application interface on PS4 before updating. Keep the background service running.",
   "Для проверки восстановления игра должна быть установлена на PS4": "The game must be installed on PS4 to verify restoration",
   "Для раздела «На консоли» установите PackageFlowService PKG 1.18": "Install PackageFlowService PKG 1.18 for the “On console” section",
   "Для редактора нужен текстовый файл размером до 128 КиБ": "The editor requires a text file up to 128 KiB",
