@@ -82,18 +82,23 @@ test('driver reconciles lost chunk response, preserves hash and offset, and refu
   const oldEnv=process.env.PACKAGEFLOW_DATA_DIR,oldFetch=globalThis.fetch,oldError=globalThis.createError
   globalThis.createError=createError
   try{
-    const profile=api.saveConsoleProfile({name:'own test',platform:'ps5',ip:'192.168.1.5'}).consoles.find(c=>c.platform==='ps5')
+    let profile=api.saveConsoleProfile({name:'own test',platform:'ps5',ip:'192.168.1.5'}).consoles.find(c=>c.platform==='ps5')
+    profile=api.saveConsoleProfile({...profile,firmware:'13.60'}).consoles.find(c=>c.platform==='ps5')
     writeFileSync(join(process.env.PACKAGEFLOW_DATA_DIR,'ps5-service-keys.json'),JSON.stringify({[profile.ip]:'a'.repeat(64)}))
-    const contents=Buffer.alloc(600000,39),source=join(work,'test.pkg');writeFileSync(source,contents)
+    const contents=Buffer.alloc(9*1024*1024+19,39),source=join(work,'test.pkg');writeFileSync(source,contents)
     const pkg={...input('own'),id:'own',path:source,libraryRoot:work,size:contents.length,contentType:'PS5GD',contentId:'IV0000-PPSA95001_00-PACKAGEFLOWUI001',appVersion:'01.000.001',sourceModifiedAt:1,installOrder:0,icon:{offset:0,size:0},iconSize:0,packageDigest:''}
     writeFileSync(join(process.env.PACKAGEFLOW_DATA_DIR,'package-library.json'),JSON.stringify({version:2,packages:[pkg],deliveries:{}}))
     const item={...input('own'),size:contents.length,contentId:pkg.contentId,appVersion:pkg.appVersion,transferId:'1'.repeat(32),state:'pending',detail:'',bytesSent:0}
-    let offset=0,hash='',lost=false,verified=false,installs=0;const chunkOffsets=[]
-    const describe=()=>({id:item.transferId,bytesDurable:offset,size:item.size,blake3:hash,verified,cancelled:false})
+    let offset=0,hash='',lost=false,verified=false,installs=0,chunkMax; const chunkOffsets=[]
+    const describe=()=>({id:item.transferId,bytesDurable:offset,size:item.size,blake3:hash,verified,cancelled:false,chunkMax})
     const response=body=>new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}})
     globalThis.fetch=async(url,opts)=>{
-      assert.equal(new URL(url).hostname,profile.ip);assert.equal(opts.headers.Authorization,`Bearer ${'a'.repeat(64)}`)
+      assert.equal(new URL(url).hostname,profile.ip);if(new URL(url).pathname!=='/health')assert.equal(opts.headers.Authorization,`Bearer ${'a'.repeat(64)}`)
       const path=new URL(url).pathname
+      if(path==='/health')return response({apiVersion:'v1',firmwareRead:true,firmwareRaw:'0x13600007',serviceReport:{service:'PackageFlowService-PS5',platform:'ps5',consoleVerified:true}})
+      if(path==='/api/v1/capabilities')return response({service:'PackageFlowService-PS5',capabilities:{installPs4Pkg:true,installPs5Content:true}})
+      if(path==='/api/v1/system')return response({service:'PackageFlowService-PS5',storageRead:false})
+      if(path==='/api/v1/install/readiness')return response({service:'PackageFlowService-PS5',schemaVersion:1,route:'staged-pkg',ready:true,reason:'ready',formats:['pkg'],platforms:['ps4','ps5'],exactVersionReceipt:false})
       if(path==='/api/v1/transfers/begin'){hash=opts.headers['X-PackageFlow-Blake3'];assert.match(hash,/^[0-9a-f]{64}$/);return response(describe())}
       if(path==='/api/v1/transfers/status')return response(describe())
       if(path==='/api/v1/transfers/chunk'){
@@ -108,18 +113,20 @@ test('driver reconciles lost chunk response, preserves hash and offset, and refu
       if(path==='/api/v1/installer/job')return response({ok:true,phase:'done',bytes_served:item.size,total:item.size,code:0})
       assert.fail(path)
     }
+    await api.probeConsoleProfile(profile.id)
     const driver=api.ps5QueueDriver(profile.id),save=patch=>Object.assign(item,patch)
     await assert.rejects(driver.run(item,new AbortController().signal,save),/reply lost/)
     assert.equal(item.bytesSent,0);assert.equal(offset,262144)
+    chunkMax=4194304
     await driver.run(item,new AbortController().signal,save)
-    assert.deepEqual(chunkOffsets,[0,262144,524288]);assert.equal(installs,1);assert.equal(item.bytesSent,contents.length)
+    assert.deepEqual(chunkOffsets,[0,262144,4456448,8650752]);assert.equal(installs,1);assert.equal(item.bytesSent,contents.length)
     await assert.rejects(driver.run(item,new AbortController().signal,save),api.Ps5QueueUncertain,'transport complete is not proof of installed version')
     assert.equal(installs,1)
     const changed={...item,installDispatched:false};writeFileSync(source,Buffer.alloc(contents.length,40))
     await assert.rejects(driver.run(changed,new AbortController().signal,patch=>Object.assign(changed,patch)),/изменился/)
     // Production capabilities stay disabled: no transfer even for a known PKG.
     let transferCalls=0
-    globalThis.fetch=async(url)=>{const path=new URL(url).pathname;if(path==='/health')return response({apiVersion:'v1',serviceReport:{service:'PackageFlowService-PS5',platform:'ps5',consoleVerified:true}});if(path==='/api/v1/capabilities')return response({service:'PackageFlowService-PS5',capabilities:{installPs4Pkg:false,installPs5Content:false}});if(path==='/api/v1/system')return response({service:'PackageFlowService-PS5',storageRead:false,freeBytes:0,totalBytes:0});transferCalls++;assert.fail(path)}
+    globalThis.fetch=async(url)=>{const path=new URL(url).pathname;if(path==='/api/v1/install/readiness')return response({service:'PackageFlowService-PS5',schemaVersion:1,route:'staged-pkg',ready:false,reason:'installer_unavailable',formats:[],platforms:[],exactVersionReceipt:false});if(path==='/health')return response({apiVersion:'v1',serviceReport:{service:'PackageFlowService-PS5',platform:'ps5',consoleVerified:true}});if(path==='/api/v1/capabilities')return response({service:'PackageFlowService-PS5',capabilities:{installPs4Pkg:false,installPs5Content:false}});if(path==='/api/v1/system')return response({service:'PackageFlowService-PS5',storageRead:false,freeBytes:0,totalBytes:0});transferCalls++;assert.fail(path)}
     await assert.rejects(api.startPs5Queue({consoleId:profile.id,packageIds:['own']}),/не подтвердил/)
     const command={consoleId:profile.id,requestId:'b'.repeat(32),action:'all',gameId:'ps5:PPSA95001'}
     const receipt=api.submitPs5AppCommand(command);assert.equal(receipt.state,'pending')
@@ -131,5 +138,21 @@ test('driver reconciles lost chunk response, preserves hash and offset, and refu
     const bad=join(process.env.PACKAGEFLOW_DATA_DIR,'consoles',another.id);mkdirSync(bad,{recursive:true});writeFileSync(join(bad,'ps5-installation-queue.json'),'broken')
     assert.throws(()=>api.getPs5Queue(another.id),/Сохранённый файл/);assert.equal(readFileSync(join(bad,'ps5-installation-queue.json'),'utf8'),'broken')
   }finally{globalThis.fetch=oldFetch;globalThis.createError=oldError;if(oldEnv===undefined)delete process.env.PACKAGEFLOW_DATA_DIR;else process.env.PACKAGEFLOW_DATA_DIR=oldEnv}
+})
+test('human completion receipt is scoped, durable, idempotent and cannot be undone by an in-flight poll',async()=>{
+ let release,marks=0,durable,rejectReceipt=false
+ const q=api.ps5BlankQueue('receipt','192.168.1.5')
+ const runner=new api.Ps5QueueRunner(q,value=>{if(rejectReceipt && value.items.some(i=>i.confirmation))throw new Error('disk unavailable');durable=structuredClone(value)}, {
+  async run(item,signal,save){save({state:'installing',installDispatched:true,serviceJobId:'123-9',bytesSent:item.size});await new Promise(r=>release=r);save({state:'installing',detail:'stale polling response'});throw new api.Ps5QueueUncertain('stale poll')},async cancel(){assert.fail('no system cancellation dispatched')}
+ },5,()=>marks++)
+ runner.enqueue([input('own')]);await wait(()=>release)
+ assert.throws(()=>runner.confirmInstalled('old','own'),/Задание/)
+ rejectReceipt=true;assert.throws(()=>runner.confirmInstalled(q.id,'own'),/disk unavailable/);assert.equal(q.items[0].confirmation,undefined);assert.equal(q.items[0].state,'installing');rejectReceipt=false
+ runner.confirmInstalled(q.id,'own');assert.equal(durable.items[0].confirmation,'user');assert.equal(durable.items[0].state,'installed')
+ runner.confirmInstalled(q.id,'own');assert.equal(marks,1)
+ release();await wait(()=>q.status==='completed');assert.equal(q.items[0].state,'installed');assert.equal(q.items[0].detail,'Установку подтвердил пользователь')
+ const pending=make({async run(){return{state:'waiting'}},async cancel(){}});pending.runner.enqueue([input('pending')])
+ assert.throws(()=>pending.runner.confirmInstalled(pending.q.id,'pending'),/после передачи/)
+ pending.q.status='failed'
 })
 test.after(()=>{if(initialData===undefined)delete process.env.PACKAGEFLOW_DATA_DIR;else process.env.PACKAGEFLOW_DATA_DIR=initialData;rmSync(work,{recursive:true,force:true})})

@@ -8,7 +8,8 @@ export interface Ps5Item {
   platform: ContentPlatform; format: ContentFormat; branch: string; order: number; appVersion?: string; contentId?: string
   transferId: string; state: Ps5State; detail: string; bytesSent: number; completedAt?: number; installedAt?: number
   hash?: string; sourceStamp?: string; installDispatched?: boolean; serviceJobId?: string; cancelRequested?: boolean; hidden?: boolean
-  queueId?: string; createdAt?: number
+  queueId?: string; createdAt?: number; confirmation?: 'user'; confirmedAt?: number
+  progressPhase?: 'source-check' | 'transfer' | 'device-check'; bytesChecked?: number
 }
 export interface Ps5Queue {
   version: 1; id?: string; consoleId: string; psIp: string; transport: 'service'
@@ -68,6 +69,17 @@ export class Ps5QueueRunner {
     this.queue.message = selected.some(item => item.installDispatched && !terminal(item)) ? 'Ожидающие пакеты убраны. Отмена принятой системой установки пока не поддерживается' : 'Отмена выбранных пакетов запрошена'
     this.save(); this.wake(); return this.snapshot()
   }
+  confirmInstalled(queueId: string, packageId: string) {
+    const item = (queueId === this.queue.id ? this.queue.items : this.queue.history.flat().filter(entry => entry.queueId === queueId)).find(entry => entry.packageId === packageId)
+    if (!queueId || !item) throw new Ps5QueueFailure('Задание больше не существует в этой очереди')
+    if (item.state === 'installed' && item.confirmation === 'user') return this.snapshot()
+    if (!item.installDispatched || !item.serviceJobId || item.bytesSent !== item.size || !['installing','unconfirmed','failed'].includes(item.state)) throw new Ps5QueueFailure('Подтверждение доступно после передачи пакета установщику')
+    const previous = structuredClone(item)
+    Object.assign(item, { state: 'installed', confirmation: 'user', confirmedAt: Date.now(), installedAt: Date.now(), completedAt: Date.now(), detail: 'Установку подтвердил пользователь' })
+    try { this.save() } catch(error) { for (const key of Object.keys(item)) delete (item as unknown as Record<string, unknown>)[key]; Object.assign(item,previous); throw error }
+    this.installed(item); this.wake()
+    return this.snapshot()
+  }
   clear() {
     for (const item of [...this.queue.items, ...this.queue.history.flat()]) if (terminal(item)) item.hidden = true
     this.save(); return this.snapshot()
@@ -92,10 +104,12 @@ export class Ps5QueueRunner {
       if (item.order > 0 && failedBase) { Object.assign(item, { state: 'skipped', detail: 'Базовая игра в этой очереди не установлена', completedAt: Date.now() }); this.save(); continue }
       this.activeItem = item; this.controller = new AbortController()
       const checkpoint = (patch: Partial<Ps5Item>) => {
+        // A read-only poll that began before the human receipt cannot undo it.
+        if (item.confirmation === 'user') return
         Object.assign(item, patch)
         // Byte offsets are already durable on PS5. Coalesce only WEB progress;
         // dispatch intents, hashes and state transitions always fsync immediately.
-        if (Object.keys(patch).length === 1 && patch.bytesSent !== undefined && Date.now()-this.progressSavedAt < 1000) return
+        if (Object.keys(patch).length === 1 && (patch.bytesSent !== undefined || patch.bytesChecked !== undefined) && Date.now()-this.progressSavedAt < 1000) return
         this.save(); this.progressSavedAt = Date.now()
       }
       try {

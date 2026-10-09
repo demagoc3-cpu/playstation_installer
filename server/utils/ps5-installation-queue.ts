@@ -16,6 +16,8 @@ const path = (id: string) => dataPath(`consoles/${id}/ps5-installation-queue.jso
 function validItems(value: unknown): value is Ps5Item[] {
   return Array.isArray(value) && value.length <= 10000 && value.every(item => item && typeof item.packageId === 'string' && /^[a-zA-Z0-9_.-]{1,128}$/.test(item.packageId) && /^[0-9a-f]{32}$/.test(item.transferId || '') &&
     ['pending','sending','verifying','installing','waiting','installed','failed','skipped','cancelled','unconfirmed'].includes(item.state) && ['ps4','ps5'].includes(item.platform) && ['pkg','folder','ufs2','exfat','pfs','ffpfsc','unknown'].includes(item.format) &&
+    (item.progressPhase === undefined || ['source-check','transfer','device-check'].includes(item.progressPhase)) && (item.bytesChecked === undefined || Number.isSafeInteger(item.bytesChecked) && item.bytesChecked >= 0 && item.bytesChecked <= item.size) &&
+    (item.confirmation === undefined || item.confirmation === 'user' && Number.isSafeInteger(item.confirmedAt) && item.confirmedAt > 0 && item.state === 'installed') &&
     typeof item.branch === 'string' && typeof item.title === 'string' && typeof item.fileName === 'string' && typeof item.detail === 'string' && Number.isSafeInteger(item.size) && item.size > 0 && Number.isSafeInteger(item.bytesSent) && item.bytesSent >= 0 && item.bytesSent <= item.size && Number.isInteger(item.order) && item.order >= 0)
 }
 function runner(id: string) {
@@ -75,6 +77,10 @@ export function cancelPs5Queue(id: string, queueId: string, packageIds?: string[
   try { runner(id).cancel(queueId, packageIds, branches); return getPs5Queue(id) }
   catch (error) { if (error instanceof Ps5QueueFailure) throw createError({ statusCode: 409, message: error.message }); throw error }
 }
+export function confirmPs5Installation(id: string, queueId: string, packageId: string) {
+  try { runner(id).confirmInstalled(queueId, packageId); return getPs5Queue(id) }
+  catch (error) { if (error instanceof Ps5QueueFailure) throw createError({statusCode:409,message:error.message}); throw error }
+}
 export function clearPs5Tasks(id: string) { runner(id).clear(); return getPs5Queue(id) }
 export function getPs5TaskCounts(id:string) {
   const q=runner(id).queue, counts:InstallationTasksPage['counts']={active:0,queued:0,completed:0,failed:0}
@@ -92,7 +98,8 @@ export function getPs5Tasks(id: string, query: { categories?: unknown; page?: un
     const base = groups.get(item.branch)
     const { hash: _, sourceStamp: __, transferId: ___, installDispatched: ____, ...metadata } = item
     tasks.push({ ...metadata, id: item.transferId, queueId: item.queueId || (index === 0 ? q.id || '' : `history-${index}`), psIp: q.psIp,
-      category: installationTaskCategory(item.state), groupTitle: base?.title || item.title, groupIconId: base?.iconSize ? base.id : undefined,
+      canConfirm: item.installDispatched === true && !!item.serviceJobId && item.bytesSent === item.size && ['installing','unconfirmed','failed'].includes(item.state),
+      consolePlatform: 'ps5', category: installationTaskCategory(item.state), groupTitle: base?.title || item.title, groupIconId: base?.iconSize ? base.id : undefined,
       createdAt: item.createdAt || q.createdAt, transport: 'service', canCancel: index === 0 && q.status === 'running' && ps5CanCancel(item), cancelRequested: !!item.cancelRequested })
   }
   const visibleTasks = latestInstallationAttempts(tasks, query.history)

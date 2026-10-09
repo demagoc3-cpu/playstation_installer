@@ -38,11 +38,18 @@ watch(() => props.ip, () => { controller?.abort(); generation++; data.value = { 
 watch(() => props.visible, visible => { if (visible) void refresh(); else { controller?.abort(); generation++ } })
 onMounted(() => { try { clearedMaintenance.value = localStorage.getItem('packageflow-cleared-maintenance') || ''; if (localStorage.getItem('packageflow-tasks-view') === 'table') view.value = 'table' } catch { /* The default tree remains available. */ } void refresh(); timer = setInterval(() => { if (document.visibilityState === 'visible' && !pending.value) void refresh() }, 2000) })
 onUnmounted(() => { if (timer) clearInterval(timer); controller?.abort(); generation++ })
+async function confirmInstalled(task: InstallationTask) {
+  if (pending.value || !props.consoleId || !task.canConfirm) return
+  pending.value=task.id; message.value=''
+  try { await $fetch('/api/consoles/tasks',{method:'POST',body:{action:'confirm-installed',consoleId:props.consoleId,queueId:task.queueId,packageId:task.packageId,installed:true}}); emit('changed'); await refresh() }
+  catch(error:any) {message.value=error?.data?.message || 'Не удалось подтвердить установку'}
+  finally {pending.value=''}
+}
 async function cancel(task: InstallationTask) {
   if (pending.value) return
   if (task.category === 'active' && !window.confirm(t('Отменить только этот пакет? Остальные задания останутся в очереди.'))) return
   pending.value = task.id; message.value = ''
-  try { await $fetch(props.consoleId ? '/api/consoles/tasks' : '/api/ps4/installation/item-cancel', { method: 'POST', body: { action:'cancel', consoleId:props.consoleId, queueId: task.queueId, packageIds:[task.packageId], packageId: task.packageId, ip: task.psIp } }); emit('changed'); await refresh() }
+  try { const result=await $fetch<{message?:string}>(props.consoleId ? '/api/consoles/tasks' : '/api/ps4/installation/item-cancel', { method: 'POST', body: { action:'cancel', consoleId:props.consoleId, queueId: task.queueId, packageIds:[task.packageId], packageId: task.packageId, ip: task.psIp } }); message.value=result.message || ''; emit('changed'); await refresh() }
   catch (error: any) { message.value = error?.data?.message || 'Не удалось отменить задание' }
   finally { pending.value = '' }
 }
@@ -50,7 +57,7 @@ async function cancelBranch(items: InstallationTask[]) {
   const targets = items.filter(task => task.canCancel), task = targets[0]
   if (!task || pending.value || !window.confirm(t('Отменить всю ветку игры вместе с патчами и DLC?'))) return
   pending.value = `branch:${task.id}`; message.value = ''
-  try { await $fetch(props.consoleId ? '/api/consoles/tasks' : '/api/ps4/installation/branch-cancel', { method: 'POST', body: { action:'cancel',consoleId:props.consoleId,branches:[`${task.platform || props.platform}:${task.titleId || task.packageId}`], queueId: task.queueId, gameId: task.titleId || task.packageId, ip: task.psIp } }); emit('changed'); await refresh() }
+  try { const result=await $fetch<{message?:string}>(props.consoleId ? '/api/consoles/tasks' : '/api/ps4/installation/branch-cancel', { method: 'POST', body: { action:'cancel',consoleId:props.consoleId,branches:[`${task.platform || props.platform}:${task.titleId || task.packageId}`], queueId: task.queueId, gameId: task.titleId || task.packageId, ip: task.psIp } }); message.value=result.message || ''; emit('changed'); await refresh() }
   catch (error: any) { message.value = error?.data?.message || 'Не удалось отменить ветку' }
   finally { pending.value = '' }
 }
@@ -86,15 +93,15 @@ function go(value: number) { page.value = value; void refresh().then(() => { con
     <p v-if="message" class="task-message pf-notice" role="status">{{ t(message) }}</p>
     <div v-if="showMaintenance" class="maintenance-line" role="status"><strong>{{ t('Переустановка:') }} {{ maintenance?.title }}</strong><span>{{ t(maintenance?.message || '') }}</span></div>
     <section v-if="(categories.includes('active') && data.active.length) || activeTorrents.length" class="active-jobs" :aria-label="t('Активные задания')">
-      <InstallationTaskRow v-for="task in categories.includes('active') ? data.active : []" :key="task.id" :task="task" :busy="!!pending" @cancel="cancel" />
+      <InstallationTaskRow v-for="task in categories.includes('active') ? data.active : []" :key="task.id" :task="task" :busy="!!pending" @cancel="cancel" @confirm="confirmInstalled" />
       <article v-for="item in activeTorrents" :key="item.hash" class="torrent-job active"><div><strong>{{ item.name }}</strong><span>qBittorrent · {{ Math.round(item.progress * 100) }}%</span></div><progress :value="item.progress" max="1" /><button @click="torrentAction(item, 'pause')">{{ t('Остановить') }}</button><button @click="torrentAction(item, 'delete')">{{ t('Убрать задачу') }}</button></article>
     </section>
     <div class="task-filters"><label><input v-model="showHistory" type="checkbox"> {{ t('История попыток') }}</label><div class="task-views" :aria-label="t('Вид заданий')"><button :aria-pressed="view === 'tree'" @click="selectView('tree')">{{ t('Дерево') }}</button><button :aria-pressed="view === 'table'" @click="selectView('table')">{{ t('Таблица') }}</button></div><label><input type="checkbox" :checked="categories.length === TASK_CATEGORIES.length" :indeterminate="categories.length > 0 && categories.length < TASK_CATEGORIES.length" @change="setAll(($event.target as HTMLInputElement).checked)"> {{ t('Все') }}</label><label v-for="category in TASK_CATEGORIES" :key="category"><input v-model="categories" :value="category" type="checkbox"> {{ t(labels[category]) }} <small>{{ data.counts[category] + torrentCounts[category] }}</small></label></div>
     <div class="task-list" tabindex="0" :aria-label="t('Список заданий')">
       <template v-if="view === 'tree'">
-        <GameTreeBranch v-for="group in taskGroups" :key="group.key" :title="group.title" :title-id="group.titleId" :cover="group.icon ? `/api/packages/${group.icon}?asset=icon` : undefined" :count="group.items.length" :open="treeOpen(group)" @toggle="treeExpanded[group.key]=!treeOpen(group)"><template #actions><button v-if="group.items.some(task => task.canCancel)" :disabled="!!pending" @click="cancelBranch(group.items)">{{ t('Отменить ветку') }}</button></template><InstallationTaskRow v-for="task in group.items" :key="task.id" :task="task" :busy="!!pending" @cancel="cancel" /></GameTreeBranch>
+        <GameTreeBranch v-for="group in taskGroups" :key="group.key" :title="group.title" :title-id="group.titleId" :cover="group.icon ? `/api/packages/${group.icon}?asset=icon` : undefined" :count="group.items.length" :open="treeOpen(group)" @toggle="treeExpanded[group.key]=!treeOpen(group)"><template #actions><button v-if="group.items.some(task => task.canCancel)" :disabled="!!pending" @click="cancelBranch(group.items)">{{ t('Отменить ветку') }}</button></template><InstallationTaskRow v-for="task in group.items" :key="task.id" :task="task" :busy="!!pending" @cancel="cancel" @confirm="confirmInstalled" /></GameTreeBranch>
       </template>
-      <InstallationTaskTable v-else-if="data.items.length" :tasks="data.items" :busy="!!pending" @cancel="cancel" />
+      <InstallationTaskTable v-else-if="data.items.length" :tasks="data.items" :busy="!!pending" @cancel="cancel" @confirm="confirmInstalled" />
       <article v-for="item in otherTorrents" :key="item.hash" class="torrent-job"><div><strong>{{ item.name }}</strong><span>qBittorrent · {{ t(labels[torrentCategory(item)]) }} · {{ Math.round(item.progress * 100) }}%</span></div><button v-if="/paused|stopped/i.test(item.state)" @click="torrentAction(item, 'resume')">{{ t('Продолжить') }}</button><button @click="torrentAction(item, 'delete')">{{ t('Убрать задачу') }}</button></article>
       <p v-if="!data.items.length && !otherTorrents.length" class="task-empty">{{ t('В выбранных категориях заданий нет.') }}</p>
     </div>

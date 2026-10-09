@@ -26,7 +26,7 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
     const ready = { service: 'PackageFlowService-PS5', schemaVersion: 1, route: 'staged-pkg', ready: true, reason: 'ready', formats: ['pkg'], platforms: ['ps4', 'ps5'], exactVersionReceipt: false }
     let readiness = { ...ready, ready: false, reason: 'installer_unavailable', formats: [], platforms: [] }, readinessStatus = 200, firmware = '0x13600007'
     const calls = [], transferred = []
-    let durable = 0, transferHash, transferId
+    let durable = 0, transferHash, transferId, jobStatus = 200
     const response = (body, status = 200) => new Response(JSON.stringify(body), { status })
     globalThis.fetch = async (url, options = {}) => {
       const address = new URL(url), path = address.pathname, headers = options.headers
@@ -57,7 +57,7 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
       }
       if (path === '/api/v1/install/staged') return response({ ok: true }, 202)
       if (path === '/api/v1/install/status') return response({ ok: true, job: '123' })
-      if (path === '/api/v1/installer/job') return response({ ok: true, phase: 'done' })
+      if (path === '/api/v1/installer/job') return response({ ok: true, phase: 'done' },jobStatus)
       assert.fail(`Unexpected route ${path}`)
     }
     let profiles = (await api.probeConsoleProfile(ps4.id)).consoles
@@ -92,8 +92,11 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
     const dispatches = calls.filter(path => path === '/api/v1/install/staged').length
     assert.equal(dispatches, 1)
     readinessStatus = 404; calls.length = 0
-    await assert.rejects(driver.run(item, signal, patch => Object.assign(item, patch)), /Подтверждение конкретной версии/)
+    await assert.rejects(driver.run(item, signal, patch => Object.assign(item, patch)), /Пакет полностью передан установщику/)
     assert.deepEqual(calls, ['/api/v1/install/status', '/api/v1/installer/job'], 'recovery polls receipt even if admission vanished; no transfer/install replay')
+    jobStatus=400
+    await assert.rejects(driver.run(item,signal,patch=>Object.assign(item,patch)),/Не удалось прочитать системное задание/)
+    assert.equal(calls.filter(path=>path==='/api/v1/install/staged').length,0,'read error never becomes a second install')
     assert.ok(!JSON.stringify(profiles).includes('b'.repeat(64)))
   } finally {
     globalThis.fetch = previousFetch; globalThis.createError = previousError

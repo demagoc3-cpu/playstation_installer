@@ -1442,5 +1442,12 @@
   "Статус": "Status",
   "Пакеты": "Packages",
   "Индексация": "Indexing",
-  "Другие действия": "More actions"
+  "Другие действия": "More actions",
+  "Установлено на PS5": "Installed on PS5",
+  "Установку подтвердил пользователь": "Installation confirmed by the user",
+  "Не удалось подтвердить установку": "Could not confirm installation",
+  "Пакет полностью передан установщику. Если установка завершилась на PS5, подтвердите результат": "Package delivered to the installer. Confirm the result once installation finishes on PS5",
+  "Проверка исходного файла": "Checking source file",
+  "Ожидание PS5": "Waiting for PS5",
+  "Загрузка на PS5": "Downloading to PS5"
 }

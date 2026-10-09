@@ -8,11 +8,12 @@ export function installationTaskCategory(state: string): TaskCategory {
   return 'completed'
 }
 export interface InstallationTask {
-  platform?: ContentPlatform; format?: ContentFormat; signature?: PackageSignature
+  consolePlatform?: 'ps4' | 'ps5'; platform?: ContentPlatform; format?: ContentFormat; signature?: PackageSignature
   id: string; queueId: string; packageId: string; psIp: string; title: string; fileName: string; type: string; size: number
   titleId: string; groupTitle: string; groupIconId?: string; contentId?: string; appVersion?: string; masterVersion?: string; requiredFirmware?: string; sdkFirmware?: string; contentType?: string; packageDigest?: string
   state: string; category: TaskCategory; detail: string; bytesSent: number; createdAt: number; completedAt?: number
-  transport: string; canCancel: boolean; cancelRequested: boolean
+  transport: string; canConfirm?: boolean; canCancel: boolean; cancelRequested: boolean
+  progressPhase?: 'source-check' | 'transfer' | 'device-check'; bytesChecked?: number
 }
 export interface InstallationTasksPage {
   active: InstallationTask[]; items: InstallationTask[]; counts: Record<TaskCategory, number>; page: number; pages: number; total: number
@@ -21,3 +22,13 @@ export interface InstallationTasksPage {
 }
 export const TASK_STATE_LABELS: Record<string, string> = { pending: 'В очереди', sending: 'Передача', waiting: 'Ожидаем загрузку PS4', receiving: 'Загрузка на PS4', installing: 'Установка', verifying: 'Проверка результата', delivered: 'Передано PS4', installed: 'Установлено', unconfirmed: 'Нет подтверждения', skipped: 'Пропущено', failed: 'Ошибка', cancelled: 'Отменено' }
 export const installationTaskGroupKey = (task: InstallationTask) => `${task.psIp}:${task.titleId || task.packageId}`
+export function installationTaskProgress(task: InstallationTask) {
+  const bytes = task.progressPhase === 'source-check' ? task.bytesChecked || 0 : task.bytesSent
+  return task.size ? Math.max(0, Math.min(100, bytes / task.size * 100)) : 0
+}
+export function installationTaskStateLabel(task: InstallationTask) {
+  if (task.progressPhase === 'source-check' && task.state === 'verifying') return 'Проверка исходного файла'
+  if (task.platform === 'ps5' && task.state === 'waiting') return 'Ожидание PS5'
+  if (task.platform === 'ps5' && task.state === 'receiving') return 'Загрузка на PS5'
+  return TASK_STATE_LABELS[task.state] || task.state
+}

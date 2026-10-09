@@ -1,5 +1,5 @@
 import { getConsoleProfile } from '../../utils/console-profiles'
-import { cancelPs5Queue, clearPs5Tasks } from '../../utils/ps5-installation-queue'
+import { cancelPs5Queue, clearPs5Tasks, confirmPs5Installation } from '../../utils/ps5-installation-queue'
 import { assertInstallationOrigin } from '../../utils/installation-origin'
 import { getInstallationQueue, cancelInstallationQueue, cancelInstallationItems, cancelGameInstallations, resolveCancelledQueue } from '../../utils/installation-queue'
 import { clearFinishedTasks } from '../../utils/task-visibility'
@@ -15,6 +15,10 @@ export default defineEventHandler(async event => {
     if (b.packageIds) return cancelInstallationItems(b.queueId,b.packageIds,p.ip)
     if (b.branches) return cancelGameInstallations(b.queueId,p.ip,b.branches.map((branch:string)=>branch.replace(/^ps4:/,'')))
     return cancelInstallationQueue(p.ip)
+  }
+  if (b.action === 'confirm-installed') {
+    if (typeof b.queueId !== 'string' || typeof b.packageId !== 'string' || b.installed !== true) throw createError({statusCode:400,message:'Подтвердите установку выбранного пакета'})
+    return confirmPs5Installation(p.id,b.queueId,b.packageId)
   }
   if (b.action === 'clear') return clearPs5Tasks(p.id)
   if (b.action !== 'cancel' || typeof b.queueId !== 'string' || [b.packageIds,b.branches].some(ids => ids !== undefined && (!Array.isArray(ids) || !ids.length || ids.length > 10000 || ids.some((id: unknown)=>typeof id !== 'string')))) throw createError({ statusCode: 400, message: 'Неверный выбор заданий' })
