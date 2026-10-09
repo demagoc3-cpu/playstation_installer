@@ -1381,5 +1381,15 @@
   "Не удалось сохранить пресет": "Could not save preset",
   "Отменить всю ветку игры вместе с патчами и DLC?": "Cancel the entire game branch including patches and DLC?",
   "Не удалось отменить ветку": "Could not cancel the game branch",
-  "Отменить ветку": "Cancel branch"
+  "Отменить ветку": "Cancel branch",
+  "История попыток": "Attempt history",
+  "Показаны все попытки. Сохраняются 10 предыдущих очередей.": "All attempts are shown. The previous 10 queues are retained.",
+  "Показана последняя попытка для каждого пакета. Предыдущие доступны в истории.": "Showing the latest attempt for each package. Earlier attempts are available in history.",
+  "Обновить сервис": "Update service",
+  "Доступная версия": "Available version",
+  "Нет ответа от WEB": "No response from WEB",
+  "Начиная с PKG 2.03 интерфейс PackageFlow закрывается автоматически при обновлении. Фоновая служба остаётся доступной до замены.": "From PKG 2.03, the PackageFlow interface closes automatically during an update. The background service remains available until it is replaced.",
+  "Обновить фоновую службу PS5? Интерфейс PackageFlow закроется, сопряжение сохранится.": "Update the PS5 background service? The PackageFlow interface will close and pairing will be preserved.",
+  "На этом WEB пока нет проверенного обновления службы PS5": "This WEB has no verified PS5 service update yet.",
+  "Подготовлено обновление фоновой службы PS5": "A PS5 background service update is prepared."
 }

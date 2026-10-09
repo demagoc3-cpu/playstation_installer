@@ -2,6 +2,7 @@ import { getConsoleProfile, getConsoleProfiles } from '../../../utils/console-pr
 import { getLibraryPackages } from '../../../utils/package-library'
 import { filterContent, contentPlatform, contentFormat } from '../../../../shared/content-platform'
 import { buildConsoleCatalog } from '../../../utils/console-catalog'
+import { ps5InstallMessage } from '../../../../shared/ps5-install-readiness'
 
 /** PS5 contract. The legacy PS4 app continues to use catalog/v1. */
 export default defineEventHandler(event => {
@@ -15,7 +16,8 @@ export default defineEventHandler(event => {
   const index = new Map(packages.map(item => [item.id, item]))
   setHeader(event, 'Cache-Control', 'no-store')
   return { ...result, schemaVersion: 2, consoleId: profile.id, consolePlatform: profile.platform,
-    capabilities: { ...result.capabilities, install: snapshot.online && snapshot.paired && snapshot.capabilities.formats.length > 0, formats: snapshot.capabilities.formats },
+    capabilities: { ...result.capabilities, install: snapshot.online && snapshot.paired && snapshot.capabilities.formats.length > 0, formats: snapshot.capabilities.formats,
+      installation: snapshot.capabilities.installation, installationMessage: profile.platform === 'ps5' ? ps5InstallMessage(snapshot.capabilities) : undefined },
     games: result.games.map(game => ({ ...game, description: query.lang === 'en' ? 'Shared WEB library. Installation depends on the console service and supported content format.' : 'Общая библиотека WEB. Установка зависит от сервиса приставки и поддержки формата содержимого.', platform: contentPlatform(index.get(game.packages[0]?.id || '') || {}),
       packages: game.packages.map(item => { const source = index.get(item.id)!; return { ...item, platform: contentPlatform(source), format: contentFormat(source), signature: source.signature || 'unknown' } }) })) }
 })

@@ -18,7 +18,7 @@ function pkg(values) {
  const p=Buffer.alloc(8192);Buffer.from('7f434e54','hex').copy(p);p.writeUInt32BE(1,0x10);p.writeUInt32BE(128,0x18);Buffer.from(values.CONTENT_ID).copy(p,0x40);p.writeUInt32BE(0x1000,128);p.writeUInt32BE(256,144);p.writeUInt32BE(sfo.length,148);sfo.copy(p,256);return p
 }
 const base = pkg({TITLE:'Mario Collection',TITLE_ID:titleId,CONTENT_ID:cid,CATEGORY:'gd',APP_VER:'01.00',SYSTEM_VER:'0x05050000',PUBTOOLINFO:'sdk_ver=05050001'})
-const updatePackage = pkg({TITLE:'PackegeFlowService',TITLE_ID:'PFLS00001',CONTENT_ID:'IV0000-PFLS00001_00-PACKAGEFLOWSRV00',CATEGORY:'gde',APP_VER:'01.20'})
+const updatePackage = pkg({TITLE:'PackegeFlowService',TITLE_ID:'PFLS00001',CONTENT_ID:'IV0000-PFLS00001_00-PACKAGEFLOWSRV00',CATEGORY:'gde',APP_VER:mode.startsWith('auto-close')?'02.04':'01.20'})
 const replacementPackage = pkg({TITLE:'PackageFlowService',TITLE_ID:'PFLS00001',CONTENT_ID:'IV0000-PFLS00001_00-PACKAGEFLOWSRV00',CATEGORY:'gde',APP_VER:'01.21'})
 const updateHash = createHash('sha256').update(updatePackage).digest('hex')
 writeFileSync('game.pkg',base)
@@ -26,7 +26,7 @@ const item={id:'one',title:'Mario Collection',titleId,contentId:cid,contentType:
 writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages:[item],deliveries:{}}))
 const app={titleId,title:'Mario Collection',version:'01.00',installed:true,protected:false}, part={id:'base',kind:'base',title:app.title,version:'01.00',contentId:cid,sizeBytes:base.length,storage:'internal',canRemove:true}
 let removePosts=0, installPosts=0, controlPosts=0, updatePosts=0, removeState='running', removal, installedJob, controlResult, version='1.19', consoleFirmware='12.50'
-let releaseDownloads=0
+let releaseDownloads=0, uiRunning=mode.startsWith('auto-close'); if(uiRunning)version=mode==='auto-close-legacy'?'2.02':'2.03'
 const response=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{'Content-Type':'application/json'}})
 globalThis.fetch=async(url,options={})=>{
  const u=new URL(url),path=u.pathname
@@ -38,19 +38,24 @@ globalThis.fetch=async(url,options={})=>{
  assert.equal(options.headers.Authorization,`Bearer ${token}`)
  if(path==='/apps/list') return response({service:'PackegeFlowService',appsApi:1,revision,complete:true,total:0,next:null,apps:[]})
  if(path.startsWith('/apps/title/')) return response({service:'PackegeFlowService',revision,complete:true,total:1,next:null,app,components:[part]})
- if(path.startsWith('/apps/runtime/')) return response({service:'PackegeFlowService',titleId:path.split('/').at(-1),running:false,appId:-1})
+ if(path.startsWith('/apps/runtime/')) return response({service:'PackegeFlowService',titleId:path.split('/').at(-1),running:uiRunning,appId:uiRunning?0x6000100d:-1})
  if(path==='/apps/remove') { removePosts++;const b=JSON.parse(options.body);removal={service:'PackegeFlowService',...b,state:removeState,completed:0,total:1,error:0,errorHex:'0x00000000',pollError:0};return response(removal) }
  if(path.startsWith('/apps/operations/')) return response({...removal,state:removeState,completed:removeState==='removed'?1:0})
  if(path==='/install/jobs'||path==='/install/service-update') { if(path.endsWith('service-update'))updatePosts++;else installPosts++;const b=JSON.parse(options.body);installedJob={service:'PackegeFlowService',jobId:b.requestId,requestId:b.requestId,contentId:b.contentId,taskId:43,state:path.endsWith('service-update')?'downloading':'installed',totalBytes:b.size,downloadedBytes:b.size,downloadTotalBytes:b.size,error:0,errorHex:'0x00000000',pollError:0};return response(installedJob) }
  if(path.startsWith('/install/jobs/')) return response(installedJob)
+ if(path==='/apps/control' && mode.startsWith('auto-close')) {controlPosts++;const b=JSON.parse(options.body);assert.equal(b.titleId,'PFLS00001');assert.equal(b.action,'stop');assert.equal(b.expected,'6000100D');controlResult={service:'PackegeFlowService',...b,state:mode==='auto-close-denied'?'failed':'pending',appId:0x6000100d,error:0,errorHex:'0x00000000'};if(mode==='auto-close-lost')throw new Error('Stop reply lost');return response(controlResult)}
  if(path==='/apps/control') {controlPosts++;const b=JSON.parse(options.body);controlResult={service:'PackegeFlowService',...b,state:b.action==='restart'?'pending':'running',appId:0x6000100d,error:0,errorHex:'0x00000000'};if(mode==='control')throw new Error('Reply lost');return response(controlResult)}
- if(path.startsWith('/apps/control/'))return response(controlResult)
+ if(path.startsWith('/apps/control/')){if(mode.startsWith('auto-close')&&mode!=='auto-close-denied'){uiRunning=false;controlResult.state='stopped'}return response(controlResult)}
  throw new Error(`Unexpected endpoint ${path}`)
 }
 const load=async n=>import(pathToFileURL(resolve(root,`server/utils/${n}.ts`)).href)
 try {
  const maintenance=await load('console-maintenance'), control=await load('console-control'), updates=await load('service-updates')
- if(mode==='control') {
+ if(mode.startsWith('auto-close')) {
+  const artifact=await updates.stageServicePackage(updatePackage)
+  if(mode==='auto-close-denied'||mode==='auto-close-legacy'){await assert.rejects(updates.installServiceArtifact(ip,artifact.id,'http://192.168.88.10:3000'));assert.equal(updatePosts,0);assert.equal(controlPosts,mode==='auto-close-legacy'?0:1)}
+  else{const flow=await updates.installServiceArtifact(ip,artifact.id,'http://192.168.88.10:3000');assert.equal(flow.state,'installing');assert.equal(controlPosts,1);assert.equal(updatePosts,1);assert.equal(uiRunning,false);assert.equal(JSON.parse(readFileSync('.data/console-control.json'))[ip].result.state,'stopped')}
+ } else if(mode==='control') {
   const input={requestId:'11111111-1111-1111-1111-111111111111',titleId,action:'launch',expected:''}
   assert.equal((await control.submitConsoleControl(ip,input)).state,'running');assert.equal(controlPosts,1);await control.submitConsoleControl(ip,input);assert.equal(controlPosts,1)
   await assert.rejects(control.submitConsoleControl(ip,{...input,action:'stop',expected:'INVALID'}));assert.equal(controlPosts,1)
@@ -96,7 +101,10 @@ try {
   await assert.rejects(maintenance.beginReinstall(ip,{packageId:'one',confirmTitleId:titleId,revision,url:'http://192.168.88.10:3000/json/one.json'}), /выше прошивки/)
   assert.equal(removePosts,0)
  } else {
-  if(mode==='reinstall-bundle')writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages:[item,{...item,id:'patch',type:'Патч',contentType:'PS4GP',installOrder:1,requiredFirmware:'5.05'}, {...item,id:'dlc',type:'DLC',contentType:'PS4AC',installOrder:2,requiredFirmware:'5.05'}],deliveries:{}}))
+  if(mode==='reinstall-bundle') {
+   writeFileSync('patch.pkg',base);writeFileSync('dlc.pkg',base)
+   writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages:[item,{...item,id:'patch',path:resolve('patch.pkg'),fileName:'patch.pkg',type:'Патч',contentType:'PS4GP',installOrder:1,requiredFirmware:'5.05'}, {...item,id:'dlc',path:resolve('dlc.pkg'),fileName:'dlc.pkg',type:'DLC',contentType:'PS4AC',installOrder:2,requiredFirmware:'5.05'}],deliveries:{}}))
+  }
   const bundle=mode==='reinstall-bundle'?{packageIds:['one','patch','dlc'],packageUrls:{one:'http://192.168.88.10:3000/json/one.json',patch:'http://192.168.88.10:3000/json/patch.json',dlc:'http://192.168.88.10:3000/json/dlc.json'}}:undefined
   if(bundle){await assert.rejects(maintenance.beginReinstall(ip,{packageId:'one',confirmTitleId:titleId,revision,url:bundle.packageUrls.one,bundle:{...bundle,packageIds:['one','dlc']}}));assert.equal(removePosts,0)}
   const plan=await maintenance.reinstallPlan(ip,'one');assert.equal(plan.details.app.titleId,titleId)
@@ -106,7 +114,7 @@ try {
   if(mode==='recovery') {const stored=JSON.parse(readFileSync('.data/console-maintenance.json'));stored[ip].state='uncertain';writeFileSync('.data/console-maintenance.json',JSON.stringify(stored));await maintenance.getMaintenance(ip);assert.equal(removePosts,1)}
   removeState=mode==='partial'?'partial':'removed';f=await maintenance.getMaintenance(ip)
   if(mode==='partial'){assert.equal(f.state,'failed');assert.equal(installPosts,0)}
-  else { for(let i=0;i<30&&f.state!=='completed';i++){await new Promise(r=>setTimeout(r,50));f=await maintenance.getMaintenance(ip)} assert.equal(f.state,'completed');assert.equal(installPosts,bundle?3:1);assert.equal(removePosts,1);if(bundle)assert.deepEqual(queue.getInstallationQueue().items.map(i=>i.packageId),['one','patch','dlc']);await maintenance.getMaintenance(ip);assert.equal(installPosts,bundle?3:1) }
+  else { for(let i=0;i<30&&f.state!=='completed';i++){await new Promise(r=>setTimeout(r,50));f=await maintenance.getMaintenance(ip)} assert.equal(f.state,'completed');assert.equal(installPosts,bundle?3:1);assert.equal(removePosts,1);if(bundle)assert.deepEqual(queue.getInstallationQueue(ip).items.map(i=>i.packageId),['one','patch','dlc']);await maintenance.getMaintenance(ip);assert.equal(installPosts,bundle?3:1) }
  }
  console.log(`PASS: ${mode}, real production workflows in isolated filesystem, scoped native requests, no payload fallback, no repeated writes`)
 } finally { rmSync(directory,{recursive:true,force:true}) }

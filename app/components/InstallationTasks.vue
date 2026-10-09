@@ -8,6 +8,7 @@ const categories = ref<TaskCategory[]>([...TASK_CATEGORIES])
 const labels = { active: 'Активные', queued: 'В очереди', completed: 'Завершённые', failed: 'С ошибками' }
 const data = ref<InstallationTasksPage>({ active: [], items: [], counts: { active: 0, queued: 0, completed: 0, failed: 0 }, page: 1, pages: 1, total: 0, unit: 'games' })
 const view = ref<'tree' | 'table'>('tree')
+const showHistory = ref(false)
 const treeExpanded = reactive<Record<string, boolean>>({})
 const clearedMaintenance = ref('')
 async function clearFinished() {
@@ -24,7 +25,7 @@ async function refresh() {
   if (!props.visible) return
   controller?.abort(); controller = new AbortController(); const request = ++generation
   try {
-    const result = await $fetch<InstallationTasksPage>(props.consoleId ? '/api/consoles/tasks' : '/api/ps4/installation/tasks', { query: { consoleId:props.consoleId, ip: props.ip, page: page.value, categories: categories.value.join(','), view: view.value }, signal: controller.signal })
+    const result = await $fetch<InstallationTasksPage>(props.consoleId ? '/api/consoles/tasks' : '/api/ps4/installation/tasks', { query: { consoleId:props.consoleId, ip: props.ip, page: page.value, categories: categories.value.join(','), view: view.value, history: showHistory.value }, signal: controller.signal })
     if (request !== generation) return
     data.value = result; page.value = result.page
   } catch (error: any) { if (request === generation && !controller?.signal.aborted) message.value = error?.data?.message || 'Не удалось обновить задания' }
@@ -32,6 +33,7 @@ async function refresh() {
 function selectView(value: 'tree' | 'table') { if (view.value === value) return; view.value = value; page.value = 1; try { localStorage.setItem('packageflow-tasks-view', value) } catch { /* Session choice still applies. */ } void refresh() }
 function setAll(checked: boolean) { categories.value = checked ? [...TASK_CATEGORIES] : [] }
 watch(categories, () => { page.value = 1; void refresh() }, { deep: true })
+watch(showHistory, () => { page.value = 1; void refresh() })
 watch(() => props.ip, () => { controller?.abort(); generation++; data.value = { ...data.value, items: [], active: [] }; page.value = 1; void refresh() })
 watch(() => props.visible, visible => { if (visible) void refresh(); else { controller?.abort(); generation++ } })
 onMounted(() => { try { clearedMaintenance.value = localStorage.getItem('packageflow-cleared-maintenance') || ''; if (localStorage.getItem('packageflow-tasks-view') === 'table') view.value = 'table' } catch { /* The default tree remains available. */ } void refresh(); timer = setInterval(() => { if (document.visibilityState === 'visible' && !pending.value) void refresh() }, 2000) })
@@ -87,7 +89,7 @@ function go(value: number) { page.value = value; void refresh().then(() => { con
       <InstallationTaskRow v-for="task in categories.includes('active') ? data.active : []" :key="task.id" :task="task" :busy="!!pending" @cancel="cancel" />
       <article v-for="item in activeTorrents" :key="item.hash" class="torrent-job active"><div><strong>{{ item.name }}</strong><span>qBittorrent · {{ Math.round(item.progress * 100) }}%</span></div><progress :value="item.progress" max="1" /><button @click="torrentAction(item, 'pause')">{{ t('Остановить') }}</button><button @click="torrentAction(item, 'delete')">{{ t('Убрать задачу') }}</button></article>
     </section>
-    <div class="task-filters"><div class="task-views" :aria-label="t('Вид заданий')"><button :aria-pressed="view === 'tree'" @click="selectView('tree')">{{ t('Дерево') }}</button><button :aria-pressed="view === 'table'" @click="selectView('table')">{{ t('Таблица') }}</button></div><label><input type="checkbox" :checked="categories.length === TASK_CATEGORIES.length" :indeterminate="categories.length > 0 && categories.length < TASK_CATEGORIES.length" @change="setAll(($event.target as HTMLInputElement).checked)"> {{ t('Все') }}</label><label v-for="category in TASK_CATEGORIES" :key="category"><input v-model="categories" :value="category" type="checkbox"> {{ t(labels[category]) }} <small>{{ data.counts[category] + torrentCounts[category] }}</small></label></div>
+    <div class="task-filters"><label><input v-model="showHistory" type="checkbox"> {{ t('История попыток') }}</label><div class="task-views" :aria-label="t('Вид заданий')"><button :aria-pressed="view === 'tree'" @click="selectView('tree')">{{ t('Дерево') }}</button><button :aria-pressed="view === 'table'" @click="selectView('table')">{{ t('Таблица') }}</button></div><label><input type="checkbox" :checked="categories.length === TASK_CATEGORIES.length" :indeterminate="categories.length > 0 && categories.length < TASK_CATEGORIES.length" @change="setAll(($event.target as HTMLInputElement).checked)"> {{ t('Все') }}</label><label v-for="category in TASK_CATEGORIES" :key="category"><input v-model="categories" :value="category" type="checkbox"> {{ t(labels[category]) }} <small>{{ data.counts[category] + torrentCounts[category] }}</small></label></div>
     <div class="task-list" tabindex="0" :aria-label="t('Список заданий')">
       <template v-if="view === 'tree'">
         <GameTreeBranch v-for="group in taskGroups" :key="group.key" :title="group.title" :title-id="group.titleId" :cover="group.icon ? `/api/packages/${group.icon}?asset=icon` : undefined" :count="group.items.length" :open="treeOpen(group)" @toggle="treeExpanded[group.key]=!treeOpen(group)"><template #actions><button v-if="group.items.some(task => task.canCancel)" :disabled="!!pending" @click="cancelBranch(group.items)">{{ t('Отменить ветку') }}</button></template><InstallationTaskRow v-for="task in group.items" :key="task.id" :task="task" :busy="!!pending" @cancel="cancel" /></GameTreeBranch>
@@ -96,7 +98,7 @@ function go(value: number) { page.value = value; void refresh().then(() => { con
       <article v-for="item in otherTorrents" :key="item.hash" class="torrent-job"><div><strong>{{ item.name }}</strong><span>qBittorrent · {{ t(labels[torrentCategory(item)]) }} · {{ Math.round(item.progress * 100) }}%</span></div><button v-if="/paused|stopped/i.test(item.state)" @click="torrentAction(item, 'resume')">{{ t('Продолжить') }}</button><button @click="torrentAction(item, 'delete')">{{ t('Убрать задачу') }}</button></article>
       <p v-if="!data.items.length && !otherTorrents.length" class="task-empty">{{ t('В выбранных категориях заданий нет.') }}</p>
     </div>
-    <footer><span>{{ t('Снимите галочку, чтобы убрать пакет из очереди') }} · {{ t('Сохраняются 10 предыдущих очередей установки.') }}</span><div v-if="data.pages > 1"><button :disabled="page <= 1" @click="go(page - 1)">‹</button><span>{{ page }} / {{ data.pages }} · {{ data.total }} {{ t(data.unit === 'games' ? 'игр' : 'заданий') }}</span><button :disabled="page >= data.pages" @click="go(page + 1)">›</button></div></footer>
+    <footer><span>{{ t('Снимите галочку, чтобы убрать пакет из очереди') }} · {{ t(showHistory ? 'Показаны все попытки. Сохраняются 10 предыдущих очередей.' : 'Показана последняя попытка для каждого пакета. Предыдущие доступны в истории.') }}</span><div v-if="data.pages > 1"><button :disabled="page <= 1" @click="go(page - 1)">‹</button><span>{{ page }} / {{ data.pages }} · {{ data.total }} {{ t(data.unit === 'games' ? 'игр' : 'заданий') }}</span><button :disabled="page >= data.pages" @click="go(page + 1)">›</button></div></footer>
   </section>
 </template>
 <style scoped>

@@ -9,6 +9,7 @@ import { deviceInstallReason } from '../../shared/device-eligibility'
 import type { DeviceSelection, DeviceInstallPreview, DeviceActivity } from '../../shared/types/consoles'
 import { getInstallationQueue, getInstallationHistory, appendInstallationQueue, startInstallationQueue } from './installation-queue'
 import { getPs5Queue, getPs5TaskCounts, startPs5Queue } from './ps5-installation-queue'
+import { latestInstallationAttempts } from '../../shared/latest-installation-attempts'
 import { getTaskVisibility, taskVisibilityKey } from './task-visibility'
 import { installationTaskCategory } from '../../shared/types/tasks'
 import { getLocalIp } from './ps4-installer'
@@ -47,9 +48,11 @@ export function deviceActivities(packageIds: string[] = []): DeviceActivity[] {
     try {
       const queue = deviceQueue(profile.id)
       const counts = profile.platform === 'ps5' ? getPs5TaskCounts(profile.id) : {active:0,queued:0,completed:0,failed:0}
-      if(profile.platform==='ps4') for(const record of [queue,...getInstallationHistory(profile.ip).filter(record=>record.id!==queue.id)]) for(const item of record.items) {
-        const category=installationTaskCategory(item.state)
-        if (!hidden.has(taskVisibilityKey(record.id,item)) || !['completed','failed'].includes(category)) counts[category]++
+      if(profile.platform==='ps4') {
+        const attempts = [queue,...getInstallationHistory(profile.ip).filter(record=>record.id!==queue.id)].flatMap(record => record.items
+          .filter(item => !hidden.has(taskVisibilityKey(record.id,item)) || !['completed','failed'].includes(installationTaskCategory(item.state)))
+          .map(item => ({ ...item, psIp:profile.ip, createdAt:record.createdAt || 0 })))
+        for (const item of latestInstallationAttempts(attempts)) counts[installationTaskCategory(item.state)]++
       }
       const running = ['running','cancelling'].includes(queue.status)
       return { consoleId:profile.id, status:queue.status, queueId:queue.id, message:queue.message, counts,

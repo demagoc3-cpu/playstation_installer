@@ -7,7 +7,10 @@ import { readPackageMetadata } from './package-library'
 import { writeDurableJson } from './durable-json'
 import { beginUpdate } from './console-maintenance'
 import { ps4ServiceIp, readPs4Service } from './ps4-service'
-import { consoleRuntime } from './console-control'
+import { consoleRuntime, submitConsoleControl, getConsoleControl } from './console-control'
+import { assertNoMaintenance } from './maintenance-store'
+import { assertNoInstallation, assertNoRemoval } from './console-operation-store'
+const updateLocks = new Set<string>()
 const directory = dataPath('service-updates')
 const repository = 'demagoc3-cpu/playstation_installer'
 export const updateLimit = 25 * 1024 * 1024
@@ -106,12 +109,31 @@ export async function downloadLatestServicePackage(current: string) {
 }
 export async function installServiceArtifact(value: unknown, id: string, baseUrl: string) {
   const ip = ps4ServiceIp(value); if (!ip) throw createError({ statusCode: 400, message: 'Укажите IP PS4' })
+  if (updateLocks.has(ip)) throw createError({ statusCode: 409, message: 'Обновление этого устройства уже начинается' })
+  updateLocks.add(ip)
+  try {
+  assertNoMaintenance(ip); assertNoInstallation(ip); assertNoRemoval(ip)
   const a = serviceArtifact(id)
   if (createHash('sha256').update(readFileSync(a.path)).digest('hex') !== a.sha256) throw createError({ statusCode: 409, message: 'PKG изменился после проверки' })
   const r = await readPs4Service(ip, '/system/info'); const current = r.body as any
   if (r.status !== 200 || current?.service !== 'PackegeFlowService' || current.environment !== 'ps4' || typeof current.pkgVersion !== 'string') throw createError({ statusCode: 502, message: 'Не удалось проверить версию PS4' })
   if (comparePkgVersions(current.pkgVersion, '1.19') < 0) throw createError({ statusCode: 409, message: 'Для обновления из WEB сначала установите PKG 1.19 вручную' })
   if (comparePkgVersions(a.version, current.pkgVersion) <= 0) throw createError({ statusCode: 409, message: 'Выбранная версия уже установлена или старее текущей' })
-  if ((await consoleRuntime(ip, 'PFLS00001')).running) throw createError({ statusCode: 409, message: 'Закройте запускатель PackageFlowService на PS4 перед обновлением' })
+  const runtime = await consoleRuntime(ip, 'PFLS00001')
+  if (runtime.running) {
+    if (comparePkgVersions(current.pkgVersion, '2.03') < 0) throw createError({ statusCode: 409, message: 'Закройте интерфейс PackageFlow на PS4. Начиная с версии 2.03 он закрывается автоматически при обновлении.' })
+    const stopId = randomUUID()
+    let stopped = await submitConsoleControl(ip, { requestId: stopId, titleId: 'PFLS00001', action: 'stop', expected: (runtime.appId >>> 0).toString(16).toUpperCase().padStart(8, '0') })
+    if (!['stopped','pending','uncertain'].includes(stopped?.state))
+      throw createError({ statusCode: 409, message: 'Закрытие интерфейса ещё не подтверждено. Обновление не отправлено.' })
+    for (let n = 0; stopped?.state !== 'stopped' && n < 8; n++) {
+      await new Promise(resolve => setTimeout(resolve, 250))
+      stopped = await getConsoleControl(ip)
+      if (stopped?.requestId !== stopId || stopped.state === 'failed') break
+    }
+    if (stopped?.requestId !== stopId || stopped.state !== 'stopped' || (await consoleRuntime(ip, 'PFLS00001')).running)
+      throw createError({ statusCode: 409, message: 'Закрытие интерфейса ещё не подтверждено. Обновление не отправлено.' })
+  }
   return beginUpdate(ip, { requestId: randomUUID(), titleId: 'PFLS00001', contentId: 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00', title: `PackageFlowService ${a.version}`, url: `${baseUrl}/service-update/manifest/${id}.json`, contentType: 'PS4GDE', size: a.size }, a.version)
+  } finally { updateLocks.delete(ip) }
 }

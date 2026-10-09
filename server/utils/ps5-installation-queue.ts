@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { createError } from 'h3'
 import { dataPath } from './data-path'
+import { latestInstallationAttempts } from '../../shared/latest-installation-attempts'
+import { assertNoPs5ServiceUpdate } from './ps5-service-updates'
 import { writeDurableJson } from './durable-json'
 import { getConsoleProfile, getConsoleProfiles, probeConsoleProfile } from './console-profiles'
 import { getLibraryPackages, getPackage, markPackageInstalled } from './package-library'
@@ -44,6 +46,7 @@ export function ps5TaskPackageId(id: string, queueId: string, taskId: string) {
   return item.packageId
 }
 export async function startPs5Queue(input: { consoleId: string; packageIds?: unknown; librarySelection?: LibraryInstallationSelection; queueId?: string }) {
+  assertNoPs5ServiceUpdate(input.consoleId)
   const profile = getConsoleProfile(input.consoleId)
   if (profile.platform !== 'ps5') throw createError({ statusCode: 400, message: 'Выберите PS5' })
   const snapshot = (await probeConsoleProfile(profile.id)).consoles.find(p => p.id === profile.id)!
@@ -75,10 +78,11 @@ export function cancelPs5Queue(id: string, queueId: string, packageIds?: string[
 export function clearPs5Tasks(id: string) { runner(id).clear(); return getPs5Queue(id) }
 export function getPs5TaskCounts(id:string) {
   const q=runner(id).queue, counts:InstallationTasksPage['counts']={active:0,queued:0,completed:0,failed:0}
-  for(const entries of [q.items,...q.history]) for(const item of entries) if(!item.hidden) counts[installationTaskCategory(item.state)]++
+  const visible = latestInstallationAttempts([q.items,...q.history].flat().filter(item => !item.hidden).map(item => ({ ...item, psIp:q.psIp, createdAt:item.createdAt || q.createdAt })))
+  for(const item of visible) counts[installationTaskCategory(item.state)]++
   return counts
 }
-export function getPs5Tasks(id: string, query: { categories?: unknown; page?: unknown; view?: unknown } = {}): InstallationTasksPage {
+export function getPs5Tasks(id: string, query: { categories?: unknown; page?: unknown; view?: unknown; history?: unknown } = {}): InstallationTasksPage {
   const r = runner(id), q = r.queue, library = getLibraryPackages(q.psIp)
   const groups = new Map<string, typeof library[number]>()
   for (const pkg of library) { const key = contentBranchKey(pkg); if (!groups.has(key) || pkg.installOrder === 0) groups.set(key,pkg) }
@@ -91,10 +95,11 @@ export function getPs5Tasks(id: string, query: { categories?: unknown; page?: un
       category: installationTaskCategory(item.state), groupTitle: base?.title || item.title, groupIconId: base?.iconSize ? base.id : undefined,
       createdAt: item.createdAt || q.createdAt, transport: 'service', canCancel: index === 0 && q.status === 'running' && ps5CanCancel(item), cancelRequested: !!item.cancelRequested })
   }
-  const counts = Object.fromEntries(TASK_CATEGORIES.map(c => [c,tasks.filter(t => t.category === c).length])) as InstallationTasksPage['counts']
-  const active = tasks.filter(t => t.queueId === q.id && (t.category === 'active' || t.state === 'unconfirmed'))
+  const visibleTasks = latestInstallationAttempts(tasks, query.history)
+  const counts = Object.fromEntries(TASK_CATEGORIES.map(c => [c,visibleTasks.filter(t => t.category === c).length])) as InstallationTasksPage['counts']
+  const active = visibleTasks.filter(t => t.queueId === q.id && (t.category === 'active' || t.state === 'unconfirmed'))
   const categories = typeof query.categories === 'string' ? query.categories.split(',') : TASK_CATEGORIES
-  const tree = query.view === 'tree', filtered = tasks.filter(t => categories.includes(t.category) && (tree || !active.some(a=>a.id===t.id)))
+  const tree = query.view === 'tree', filtered = visibleTasks.filter(t => categories.includes(t.category) && (tree || !active.some(a=>a.id===t.id)))
   const branches = new Map<string, InstallationTask[]>()
   for (const task of filtered) { const key = contentBranchKey(task); const entries = branches.get(key) || []; entries.push(task); branches.set(key,entries) }
   const total = tree ? branches.size : filtered.length, pages = Math.max(1,Math.ceil(total/50)), page = Math.min(pages,Math.max(1,Math.floor(Number(query.page)||1)))

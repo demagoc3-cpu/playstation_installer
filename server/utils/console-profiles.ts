@@ -49,13 +49,15 @@ const operationMethods = {
   '/api/v1/install/staged': 'POST', '/api/v1/install/status': 'GET', '/api/v1/installer/job': 'GET',
   '/api/v1/install/readiness': 'GET',
   '/api/v1/web/config': 'POST',
+  '/api/v1/status': 'GET', '/api/v1/shutdown': 'POST',
+  '/api/v1/update/prepare': 'POST', '/api/v1/update/status': 'GET',
 } as const
 /** Fixed endpoints only. Callers cannot supply an address, credential or arbitrary path. */
 export async function ps5OperationRequest(consoleId: string, path: keyof typeof operationMethods,
   headers: Record<string, string> = {}, body?: Uint8Array, signal?: AbortSignal) {
   const profile = getConsoleProfile(consoleId), token = ps5Token(profile.ip)
   if (profile.platform !== 'ps5' || !ps4ServiceIp(profile.ip) || !token) throw createError({ statusCode: 409, message: 'Требуется сопряжение PS5' })
-  if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Offset|Installer-Job|Web-Host|Web-Port|Console-Id)$/.test(key))) throw new Error('Invalid PS5 operation')
+  if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Offset|Installer-Job|Web-Host|Web-Port|Console-Id|Update-Id)$/.test(key))) throw new Error('Invalid PS5 operation')
   const response = await fetch(`http://${profile.ip}:8095${path}`, { method: operationMethods[path],
     headers: { ...headers, Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/octet-stream' } : {}) },
     body: body as BodyInit | undefined, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) })
@@ -123,7 +125,7 @@ export async function ps5ServiceRequest(ip: string, path: '/health' | '/api/v1/c
 
 export async function probeConsoleProfile(id: unknown) {
   const profile = getConsoleProfile(id)
-  let online = false, paired = false, verified = false, version: string | undefined, firmware: string | undefined
+  let online = false, paired = false, verified = false, version: string | undefined, pkgVersion: string | undefined, firmware: string | undefined
   let capabilities = emptyCapabilities()
   let freeBytes: number | undefined
   try {
@@ -138,6 +140,7 @@ export async function probeConsoleProfile(id: unknown) {
       paired = status.paired === true
       capabilities = { formats: status.ready ? ['pkg'] : [], installPs4: status.ready, installPs5: false, background: false, contentTypes:status.contentTypes }
       const system = await getPs4SystemSnapshot(profile.ip)
+      pkgVersion = system.pkgVersion || undefined
       firmware = system.system?.firmware || undefined
       freeBytes = system.storage?.find(volume => volume.available && volume.path === '/user')?.availableBytes ?? undefined
     } else {
@@ -163,7 +166,7 @@ export async function probeConsoleProfile(id: unknown) {
   } catch { /* A stored token is not proof that the current service accepts it. */ }
   const latest = store(), current = latest.consoles.find(item => item.id === profile.id)
   if (!current || current.ip !== profile.ip || current.platform !== profile.platform) return getConsoleProfiles()
-  if (verified) { current.verified = true; current.version = version; current.firmware = firmware; writeJsonFile(profilePath(), latest) }
+  if (verified) { current.verified = true; current.version = version; current.pkgVersion = pkgVersion; current.firmware = firmware; writeJsonFile(profilePath(), latest) }
   snapshots.set(profile.id, { online, paired, capabilities, freeBytes, checkedAt: Date.now() })
   return getConsoleProfiles()
 }

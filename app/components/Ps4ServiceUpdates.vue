@@ -29,7 +29,7 @@ onBeforeUnmount(() => { generation++; controller?.abort() })
 <template>
   <div class="ps4-service-updates">
     <p class="device">{{ name }} · PS4 {{ ip }}</p>
-    <p class="hint">{{ t('Для обновления закройте интерфейс приложения на PS4. Фоновый сервис должен продолжать работать.') }}</p>
+    <p class="hint">{{ t('Начиная с PKG 2.03 интерфейс PackageFlow закрывается автоматически при обновлении. Фоновая служба остаётся доступной до замены.') }}</p>
     <ServiceUpdates :key="ip" :ip="ip" :current="current" @changed="refresh" />
     <p v-if="message" role="alert">{{ t(message) }}</p>
   </div>

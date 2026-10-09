@@ -81,7 +81,8 @@ test('mixed library keeps platform, console installation and transfer state sepa
       if (path === '/install/session') return response(cap)
       if (path === '/install/jobs' && options.method === 'POST') {
         const body = JSON.parse(options.body)
-        assert.equal(new URL(body.url).searchParams.get('console'), ip)
+        assert.equal(new URL(body.url).pathname, `/ps4/manifest/${ip}/ps4-test.json`)
+        assert.equal(new URL(body.url).search, '')
         posts.set(ip, (posts.get(ip) || 0) + 1)
         const job = { service: cap.service, jobId: body.requestId, requestId: body.requestId, contentId: body.contentId, taskId: 43, state: 'downloading', totalBytes: 1024, downloadedBytes: 1, downloadTotalBytes: 1024, error: 0, errorHex: '0x00000000', pollError: 0 }
         jobs.set(ip, job); return response(job)

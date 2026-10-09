@@ -19,6 +19,7 @@ export interface ConsoleProfile {
   platform: ConsolePlatform
   verified: boolean
   version?: string
+  pkgVersion?: string
   firmware?: string
   model?: string
   transport?: 'service' | 'payload'

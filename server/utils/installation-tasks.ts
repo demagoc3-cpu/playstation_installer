@@ -1,9 +1,10 @@
 import { getInstallationQueue, getInstallationHistory } from './installation-queue'
 import { getTaskVisibility, taskVisibilityKey } from './task-visibility'
 import { getLibraryPackages } from './package-library'
+import { latestInstallationAttempts } from '../../shared/latest-installation-attempts'
 import { installationTaskCategory, installationTaskGroupKey, TASK_CATEGORIES, type InstallationTask, type TaskCategory } from '../../shared/types/tasks'
 
-export function getInstallationTasks(query: { categories?: unknown; page?: unknown; view?: unknown; ip?: string } = {}) {
+export function getInstallationTasks(query: { categories?: unknown; page?: unknown; view?: unknown; history?: unknown; ip?: string } = {}) {
   const visibility = getTaskVisibility(), hidden = new Set(visibility.hidden)
   const current = getInstallationQueue(query.ip)
   const history = getInstallationHistory(query.ip).filter(queue => queue.id !== current.id)
@@ -25,7 +26,6 @@ export function getInstallationTasks(query: { categories?: unknown; page?: unkno
     const titleId = item.titleId || pkg?.titleId || ''
     const branch = branches.get(titleId)
     const category = installationTaskCategory(item.state)
-    counts[category]++
     tasks.push({ id: `${queue.id}:${item.packageId}`, queueId: queue.id || '', packageId: item.packageId, psIp: queue.psIp || '',
       title: item.title || pkg?.title || item.packageId, fileName: item.fileName || pkg?.fileName || item.packageId,
       type: item.type || pkg?.type || 'PKG', size: item.size ?? pkg?.size ?? 0, state: item.state, category,
@@ -36,12 +36,14 @@ export function getInstallationTasks(query: { categories?: unknown; page?: unkno
       canCancel: queue.id === current.id && !queue.maintenanceId && ['active', 'queued'].includes(category) &&
         (queue.status === 'running' || (queue.status === 'failed' && item.state === 'pending' && !item.serviceDispatchedAt)) })
   }
-  const active = tasks.filter(task => task.queueId === current.id && ['running', 'cancelling'].includes(current.status) && task.category === 'active')
+  const visibleTasks = latestInstallationAttempts(tasks, query.history)
+  for (const task of visibleTasks) counts[task.category]++
+  const active = visibleTasks.filter(task => task.queueId === current.id && ['running', 'cancelling'].includes(current.status) && task.category === 'active')
   const pinned = new Set(active.map(task => task.id))
   const requested = typeof query.categories === 'string' ? query.categories.split(',') : TASK_CATEGORIES
   const categories = new Set(requested.filter(category => TASK_CATEGORIES.includes(category as TaskCategory)))
   const tree = query.view === 'tree'
-  const filtered = tasks.filter(task => (tree || !pinned.has(task.id)) && categories.has(task.category))
+  const filtered = visibleTasks.filter(task => (tree || !pinned.has(task.id)) && categories.has(task.category))
     .sort((a, b) => TASK_CATEGORIES.indexOf(a.category) - TASK_CATEGORIES.indexOf(b.category) || b.createdAt - a.createdAt)
   const groups = new Map<string, InstallationTask[]>()
   if (tree) for (const task of filtered) {
