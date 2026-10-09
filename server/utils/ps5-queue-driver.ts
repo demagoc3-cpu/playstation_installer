@@ -5,7 +5,9 @@ import { createFolderPlan, verifyFolderSource, runFolderPlan, cancelFolderPlan, 
 import { ps5BaseRegistration } from './ps5-registration'
 import { open } from 'node:fs/promises'
 import { ps5SendChunks } from './ps5-send-chunks'
-import { ps5SourceHash, ps5SourceStamp as stamp } from './ps5-source-hash'
+import { ps5SourceStamp as stamp } from './ps5-source-hash'
+import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache'
+import { seedPs5SourceHashHistory } from './ps5-source-hash-history'
 import { getPackage } from './package-library'
 import { ps5OperationRequest } from './console-profiles'
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core'
@@ -67,7 +69,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
           writeDurableJson(planPath(item), plan)
         }
         save({ hash: plan.manifestHash, bytesChecked: item.size })
-        return runFolderPlan(plan, item, signal, folderRequest, save)
+        return runFolderPlan(plan, item, signal, folderRequest, save, capabilities.folder?.verificationWindow)
       }
       // An intent is durably recorded BEFORE dispatch. Recovery never submits it again.
       if (item.installDispatched) {
@@ -108,9 +110,12 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
         if (!initial.isFile() || initial.size !== item.size || item.sourceStamp && item.sourceStamp !== identity) throw new Ps5QueueFailure('Исходный файл изменился; передача остановлена')
         if (!item.hash) {
           save({ state: 'verifying', progressPhase: 'source-check', bytesChecked: 0, detail: 'Проверяем целостность исходного пакета' })
+          const cache = new Ps5SourceHashCache(source.path)
+          await seedPs5SourceHashHistory(cache, signal, item.packageId)
           let hash: string
-          try { hash = await ps5SourceHash(file, initial.size, identity, signal, bytesChecked => save({ bytesChecked })) }
+          try { hash = await cachedPs5SourceHash(cache, '.', file, initial.size, identity, signal, bytesChecked => save({ bytesChecked })) }
           catch (error) { signal.throwIfAborted(); throw new Ps5QueueFailure(error instanceof Error ? error.message : 'Проверка исходного пакета не завершилась') }
+          finally { cache.flush() }
           save({ hash, sourceStamp: identity, bytesChecked: initial.size })
         }
         let response = await request(item, '/api/v1/transfers/begin', { 'X-PackageFlow-Size': String(item.size), 'X-PackageFlow-Blake3': item.hash! }, undefined, signal)

@@ -39,10 +39,12 @@ export class Ps5QueueRunner {
   constructor(readonly queue: Ps5Queue, private persist: (queue: Ps5Queue) => void,
     private driver: Ps5Driver, private interval = 2000, private installed: (item: Ps5Item) => void = () => {}, clock?: () => number) { this.speed = new TransferSpeed(clock) }
   private save() { this.queue.updatedAt = Date.now(); this.persist(this.queue) }
+  private transmissionActive(item: Ps5Item) {
+    return item.state === 'sending' && item.progressPhase === 'transfer' || item.format === 'folder' && item.state === 'verifying' && item.progressPhase === 'device-check' && item.bytesSent < item.size
+  }
   transferTelemetry(item: Ps5Item) {
-    if (item !== this.activeItem || item.state !== 'sending' || item.progressPhase !== 'transfer') return {}
-    const transferBytesPerSecond = this.speed.read()
-    return transferBytesPerSecond === undefined ? {} : { transferBytesPerSecond, transferMeasuredAt: this.speedUpdatedAt }
+    if (item !== this.activeItem || !this.transmissionActive(item)) return {}
+    return { transferBytesPerSecond: this.speed.read() ?? 0, transferMeasuredAt: this.speedUpdatedAt || Date.now() }
   }
   snapshot() { return structuredClone(this.queue) }
   enqueue(items: Omit<Ps5Item, 'transferId' | 'state' | 'detail' | 'bytesSent'>[], queueId?: string) {
@@ -115,7 +117,7 @@ export class Ps5QueueRunner {
         // A read-only poll that began before the human receipt cannot undo it.
         if (item.confirmation === 'user') return
         Object.assign(item, patch)
-        if (item.state !== 'sending' || item.progressPhase !== 'transfer') this.speed.reset()
+        if (!this.transmissionActive(item)) this.speed.reset()
         else if (patch.bytesSent !== undefined) { this.speed.observe(item.bytesSent); this.speedUpdatedAt = Date.now() }
         // Byte offsets are already durable on PS5. Coalesce only WEB progress;
         // dispatch intents, hashes and state transitions always fsync immediately.

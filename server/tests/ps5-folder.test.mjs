@@ -60,3 +60,54 @@ test('Folder admission is independent of PKG; untested firmware and malformed re
   assert.deepEqual(api.ps5InstallCapabilities(503, body, '13.60').formats, [])
 })
 test.after(async () => { await rm(temp, { recursive: true, force: true }) })
+
+test('negotiated pipeline uploads the next file while verifying, bounds pending checks and gates publication', async () => {
+  const { root, item } = await fixture('pipeline')
+  for (const name of ['a', 'b', 'c']) { await writeFile(join(root, name), name); item.size++ }
+  const p = await api.createFolderPlan(root, item, signal, () => {}), files = p.entries.filter(e => !e.dir && e.size)
+  const transfers = new Map(), gates = new Map(), begun = [], published = []
+  const request = async (id, path, headers = {}, bytes) => {
+    let t = transfers.get(id)
+    if (path.endsWith('/begin')) { begun.push(id); t = { id, size: +headers['X-PackageFlow-Size'], blake3: headers['X-PackageFlow-Blake3'], bytesDurable: 0, cancelled: false, verified: false, chunkMax: 262144 }; transfers.set(id, t) }
+    if (path.endsWith('/chunk')) { assert.equal(+headers['X-PackageFlow-Offset'], t.bytesDurable); t.bytesDurable += bytes.length }
+    if (path === '/api/v1/transfers/commit') {
+      if (id === files[0].id || id === files[1].id) { let release; const wait = new Promise(r => { release = r }); gates.set(id, { wait, release }); return { status: 202, body: {} } }
+      t.verified = true
+    }
+    if (path === '/api/v1/operations/status') { await gates.get(id).wait; t.verified = true; return { status: 200, body: { id, phase: 'verifying', running: false, status: 200, result: t } } }
+    if (path === '/api/v1/folder/commit') { assert.ok([...transfers.values()].every(t => t.verified)); published.push(id); return { status: 202, body: {} } }
+    return { status: 200, body: t }
+  }
+  const work = api.runFolderPlan(p, item, signal, request, patch => Object.assign(item, patch), 2)
+  for (let i = 0; gates.size < 2 && i < 1000; i++) await new Promise(r => setImmediate(r))
+  assert.equal(gates.size, 2, 'second file is uploaded before first verification finishes')
+  assert.deepEqual(begun, [files[0].id, files[1].id], 'a third pending file is blocked by the bounded window')
+  assert.equal(item.state, 'sending'); assert.equal(item.installDispatched, undefined); assert.deepEqual(published, [])
+  for (const gate of gates.values()) gate.release()
+  await work; assert.deepEqual(published, [p.id]); assert.equal(item.bytesSent, item.size)
+})
+
+test('a background hash failure stops further sending and never publishes a partial folder', async () => {
+  const { root, item } = await fixture('pipeline-failed'), p = await api.createFolderPlan(root, item, signal, () => {})
+  const transfers = new Map(); let release, published = false
+  const failed = new Promise(resolve => { release = resolve })
+  const request = async (id, path, headers = {}, bytes, requestSignal) => {
+    let t = transfers.get(id)
+    if (path.endsWith('/begin')) { t = { id, size: +headers['X-PackageFlow-Size'], blake3: headers['X-PackageFlow-Blake3'], bytesDurable: 0, cancelled: false, verified: false, chunkMax: 262144 }; transfers.set(id, t) }
+    if (path.endsWith('/chunk')) { if (transfers.size > 1) { release(); await new Promise(r => setImmediate(r)); requestSignal.throwIfAborted() }; t.bytesDurable += bytes.length }
+    if (path === '/api/v1/transfers/commit') return { status: 202, body: {} }
+    if (path === '/api/v1/operations/status') { await failed; return { status: 200, body: { id, phase: 'verifying', running: false, status: 422 } } }
+    if (path === '/api/v1/folder/commit') published = true
+    return { status: 200, body: t }
+  }
+  await assert.rejects(api.runFolderPlan(p, item, signal, request, patch => Object.assign(item, patch), 2), /BLAKE3/)
+  assert.equal(published, false); assert.equal(transfers.has(p.id), false); assert.equal(item.installDispatched, undefined)
+})
+
+test('local publication reports preparation bytes without counting them as network transfer', async () => {
+  const { root, item } = await fixture('publication-progress'), p = await api.createFolderPlan(root, item, signal, () => {})
+  item.installDispatched = true
+  const request = async (id, path) => path === '/api/v1/folder/status' ? { status: 404, body: {} } : { status: 200, body: { id, phase: 'publishing-folder', running: true, status: 202, result: { bytesPrepared: 350000, bytesTotal: p.total } } }
+  const r = await api.runFolderPlan(p, item, signal, request, () => assert.fail('must not transfer or redispatch'))
+  assert.equal(r.state, 'installing'); assert.match(r.detail, /Подготавливаем/); assert.equal(r.bytesSent, undefined)
+})

@@ -23,8 +23,8 @@ test('live acknowledged throughput excludes resume offsets, stalls and previous 
     time = 4000; assert.equal(speed.read(), 10 * 1024 ** 2, 'elapsed time includes pauses')
     time = 8000; assert.equal(speed.read(), 0, 'stalled transfer is zero')
     speed.observe(8 * 1024 ** 3 + 44 * 1024 ** 2)
-    assert.equal(speed.read(), undefined, 'a new observation after a long outage starts a fresh window')
-    time = 9000; speed.observe(8 * 1024 ** 3 + 64 * 1024 ** 2); assert.equal(speed.read(), 20 * 1024 ** 2)
+    assert.equal(speed.read(), 4 * 1024 ** 2 / 6, 'a verification pause remains part of total throughput')
+    time = 9000; speed.observe(8 * 1024 ** 3 + 64 * 1024 ** 2); assert.equal(speed.read(), 24 * 1024 ** 2 / 7)
     speed.observe(0); assert.equal(speed.read(), undefined, 'rollback cannot generate a negative rate')
     speed.reset(); assert.equal(speed.read(), undefined)
     const task = { state: 'sending', progressPhase: 'transfer', transferBytesPerSecond: 20 * 1024 ** 2, transferMeasuredAt: 10000 }
@@ -94,7 +94,7 @@ test('runner publishes live speed only for its active transmission, without pers
     }, 5, () => {}, () => time)
     runner.enqueue([{ packageId: 'one', title: 'one', fileName: 'one.pkg', size: 1000, type: 'Игра', titleId: 'PPSA95001', platform: 'ps5', format: 'pkg', branch: 'ps5:PPSA95001', order: 0 }])
     const item = queue.items[0]
-    assert.deepEqual(runner.transferTelemetry(item), {})
+    assert.equal(runner.transferTelemetry(item).transferBytesPerSecond, 0)
     time = 1000; save({ bytesSent: 200 })
     assert.equal(runner.transferTelemetry(item).transferBytesPerSecond, 100)
     assert.deepEqual(runner.transferTelemetry({ ...item }), {}, 'another task cannot inherit the rate')
@@ -103,5 +103,27 @@ test('runner publishes live speed only for its active transmission, without pers
     save({ state: 'verifying', progressPhase: 'device-check' }); assert.deepEqual(runner.transferTelemetry(item), {})
     release(); await runner.settled(); assert.deepEqual(runner.transferTelemetry(item), {})
     assert.equal(queue.status, 'completed')
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('folder speed remains visible through an intermediate check and stops at final verification', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pf-folder-speed-'))
+  try {
+    const out = join(dir, 'test.mjs')
+    await build({ stdin: { contents: `export * from './server/utils/ps5-queue-core'; export * from './shared/types/tasks'`, resolveDir: resolve('.') }, outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent' })
+    const { Ps5QueueRunner, ps5BlankQueue, installationTaskSpeed } = await import(pathToFileURL(out).href)
+    let time = 0, save, release
+    const queue = ps5BlankQueue('folder', '192.0.2.1')
+    const runner = new Ps5QueueRunner(queue, () => {}, {
+      async run(item, signal, checkpoint) { save = checkpoint; save({ state: 'sending', progressPhase: 'transfer', bytesSent: 0 }); await new Promise(r => { release = r }); return { state: 'installed' } }, async cancel() {},
+    }, 5, () => {}, () => time)
+    runner.enqueue([{ packageId: 'folder', title: 'folder', fileName: 'folder', size: 1000, type: 'Игра', titleId: 'PPSA95001', platform: 'ps5', format: 'folder', branch: 'ps5:PPSA95001', order: 0 }])
+    const item = queue.items[0]
+    time = 1000; save({ bytesSent: 200 }); const rate = runner.transferTelemetry(item).transferBytesPerSecond
+    save({ state: 'verifying', progressPhase: 'device-check' }); assert.equal(runner.transferTelemetry(item).transferBytesPerSecond, rate)
+    assert.equal(installationTaskSpeed({ ...item, ...runner.transferTelemetry(item) }), rate)
+    time = 4000; save({ state: 'sending', progressPhase: 'transfer', bytesSent: 400 }); assert.equal(runner.transferTelemetry(item).transferBytesPerSecond, 100, 'elapsed verification pause is counted')
+    save({ state: 'verifying', progressPhase: 'device-check', bytesSent: 1000 }); assert.deepEqual(runner.transferTelemetry(item), {})
+    release(); await runner.settled()
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })

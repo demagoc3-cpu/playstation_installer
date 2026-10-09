@@ -6,7 +6,7 @@ export class TransferSpeed {
   observe(bytes: number) {
     const time = this.clock(), last = this.samples.at(-1)
     if (!Number.isSafeInteger(bytes) || bytes < 0) { this.reset(); return }
-    if (last && (bytes < last.bytes || time < last.time || time - last.time > 5000)) this.reset()
+    if (last && (bytes < last.bytes || time < last.time)) this.reset()
     if (this.samples.at(-1)?.bytes === bytes) return
     this.samples.push({ time, bytes })
     // Keep the point immediately before the rolling five-second window.

@@ -9,7 +9,7 @@ export interface ConsoleCapabilities {
   installPs5: boolean
   background: boolean
   contentTypes?: string[]
-  folder?: { route: 'staged-folder'; ready: true }
+  folder?: { route: 'staged-folder'; ready: true; verificationWindow?: 2 }
   installation?: { route: 'staged-pkg'; ready: boolean; reason: string; exactVersionReceipt: false }
 }
 

@@ -37,6 +37,7 @@ export function installationTaskStateLabel(task: InstallationTask) {
 
 /** Hide an old response after a lost WEB connection; checking/installing is not transmission. */
 export function installationTaskSpeed(task: InstallationTask, now = Date.now()) {
-  if (task.state !== 'sending' || task.progressPhase !== 'transfer' || !Number.isFinite(task.transferBytesPerSecond) || task.transferBytesPerSecond! < 0 || !task.transferMeasuredAt) return undefined
+  const transmitting = task.state === 'sending' && task.progressPhase === 'transfer' || task.format === 'folder' && task.state === 'verifying' && task.progressPhase === 'device-check' && task.bytesSent < task.size
+  if (!transmitting || !Number.isFinite(task.transferBytesPerSecond) || task.transferBytesPerSecond! < 0 || !task.transferMeasuredAt) return undefined
   return now - task.transferMeasuredAt > 5000 ? 0 : task.transferBytesPerSecond
 }

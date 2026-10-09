@@ -27,7 +27,7 @@ export function ps5InstallCapabilities(status: number, body: any, firmware?: str
   const ready = reason === 'ready'
   const folder = status === 200 && firmware === '13.60' && body?.service === 'PackageFlowService-PS5' && body.schemaVersion === 1 && body.folder?.schemaVersion === 1 && body.folder.route === 'staged-folder' && body.folder.ready === true && JSON.stringify(body.folder.platforms) === '[\"ps5\"]'
   return { formats: [...(ready ? ['pkg' as const] : []), ...(folder ? ['folder' as const] : [])], installPs4: platforms.includes('ps4'), installPs5: platforms.includes('ps5') || folder, background: false,
-    ...(folder ? { folder: { route: 'staged-folder' as const, ready: true as const } } : {}),
+    ...(folder ? { folder: { route: 'staged-folder' as const, ready: true as const, ...(body.folder.verificationWindow === 2 ? { verificationWindow: 2 as const } : {}) } } : {}),
     installation: { route: 'staged-pkg', ready, reason, exactVersionReceipt: false } }
 }
 
