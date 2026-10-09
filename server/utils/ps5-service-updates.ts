@@ -6,7 +6,7 @@ import { createError } from 'h3'
 import { dataPath } from './data-path'
 import { writeDurableJson } from './durable-json'
 import { getConsoleProfile, ps5OperationRequest, ps5ServiceRequest } from './console-profiles'
-import { runPs5ServiceUpdate, type Ps5ServiceUpdateFlow, type UpdateConnection } from './ps5-service-update-driver'
+import { runPs5ServiceUpdate, ps5ServiceUpdateReceipt, type Ps5ServiceUpdateFlow, type UpdateConnection } from './ps5-service-update-driver'
 
 const running = new Set<string>()
 const folder = () => dataPath('ps5-service-updates')
@@ -49,8 +49,18 @@ function loader(ip: string): Promise<UpdateConnection> {
     socket.once('close', () => clearTimeout(timer))
   })
 }
-export function ps5ServiceUpdateInfo(id: unknown) {
+export async function ps5ServiceUpdateInfo(id: unknown) {
   const p = profile(id), candidate = release(), flow = saved(p.id)
+  // After a timeout or WEB restart, a GET can confirm the exact new process.
+  // It never repeats preparation, shutdown or payload delivery.
+  if (flow && flow.ip === p.ip && !running.has(p.id) && ['stopping','sending','verifying','unconfirmed'].includes(flow.state)) {
+    try {
+      if (ps5ServiceUpdateReceipt(flow, await ps5OperationRequest(p.id, '/api/v1/status'))) {
+        flow.state = 'completed'; flow.message = `Обновление подтверждено: сервис ${flow.version}`
+        writeDurableJson(flowFile(p.id), flow)
+      }
+    } catch { /* Preserve the unresolved journal until an authenticated receipt arrives. */ }
+  }
   return { consoleId: p.id, current: p.version || '', release: candidate ? { version: candidate.version, buildId: candidate.buildId, sha256: candidate.sha256, firmware: candidate.firmware } : null,
     flow, message: candidate ? 'Подготовлено обновление фоновой службы PS5' : 'На этом WEB пока нет проверенного обновления службы PS5' }
 }

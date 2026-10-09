@@ -20,6 +20,10 @@ function validHealth(reply: { status: number; body: any }) {
 function versionParts(value: unknown): number[] | null {
   return typeof value === 'string' && /^\d+\.\d+\.\d+(?:-dev)?$/.test(value) ? value.split('-')[0]!.split('.').map(Number) : null
 }
+export function ps5ServiceUpdateReceipt(flow: Ps5ServiceUpdateFlow, reply: { status: number; body: any }) {
+  return Number.isInteger(flow.previousPid) && validHealth(reply) && reply.body.pid !== flow.previousPid
+    && reply.body.serviceReport.version === flow.version && reply.body.serviceReport.buildId === flow.buildId
+}
 /** Explicit update intent only. Any lost shutdown/upload reply stops the flow; GETs never resend. */
 export async function runPs5ServiceUpdate(flow: Ps5ServiceUpdateFlow, bytes: Uint8Array, driver: Ps5ServiceUpdateDriver) {
   let loader: UpdateConnection | undefined
@@ -73,7 +77,7 @@ export async function runPs5ServiceUpdate(flow: Ps5ServiceUpdateFlow, bytes: Uin
       await driver.pause()
       try {
         const current = await driver.request('/api/v1/status')
-        if (validHealth(current) && current.body.pid !== flow.previousPid && current.body.serviceReport.version === flow.version && current.body.serviceReport.buildId === flow.buildId) {
+        if (ps5ServiceUpdateReceipt(flow, current)) {
           save('completed', `Обновление подтверждено: сервис ${flow.version}`); return
         }
       } catch { /* Read-only receipt polls; neither payload nor shutdown is repeated. */ }
