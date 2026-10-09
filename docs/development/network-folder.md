@@ -32,4 +32,23 @@ and must survive closing the UI; their lifecycle cannot silently interrupt a
 running game. Reuse paired authentication for future control APIs. Credentials
 and console logs stay outside Git.
 
-Current status: feasibility investigation; no network mount backend deployed.
+## First console gate
+
+Two independent diagnostic ELFs ran on the confirmed PS5 13.60. Standard VFS
+enumeration was unavailable (ENOENT); this is an unknown list, not proof that
+the firmware contains no driver. A separate negative mount-parameter test gave
+EINVAL for the nullfs control, and ENODEV for nfs/fusefs and an unknown-type
+control. No mount succeeded; the temporary owned directory was removed; the
+existing service009 remained running. Host fixtures and SDK builds passed.
+
+Direct NFS/FUSE attachment is unavailable in this tested session. A verified
+console network-VFS driver/activation path is required before a WEB mount
+action can be implemented. Do not show a successful installation or a ready
+network-play capability based on PC/NAS access. No production WEB runtime or
+native UI was changed for this experiment.
+
+The ELF implementation and next gates are in the PS5 repository's
+`docs/network-folder.md` and `experiments/network-folder`. Private console
+reports remain outside Git. No actual NAS-backed game launch is verified.
+
+Current status: driver gate unresolved; no network mount backend deployed.
