@@ -29,11 +29,11 @@ test('Folder resumes durable offset after lost reply, publishes once, and requir
     if (path === '/api/v1/folder/status') return published ? { status: 200, body: { id, title: p.title, proof: 'folder-registration', state: registered ? 'registered' : 'published', manifestHash: p.manifestHash, metadataHash: p.metadataHash } } : { status: 404, body: {} }
     return { status: 200, body: t }
   }
-  const save = patch => Object.assign(item, patch)
+  const phases = []; const save = patch => { if (patch.progressPhase) phases.push(patch.progressPhase); Object.assign(item, patch) }
   await assert.rejects(api.runFolderPlan(p, item, signal, request, save), /lost/)
   assert.equal(published, false); assert.equal(item.installDispatched, undefined)
   await api.runFolderPlan(p, item, signal, request, save)
-  assert.equal(offsets[1], 262144, 'durable chunk is not resent'); assert.equal(item.bytesSent, item.size); assert.equal(publishCount, 1)
+  assert.equal(offsets[1], 262144, 'durable chunk is not resent'); assert.equal(item.bytesSent, item.size); assert.equal(publishCount, 1); assert.ok(phases.includes('device-check'), 'device verification must not be labelled as transfer')
   assert.equal((await api.runFolderPlan(p, item, signal, request, save)).state, 'installing'); assert.equal(publishCount, 1)
   registered = true; const result = await api.runFolderPlan(p, item, signal, request, save)
   assert.equal(result.state, 'installed'); assert.equal(result.confirmation, 'service-registration')

@@ -27,6 +27,7 @@ export function installationTaskProgress(task: InstallationTask) {
   return task.size ? Math.max(0, Math.min(100, bytes / task.size * 100)) : 0
 }
 export function installationTaskStateLabel(task: InstallationTask) {
+  if (task.progressPhase === 'device-check' && task.state === 'verifying') return 'Проверка на PS5'
   if (task.progressPhase === 'source-check' && task.state === 'verifying') return 'Проверка исходного файла'
   if (task.platform === 'ps5' && task.state === 'waiting') return 'Ожидание PS5'
   if (task.platform === 'ps5' && task.state === 'receiving') return 'Загрузка на PS5'

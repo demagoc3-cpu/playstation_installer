@@ -64,7 +64,7 @@ export async function createFolderPlan(root: string, item: Ps5Item, signal: Abor
   if (list.find(e => e.path === 'sce_sys/param.json')!.hash !== p.metadataHash) fail('Метаданные Folder изменились во время проверки')
   p.manifestHash = await digest(folderManifest(p)); await verifyFolderSource(p, item, root, signal); progress(total); return p
 }
-async function upload(id: string, size: number, hash: string, read: (buffer: Buffer, position: number) => Promise<number>, signal: AbortSignal, request: FolderRequest, progress: (bytes: number) => void) {
+async function upload(id: string, size: number, hash: string, read: (buffer: Buffer, position: number) => Promise<number>, signal: AbortSignal, request: FolderRequest, progress: (bytes: number) => void, checking: () => void = () => {}) {
   let r = await request(id, '/api/v1/transfers/begin', { 'X-PackageFlow-Size': String(size), 'X-PackageFlow-Blake3': hash }, undefined, signal)
   if (r.status === 409) r = await request(id, '/api/v1/transfers/status', {}, undefined, signal)
   const valid = (r: any) => r?.id === id && r.size === size && r.blake3 === hash && r.cancelled === false && Number.isSafeInteger(r.bytesDurable) && r.bytesDurable >= 0 && r.bytesDurable <= size
@@ -79,6 +79,7 @@ async function upload(id: string, size: number, hash: string, read: (buffer: Buf
     offset += n; progress(offset)
   }
   if (r.body.verified) return
+  checking()
   r = await request(id, '/api/v1/transfers/commit', {}, undefined, signal)
   if (r.status === 409) throw new Error('Root worker busy')
   if (![200, 202].includes(r.status)) fail('Проверка файла Folder не началась')
@@ -116,6 +117,7 @@ export async function runFolderPlan(p: FolderPlan, item: Ps5Item, signal: AbortS
     let sent = 0; save({ state: 'sending', progressPhase: 'transfer', detail: 'Передаём файлы Folder на PS5 с докачкой', bytesSent: 0 })
     for (const e of p.entries) {
       if (e.dir || e.size === 0) continue
+      save({ state: 'sending', progressPhase: 'transfer', detail: 'Передаём файлы Folder на PS5 с докачкой' })
       const f = await open(join(p.root, e.path), 'r')
       try {
         if (ps5SourceStamp(await f.stat()) !== e.stamp) fail('Файл Folder изменился')
@@ -123,7 +125,7 @@ export async function runFolderPlan(p: FolderPlan, item: Ps5Item, signal: AbortS
           const result = await f.read(buffer, 0, buffer.length, position)
           if (ps5SourceStamp(await f.stat()) !== e.stamp) fail('Файл Folder изменился во время передачи')
           return result.bytesRead
-        }, signal, request, n => save({ bytesSent: sent + n }))
+        }, signal, request, n => save({ bytesSent: sent + n }), () => save({ state: 'verifying', progressPhase: 'device-check', detail: 'PS5 проверяет переданный файл Folder' }))
       } finally { await f.close() }
       sent += e.size
     }
