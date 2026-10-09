@@ -26,7 +26,9 @@ select a protocol when adding a source. No NAS vendor or DSM API is required.
   and active file transfers. These checks read saved queues, without starting
   queue workers or asking a console to perform any action.
 - Sources are displayed in a compact table with protocol, status, package count,
-  size, last index time and row actions. Less common actions are under More.
+  size and last index time. All row actions are in one styled dropdown menu.
+  Detailed status/errors appear in a framed hover/focus popover, without expanding rows.
+  Dropdown supports keyboard arrows, Home/End, Escape and outside-click dismissal.
 - Add and Edit open a native modal dialog with keyboard focus containment,
   Escape/Cancel/close controls and per-dialog errors. The storage list stays in place.
 - Library and Settings link to Storage. qBittorrent chooses an existing enabled
