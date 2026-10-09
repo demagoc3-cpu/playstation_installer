@@ -8,7 +8,7 @@ import { assertNoPs5ServiceUpdate } from './ps5-service-updates'
 interface UiRelease { titleId: string; version: string; metadataHash: string }
 interface Launch { requestId: string; titleId: string; version: string; metadataHash: string; startedAt: number; state: 'intent' | 'accepted' | 'running' | 'closed' | 'failed' | 'unconfirmed'; code?: string }
 const pending = new Set<string>()
-function release(): UiRelease | null {
+export function ps5AppRelease(): UiRelease | null {
   try {const r=JSON.parse(readFileSync(dataPath('ps5-ui-release.json'),'utf8'));if(!/^PPSA95\d{3}$/.test(r.titleId)||r.titleId==='PPSA95000'||!/^\d{2}\.\d{3}\.\d{3}$/.test(r.version)||! /^[0-9a-f]{64}$/.test(r.metadataHash))throw Error();return {titleId:r.titleId,version:r.version,metadataHash:r.metadataHash}}
   catch {return null}
 }
@@ -20,10 +20,10 @@ function saved(id:string):Launch | null {
   catch {throw createError({statusCode:503,message:'Не удалось прочитать результат запуска. Повтор не отправлен'})}
 }
 export async function ps5AppLaunchInfo(id:unknown) {
-  const p=profile(id),target=release();let flow=saved(p.id),available=false,running=false
+  const p=profile(id),target=ps5AppRelease();let flow=saved(p.id),available=false,running=false,canStop=false
   try {
-    const status=await ps5OperationRequest(p.id,'/api/v1/app/status')
-    available=status.status===200 && status.body.available===true;running=available && status.body.running===true
+    const status=await ps5OperationRequest(p.id,'/api/v1/app/status',target ? {'X-PackageFlow-UI-Title':target.titleId} : {})
+    canStop=status.status===200 && status.body.canStop===true;available=status.status===200 && status.body.available===true && typeof status.body.running==='boolean';running=available && status.body.running===true
     if(flow && available) {
       const receipt=await ps5OperationRequest(p.id,'/api/v1/app/status',{'X-PackageFlow-Request-Id':flow.requestId})
       if(receipt.status===200 && receipt.body.requestId===flow.requestId && receipt.body.titleId===flow.titleId) {
@@ -34,14 +34,14 @@ export async function ps5AppLaunchInfo(id:unknown) {
       } else if(!pending.has(p.id) && ['intent','accepted'].includes(flow.state) && Date.now()-flow.startedAt>30000) {flow={...flow,state:'unconfirmed'};writeDurableJson(path(p.id),flow)}
     }
   } catch { /* A status read never launches anything. */ }
-  return {consoleId:p.id,release:target ? {titleId:target.titleId,version:target.version} : null,available,running,flow,message:flow?.state==='failed'?`PS5 отклонила запуск (${flow.code || 'без кода'})`:flow?.state==='unconfirmed'?'Результат запуска неизвестен; повтор не отправлен':!target?'Кандидат приложения ещё не подготовлен':!available?'Обновите службу PS5 для запуска приложения из WEB':running?'PackageFlow запущен':'Приложение можно запустить из WEB'}
+  return {consoleId:p.id,release:target ? {titleId:target.titleId,version:target.version} : null,available,running,canStop,flow,message:flow?.state==='failed'?`PS5 отклонила запуск (${flow.code || 'без кода'})`:flow?.state==='unconfirmed'?'Результат запуска неизвестен; повтор не отправлен':!target?'Кандидат приложения ещё не подготовлен':!available?'Обновите службу PS5 для запуска приложения из WEB':running?'PackageFlow запущен':'Приложение можно запустить из WEB'}
 }
 export async function launchPs5App(id:unknown) {
   const p=profile(id);assertNoPs5ServiceUpdate(p.id)
   if(pending.has(p.id))return ps5AppLaunchInfo(p.id)
   pending.add(p.id)
   try {
-  const info=await ps5AppLaunchInfo(p.id),target=release()
+  const info=await ps5AppLaunchInfo(p.id),target=ps5AppRelease()
   if(!target||!info.available)throw createError({statusCode:409,message:info.message})
   if(info.running||info.flow && ['intent','accepted','unconfirmed'].includes(info.flow.state))return info
   const flow:Launch={...target,requestId:randomBytes(16).toString('hex'),startedAt:Date.now(),state:'intent'}

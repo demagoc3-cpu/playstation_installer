@@ -1,13 +1,13 @@
 <script setup lang="ts">
 const props = defineProps<{ consoleId: string; name: string; ip: string }>()
 const { t } = useAppLocale()
-const app = ref<any>(), info = ref<any>(), message = ref(''), busy = ref(false)
+const stop = ref<any>(), app = ref<any>(), info = ref<any>(), message = ref(''), busy = ref(false)
 let generation = 0, polling = false, timer: ReturnType<typeof setInterval> | undefined
 const inProgress = computed(() => info.value?.flow && !['completed', 'failed', 'unconfirmed'].includes(info.value.flow.state))
 async function refresh() {
   if (polling) return
   const request = generation; polling = true
-  try { const value = await $fetch('/api/consoles/service-update', { query: { consoleId: props.consoleId } }); if (request === generation) {info.value = value; const launchInfo=await $fetch('/api/consoles/app-launch',{query:{consoleId:props.consoleId}});if(request===generation)app.value=launchInfo} }
+  try { const value = await $fetch('/api/consoles/service-update', { query: { consoleId: props.consoleId } }); if (request === generation) {info.value = value; const launchInfo=await $fetch('/api/consoles/app-launch',{query:{consoleId:props.consoleId}});if(request===generation){app.value=launchInfo;stop.value=await $fetch('/api/consoles/app-stop',{query:{consoleId:props.consoleId}})}} }
   catch (error: any) { if (request === generation) message.value = error?.data?.message || 'Нет ответа от WEB' }
   finally { polling = false }
 }
@@ -17,6 +17,12 @@ async function launch() {
  catch(error:any){if(request===generation)message.value=error?.data?.message || 'Не удалось запустить приложение'}
  finally{if(request===generation)busy.value=false}
 }
+async function closeApp() {
+ const request=generation;busy.value=true;message.value=''
+ try {const value=await $fetch('/api/consoles/app-stop',{method:'POST',body:{consoleId:props.consoleId}});if(request===generation){stop.value=value;await refresh()}}
+ catch(error:any){if(request===generation)message.value=error?.data?.message || 'Не удалось закрыть приложение'}
+ finally{if(request===generation)busy.value=false}
+}
 async function install() {
   if (!info.value?.release || !window.confirm(t('Обновить фоновую службу PS5? Интерфейс PackageFlow закроется, сопряжение сохранится.'))) return
   const request = generation; busy.value = true; message.value = ''
@@ -24,8 +30,8 @@ async function install() {
   catch (error: any) { if (request === generation) { message.value = error?.data?.message || 'Нет ответа от WEB'; await refresh() } }
   finally { if (request === generation) busy.value = false }
 }
-watch(() => props.consoleId, () => { generation++; app.value = undefined; info.value = undefined; message.value = ''; void refresh() }, { immediate: true })
-onMounted(() => { timer = setInterval(() => { if (inProgress.value || ['intent','accepted'].includes(app.value?.flow?.state)) void refresh() }, 2000) })
+watch(() => props.consoleId, () => { generation++; stop.value = undefined; app.value = undefined; info.value = undefined; message.value = ''; void refresh() }, { immediate: true })
+onMounted(() => { timer = setInterval(() => { if (inProgress.value || ['intent','accepted'].includes(app.value?.flow?.state) || ['intent','accepted','unconfirmed'].includes(stop.value?.flow?.state)) void refresh() }, 2000) })
 onBeforeUnmount(() => { generation++; clearInterval(timer) })
 </script>
 <template>
@@ -36,6 +42,8 @@ onBeforeUnmount(() => { generation++; clearInterval(timer) })
 <template v-if="info?.release"><p>{{ t('Доступная версия') }}: {{ info.release.version }}</p><button :disabled="busy || inProgress || info.flow?.state==='unconfirmed'" @click="install">{{ t('Обновить сервис') }}</button></template>
 <p v-if="app?.release">{{ t('Приложение') }} {{ app.release.version }} · {{ t(app.message) }}</p>
 <button :disabled="busy || inProgress || !app?.available || !app?.release || app?.running || ['intent','accepted','unconfirmed'].includes(app?.flow?.state)" @click="launch">{{ t('Запустить PackageFlow') }}</button>
+<button :disabled="busy || inProgress || !app?.canStop || !app?.release || stop?.flow && ['intent','accepted','unconfirmed'].includes(stop.flow.state)" @click="closeApp">{{ t('Закрыть PackageFlow') }}</button>
+<p v-if="stop?.message" aria-live="polite">{{ t(stop.message) }}</p>
 <button :disabled="busy" @click="refresh">{{ t('Проверить результат') }}</button>
 <p v-if="info?.flow" aria-live="polite">{{ t(info.flow.message) }}</p><p v-if="message" role="alert">{{ t(message) }}</p>
 </section>
