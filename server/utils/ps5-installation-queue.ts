@@ -66,7 +66,7 @@ export async function startPs5Queue(input: { consoleId: string; packageIds?: unk
   // Validate the WHOLE batch before persisting or transferring any bytes.
   for (const item of items) {
     const platform = contentPlatform(item), format = contentFormat(item)
-    if (!contentForConsole(item,'ps5') || !snapshot.capabilities.formats.includes(format) || format !== 'pkg' || !(platform === 'ps4' ? snapshot.capabilities.installPs4 : snapshot.capabilities.installPs5))
+    if (!contentForConsole(item,'ps5') || !snapshot.capabilities.formats.includes(format) || !['pkg','folder'].includes(format) || format === 'folder' && (platform !== 'ps5' || item.installOrder !== 0) || !(platform === 'ps4' ? snapshot.capabilities.installPs4 : snapshot.capabilities.installPs5))
       throw createError({ statusCode: 409, message: `Сервис PS5 ещё не подтвердил установку ${platform.toUpperCase()} / ${format.toUpperCase()}. Очередь не отправлена` })
   }
   try { current.enqueue(items.map(item => ({ packageId: item.id, title: item.title, fileName: item.fileName, size: item.size, type: item.type,

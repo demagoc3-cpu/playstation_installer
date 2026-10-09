@@ -48,6 +48,7 @@ const operationMethods = {
   '/api/v1/transfers/commit': 'POST', '/api/v1/transfers/cancel': 'POST', '/api/v1/operations/status': 'GET',
   '/api/v1/install/staged': 'POST', '/api/v1/install/status': 'GET', '/api/v1/installer/job': 'GET',
   '/api/v1/install/verify': 'GET', '/api/v1/install/readiness': 'GET', '/api/v1/app/status': 'GET', '/api/v1/app/launch': 'POST',
+  '/api/v1/folder/commit': 'POST', '/api/v1/folder/status': 'GET',
   '/api/v1/web/config': 'POST',
   '/api/v1/status': 'GET', '/api/v1/shutdown': 'POST',
   '/api/v1/update/prepare': 'POST', '/api/v1/update/status': 'GET',

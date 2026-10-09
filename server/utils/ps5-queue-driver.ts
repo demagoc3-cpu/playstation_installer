@@ -1,3 +1,7 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { dataPath } from './data-path'
+import { writeDurableJson } from './durable-json'
+import { createFolderPlan, verifyFolderSource, runFolderPlan, cancelFolderPlan, type FolderPlan, type FolderRequest } from './ps5-folder-driver'
 import { ps5BaseRegistration } from './ps5-registration'
 import { open } from 'node:fs/promises'
 import { ps5SourceHash, ps5SourceStamp as stamp } from './ps5-source-hash'
@@ -23,8 +27,15 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
     if (r.status >= 500) throw new Error('PS5 operation unavailable')
     return r
   }
+  const planPath = (item: Ps5Item) => dataPath(`consoles/${consoleId}/${item.transferId}.folder-plan.json`)
+  const readPlan = (item: Ps5Item): FolderPlan | undefined => {
+    if (!existsSync(planPath(item))) return
+    try { return JSON.parse(readFileSync(planPath(item), 'utf8')) } catch { throw new Ps5QueueFailure('Не удалось прочитать сохранённый план Folder') }
+  }
+  const folderRequest: FolderRequest = (id, path, headers, body, signal) => request({ transferId: id } as Ps5Item, path as Parameters<typeof ps5OperationRequest>[1], headers, body, signal)
   return {
     async cancel(item) {
+      if (item.format === 'folder') { await cancelFolderPlan(readPlan(item), item, folderRequest); return }
       const r = await request(item, '/api/v1/transfers/cancel')
       if ([200,404].includes(r.status)) return
       // Verification may have finished while cancellation was travelling. The
@@ -37,6 +48,26 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       throw new Error('Cancellation not confirmed')
     },
     async run(item, signal, save) {
+      if (item.format === 'folder') {
+        let plan = readPlan(item)
+        if (item.installDispatched) {
+          if (!plan || item.hash !== plan.manifestHash) throw new Ps5QueueFailure('План принятого Folder недоступен. Повтор не отправлен')
+          return runFolderPlan(plan, item, signal, folderRequest, save)
+        }
+        const source = getPackage(item.packageId)
+        if (source.size !== item.size || source.contentId !== item.contentId || source.appVersion !== item.appVersion) throw new Ps5QueueFailure('Folder изменился в библиотеке')
+        const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal)
+        const capabilities = ps5InstallCapabilities(readiness.status, readiness.body, getConsoleProfile(consoleId).firmware)
+        if (!capabilities.formats.includes('folder')) return { state: 'waiting', detail: 'Служба ещё не подтвердила маршрут Folder' }
+        if (plan) await verifyFolderSource(plan, item, source.path, signal)
+        else {
+          save({ state: 'verifying', progressPhase: 'source-check', bytesChecked: 0, detail: 'Проверяем файлы исходной папки' })
+          plan = await createFolderPlan(source.path, item, signal, bytesChecked => save({ bytesChecked }))
+          writeDurableJson(planPath(item), plan)
+        }
+        save({ hash: plan.manifestHash, bytesChecked: item.size })
+        return runFolderPlan(plan, item, signal, folderRequest, save)
+      }
       // An intent is durably recorded BEFORE dispatch. Recovery never submits it again.
       if (item.installDispatched) {
         const receipt = await request(item, '/api/v1/install/status', {}, undefined, signal).catch(error => {signal.throwIfAborted(); throw new Ps5QueueUncertain('Не удалось прочитать результат установки. Повтор не отправлен')})
@@ -68,7 +99,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       // above does not depend on current admission and never resubmits them.
       const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal)
       const capabilities = ps5InstallCapabilities(readiness.status, readiness.body, getConsoleProfile(consoleId).firmware)
-      if (!capabilities.installation?.ready) return { state: 'waiting', detail: ps5InstallMessage(capabilities) }
+      if (!capabilities.installation?.ready || !capabilities.formats.includes('pkg')) return { state: 'waiting', detail: ps5InstallMessage(capabilities) }
       if (!(item.platform === 'ps4' ? capabilities.installPs4 : item.platform === 'ps5' && capabilities.installPs5)) throw new Ps5QueueFailure('Этот маршрут установки не проверен для платформы пакета')
       const file = await open(source.path, 'r').catch(()=> { throw new Ps5QueueFailure('Не удалось открыть исходный пакет') })
       try {
