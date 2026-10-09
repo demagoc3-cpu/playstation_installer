@@ -7,7 +7,7 @@ import { logEvent } from './event-log'
 import { createHash } from 'node:crypto'
 import { closeSync, createReadStream, existsSync, mkdirSync, openSync, readSync, statSync } from 'node:fs'
 import { open, readdir, readFile, writeFile, stat } from 'node:fs/promises'
-import { basename, dirname, extname, join, relative, resolve } from 'node:path'
+import { basename, dirname, extname, join, relative, resolve, isAbsolute } from 'node:path'
 import { readJsonFile as readJson, writeJsonFile as writeJson } from './json-store'
 import { packageIdentity } from '../../shared/package-identity'
 
@@ -50,7 +50,7 @@ export interface LocalPackage {
 }
 
 interface PackageIcon { offset: number; size: number }
-interface StoredPackage extends LocalPackage { path: string; sourceModifiedAt: number; coverPath?: string; icon: PackageIcon }
+interface StoredPackage extends LocalPackage { path: string; sourceModifiedAt: number; coverPath?: string; icon: PackageIcon; sourceRoots?: string[]; aliasIds?: string[] }
 interface DeliveryStatus { requests: number; bytesSent: number; ranges: Array<{ start: number; end: number }>; startedAt?: number; completedAt?: number; lastActivityAt?: number; partial?: boolean }
 interface FolderCacheEntry { size: number; modifiedAt: number; item: StoredPackage }
 interface FolderCache { version: 4; packages: Record<string, FolderCacheEntry> }
@@ -109,7 +109,7 @@ function scheduleDeliveryFlush() {
     try { writeLibrary(readLibraryFile()) } catch (error) { logEvent('warn', 'Не удалось сохранить прогресс передачи:', error) }
   }, 1000)
 }
-function publicItem({ path: _, sourceModifiedAt: __, coverPath: ___, icon: ____, ...item }: StoredPackage): LocalPackage {
+function publicItem({ path: _, sourceModifiedAt: __, coverPath: ___, icon: ____, sourceRoots: _____, aliasIds: ______, ...item }: StoredPackage): LocalPackage {
   const ip = currentConsoleIp(), library = readLibraryFile()
   const installedAt = ip ? library.installations === undefined && ip === legacyConsoleIp() ? item.installedAt : library.installations?.[ip]?.[packageKey({ ...item, path: _, sourceModifiedAt: __ } as StoredPackage)] : item.installedAt
   return { ...item, platform: contentPlatform(item), format: contentFormat(item), signature: item.signature || 'unknown', installedAt }
@@ -133,7 +133,7 @@ function availablePackage(group: StoredPackage[], id = group[0]!.id) {
   if (!source) return undefined
   const installedAt = Math.max(0, ...group.map(item => item.installedAt || 0)) || undefined
   const cover = [source, ...group].find(item => item.coverPath && existsSync(item.coverPath))
-  return { ...source, id, installedAt, coverPath: cover?.coverPath, sourceIds: [...new Set(group.map(item => item.id))] }
+  return { ...source, id, installedAt, coverPath: cover?.coverPath, sourceIds: [...new Set(group.flatMap(storedIds))] }
 }
 
 interface PackageReader {
@@ -277,38 +277,60 @@ async function cachePs5Cover(root: string, id: string, cover?: Buffer) {
   const path = join(coversDirectory(root), `${id}.png`); mkdirSync(dirname(path), { recursive: true }); await writeFile(path, cover); return path
 }
 
-async function walk(directory: string, root: string, cache: FolderCache, found: StoredPackage[], oldItems: Map<string, StoredPackage>): Promise<void> {
-  if (existsSync(join(directory, 'sce_sys', 'param.json')) && existsSync(join(directory, 'eboot.bin'))) {
+function scanReadError(error: any, strict: boolean) {
+  if (strict && error?.code) throw createError({ statusCode: 503, message: 'Ошибка чтения хранилища. Предыдущий индекс сохранён' })
+  return undefined
+}
+const storedIds = (item: StoredPackage) => [...new Set([item.id, ...(item.aliasIds || [])])]
+const matchesId = (item: StoredPackage, id: string) => storedIds(item).includes(id)
+/** Carry accepted IDs to an identical remaining source after a successful prune. */
+function retainSourceIds(previous: StoredPackage[], remaining: StoredPackage[]) {
+  const before = packageGroups(previous), after = packageGroups(remaining)
+  for (const [key, group] of after) {
+    const old = before.get(key)
+    if (!old) continue
+    const first = group[0]!, id = old[0]!.id
+    first.aliasIds = [...new Set([...storedIds(first), ...old.flatMap(storedIds)])].filter(value => value !== id)
+    first.id = id
+    first.installedAt = Math.max(0, ...old.map(item=>item.installedAt || 0), ...group.map(item=>item.installedAt || 0)) || undefined
+  }
+  return remaining
+}
+
+async function walk(directory: string, root: string, cache: FolderCache, found: StoredPackage[], oldItems: Map<string, StoredPackage>, strict = false): Promise<void> {
+  const probe = async (file: string) => Boolean(await stat(file).catch(error => { if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') scanReadError(error, strict); return undefined }))
+  if (await probe(join(directory, 'sce_sys', 'param.json')) && await probe(join(directory, 'eboot.bin'))) {
     try {
       const metadata = await readPs5FolderMetadata(directory), id = hash(directory), coverPath = await cachePs5Cover(root, id, metadata.cover)
       const { cover: _, modifiedAt, ...properties } = metadata
       found.push({ ...properties, id, path: directory, fileName: basename(directory), libraryRoot: root, sourceModifiedAt: modifiedAt, icon: { offset: 0, size: coverPath ? metadata.cover!.length : 0 }, iconSize: coverPath ? metadata.cover!.length : 0, coverPath })
-    } catch (error) { logEvent('warn', `Пропущена папка PS5 ${directory}`, error) }
+    } catch (error) { scanReadError(error, strict); logEvent('warn', `Пропущена папка PS5 ${directory}`, error) }
     return
   }
   let entries
   try { entries = await readdir(directory, { withFileTypes: true }) } catch (error) {
+    if (strict) throw createError({ statusCode: 503, message: 'Не удалось прочитать всё хранилище. Предыдущий индекс сохранён' })
     if (directory === root) throw createError({ statusCode: 403, message: `Нет доступа к содержимому папки ${root}. Проверьте права чтения и подключение папки к контейнеру.` })
     logEvent('warn', `Пропущена недоступная папка ${directory}`, error)
     return
   }
   for (const entry of entries) {
     const path = resolve(directory, entry.name)
-    if (entry.isDirectory()) { if (entry.name !== '.packageflow') await walk(path, root, cache, found, oldItems); continue }
+    if (entry.isDirectory()) { if (entry.name !== '.packageflow') await walk(path, root, cache, found, oldItems, strict); continue }
     if (!entry.isFile() || !/\.(pkg|fpkg|ffpkg|ufs2|exfat|pfs|ffpfs|ffpfsc)$/i.test(entry.name)) continue
     const info = await stat(path).catch(() => undefined)
-    if (!info) continue
+    if (!info) { if (strict) throw createError({ statusCode: 503, message: 'Файл хранилища недоступен. Предыдущий индекс сохранён' }); continue }
     const key = relative(root, path)
     const cached = cache.packages[key]
-    if (cached?.size === info.size && cached.modifiedAt === info.mtimeMs && existsSync(cached.item.path) && (!cached.item.coverPath || existsSync(cached.item.coverPath))) {
+    if (cached?.size === info.size && cached.modifiedAt === info.mtimeMs && (!cached.item.coverPath || existsSync(cached.item.coverPath))) {
       found.push({ ...cached.item, libraryRoot: root, installedAt: oldItems.get(cached.item.id)?.installedAt })
       continue
     }
     const id = hash(path)
-    let metadata: (Omit<LocalPackage, 'id' | 'fileName' | 'size' | 'libraryRoot'> & { icon: PackageIcon }) | undefined = await readPackageMetadata(path, entry.name).catch(() => undefined)
+    let metadata: (Omit<LocalPackage, 'id' | 'fileName' | 'size' | 'libraryRoot'> & { icon: PackageIcon }) | undefined = await readPackageMetadata(path, entry.name).catch(error => scanReadError(error, strict))
     let ps5Cover: string | undefined
     if (!metadata) {
-      const value = await readPs5ImageMetadata(path).catch(() => undefined)
+      const value = await readPs5ImageMetadata(path).catch(error => scanReadError(error, strict))
       if (value) { const { cover, ...properties } = value; ps5Cover = await cachePs5Cover(root, id, cover); metadata = { ...properties, icon: { offset: 0, size: ps5Cover ? cover!.length : 0 }, iconSize: ps5Cover ? cover!.length : 0 } }
     }
     if (!metadata) continue
@@ -323,17 +345,17 @@ async function walk(directory: string, root: string, cache: FolderCache, found: 
   }
 }
 
-export async function scanPackageFolder(directory: string, onlyTitleId?: string) {
+export async function scanPackageFolder(directory: string, onlyTitleId?: string, options: { force?: boolean; replaceRoot?: boolean; strict?: boolean } = {}) {
   if (!directory?.trim()) throw createError({ statusCode: 400, message: 'Укажите путь к папке с пакетами' })
   const root = resolve(directory.trim())
   const rootInfo = await stat(root).catch(() => undefined)
   if (!rootInfo?.isDirectory()) throw createError({ statusCode: 404, message: 'Папка не найдена или недоступна' })
   const previousCache = readJson<FolderCache>(cachePath(root), { version: 4, packages: {} })
-  const cache: FolderCache = previousCache.version === 4 ? previousCache : { version: 4, packages: {} }
+  const cache: FolderCache = !options.force && previousCache.version === 4 ? previousCache : { version: 4, packages: {} }
   const siteLibrary = readLibrary()
   const oldItems = new Map(siteLibrary.packages.map((item) => [item.id, item]))
   const found: StoredPackage[] = []
-  await walk(root, root, cache, found, oldItems)
+  await walk(root, root, cache, found, oldItems, options.strict)
   writeJson(cachePath(root), cache)
   // Re-read after asynchronous scanning so concurrent install confirmations
   // are preserved. Replacing entries in place keeps canonical IDs stable.
@@ -345,15 +367,40 @@ export async function scanPackageFolder(directory: string, onlyTitleId?: string)
     if (seen.has(previous.path)) continue
     seen.add(previous.path)
     const item = replacements.get(previous.path)
-    merged.push(item ? { ...item, installedAt: packageKey(previous) === packageKey(item) ? previous.installedAt : undefined } : previous)
+    const roots = previous.sourceRoots || [previous.libraryRoot]
+    if (!item && options.replaceRoot && roots.some(path=>rootInside(root, path))) {
+      const remaining = roots.filter(value => !rootInside(root, value))
+      if (remaining.length) merged.push({ ...previous, sourceRoots: remaining, libraryRoot: remaining[0]! })
+      continue
+    }
+    merged.push(item ? { ...item, id: previous.id, aliasIds: previous.aliasIds, sourceRoots: [...new Set([...roots, root])], installedAt: packageKey(previous) === packageKey(item) ? previous.installedAt : undefined } : previous)
   }
-  for (const item of found) if (!seen.has(item.path)) { merged.push(item); seen.add(item.path) }
-  latest.packages = merged
+  for (const item of found) if (!seen.has(item.path)) { merged.push({ ...item, sourceRoots: [root] }); seen.add(item.path) }
+  latest.packages = retainSourceIds(latest.packages, merged)
   writeLibrary(latest)
   const keys = new Set(found.map(packageKey))
   const packages = [...packageGroups(merged)].filter(([key, group]) => onlyTitleId ? group[0]!.titleId === onlyTitleId : keys.has(key))
-    .map(([, group]) => availablePackage(group)).filter((item): item is NonNullable<typeof item> => Boolean(item)).map(publicItem)
+    .map(([, group]) => publicItem({ ...group[0]!, sourceIds: [...new Set(group.flatMap(storedIds))], installedAt: Math.max(0, ...group.map(item=>item.installedAt || 0)) || undefined }))
   return { directory: root, packages }
+}
+
+/** Registry migration and source statistics use only the persisted index. */
+export function librarySourceRoots() { return [...new Set(readLibraryFile().packages.flatMap(item => item.sourceRoots || [item.libraryRoot]).filter(Boolean))] }
+function rootInside(root: string, path: string) { const tail = relative(root, path); return tail === '' || (!tail.startsWith('..') && !isAbsolute(tail)) }
+export function librarySourceSummary(root: string) {
+  const items = readLibraryFile().packages.filter(item => (item.sourceRoots || [item.libraryRoot]).some(path=>rootInside(root, path)))
+  return { packageCount: items.length, indexedBytes: items.reduce((sum, item) => sum + item.size, 0), packageIds: items.flatMap(storedIds) }
+}
+export function detachLibrarySource(root: string) {
+  const library = readLibrary(), previous = library.packages
+  library.packages = library.packages.flatMap(item => {
+    const roots = item.sourceRoots || [item.libraryRoot]
+    const remaining = roots.filter(path=>!rootInside(root, path))
+    if (remaining.length === roots.length) return [item]
+    return remaining.length ? [{ ...item, sourceRoots: remaining, libraryRoot: remaining[0]! }] : []
+  })
+  library.packages = retainSourceIds(previous, library.packages)
+  writeLibrary(library)
 }
 
 /** Register one internally verified package without scanning its staging directory. */
@@ -382,27 +429,27 @@ export function getLibraryPackages(ip?: string): LocalPackage[] {
     const source = group[0]!, cover = group.find(item => item.coverPath && item.iconSize > 0)
     const installedAt = Math.max(0, ...group.map(item => item.installedAt || 0)) || undefined
     return publicItem({ ...source, installedAt, coverPath: cover?.coverPath,
-      iconSize: cover?.iconSize || 0, sourceIds: [...new Set(group.map(item => item.id))] })
+      iconSize: cover?.iconSize || 0, sourceIds: [...new Set(group.flatMap(storedIds))] })
   })
 }
 /** Compact badges for an already loaded page; no source-file scan per device. */
 export function installedPackageIdsForConsole(ip: string, packageIds: string[]) {
   const library=readLibraryFile(), visible=new Set(packageIds), legacy=legacyConsoleIp()
-  return library.packages.filter(item=>visible.has(item.id) && (library.installations === undefined && ip === legacy ? item.installedAt : library.installations?.[ip]?.[packageKey(item)])).map(item=>item.id)
+  return library.packages.filter(item=>storedIds(item).some(id=>visible.has(id)) && (library.installations === undefined && ip === legacy ? item.installedAt : library.installations?.[ip]?.[packageKey(item)])).flatMap(item=>storedIds(item).filter(id=>visible.has(id)))
 }
 export function getDeliveredPackageIds() {
   const ip = currentConsoleIp(), prefix = ip ? `${ip}:` : ''
   return new Set(Object.entries(deliveries()).filter(([id, status]) => status.completedAt && (prefix ? id.startsWith(prefix) : !id.includes(':'))).map(([id]) => prefix ? id.slice(prefix.length) : id))
 }
 export function getPackage(id: string) {
-  const packages = readLibrary().packages, original = packages.find(item => item.id === id)
+  const packages = readLibrary().packages, original = packages.find(item => matchesId(item, id))
   const item = original && availablePackage(packages.filter(item => packageKey(item) === packageKey(original)), id)
   if (!item) throw createError({ statusCode: 404, message: 'Пакет не найден. Просканируйте папку повторно.' })
   return item
 }
 export function getPackageStream(id: string, options?: { start?: number; end?: number }) { const item = getPackage(id); return { item, stream: createReadStream(item.path, options) } }
 function indexedPackageCover(id: string) {
-  const packages = readLibraryFile().packages, original = packages.find(item => item.id === id)
+  const packages = readLibraryFile().packages, original = packages.find(item => matchesId(item, id))
   if (!original) return undefined
   // Cached artwork is independent of the large original package. A NAS source
   // being asleep must not stall the icon HTTP route or force a source rescan.
@@ -452,7 +499,7 @@ export function blockPackageDelivery(id: string) {
 export function resetPackageDelivery(id: string) {
   blockedDeliveries.delete(consoleDeliveryKey(id))
   const library = readLibrary()
-  if (!library.packages.some((item) => item.id === id)) throw createError({ statusCode: 404, message: 'Пакет не найден' })
+  if (!library.packages.some((item) => matchesId(item, id))) throw createError({ statusCode: 404, message: 'Пакет не найден' })
   delete library.deliveries[consoleDeliveryKey(id)]
   writeLibrary(library)
 }
@@ -469,7 +516,7 @@ function ensureConsoleInstallations(library: SiteLibrary) {
 export function markPackageInstalled(id: string, installed: boolean, ip?: string): LocalPackage {
   if (ip && ip !== currentConsoleIp()) return inConsoleScope(ip, () => markPackageInstalled(id, installed))
   const library = readLibrary()
-  const item = library.packages.find((entry) => entry.id === id)
+  const item = library.packages.find((entry) => matchesId(entry, id))
   if (!item) throw createError({ statusCode: 404, message: 'Пакет не найден' })
   const target = currentConsoleIp()
   if (target) {
@@ -502,7 +549,7 @@ export function clearConsoleInstallation(titleId: string, kind: string, componen
 
 export function removePackageFromLibrary(id: string) {
   const library = readLibrary()
-  const original = library.packages.find(item => item.id === id)
+  const original = library.packages.find(item => matchesId(item, id))
   if (!original) throw createError({ statusCode: 404, message: 'Пакет не найден' })
   const key = packageKey(original)
   const removed = library.packages.filter(item => packageKey(item) === key)
@@ -583,7 +630,7 @@ function settleDelivery(item: StoredPackage, delivery: DeliveryStatus) {
 /** Called repeatedly while a range streams, so large ranges show progress before they finish. */
 export function recordPackageDelivery(id: string, start: number, end: number, completed: boolean) {
   if (end < start) return
-  const item = readLibraryFile().packages.find((entry) => entry.id === id)
+  const item = readLibraryFile().packages.find((entry) => matchesId(entry, id))
   if (!item) return
   const delivery = deliveries()[consoleDeliveryKey(id)] ||= { requests: 0, bytesSent: 0, ranges: [] }
   delivery.startedAt ||= Date.now()

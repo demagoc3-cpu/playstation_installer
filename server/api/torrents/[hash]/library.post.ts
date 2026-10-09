@@ -1,3 +1,4 @@
+import { storageManager } from '../../../utils/storage-sources'
 import { logEvent } from '../../../utils/event-log'
 import { getLibraryPackages, scanPackageFolder } from '../../../utils/package-library'
 import { getCompletedTorrentDirectory } from '../../../utils/qbittorrent'
@@ -18,6 +19,7 @@ export default defineEventHandler(async (event) => {
     return { alreadyIndexed: true, packages: indexed.map((item) => ({ ...item, url: `http://${pcIp}:${port}/json/${item.id}.json` })) }
   }
   const result = await scanPackageFolder(await getCompletedTorrentDirectory(hash))
+  storageManager.adoptLocal(result.directory)
   markTorrentIndexed(hash, result.packages.map((item) => item.id))
   logEvent('info', `Торрент загружен: в библиотеку добавлено пакетов — ${result.packages.length}`)
   if (body?.summaryOnly) return { alreadyIndexed: false, count: result.packages.length }

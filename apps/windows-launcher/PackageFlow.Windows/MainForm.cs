@@ -194,18 +194,6 @@ internal sealed partial class MainForm : Form
         }
     }
 
-    private TextBox FolderField(FlowLayoutPanel parent, string label, string value)
-    {
-        var field = Field(parent, label, value); var card = field.Parent!;
-        var line = new BufferedPanel { Dock = DockStyle.Bottom, Height = 29 };
-        card.Controls.Remove(field); field.Dock = DockStyle.Fill; field.Margin = Padding.Empty;
-        var choose = new RoundedButton { Text = T("Выбрать…", "Browse…"), Width = 95, Dock = DockStyle.Right, BackColor = Theme.Accent, ForeColor = Color.White, Font = new Font("Segoe UI", 9), FlatStyle = FlatStyle.Flat };
-        choose.FlatAppearance.BorderSize = 0;
-        choose.Click += (_, _) => { using var picker = new FolderBrowserDialog { SelectedPath = Directory.Exists(field.Text) ? field.Text : settings.GamesDirectory, ShowNewFolderButton = true }; if (picker.ShowDialog(this) == DialogResult.OK) field.Text = picker.SelectedPath; };
-        line.Controls.Add(field); line.Controls.Add(choose); card.Controls.Add(line); actionButtons.Add(choose);
-        return field;
-    }
-
     private async Task Act(Func<Task> action, string? operation = null)
     {
         if (busy) return;
@@ -294,9 +282,10 @@ internal sealed partial class MainForm : Form
     }
     private void InstallationPage()
     {
-        var page = Page(T("1. Установка", "1. Installation"), T("Выберите способ запуска и папку с PKG. Закрытие этого окна оставляет сервер работающим. Для Compose сначала установите и запустите Docker Desktop.", "Choose a launch mode and PKG folder. Closing this window keeps the server running. For Compose, install and start Docker Desktop first."), columns: 3);
+        var page = Page(T("1. Установка", "1. Installation"), T("Выберите способ запуска. Папки и сетевые подключения добавляются в WEB → Хранилище. Закрытие этого окна оставляет сервер работающим. Для Compose сначала установите и запустите Docker Desktop.", "Choose a launch mode. Add folders and network connections in WEB → Storage. Closing this window keeps the server running. For Compose, install and start Docker Desktop first."), columns: 3);
         mode = Choice(page, T("Способ запуска", "Launch mode"), ["Windows", "Docker Compose"], settings.Mode == "compose" ? 1 : 0);
-        games = FolderField(page, T("Папка с играми", "Games folder"), settings.GamesDirectory);
+        // Preserve the existing Compose bind/default download directory internally.
+        games = new TextBox { Text = settings.GamesDirectory };
         var addresses = ServerHost.LanAddresses();
         var selected = Array.IndexOf(addresses, settings.HostIp);
         lan = Choice(page, T("IPv4 компьютера (для PS4)", "Computer LAN IPv4 (for PS4)"), addresses, selected >= 0 ? selected : addresses.Length > 0 ? 0 : -1);
@@ -307,7 +296,7 @@ internal sealed partial class MainForm : Form
         visibleFlare = Check(page, T("Cloudflare: видимый браузер (Windows)", "Cloudflare: visible FlareSolverr browser (Windows)"), settings.FlareSolverrVisibleBrowser);
         Buttons(page,
             (T("Применить", "Apply"), ApplyInstallation),
-            (T("Открыть WEB", "Open WEB"), () => { OpenWeb(); return Task.CompletedTask; }),
+            (T("Хранилище в WEB", "Storage in WEB"), () => { OpenStorage(); return Task.CompletedTask; }),
             (T("Остановить", "Stop"), () => host.Stop(lifetime.Token)),
             (T("Разрешить доступ PS4", "Allow PS4 access"), Firewall));
         Buttons(page, (T("Скачать Docker Desktop", "Download Docker Desktop"), () => { ProcessRunner.Open("https://docs.docker.com/desktop/setup/install/windows-install/"); return Task.CompletedTask; }));
@@ -335,6 +324,12 @@ internal sealed partial class MainForm : Form
     {
         if (!host.Started) { ShowWindow(); return; }
         ProcessRunner.Open(host.WebUrl);
+    }
+
+    private void OpenStorage()
+    {
+        if (!host.Started) { ShowWindow(); return; }
+        ProcessRunner.Open(host.WebUrl.TrimEnd('/') + "/#storage");
     }
 
     private void ConnectionPage()
@@ -365,11 +360,7 @@ internal sealed partial class MainForm : Form
                 tabs.SelectedIndex = 2;
             }),
             (T("Позже / к поиску", "Later / search"), () => { tabs.SelectedIndex = 2; return Task.CompletedTask; }));
-        Buttons(page, (T("Добавить PKG из папки", "Index PKG folder"), async () =>
-        {
-            EnsureStarted();
-            await host.Api("/api/packages/scan", new { directory = settings.Mode == "compose" ? "/games" : settings.GamesDirectory, psIp = settings.PsIp.Length > 0 ? settings.PsIp : settings.HostIp }, lifetime.Token);
-        }));
+        Buttons(page, (T("Хранилище в WEB", "Storage in WEB"), () => { EnsureStarted(); OpenStorage(); return Task.CompletedTask; }));
     }
 
     private void SearchPage()
@@ -497,7 +488,7 @@ internal sealed partial class MainForm : Form
         var address = torrentAddress = Field(page, T("Адрес Web UI", "Web UI address"), "http://127.0.0.1:8080");
         var user = torrentUser = Field(page, T("Логин Web UI", "Web UI username"));
         var password = torrentPassword = Field(page, T("Пароль Web UI", "Web UI password"), secret: true);
-        var remote = torrentFolder = FolderField(page, T("Папка загрузок, как её видит qBittorrent", "Download folder as seen by qBittorrent"), settings.GamesDirectory);
+        var remote = torrentFolder = Field(page, T("Папка загрузок, как её видит qBittorrent", "Download folder as seen by qBittorrent"), settings.GamesDirectory);
         Buttons(page,
             (T("Применить", "Apply"), async () =>
             {

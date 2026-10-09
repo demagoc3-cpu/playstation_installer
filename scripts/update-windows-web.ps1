@@ -5,7 +5,8 @@ param(
  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$ArchiveSha256,
  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{64}$')][string]$ServerSha256,
  [Parameter(Mandatory=$true)][ValidatePattern('^[a-f0-9]{7,40}$')][string]$Revision,
- [Parameter(Mandatory=$true)][string]$ConsoleId
+ [Parameter(Mandatory=$true)][string]$ConsoleId,
+ [switch]$SkipConsoleProbe
 )
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
@@ -52,7 +53,8 @@ try {
  if(-not $ready){throw 'Updated WEB is unavailable'}
  $catalog=Invoke-RestMethod ('http://127.0.0.1:3000/api/catalog/v2?consoleId='+$ConsoleId+'&limit=10') -TimeoutSec 15
  if($catalog.total -ne $before.total -or @($catalog.games).Count -ne @($before.games).Count){throw 'Library changed unexpectedly'}
- $updates=Invoke-RestMethod ('http://127.0.0.1:3000/api/consoles/service-update?consoleId='+$ConsoleId) -TimeoutSec 5
+ $updates=$null
+ if(-not $SkipConsoleProbe){$updates=Invoke-RestMethod ('http://127.0.0.1:3000/api/consoles/service-update?consoleId='+$ConsoleId) -TimeoutSec 5}
  Copy-Item (Join-Path $stage 'release.json') (Join-Path $Root 'release.json')
  [ordered]@{source=$Revision;http=$webResponse.StatusCode;total=$catalog.total;count=@($catalog.games).Count;currentService=$updates.current;backupPreserved=$true}|ConvertTo-Json -Compress
 }catch{

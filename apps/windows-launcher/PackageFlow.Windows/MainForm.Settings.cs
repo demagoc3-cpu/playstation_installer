@@ -6,7 +6,8 @@ internal sealed partial class MainForm
 {
     private async Task ApplyInstallation()
     {
-        if (!Directory.Exists(games.Text)) throw new DirectoryNotFoundException(T("Выберите существующую папку с играми.", "Choose an existing games folder."));
+        if (games.Text.Length == 0) games.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "PackageFlow");
+        Directory.CreateDirectory(games.Text);
         if (!int.TryParse(port.Text, out var webPort) || !int.TryParse(payloadPort.Text, out var callbackPort)) throw new ArgumentException(T("Укажите номера портов.", "Enter port numbers."));
         var candidate = JsonSerializerClone(settings);
         candidate.Mode = mode.SelectedIndex == 1 ? "compose" : "native";
@@ -41,12 +42,8 @@ internal sealed partial class MainForm
                     addressWarning = T("Адрес WEB на PS4 не обновлён: проверьте подключение и повторно примените настройки.", "PS4 WEB address was not updated: check the connection and apply settings again.");
             } catch { addressWarning = T("Не удалось обновить адрес WEB на PS4. Проверьте подключение и повторите сопряжение.", "Could not update the PS4 WEB address. Check the connection and pair again."); }
         }
-        Report(T("Настройки применены. Индексируем выбранную папку с PKG…", "Settings applied. Indexing the selected PKG folder…"));
-        var result = await host.Api("/api/packages/scan", new { directory = settings.Mode == "compose" ? "/games" : settings.GamesDirectory, psIp = psIp.Text.Trim().Length > 0 ? psIp.Text.Trim() : settings.PsIp }, lifetime.Token);
-        var count = result["packages"]?.AsArray().Count ?? 0;
-        Report(T($"Индексация завершена: {count} пак. Настройки применены.", $"Indexing complete: {count} packages. Settings applied."));
-        // Show the summary after Act's generic completion message as well.
-        applicationSummary = T($"Применено • найдено PKG: {count}", $"Applied • PKG found: {count}") + (addressWarning == null ? "" : " • " + addressWarning);
+        Report(T("Настройки применены. Добавьте папки и сетевые подключения в WEB → Хранилище.", "Settings applied. Add folders and network connections in WEB → Storage."));
+        applicationSummary = T("Настройки применены • Хранилище в WEB", "Settings applied • Storage in WEB") + (addressWarning == null ? "" : " • " + addressWarning);
         if (addressWarning != null) Report(addressWarning);
     }
     private string? applicationSummary;

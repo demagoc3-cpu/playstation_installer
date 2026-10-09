@@ -1,8 +1,11 @@
+import { storageManager } from '../../utils/storage-sources'
+import { assertInstallationOrigin } from '../../utils/installation-origin'
 import { logEvent } from '../../utils/event-log'
 import { scanPackageFolder } from '../../utils/package-library'
 import { getLocalIp } from '../../utils/ps4-installer'
 
 export default defineEventHandler(async (event) => {
+  assertInstallationOrigin(event, true)
   const body = await readBody<{ directory?: string; psIp?: string; titleId?: string; summaryOnly?: boolean }>(event)
   let result
   try { result = await scanPackageFolder(body?.directory || '', body?.titleId) }
@@ -13,6 +16,7 @@ export default defineEventHandler(async (event) => {
     }
     throw error
   }
+  storageManager.adoptLocal(result.directory)
   logEvent('info', `Просканирована папка ${result.directory}: найдено пакетов — ${result.packages.length}`)
   if (body?.summaryOnly) return { directory: result.directory, count: result.packages.length }
   const pcIp = await getLocalIp(body?.psIp || '')
