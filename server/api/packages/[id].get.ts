@@ -1,4 +1,4 @@
-import { inConsoleScope, legacyConsoleIp } from '../../utils/console-scope'
+import { currentConsoleIp, inConsoleScope, legacyConsoleIp } from '../../utils/console-scope'
 import { contentFormat } from '../../../shared/content-platform'
 import { logEvent } from '../../utils/event-log'
 import { Transform } from 'node:stream'
@@ -48,7 +48,7 @@ function streamRange(event: H3Event, file: ReadStream, id: string, fileName: str
   return sendStream(event, file.pipe(counter))
 }
 
-export default defineEventHandler((event) => inConsoleScope(getQuery(event).console?.toString() || legacyConsoleIp(), async () => {
+export default defineEventHandler((event) => inConsoleScope(currentConsoleIp() || getQuery(event).console?.toString() || legacyConsoleIp(), async () => {
   const id = getRouterParam(event, 'id') || ''
   const asset = getQuery(event).asset
   if (asset === 'delivery') return getPackageDelivery(id)
@@ -70,6 +70,7 @@ export default defineEventHandler((event) => inConsoleScope(getQuery(event).cons
 
   if (!range) {
     setHeader(event, 'Content-Length', item.size)
+    if (event.method === 'HEAD') return ''
     return streamRange(event, getPackageStream(id).stream, id, item.fileName, 0, item.size - 1, true)
   }
 
@@ -87,5 +88,6 @@ export default defineEventHandler((event) => inConsoleScope(getQuery(event).cons
   setResponseStatus(event, 206)
   setHeader(event, 'Content-Range', `bytes ${start}-${end}/${item.size}`)
   setHeader(event, 'Content-Length', end - start + 1)
+  if (event.method === 'HEAD') return ''
   return streamRange(event, getPackageStream(id, { start, end }).stream, id, item.fileName, start, end, start === 0 && end === item.size - 1)
 }))

@@ -470,7 +470,12 @@ function createQueueItems(packageIds: string[], packageUrls: Record<string, stri
     let url = packageUrls[packageId]
     if (!url || !/^https?:\/\//.test(url)) throw createError({ statusCode: 400, message: `Не найден PS4 URL для «${item.title}»` })
     const address = new URL(url)
-    if (address.pathname === `/json/${packageId}.json` && currentConsoleIp()) { address.searchParams.set('console', currentConsoleIp()!); url = address.toString() }
+    // BGFT checks the complete URL suffix before fetching. Keep destination
+    // scope in the path so the manifest ends in .json, without a query.
+    if (address.pathname === `/json/${packageId}.json` && currentConsoleIp()) {
+      address.pathname = `/ps4/manifest/${currentConsoleIp()}/${packageId}.json`
+      address.search = ''; address.hash = ''; url = address.toString()
+    }
     return { packageId, title: item.title, fileName: item.fileName, size: item.size, type: item.type, titleId: item.titleId, url, state: 'pending', detail: 'Ожидает очереди', bytesSent: 0 }
   })
 }

@@ -40,7 +40,7 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
       assert.equal(options.headers.Authorization,`Bearer ${ip===one.ip?'a'.repeat(32):'b'.repeat(32)}`)
       if(path==='/install/session')return response(cap)
       if(path==='/install/jobs'&&options.method==='POST'){
-        const body=JSON.parse(options.body);assert.equal(new URL(body.url).searchParams.get('console'),ip);posts.push({ip,titleId:body.titleId,contentType:body.contentType})
+        const body=JSON.parse(options.body);const address=new URL(body.url);assert.ok(address.pathname.startsWith(`/ps4/manifest/${ip}/`));assert.ok(body.url.endsWith('.json'));assert.equal(address.search,'');posts.push({ip,titleId:body.titleId,contentType:body.contentType})
         const job={service:cap.service,jobId:body.requestId,requestId:body.requestId,contentId:body.contentId,taskId:42,state:'downloading',totalBytes:131072,downloadedBytes:1,downloadTotalBytes:131072,error:0,errorHex:'0x00000000',pollError:0};jobs.set(ip,job);return response(job)
       }
       const job=jobs.get(ip);assert.ok(job&&path.startsWith(`/install/jobs/${job.jobId}`),path)

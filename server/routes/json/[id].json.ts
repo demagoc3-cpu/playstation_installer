@@ -3,8 +3,8 @@ import { contentPlatform, contentFormat } from '../../../shared/content-platform
 import { logEvent } from '../../utils/event-log'
 import { getPackage, isDeliveryBlocked, recordPackageRequest } from '../../utils/package-library'
 
-export default defineEventHandler((event) => inConsoleScope(getQuery(event).console?.toString() || legacyConsoleIp(), () => {
-  const id = /^\/json\/([^/]+)\.json$/i.exec(event.path.split('?')[0]!)?.[1] || ''
+export default defineEventHandler((event) => inConsoleScope(currentConsoleIp() || getQuery(event).console?.toString() || legacyConsoleIp(), () => {
+  const id = /\/([^/]+)\.json$/i.exec(event.path.split('?')[0]!)?.[1] || ''
   const item = getPackage(id)
   if (contentPlatform(item) !== 'ps4' || contentFormat(item) !== 'pkg') throw createError({ statusCode: 400, message: 'Этот манифест поддерживает только PKG PS4' })
   if (isDeliveryBlocked(id)) throw createError({ statusCode: 410, message: 'Installation cancelled' })
@@ -19,7 +19,7 @@ export default defineEventHandler((event) => inConsoleScope(getQuery(event).cons
     packageDigest: item.packageDigest,
     numberOfSplitFiles: 1,
     pieces: [{
-      url: `http://${host}/api/packages/${item.id}${currentConsoleIp() ? `?console=${currentConsoleIp()}` : ''}`,
+      url: `http://${host}/ps4/package/${currentConsoleIp() || 'legacy'}/${item.id}.pkg`,
       fileOffset: 0,
       fileSize: item.size,
       hashValue: '0000000000000000000000000000000000000000',
