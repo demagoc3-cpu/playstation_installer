@@ -4,6 +4,7 @@ import { writeDurableJson } from './durable-json'
 import { createFolderPlan, verifyFolderSource, runFolderPlan, cancelFolderPlan, type FolderPlan, type FolderRequest } from './ps5-folder-driver'
 import { ps5BaseRegistration } from './ps5-registration'
 import { open } from 'node:fs/promises'
+import { ps5SendChunks } from './ps5-send-chunks'
 import { ps5SourceHash, ps5SourceStamp as stamp } from './ps5-source-hash'
 import { getPackage } from './package-library'
 import { ps5OperationRequest } from './console-profiles'
@@ -116,17 +117,15 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
         if (response.status === 409) response = await request(item, '/api/v1/transfers/status', {}, undefined, signal)
         const valid = (body: any) => body?.id === item.transferId && body.size === item.size && body.blake3 === item.hash && Number.isSafeInteger(body.bytesDurable) && body.bytesDurable >= 0 && body.bytesDurable <= item.size && body.cancelled === false
         if (response.status !== 200 || !valid(response.body)) throw new Ps5QueueFailure('PS5 не подтвердила состояние передачи')
-        const buffer = Buffer.alloc(ps5TransferChunkSize(response.body))
-        let offset = response.body.bytesDurable
+        const offset = response.body.bytesDurable
         save({ state: 'sending', progressPhase: 'transfer', bytesSent: offset, detail: 'Передаём пакет на PS5 с докачкой' })
-        while (offset < item.size) {
-          signal.throwIfAborted()
-          const r = await file.read(buffer, 0, Math.min(buffer.length,item.size-offset), offset)
-          if (!r.bytesRead || stamp(await file.stat()) !== identity) throw new Ps5QueueFailure('Исходный пакет изменился во время передачи')
-          response = await request(item, '/api/v1/transfers/chunk', { 'X-PackageFlow-Offset': String(offset) }, buffer.subarray(0,r.bytesRead), signal)
-          if (response.status !== 200 || !valid(response.body) || response.body.bytesDurable !== offset+r.bytesRead) throw new Error('Chunk acknowledgement lost; reconcile durable offset')
-          offset = response.body.bytesDurable; save({ bytesSent: offset })
-        }
+        await ps5SendChunks({ read: async (buffer, position) => (await file.read(buffer, 0, buffer.length, position)).bytesRead, size: item.size, offset, chunkSize: ps5TransferChunkSize(response.body), signal,
+          validateSource: async () => stamp(await file.stat()) === identity,
+          send: async (position, bytes) => {
+            const ack = await request(item, '/api/v1/transfers/chunk', { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
+            if (ack.status !== 200 || !valid(ack.body) || ack.body.bytesDurable !== position + bytes.length) throw new Error('Chunk acknowledgement lost; reconcile durable offset')
+          }, progress: bytesSent => save({ bytesSent }),
+        })
         save({ state: 'verifying', progressPhase: 'device-check', detail: 'PS5 проверяет BLAKE3 полученного пакета' })
         response = await request(item, '/api/v1/transfers/commit', {}, undefined, signal)
         if (![200,202,409].includes(response.status)) throw new Ps5QueueFailure('Проверка пакета не началась')

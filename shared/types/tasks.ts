@@ -14,6 +14,7 @@ export interface InstallationTask {
   state: string; category: TaskCategory; detail: string; bytesSent: number; createdAt: number; completedAt?: number
   transport: string; canConfirm?: boolean; canCancel: boolean; cancelRequested: boolean
   progressPhase?: 'source-check' | 'transfer' | 'device-check'; bytesChecked?: number
+  transferBytesPerSecond?: number; transferMeasuredAt?: number
 }
 export interface InstallationTasksPage {
   active: InstallationTask[]; items: InstallationTask[]; counts: Record<TaskCategory, number>; page: number; pages: number; total: number
@@ -32,4 +33,10 @@ export function installationTaskStateLabel(task: InstallationTask) {
   if (task.platform === 'ps5' && task.state === 'waiting') return 'Ожидание PS5'
   if (task.platform === 'ps5' && task.state === 'receiving') return 'Загрузка на PS5'
   return TASK_STATE_LABELS[task.state] || task.state
+}
+
+/** Hide an old response after a lost WEB connection; checking/installing is not transmission. */
+export function installationTaskSpeed(task: InstallationTask, now = Date.now()) {
+  if (task.state !== 'sending' || task.progressPhase !== 'transfer' || !Number.isFinite(task.transferBytesPerSecond) || task.transferBytesPerSecond! < 0 || !task.transferMeasuredAt) return undefined
+  return now - task.transferMeasuredAt > 5000 ? 0 : task.transferBytesPerSecond
 }

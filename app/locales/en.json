@@ -1449,5 +1449,8 @@
   "Пакет полностью передан установщику. Если установка завершилась на PS5, подтвердите результат": "Package delivered to the installer. Confirm the result once installation finishes on PS5",
   "Проверка исходного файла": "Checking source file",
   "Ожидание PS5": "Waiting for PS5",
-  "Загрузка на PS5": "Downloading to PS5"
+  "Загрузка на PS5": "Downloading to PS5",
+  "МиБ/с": "MiB/s",
+  "Мбит/с": "Mbit/s",
+  "Скорость передачи по байтам, подтверждённым PS5": "Transfer speed from bytes acknowledged by PS5"
 }

@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto'
+import { TransferSpeed } from './transfer-speed'
 import type { ContentPlatform, ContentFormat } from '../../shared/types/consoles'
 import { installationTaskCategory } from '../../shared/types/tasks'
 
@@ -33,9 +34,16 @@ export class Ps5QueueRunner {
   private controller?: AbortController
   private activeItem?: Ps5Item
   private progressSavedAt = 0
+  private speed: TransferSpeed
+  private speedUpdatedAt = 0
   constructor(readonly queue: Ps5Queue, private persist: (queue: Ps5Queue) => void,
-    private driver: Ps5Driver, private interval = 2000, private installed: (item: Ps5Item) => void = () => {}) {}
+    private driver: Ps5Driver, private interval = 2000, private installed: (item: Ps5Item) => void = () => {}, clock?: () => number) { this.speed = new TransferSpeed(clock) }
   private save() { this.queue.updatedAt = Date.now(); this.persist(this.queue) }
+  transferTelemetry(item: Ps5Item) {
+    if (item !== this.activeItem || item.state !== 'sending' || item.progressPhase !== 'transfer') return {}
+    const transferBytesPerSecond = this.speed.read()
+    return transferBytesPerSecond === undefined ? {} : { transferBytesPerSecond, transferMeasuredAt: this.speedUpdatedAt }
+  }
   snapshot() { return structuredClone(this.queue) }
   enqueue(items: Omit<Ps5Item, 'transferId' | 'state' | 'detail' | 'bytesSent'>[], queueId?: string) {
     if (!items.length || items.length > 10000) throw new Ps5QueueFailure('Выберите пакеты для установки')
@@ -102,11 +110,13 @@ export class Ps5QueueRunner {
       }
       const failedBase = this.queue.items.some(entry => entry.branch === item.branch && entry.order === 0 && ['failed','cancelled','skipped'].includes(entry.state))
       if (item.order > 0 && failedBase) { Object.assign(item, { state: 'skipped', detail: 'Базовая игра в этой очереди не установлена', completedAt: Date.now() }); this.save(); continue }
-      this.activeItem = item; this.controller = new AbortController()
+      this.activeItem = item; this.controller = new AbortController(); this.speed.reset(); this.speedUpdatedAt = 0
       const checkpoint = (patch: Partial<Ps5Item>) => {
         // A read-only poll that began before the human receipt cannot undo it.
         if (item.confirmation === 'user') return
         Object.assign(item, patch)
+        if (item.state !== 'sending' || item.progressPhase !== 'transfer') this.speed.reset()
+        else if (patch.bytesSent !== undefined) { this.speed.observe(item.bytesSent); this.speedUpdatedAt = Date.now() }
         // Byte offsets are already durable on PS5. Coalesce only WEB progress;
         // dispatch intents, hashes and state transitions always fsync immediately.
         if (Object.keys(patch).length === 1 && (patch.bytesSent !== undefined || patch.bytesChecked !== undefined) && Date.now()-this.progressSavedAt < 1000) return

@@ -97,7 +97,7 @@ export function getPs5Tasks(id: string, query: { categories?: unknown; page?: un
     if (item.hidden) continue
     const base = groups.get(item.branch)
     const { hash: _, sourceStamp: __, transferId: ___, installDispatched: ____, ...metadata } = item
-    tasks.push({ ...metadata, id: item.transferId, queueId: item.queueId || (index === 0 ? q.id || '' : `history-${index}`), psIp: q.psIp,
+    tasks.push({ ...metadata, ...r.transferTelemetry(item), id: item.transferId, queueId: item.queueId || (index === 0 ? q.id || '' : `history-${index}`), psIp: q.psIp,
       canConfirm: item.installDispatched === true && !!item.serviceJobId && item.bytesSent === item.size && ['installing','unconfirmed','failed'].includes(item.state),
       consolePlatform: 'ps5', category: installationTaskCategory(item.state), groupTitle: base?.title || item.title, groupIconId: base?.iconSize ? base.id : undefined,
       createdAt: item.createdAt || q.createdAt, transport: 'service', canCancel: index === 0 && q.status === 'running' && ps5CanCancel(item), cancelRequested: !!item.cancelRequested })

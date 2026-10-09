@@ -2,6 +2,7 @@ import { lstat, readdir, readFile, open } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createBLAKE3 } from 'hash-wasm'
 import { ps5SourceHash, ps5SourceStamp } from './ps5-source-hash'
+import { ps5SendChunks } from './ps5-send-chunks'
 import { Ps5QueueFailure, type Ps5Item } from './ps5-queue-core'
 
 export type FolderRequest = (id: string, path: string, headers?: Record<string, string>, body?: Uint8Array, signal?: AbortSignal) => Promise<{ status: number; body: any }>
@@ -70,14 +71,13 @@ async function upload(id: string, size: number, hash: string, read: (buffer: Buf
   const valid = (r: any) => r?.id === id && r.size === size && r.blake3 === hash && r.cancelled === false && Number.isSafeInteger(r.bytesDurable) && r.bytesDurable >= 0 && r.bytesDurable <= size
   if (r.status !== 200 || !valid(r.body)) fail('PS5 не подтвердила файл Folder')
   const max = r.body.chunkMax, chunk = typeof max === 'number' && max >= 262144 && max <= 4194304 && (max & (max - 1)) === 0 ? max : 262144
-  const buffer = Buffer.alloc(chunk); let offset = r.body.bytesDurable; progress(offset)
-  while (offset < size) {
-    signal.throwIfAborted(); const n = await read(buffer.subarray(0, Math.min(chunk, size - offset)), offset)
-    if (!n) fail('Файл Folder обрезан')
-    r = await request(id, '/api/v1/transfers/chunk', { 'X-PackageFlow-Offset': String(offset) }, buffer.subarray(0, n), signal)
-    if (r.status !== 200 || !valid(r.body) || r.body.bytesDurable !== offset + n) throw new Error('Folder acknowledgement lost; reconcile durable offset')
-    offset += n; progress(offset)
-  }
+  const offset = r.body.bytesDurable; progress(offset)
+  await ps5SendChunks({ read, size, offset, chunkSize: chunk, signal, validateSource: async () => true,
+    send: async (position, bytes) => {
+      r = await request(id, '/api/v1/transfers/chunk', { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
+      if (r.status !== 200 || !valid(r.body) || r.body.bytesDurable !== position + bytes.length) throw new Error('Folder acknowledgement lost; reconcile durable offset')
+    }, progress,
+  })
   if (r.body.verified) return
   checking()
   r = await request(id, '/api/v1/transfers/commit', {}, undefined, signal)
