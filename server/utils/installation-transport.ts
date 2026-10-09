@@ -9,6 +9,8 @@ export function installationTransport(value: unknown): InstallationTransport {
 
 export function serviceJobDetail(job: ServiceInstallJob): string {
   if (job.state === 'installed') return 'Установка подтверждена PS4'
+  if (job.state === 'failed' && job.errorHex.toUpperCase() === '0X80990015')
+    return 'PS4 уже зарегистрировала задание для этого пакета. Проверьте «Уведомления → Загрузки» на консоли (0x80990015)'
   if (job.state === 'failed') return job.errorHex.toUpperCase() === '0XFFFFD8D0'
     ? 'Загрузка завершена, но PS4 не подтвердила установку компонента. Проверьте его на приставке; очередь продолжена'
     : `Ошибка установки на PS4: ${job.errorHex}`

@@ -9,6 +9,7 @@ import { getSavedPsIp, getGoldHenStatus } from './ps4-installer'
 import { ps4ServiceIp, readPs4Service, getPs4SystemSnapshot } from './ps4-service'
 import { getServiceInstallerStatus, saveServiceKey, updatePairedServiceWebAddress } from './ps4-service-installer'
 import { ps5WebAddressHeaders, ps5WebAddressAccepted } from './ps5-web-address'
+import { ps5InstallCapabilities } from '../../shared/ps5-install-readiness'
 import type { ConsoleProfile, ConsoleProfiles, ConsoleCapabilities, ConsolePlatform } from '../../shared/types/consoles'
 
 const profilePath = () => dataPath('console-profiles.json')
@@ -46,6 +47,7 @@ const operationMethods = {
   '/api/v1/transfers/begin': 'POST', '/api/v1/transfers/status': 'GET', '/api/v1/transfers/chunk': 'POST',
   '/api/v1/transfers/commit': 'POST', '/api/v1/transfers/cancel': 'POST', '/api/v1/operations/status': 'GET',
   '/api/v1/install/staged': 'POST', '/api/v1/install/status': 'GET', '/api/v1/installer/job': 'GET',
+  '/api/v1/install/readiness': 'GET',
   '/api/v1/web/config': 'POST',
 } as const
 /** Fixed endpoints only. Callers cannot supply an address, credential or arbitrary path. */
@@ -101,7 +103,7 @@ export function removeConsoleProfile(id: unknown) {
 }
 
 /** Only the fixed PackageFlow port/path can be contacted. Credentials stay on WEB. */
-export async function ps5ServiceRequest(ip: string, path: '/health' | '/api/v1/capabilities' | '/api/v1/system' | '/api/v1/pair', code?: string) {
+export async function ps5ServiceRequest(ip: string, path: '/health' | '/api/v1/capabilities' | '/api/v1/system' | '/api/v1/pair' | '/api/v1/install/readiness', code?: string) {
   if (!ps4ServiceIp(ip)) throw createError({ statusCode: 400, message: 'Неверный адрес приставки' })
   const headers: Record<string, string> = {}
   if (path === '/api/v1/pair') headers['X-PackageFlow-Pairing-Code'] = code || ''
@@ -147,9 +149,12 @@ export async function probeConsoleProfile(id: unknown) {
       if (ps5Token(profile.ip)) {
         const response = await ps5ServiceRequest(profile.ip, '/api/v1/capabilities')
         paired = response.status === 200 && response.body?.service === 'PackageFlowService-PS5'
-        const c = paired ? response.body.capabilities : {}
-        capabilities = { formats: c?.installPs4Pkg === true || c?.installPs5Content === true ? ['pkg'] : [], installPs4: c?.installPs4Pkg === true, installPs5: c?.installPs5Content === true, background: c?.backgroundService === true }
         if (paired) {
+          try {
+            const readiness = await ps5ServiceRequest(profile.ip, '/api/v1/install/readiness')
+            capabilities = ps5InstallCapabilities(readiness.status, readiness.body, firmware)
+          } catch { capabilities = ps5InstallCapabilities(503, null, firmware) }
+          capabilities.background = response.body.capabilities?.backgroundService === true
           const system = await ps5ServiceRequest(profile.ip,'/api/v1/system')
           if (system.status === 200 && system.body?.service === 'PackageFlowService-PS5' && system.body.storageRead === true && Number.isSafeInteger(system.body.freeBytes) && system.body.freeBytes >= 0 && Number.isSafeInteger(system.body.totalBytes) && system.body.totalBytes > 0 && system.body.freeBytes <= system.body.totalBytes) freeBytes=system.body.freeBytes
         }

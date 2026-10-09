@@ -17,6 +17,10 @@ test('service accepts 64-bit progress and distinguishes download from installati
   assert.match(serviceJobDetail({ ...job, state: 'installing' }), /ожидаем подтверждение/)
   assert.match(serviceJobDetail({ ...job, state: 'installed' }), /подтверждена PS4/)
   assert.match(serviceJobDetail({ ...job, state: 'failed', errorHex: '0xFFFFD8D0' }), /не подтвердила установку/)
+  const duplicate = { ...job, state: 'failed' as const, taskId: -1, downloadedBytes: 0, errorHex: '0x80990015' }
+  assert.ok(validServiceJob(duplicate))
+  assert.match(serviceJobDetail(duplicate), /уже зарегистрировала задание.*Уведомления → Загрузки/)
+  assert.doesNotMatch(serviceJobDetail(duplicate), /ожидаем скачивание|подтверждена PS4/)
   assert.match(serviceJobDetail({ ...job, state: 'uncertain' }), /повтор не отправлен/)
   assert.match(serviceJobDetail({ ...job, state: 'downloading', pollError: -5 }), /временно недоступен/)
 })

@@ -1,5 +1,6 @@
 import { contentForConsole, contentFormat, contentPlatform, type ContentIdentity } from './content-platform'
 import type { ConsoleProfile } from './types/consoles'
+import { ps5InstallMessage } from './ps5-install-readiness'
 
 /** Validate the entire selection. Compatibility is never inferred from filenames. */
 export function deviceInstallReason(profile: ConsoleProfile, items: Array<ContentIdentity & { size: number; requiredFirmware?: string; sdkFirmware?: string }>, requiredBytes: number) {
@@ -8,6 +9,7 @@ export function deviceInstallReason(profile: ConsoleProfile, items: Array<Conten
   if (!profile.online) return 'Нет связи с приставкой'
   if (profile.transport !== 'payload' && !profile.paired) return 'Требуется сопряжение'
   if (items.some(item => contentFormat(item) !== 'pkg')) return 'Установка этого формата ещё не подтверждена сервисом'
+  if (profile.platform === 'ps5' && profile.capabilities.installation?.ready === false) return ps5InstallMessage(profile.capabilities)
   if (profile.transport !== 'payload' && items.some(item => !profile.capabilities.formats.includes(contentFormat(item)) ||
     !(contentPlatform(item) === 'ps4' ? profile.capabilities.installPs4 : profile.capabilities.installPs5))) return 'Сервис ещё не поддерживает установку выбранных файлов'
   if (profile.platform === 'ps4' && profile.transport !== 'payload' && items.some(item => !['PS4GD','PS4GP','PS4AC','PS4AL','PS4GDE'].includes(item.contentType || ''))) return 'Тип пакета не поддерживается сервисом PS4'

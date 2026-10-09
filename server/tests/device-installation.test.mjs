@@ -51,7 +51,7 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
     const preview=await api.previewDeviceInstall({packageIds:['a-patch','z-base']})
     assert.equal(preview.files,2);assert.equal(preview.devices.filter(item=>item.eligible).length,2);assert.equal(preview.devices.find(item=>item.profile.id===five.id).eligible,false)
     assert.equal(preview.devices[0].profile.freeBytes,900000000);assert.equal(preview.devices[2].profile.freeBytes,500000000)
-    assert.match(preview.devices[2].reason,/поддерживает/)
+    assert.match(preview.devices[2].reason,/готовность установки PS5/)
     const mixed=await api.previewDeviceInstall({librarySelection:{scope:'all',platform:'all'}})
     assert.equal(mixed.files,3);assert.equal(mixed.devices.some(item=>item.eligible),false,'whole selection, no silent platform filtering')
     assert.match(api.deviceInstallReason({...preview.devices[0].profile,freeBytes:1},[base],base.size),/места/)

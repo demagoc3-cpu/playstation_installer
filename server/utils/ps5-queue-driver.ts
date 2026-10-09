@@ -3,6 +3,8 @@ import { blake3 } from '@noble/hashes/blake3.js'
 import { getPackage } from './package-library'
 import { ps5OperationRequest } from './console-profiles'
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core'
+import { ps5InstallCapabilities, ps5InstallMessage } from '../../shared/ps5-install-readiness'
+import { getConsoleProfile } from './console-profiles'
 const pause = (signal: AbortSignal) => new Promise<void>((resolve, reject) => {
   signal.throwIfAborted()
   const abort = () => { clearTimeout(timer); reject(signal.reason) }
@@ -50,6 +52,12 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       try { source = getPackage(item.packageId) } catch { throw new Ps5QueueFailure('Пакет больше не доступен в библиотеке') }
       if (source.size !== item.size || source.contentId !== item.contentId || source.appVersion !== item.appVersion) throw new Ps5QueueFailure('Пакет изменился в библиотеке. Просканируйте его повторно')
       if (item.format !== 'pkg') throw new Ps5QueueFailure('Backend этого формата ещё не проверен на PS5')
+      // Check before hashing/transferring gigabytes. Recovery of accepted jobs
+      // above does not depend on current admission and never resubmits them.
+      const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal)
+      const capabilities = ps5InstallCapabilities(readiness.status, readiness.body, getConsoleProfile(consoleId).firmware)
+      if (!capabilities.installation?.ready) return { state: 'waiting', detail: ps5InstallMessage(capabilities) }
+      if (!(item.platform === 'ps4' ? capabilities.installPs4 : item.platform === 'ps5' && capabilities.installPs5)) throw new Ps5QueueFailure('Этот маршрут установки не проверен для платформы пакета')
       const file = await open(source.path, 'r').catch(()=> { throw new Ps5QueueFailure('Не удалось открыть исходный пакет') })
       try {
         const initial = await file.stat(), identity = stamp(initial)

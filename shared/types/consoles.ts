@@ -9,6 +9,7 @@ export interface ConsoleCapabilities {
   installPs5: boolean
   background: boolean
   contentTypes?: string[]
+  installation?: { route: 'staged-pkg'; ready: boolean; reason: string; exactVersionReceipt: false }
 }
 
 export interface ConsoleProfile {

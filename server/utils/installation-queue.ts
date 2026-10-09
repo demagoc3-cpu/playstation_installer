@@ -95,8 +95,12 @@ function publicQueue(queue: InstallationQueue) {
   const packages = missing ? new Map(getLibraryPackages().map(item => [item.id, item])) : new Map()
   return { ...queue, items: queue.items.map((item) => {
     const pkg = packages.get(item.packageId)
+    // Older completed queues stored only the raw duplicate-task code. Show the
+    // same explanation after a restart without changing or resubmitting a job.
+    const detail = item.state === 'failed' && /^Ошибка установки на PS4: 0x80990015$/i.test(item.detail)
+      ? 'PS4 уже зарегистрировала задание для этого пакета. Проверьте «Уведомления → Загрузки» на консоли (0x80990015)' : item.detail
     return { ...item, title: item.title || pkg?.title || item.packageId, fileName: item.fileName || pkg?.fileName || item.packageId,
-      size: item.size ?? pkg?.size ?? 0, type: item.type || pkg?.type || 'PKG', titleId: item.titleId || pkg?.titleId || '' }
+      size: item.size ?? pkg?.size ?? 0, type: item.type || pkg?.type || 'PKG', titleId: item.titleId || pkg?.titleId || '', detail }
   }) }
 }
 
