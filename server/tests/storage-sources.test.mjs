@@ -38,7 +38,7 @@ test('storage migration, isolated reindex, overlapping ownership, canonical dupl
   const rootSource=migrated.find(s=>s.path===root)
   const nested=await manager.save({kind:'local',path:child,name:'Nested'});await manager.settle()
   await manager.remove(nested.id);assert.equal(api.getLibraryPackages().length,2,'other ownership retains overlapping files')
-  writeFileSync(join(root,'added.pkg'),fixture('added'));unlinkSync(original)
+  writeFileSync(join(root,'added.pkg'),fixture('added'));writeFileSync(join(root,'invalid.pkg'),'x');unlinkSync(original)
   manager.action(rootSource.id,'index');await manager.settle()
   assert.equal(api.getLibraryPackages().length,3,'removed original falls back to identical copy and variants survive')
   assert.equal(api.getPackage(canonical).path,join(other,'copy.pkg'),'accepted URL survives primary source prune')
@@ -119,7 +119,7 @@ test('native Linux SMB/NFS commands use fixed arguments, read-only mounts and pr
       child.stdin.end=()=>queueMicrotask(()=>child.emit('close',0));return child
     }
     fsp.readFile=async(path,...args)=>path==='/proc/mounts'?mounted:oldRead(path,...args);syncBuiltinESMExports()
-    const c=api.createStorageConnector(),source={id:'fixture',kind:'smb',path:'//nas/games/subfolder',localPath:dir,username:'user',domain:'WORKGROUP'}
+    const c=api.createStorageConnector({linuxSmb:'cifs'}),source={id:'fixture',kind:'smb',path:'//nas/games/subfolder',localPath:dir,username:'user',domain:'WORKGROUP'}
     await c.connect(source,'secret-$()`');assert.equal(secretOnDisk,true);assert.ok(!JSON.stringify(calls).includes('secret-$()`'));assert.match(calls[0].args.at(-1),/^ro,nosuid,nodev/);assert.match(calls[0].args.at(-1),/prefixpath=subfolder/)
     const credential=calls[0].args.at(-1).match(/credentials=([^,]+)/)[1];assert.ok(!createRequire(import.meta.url)('node:fs').existsSync(credential),'temporary credentials removed')
     await c.connect({...source,kind:'nfs',path:'nas:/volume1/games'},'');assert.equal(calls[1].file,'/usr/sbin/mount.nfs');assert.match(calls[1].args.at(-1),/^ro,nosuid,nodev/)
@@ -146,4 +146,18 @@ test('Windows SMB and NFS provider calls send credentials on stdin, never interp
     await c.connect({...source,kind:'nfs',path:'nas:/volume1/games',username:'',domain:''},'')
     assert.equal(JSON.parse(calls[1].input).remote,directory);assert.match(calls[1].args.at(-1),/WNetAddConnection2/)
   } finally {cp.spawn=oldSpawn;fsp.stat=oldStat;syncBuiltinESMExports()}
+}))
+
+test('desktop Linux SMB uses GIO stdin credentials and a private GVfs link; removal never unmounts shared desktop sessions',()=>context(async(api,work)=>{
+  const cp=createRequire(import.meta.url)('node:child_process'),fsp=createRequire(import.meta.url)('node:fs/promises'),oldSpawn=cp.spawn,oldStat=fsp.stat,oldReaddir=fsp.readdir
+  const {EventEmitter}=await import('node:events'),{PassThrough}=await import('node:stream'),calls=[]
+  const point=join(work,'mounts','source'),target=`/run/user/${process.getuid()}/gvfs/smb-share:server=nas,share=games,user=test/subfolder`
+  try {
+    cp.spawn=(file,args)=>{const child=new EventEmitter();child.stdout=new PassThrough();child.stderr=new PassThrough();child.stdin=new PassThrough();child.kill=()=>true;child.stdin.end=input=>{calls.push({file,args,input});queueMicrotask(()=>{child.stdout.write(JSON.stringify({path:target}));child.emit('close',0)})};return child}
+    fsp.stat=async(path,...args)=>path===point?{isDirectory:()=>true}:oldStat(path,...args);fsp.readdir=async(path,...args)=>path===point?['game.pkg']:oldReaddir(path,...args);syncBuiltinESMExports()
+    const c=api.createStorageConnector(),source={id:'desktop',kind:'smb',path:'//nas/games/subfolder',localPath:point,username:'test',domain:''}
+    await c.connect(source,'secret-$()`');assert.equal(calls[0].file,'/usr/bin/python3');assert.ok(!JSON.stringify(calls[0].args).includes('secret-$()`'));assert.equal(JSON.parse(calls[0].input).password,'secret-$()`')
+    assert.equal(await fsp.readlink(point),target);assert.match(calls[0].args[1],/Gio.PasswordSave.NEVER/)
+    await c.disconnect(source);assert.equal(calls.length,1,'no unmount subprocess is launched');await assert.rejects(fsp.lstat(point),e=>e.code==='ENOENT')
+  } finally {cp.spawn=oldSpawn;fsp.stat=oldStat;fsp.readdir=oldReaddir;syncBuiltinESMExports()}
 }))

@@ -12,7 +12,8 @@ select a protocol when adding a source. No NAS vendor or DSM API is required.
   incremental reindex and full metadata rebuild are separate actions.
 - Optional scheduled index interval: 5 minutes to 7 days. Restart reconnects
   sources; connection checks do not rescan the catalogue.
-- Network mounts are read-only. Game files are read directly, never synchronized
+- Network sources are used for reading. Linux native and WebDAV mounts are
+  read-only; Windows UNC/GVfs use OS permissions. Game files are read directly, never synchronized
   by copying entire games to the computer. WebDAV uses rclone VFS without a disk
   data cache; metadata and cover caches remain in the WEB data directory.
 - Failed connection or partial index read preserves the last successful index.
@@ -24,6 +25,10 @@ select a protocol when adding a source. No NAS vendor or DSM API is required.
 - Disabling/removing/changing credentials refuses unresolved installation jobs
   and active file transfers. These checks read saved queues, without starting
   queue workers or asking a console to perform any action.
+- Sources are displayed in a compact table with protocol, status, package count,
+  size, last index time and row actions. Less common actions are under More.
+- Add and Edit open a native modal dialog with keyboard focus containment,
+  Escape/Cancel/close controls and per-dialog errors. The storage list stays in place.
 - Library and Settings link to Storage. qBittorrent chooses an existing enabled
   local storage; its optional remote path is a translation for a different host.
   Windows launcher source has no library folder picker or implicit full reindex.
@@ -52,7 +57,7 @@ the mount process environment, without writing a plaintext rclone config.
 | Protocol | Windows | Linux |
 |---|---|---|
 | Local | Existing readable folder | Existing readable folder |
-| SMB | Native Windows UNC / network provider | cifs-utils and permission to mount |
+| SMB | Native Windows UNC / network provider | GVfs + gvfs-fuse + python3-gi on desktop Linux, or cifs-utils with mount permission |
 | NFS | NFS-Win + WinFsp; server export permits this computer | nfs-common and permission to mount |
 | WebDAV | rclone + WinFsp | rclone + FUSE |
 
@@ -62,7 +67,12 @@ than an SMB password. Windows may reject multiple SMB logins to the same server
 with different credentials; resolve conflicting Windows sessions instead of
 silently disconnecting Explorer or another application's shares.
 
-Linux mounts use private `.data/storage-mounts/<source-id>` directories. The
+Desktop Linux SMB answers GIO authentication signals using credentials on stdin,
+creates a private link to the GVfs FUSE path, and does not request root permission.
+Saved passwords remain in the WEB vault; GIO PasswordSave is NEVER. Shared
+desktop SMB sessions are not unmounted when a source is removed.
+
+Linux native mounts use private `.data/storage-mounts/<source-id>` directories. The
 connector verifies source and filesystem ownership before reusing/unmounting a
 mount. The WEB process needs OS mount permission; the application never invokes
 an interactive sudo prompt or installs a privileged helper. Docker requires
@@ -90,3 +100,19 @@ mid-read failure, passive queue guards, encryption/restart/missing key handling,
 Existing package index, offline NAS pagination/cover and multi-device installation
 tests remain gates. Actual NFS/WebDAV/SMB server interoperability requires that
 server's connection and export settings; host tests do not claim NAS validation.
+
+## Live verification on 2026-10-09
+
+- Windows WEB storage release preserves 603 catalogue games and all 5 existing
+  sources (D:\test, D:\test2, E:\, Y:\, Z:\). All 5 are readable.
+- User-authorized Linux SMB `smb://10.1.10.200/download/ps4` authenticated
+  through GIO and exposed a user GVfs path. Reindex succeeded: 20 packages,
+  160085725979 bytes. Credentials are in the encrypted WEB vault; no plaintext
+  credentials are recorded in this document. Temporary credential input removed.
+- User-authorized Windows SMB checks authenticated both `\\192.168.0.11\e`
+  and `\\192.168.0.11\ps5` with the supplied account. Top-level listing succeeded:
+  549 and 32 folders respectively. This was an access check, without a new scan
+  or writing to the shares. Credentials were sent via stdin; temporary input removed.
+- NFS/WebDAV host tests cover provider configuration and prerequisites; actual NAS
+  protocol testing remains pending. Windows currently lacks WinFsp, NFS-Win and
+  rclone. No PS5 service/UI update or console installation was performed.

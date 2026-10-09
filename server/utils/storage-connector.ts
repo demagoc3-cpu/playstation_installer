@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, readdir, rm, rmdir, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, readlink, rm, rmdir, stat, lstat, symlink, unlink, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join, resolve, win32 } from 'node:path'
 import { createError } from 'h3'
 import { dataPath } from './data-path'
@@ -71,7 +71,33 @@ $rc=[PFStorageNetwork]::WNetAddConnection2([ref]$r,$d.password,$d.user,0)
 if($rc -ne 0){ if($rc -eq 1219){[Console]::Out.Write('credential-conflict')}else{[Console]::Out.Write('failed:'+ $rc)}; exit 1 }
 [Console]::Out.Write('connected')`
 
-export function createStorageConnector(): StorageConnector {
+// GIO answers authentication through signals; credentials are JSON on stdin.
+// GVfs provides SMB paths to a desktop Linux user without privileged CIFS mounts.
+const LINUX_SMB_GIO = `import json,os,sys
+from urllib.parse import quote
+from gi.repository import Gio,GLib
+d=json.load(sys.stdin)
+host,share,*tail=d['path'][2:].split('/')
+os.environ.setdefault('DBUS_SESSION_BUS_ADDRESS','unix:path=/run/user/'+str(os.getuid())+'/bus')
+uri='smb://'+(quote(d['username'],safe='')+'@' if d['username'] else '')+host+'/'+quote(share,safe='')+'/'+('/'.join(quote(p,safe='') for p in tail))
+f=Gio.File.new_for_uri(uri);op=Gio.MountOperation();loop=GLib.MainLoop();cancel=Gio.Cancellable();result={}
+def ask(op,message,user,domain,flags):
+ op.set_username(d['username']);op.set_password(d['password']);op.set_domain(d['domain'] or domain or 'WORKGROUP');op.set_password_save(Gio.PasswordSave.NEVER);op.reply(Gio.MountOperationResult.HANDLED)
+def finish(f,response,*args):
+ try:f.mount_enclosing_volume_finish(response)
+ except GLib.Error as e:
+  if not e.matches(Gio.io_error_quark(),Gio.IOErrorEnum.ALREADY_MOUNTED):result['failed']=True
+ loop.quit()
+def timeout():
+ result['failed']=True;cancel.cancel();loop.quit();return False
+op.connect('ask-password',ask)
+f.mount_enclosing_volume(Gio.MountMountFlags.NONE,op,cancel,finish,None)
+GLib.timeout_add_seconds(12,timeout);loop.run()
+path=f.get_path()
+if result.get('failed') or not path:sys.exit(1)
+print(json.dumps({'path':path}))`
+
+export function createStorageConnector(options: { linuxSmb?: 'auto' | 'cifs' } = {}): StorageConnector {
   const children = new Map<string, ChildProcess>()
   return {
     async connect(source, password) {
@@ -119,6 +145,28 @@ export function createStorageConnector(): StorageConnector {
         await withStorageTimeout(readable(source.localPath)); return
       }
       if (process.platform !== 'linux') throw fail('На этой системе используйте уже подключённую сетевую папку как локальное хранилище')
+      if (source.kind === 'smb' && process.getuid?.() !== 0 && options.linuxSmb !== 'cifs') {
+        try {
+          const result = JSON.parse(await run('/usr/bin/python3', ['-c', LINUX_SMB_GIO], JSON.stringify({ path:source.path, username:source.username, domain:source.domain, password })))
+          const prefix = `/run/user/${process.getuid?.()}/gvfs/`
+          if (typeof result.path !== 'string' || !result.path.startsWith(prefix)) throw fail('Нет локального пути SMB. Проверьте gvfs-fuse')
+          await mkdir(dirname(source.localPath), { recursive:true })
+          const point = await lstat(source.localPath).catch(()=>null)
+          if (point?.isSymbolicLink()) {
+            const target = await readlink(source.localPath)
+            if (!target.startsWith(prefix)) throw fail('Точка подключения принадлежит другому хранилищу')
+            if (target !== result.path) { await unlink(source.localPath); await symlink(result.path, source.localPath) }
+          } else {
+            if (point) await rmdir(source.localPath) // refuses non-empty directories
+            await symlink(result.path, source.localPath)
+          }
+          await withStorageTimeout(readable(source.localPath)); return
+        } catch {
+          // A headless server can instead have explicitly granted CIFS mount
+          // permission. Never request sudo or an interactive password prompt.
+          if ((await lstat(source.localPath).catch(()=>null))?.isSymbolicLink()) throw fail('SMB недоступен. Проверьте пароль, путь и пользовательское подключение Linux')
+        }
+      }
       await mkdir(source.localPath, { recursive: true })
       const mount = await linuxMount(source.localPath)
       if (mount) {
@@ -134,7 +182,7 @@ export function createStorageConnector(): StorageConnector {
             const parts = source.path.split('/'), remote = parts.slice(0, 4).join('/'), sub = parts.slice(4).join('/')
             await run('/usr/sbin/mount.cifs', [remote, source.localPath, '-o', `ro,nosuid,nodev,iocharset=utf8,credentials=${cred},uid=${process.getuid?.() || 0},gid=${process.getgid?.() || 0}${sub ? `,prefixpath=${sub}` : ''}${!source.username && !password ? ',guest' : ''}`])
           } else await run('/usr/sbin/mount.nfs', [source.path, source.localPath, '-o', 'ro,nosuid,nodev,soft,timeo=50,retrans=2'])
-        } catch { throw fail(source.kind === 'smb' ? 'Для SMB нужны cifs-utils и право монтирования у службы WEB' : 'Для NFS нужны nfs-common и право монтирования у службы WEB; проверьте разрешения экспорта NAS') }
+        } catch { throw fail(source.kind === 'smb' ? 'SMB не подключён. Проверьте доступ; нужны gvfs-backends, gvfs-fuse, python3-gi либо cifs-utils с правом монтирования' : 'Для NFS нужны nfs-common и право монтирования у службы WEB; проверьте разрешения экспорта NAS') }
         finally { await rm(authDir, { recursive: true, force: true }) }
       }
       await withStorageTimeout(readable(source.localPath))
@@ -150,6 +198,13 @@ export function createStorageConnector(): StorageConnector {
       // Windows deviceless connections may also be used by Explorer/another
       // source. Do not remove those shared sessions on deletion of a record.
       if (process.platform !== 'linux' || source.kind === 'local') return
+      const point = await lstat(source.localPath).catch(()=>null)
+      if (source.kind === 'smb' && point?.isSymbolicLink()) {
+        const target = await readlink(source.localPath)
+        if (!target.startsWith(`/run/user/${process.getuid?.()}/gvfs/`)) throw fail('Точка подключения принадлежит другому хранилищу')
+        await unlink(source.localPath) // only our link; leave shared desktop sessions alone
+        return
+      }
       const mount = await linuxMount(source.localPath)
       if (mount) {
         const remote = source.kind === 'webdav' ? `packageflow-${source.id}` : source.kind === 'smb' ? source.path.split('/').slice(0, 4).join('/') : source.path

@@ -278,7 +278,7 @@ async function cachePs5Cover(root: string, id: string, cover?: Buffer) {
 }
 
 function scanReadError(error: any, strict: boolean) {
-  if (strict && error?.code) throw createError({ statusCode: 503, message: 'Ошибка чтения хранилища. Предыдущий индекс сохранён' })
+  if (strict && ['EACCES', 'EPERM', 'EIO', 'ESTALE', 'ETIMEDOUT', 'ECONNRESET', 'ENETUNREACH', 'EHOSTUNREACH', 'ENOENT', 'ENOTDIR', 'EBADF', 'ENODEV', 'ENXIO', 'EREMOTEIO'].includes(error?.code)) throw createError({ statusCode: 503, message: `Ошибка чтения хранилища (${error.code}). Предыдущий индекс сохранён` })
   return undefined
 }
 const storedIds = (item: StoredPackage) => [...new Set([item.id, ...(item.aliasIds || [])])]

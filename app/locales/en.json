@@ -1437,6 +1437,10 @@
   "NFS требует nfs-common и право монтирования у WEB. На сервере разрешите доступ компьютеру WEB.": "NFS requires nfs-common and mount permissions for WEB. Allow the WEB computer access on the server.",
   "WebDAV требует rclone и WinFsp на компьютере WEB.": "WebDAV requires rclone and WinFsp on the WEB computer.",
   "WebDAV требует rclone и FUSE на компьютере WEB.": "WebDAV requires rclone and FUSE on the WEB computer.",
-  "SMB требует cifs-utils и право монтирования у WEB.": "SMB requires cifs-utils and mount permissions for WEB.",
-  "В Docker локальные папки должны быть подключены к контейнеру. Сетевым подключениям нужны компоненты и права внутри контейнера.": "In Docker, local folders must be mounted into the container. Network connections require components and permissions inside the container."
+  "SMB: пользовательское подключение Linux (GVfs) или cifs-utils с правом монтирования.": "SMB: Linux user connection (GVfs), or cifs-utils with mount permissions.",
+  "В Docker локальные папки должны быть подключены к контейнеру. Сетевым подключениям нужны компоненты и права внутри контейнера.": "In Docker, local folders must be mounted into the container. Network connections require components and permissions inside the container.",
+  "Статус": "Status",
+  "Пакеты": "Packages",
+  "Индексация": "Indexing",
+  "Другие действия": "More actions"
 }
