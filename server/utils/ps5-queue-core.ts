@@ -8,7 +8,7 @@ export interface Ps5Item {
   platform: ContentPlatform; format: ContentFormat; branch: string; order: number; appVersion?: string; contentId?: string
   transferId: string; state: Ps5State; detail: string; bytesSent: number; completedAt?: number; installedAt?: number
   hash?: string; sourceStamp?: string; installDispatched?: boolean; serviceJobId?: string; cancelRequested?: boolean; hidden?: boolean
-  queueId?: string; createdAt?: number; confirmation?: 'user'; confirmedAt?: number
+  queueId?: string; createdAt?: number; confirmation?: 'user' | 'service-registration'; confirmedAt?: number
   progressPhase?: 'source-check' | 'transfer' | 'device-check'; bytesChecked?: number
 }
 export interface Ps5Queue {
@@ -118,7 +118,7 @@ export class Ps5QueueRunner {
         const result = await this.driver.run(item, this.controller.signal, checkpoint)
         if (item.cancelRequested && !item.installDispatched) throw new Error('cancelled')
         checkpoint(result)
-        if (item.state === 'installed') { this.installed(item); checkpoint({ installedAt: Date.now(), completedAt: Date.now() }) }
+        if (item.state === 'installed' && item.confirmation !== 'user') { this.installed(item); checkpoint({ installedAt: Date.now(), completedAt: Date.now() }) }
         else if (terminal(item)) checkpoint({ completedAt: Date.now() })
       } catch (error) {
         if (item.cancelRequested && !item.installDispatched) {

@@ -47,7 +47,7 @@ const operationMethods = {
   '/api/v1/transfers/begin': 'POST', '/api/v1/transfers/status': 'GET', '/api/v1/transfers/chunk': 'POST',
   '/api/v1/transfers/commit': 'POST', '/api/v1/transfers/cancel': 'POST', '/api/v1/operations/status': 'GET',
   '/api/v1/install/staged': 'POST', '/api/v1/install/status': 'GET', '/api/v1/installer/job': 'GET',
-  '/api/v1/install/readiness': 'GET',
+  '/api/v1/install/verify': 'GET', '/api/v1/install/readiness': 'GET', '/api/v1/app/status': 'GET', '/api/v1/app/launch': 'POST',
   '/api/v1/web/config': 'POST',
   '/api/v1/status': 'GET', '/api/v1/shutdown': 'POST',
   '/api/v1/update/prepare': 'POST', '/api/v1/update/status': 'GET',
@@ -57,7 +57,7 @@ export async function ps5OperationRequest(consoleId: string, path: keyof typeof 
   headers: Record<string, string> = {}, body?: Uint8Array, signal?: AbortSignal) {
   const profile = getConsoleProfile(consoleId), token = ps5Token(profile.ip)
   if (profile.platform !== 'ps5' || !ps4ServiceIp(profile.ip) || !token) throw createError({ statusCode: 409, message: 'Требуется сопряжение PS5' })
-  if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Offset|Installer-Job|Web-Host|Web-Port|Console-Id|Update-Id)$/.test(key))) throw new Error('Invalid PS5 operation')
+  if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Offset|Installer-Job|Web-Host|Web-Port|Console-Id|Update-Id|Request-Id|UI-Title|UI-Metadata-Hash|Title|Content|Version)$/.test(key))) throw new Error('Invalid PS5 operation')
   const response = await fetch(`http://${profile.ip}:8095${path}`, { method: operationMethods[path],
     headers: { ...headers, Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/octet-stream' } : {}) },
     body: body as BodyInit | undefined, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) })

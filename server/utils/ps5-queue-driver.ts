@@ -1,3 +1,4 @@
+import { ps5BaseRegistration } from './ps5-registration'
 import { open } from 'node:fs/promises'
 import { ps5SourceHash, ps5SourceStamp as stamp } from './ps5-source-hash'
 import { getPackage } from './package-library'
@@ -47,7 +48,15 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
         const job = await request(item, '/api/v1/installer/job', { 'X-PackageFlow-Installer-Job': receipt.body.job }, undefined, signal).catch(error => {signal.throwIfAborted(); throw new Ps5QueueUncertain('Не удалось прочитать системное задание. Повтор не отправлен')})
         if (job.status !== 200 || !job.body.ok) throw new Ps5QueueUncertain('Системное задание недоступно. Повтор не отправлен')
         if (job.body.phase === 'failed') throw new Ps5QueueFailure(`Ошибка системной установки: 0x${Number(job.body.code || 0).toString(16).toUpperCase()}`)
-        // bytes served / app.pkg existence are not exact content/version receipts.
+        if (item.order === 0 && item.contentId && item.appVersion && ['done','serving'].includes(job.body.phase) && job.body.code === 0 && job.body.total === item.size && job.body.bytes_served === item.size) {
+          const registration = await request(item, '/api/v1/install/verify', {
+            'X-PackageFlow-Title': item.titleId, 'X-PackageFlow-Content': item.contentId,
+            'X-PackageFlow-Version': item.appVersion, 'X-PackageFlow-Installer-Job': receipt.body.job,
+          }, undefined, signal).catch(() => ({ status: 503, body: {} }))
+          signal.throwIfAborted()
+          if (ps5BaseRegistration(item, job.body, registration)) return { state: 'installed', confirmation: 'service-registration', confirmedAt: Date.now(), detail: `PS5 подтвердила регистрацию игры, версия ${item.appVersion}` }
+        }
+        // Full coverage alone never confirms a patch/DLC or a different version.
         if (job.body.phase === 'done' || job.body.phase === 'serving' && job.body.code === 0 && job.body.total === item.size && job.body.bytes_served === item.size) throw new Ps5QueueUncertain('Пакет полностью передан установщику. Если установка завершилась на PS5, подтвердите результат')
         return { state: 'installing', detail: 'PS5 выполняет системное задание' }
       }

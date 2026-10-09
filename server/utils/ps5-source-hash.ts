@@ -1,12 +1,13 @@
 import type { FileHandle } from 'node:fs/promises'
-import { blake3 } from '@noble/hashes/blake3.js'
+import { createBLAKE3 } from 'hash-wasm'
 
 export const ps5SourceStamp = (s: { size: number; mtimeMs: number; ino: number }) => `${s.size}:${s.mtimeMs}:${s.ino}`
 
 /** Hash the source separately from transfer progress; cancellation never yields a usable digest. */
 export async function ps5SourceHash(file: FileHandle, size: number, identity: string, signal: AbortSignal,
   progress: (bytes: number) => void, now: () => number = Date.now) {
-  const hash = blake3.create(), buffer = Buffer.alloc(1024 * 1024)
+  signal.throwIfAborted()
+  const hash = await createBLAKE3(256), buffer = Buffer.alloc(1024 * 1024)
   let position = 0, reportedAt = now()
   progress(0)
   while (position < size) {
@@ -20,5 +21,5 @@ export async function ps5SourceHash(file: FileHandle, size: number, identity: st
   }
   if (ps5SourceStamp(await file.stat()) !== identity) throw new Error('Исходный файл изменился во время проверки')
   signal.throwIfAborted()
-  return Buffer.from(hash.digest()).toString('hex')
+  return hash.digest('hex')
 }

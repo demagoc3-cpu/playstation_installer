@@ -17,7 +17,7 @@ function validItems(value: unknown): value is Ps5Item[] {
   return Array.isArray(value) && value.length <= 10000 && value.every(item => item && typeof item.packageId === 'string' && /^[a-zA-Z0-9_.-]{1,128}$/.test(item.packageId) && /^[0-9a-f]{32}$/.test(item.transferId || '') &&
     ['pending','sending','verifying','installing','waiting','installed','failed','skipped','cancelled','unconfirmed'].includes(item.state) && ['ps4','ps5'].includes(item.platform) && ['pkg','folder','ufs2','exfat','pfs','ffpfsc','unknown'].includes(item.format) &&
     (item.progressPhase === undefined || ['source-check','transfer','device-check'].includes(item.progressPhase)) && (item.bytesChecked === undefined || Number.isSafeInteger(item.bytesChecked) && item.bytesChecked >= 0 && item.bytesChecked <= item.size) &&
-    (item.confirmation === undefined || item.confirmation === 'user' && Number.isSafeInteger(item.confirmedAt) && item.confirmedAt > 0 && item.state === 'installed') &&
+    (item.confirmation === undefined || ['user','service-registration'].includes(item.confirmation) && Number.isSafeInteger(item.confirmedAt) && item.confirmedAt > 0 && item.state === 'installed') &&
     typeof item.branch === 'string' && typeof item.title === 'string' && typeof item.fileName === 'string' && typeof item.detail === 'string' && Number.isSafeInteger(item.size) && item.size > 0 && Number.isSafeInteger(item.bytesSent) && item.bytesSent >= 0 && item.bytesSent <= item.size && Number.isInteger(item.order) && item.order >= 0)
 }
 function runner(id: string) {
