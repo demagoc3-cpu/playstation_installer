@@ -89,6 +89,9 @@ function waitForClient(active: InstallerSession) {
 }
 
 async function loadPayload() {
+  // Portable builds serve assets from Nitro's bundle, independently of cwd.
+  const bundled = await useStorage('assets:server').getItemRaw<Uint8Array>('ps4-pkg-installer.bin')
+  if (bundled) return Buffer.from(bundled)
   const candidates = [join(process.cwd(), 'public', 'ps4-pkg-installer.bin'), join(process.cwd(), '.output', 'public', 'ps4-pkg-installer.bin')]
   for (const file of candidates) {
     try { return await readFile(file) } catch { /* try next location */ }
