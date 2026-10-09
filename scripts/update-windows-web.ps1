@@ -47,14 +47,14 @@ try {
  $ready=$false
  for($i=0;$i -lt 20;$i++){
   Start-Sleep -Milliseconds 500
-  try{$home=Invoke-WebRequest 'http://127.0.0.1:3000/' -UseBasicParsing -TimeoutSec 3;if($home.StatusCode -eq 200 -and $home.Content -match 'PackageFlow'){$ready=$true;break}}catch{}
+  try{$webResponse=Invoke-WebRequest 'http://127.0.0.1:3000/' -UseBasicParsing -TimeoutSec 3;if($webResponse.StatusCode -eq 200 -and $webResponse.Content -match 'PackageFlow'){$ready=$true;break}}catch{}
  }
  if(-not $ready){throw 'Updated WEB is unavailable'}
  $catalog=Invoke-RestMethod ('http://127.0.0.1:3000/api/catalog/v2?consoleId='+$ConsoleId+'&limit=10') -TimeoutSec 15
  if($catalog.total -ne $before.total -or @($catalog.games).Count -ne @($before.games).Count){throw 'Library changed unexpectedly'}
  $updates=Invoke-RestMethod ('http://127.0.0.1:3000/api/consoles/service-update?consoleId='+$ConsoleId) -TimeoutSec 5
  Copy-Item (Join-Path $stage 'release.json') (Join-Path $Root 'release.json')
- [ordered]@{source=$Revision;http=$home.StatusCode;total=$catalog.total;count=@($catalog.games).Count;currentService=$updates.current;backupPreserved=$true}|ConvertTo-Json -Compress
+ [ordered]@{source=$Revision;http=$webResponse.StatusCode;total=$catalog.total;count=@($catalog.games).Count;currentService=$updates.current;backupPreserved=$true}|ConvertTo-Json -Compress
 }catch{
  Stop-ScheduledTask -TaskName $TaskName
  Start-Sleep -Milliseconds 500
