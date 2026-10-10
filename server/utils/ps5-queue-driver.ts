@@ -13,6 +13,7 @@ import { ps5OperationRequest } from './console-profiles'
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core'
 import { ps5InstallCapabilities, ps5InstallMessage } from '../../shared/ps5-install-readiness'
 import { getConsoleProfile } from './console-profiles'
+import { isPs5ImageFormat } from './ps5-image-driver'
 const pause = (signal: AbortSignal) => new Promise<void>((resolve, reject) => {
   signal.throwIfAborted()
   const abort = () => { clearTimeout(timer); reject(signal.reason) }
@@ -51,6 +52,13 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       throw new Error('Cancellation not confirmed')
     },
     async run(item, signal, save) {
+      if (isPs5ImageFormat(item.format)) {
+        // The candidate publisher exists, but no mount/system-registration
+        // receipt for this own-service route exists yet. Historical mount tests
+        // remain valid. Never send an image to the PKG installer.
+        if (item.installDispatched) throw new Ps5QueueUncertain('Публикация образа требует отдельной сверки. Повтор не отправлен')
+        return { state: 'waiting', detail: 'Маршрут образов подготовлен. Подтверждение регистрации в новом маршруте ещё готовится' }
+      }
       if (item.format === 'folder') {
         let plan = readPlan(item)
         if (item.installDispatched) {

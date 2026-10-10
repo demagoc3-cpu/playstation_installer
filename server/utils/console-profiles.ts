@@ -50,6 +50,7 @@ const operationMethods = {
   '/api/v1/install/verify': 'GET', '/api/v1/install/readiness': 'GET', '/api/v1/app/status': 'GET', '/api/v1/app/launch': 'POST',
   '/api/v1/app/stop': 'POST', '/api/v1/app/stop/status': 'GET',
   '/api/v1/folder/commit': 'POST', '/api/v1/folder/status': 'GET',
+  '/api/v1/images/commit': 'POST', '/api/v1/images/status': 'GET',
   '/api/v1/web/config': 'POST',
   '/api/v1/status': 'GET', '/api/v1/shutdown': 'POST',
   '/api/v1/update/prepare': 'POST', '/api/v1/update/status': 'GET',
