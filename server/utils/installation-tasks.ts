@@ -1,4 +1,4 @@
-import { getInstallationQueue, getInstallationHistory } from './installation-queue'
+import { getInstallationQueue, getInstallationHistory, getInstallationTransferTelemetry } from './installation-queue'
 import { getTaskVisibility, taskVisibilityKey } from './task-visibility'
 import { getLibraryPackages } from './package-library'
 import { latestInstallationAttempts } from '../../shared/latest-installation-attempts'
@@ -29,6 +29,7 @@ export function getInstallationTasks(query: { categories?: unknown; page?: unkno
     tasks.push({ id: `${queue.id}:${item.packageId}`, queueId: queue.id || '', packageId: item.packageId, psIp: queue.psIp || '',
       title: item.title || pkg?.title || item.packageId, fileName: item.fileName || pkg?.fileName || item.packageId,
       type: item.type || pkg?.type || 'PKG', size: item.size ?? pkg?.size ?? 0, state: item.state, category,
+      consolePlatform: 'ps4', ...getInstallationTransferTelemetry(queue, item),
       platform: pkg?.platform, format: pkg?.format, signature: pkg?.signature, contentId: pkg?.contentId, appVersion: pkg?.appVersion, masterVersion: pkg?.masterVersion, requiredFirmware: pkg?.requiredFirmware, sdkFirmware: pkg?.sdkFirmware, contentType: pkg?.contentType, packageDigest: pkg?.packageDigest,
       titleId, groupTitle: branch?.title || pastBaseTitles.get(titleId) || titleId || item.title || item.packageId, groupIconId: branch?.iconId,
       detail: item.detail, bytesSent: item.bytesSent, createdAt: queue.createdAt || 0, completedAt: item.completedAt || item.installedAt,

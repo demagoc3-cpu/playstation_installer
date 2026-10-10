@@ -127,3 +127,57 @@ test('folder speed remains visible through an intermediate check and stops at fi
     release(); await runner.settled()
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
+
+test('PS4 live telemetry isolates consoles/attempts, survives download states, excludes restored bytes and local installation', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pf-ps4-speed-'))
+  try {
+    const out = join(dir, 'test.mjs')
+    await build({ stdin: { contents: `export * from './server/utils/ps4-transfer-speed'; export * from './shared/types/tasks'`, resolveDir: resolve('.') }, outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent' })
+    const { Ps4TransferSpeed, installationTaskSpeed } = await import(pathToFileURL(out).href)
+    let time = 0
+    const meter = new Ps4TransferSpeed(() => time)
+    const item = { packageId: 'game', requestId: 'attempt-one', state: 'receiving', size: 1000, bytesSent: 500 }
+    const queue = { id: 'queue', psIp: '192.0.2.1', createdAt: 1, status: 'running', items: [item] }
+    assert.deepEqual(meter.read(queue, item), {}, 'restored journal is not live speed')
+    meter.observe(queue); assert.equal(meter.read(queue, item).transferBytesPerSecond, 0)
+    const other = { ...queue, psIp: '192.0.2.2', items: [{ ...item }] }; meter.observe(other)
+    time = 1500; item.bytesSent = 650; meter.observe(queue)
+    assert.equal(meter.read(queue, item).transferBytesPerSecond, 100)
+    assert.equal(meter.read(other, other.items[0]).transferBytesPerSecond, 0, 'parallel console cannot inherit the rate')
+    assert.equal(installationTaskSpeed({ ...item, consolePlatform: 'ps4', ...meter.read(queue, item) }), 100)
+    item.state = 'installing'; time = 3000; item.bytesSent = 800; meter.observe(queue)
+    assert.equal(installationTaskSpeed({ ...item, consolePlatform: 'ps4', ...meter.read(queue, item) }), 100, 'BGFT installing can still download')
+    time = 9000; meter.observe(queue); assert.equal(meter.read(queue, item).transferBytesPerSecond, 0, 'unchanged counter stalls')
+    const restarted = new Ps4TransferSpeed(() => time); restarted.observe(queue)
+    assert.equal(restarted.read(queue, item).transferBytesPerSecond, 0, '800 resumed bytes are only a baseline')
+    item.requestId = 'attempt-two'; meter.observe(queue)
+    assert.equal(meter.read(queue, item).transferBytesPerSecond, 0, 'new request resets the samples')
+    time = 10500; item.bytesSent = 950; meter.observe(queue)
+    assert.equal(meter.read(queue, item).transferBytesPerSecond, 100)
+    item.bytesSent = 1000; meter.observe(queue)
+    assert.deepEqual(meter.read(queue, item), {}, 'local installation after full download has no network speed')
+    assert.equal(installationTaskSpeed({ ...item, consolePlatform: 'ps4', progressPhase: 'transfer', transferBytesPerSecond: 100, transferMeasuredAt: Date.now() }), undefined)
+    item.state = 'failed'; meter.observe(queue); assert.deepEqual(meter.read(queue, item), {})
+    assert.equal('transferBytesPerSecond' in item, false, 'queue data stays free of live telemetry')
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('PS4 UI rejects stale rates and byte counters follow transfer versus source-check phase', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pf-task-bytes-'))
+  try {
+    const out = join(dir, 'test.mjs')
+    await build({ stdin: { contents: `export * from './shared/types/tasks'`, resolveDir: resolve('.') }, outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent' })
+    const { installationTaskSpeed, installationTaskMegabytes } = await import(pathToFileURL(out).href)
+    const task = { consolePlatform: 'ps4', state: 'receiving', progressPhase: 'transfer', size: 15815 * 1048576, bytesSent: 150 * 1048576,
+      transferBytesPerSecond: 20 * 1048576, transferMeasuredAt: 10000 }
+    assert.deepEqual(installationTaskMegabytes(task), { transferred: 150, total: 15815 })
+    assert.equal(installationTaskSpeed(task, 12000), 20 * 1048576)
+    assert.equal(installationTaskSpeed(task, 16000), 0)
+    for (const state of ['pending', 'waiting', 'verifying', 'installed', 'delivered', 'failed']) assert.equal(installationTaskSpeed({ ...task, state }, 12000), undefined)
+    assert.deepEqual(installationTaskMegabytes({ ...task, progressPhase: 'source-check', bytesChecked: 50 * 1048576 }), { transferred: 50, total: 15815 })
+    assert.deepEqual(installationTaskMegabytes({ ...task, bytesSent: -1 }), { transferred: 0, total: 15815 })
+    assert.deepEqual(installationTaskMegabytes({ ...task, bytesSent: Infinity }), { transferred: 0, total: 15815 })
+    assert.deepEqual(installationTaskMegabytes({ ...task, size: 1048577, bytesSent: 1048576 }), { transferred: 1, total: 2 }, 'do not round an unfinished transfer to its total')
+    assert.deepEqual(installationTaskMegabytes({ ...task, size: 1048577, bytesSent: 1048577 }), { transferred: 2, total: 2 })
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})

@@ -35,9 +35,20 @@ export function installationTaskStateLabel(task: InstallationTask) {
   return TASK_STATE_LABELS[task.state] || task.state
 }
 
-/** Hide an old response after a lost WEB connection; checking/installing is not transmission. */
+/** Hide stale responses. PS4 may report installing while still downloading. */
 export function installationTaskSpeed(task: InstallationTask, now = Date.now()) {
-  const transmitting = task.state === 'sending' && task.progressPhase === 'transfer' || task.format === 'folder' && task.state === 'verifying' && task.progressPhase === 'device-check' && task.bytesSent < task.size
+  const ps4Download = (task.consolePlatform || task.platform) === 'ps4' &&
+    (task.state === 'receiving' || task.state === 'installing') && task.bytesSent < task.size && task.progressPhase === 'transfer'
+  const transmitting = ps4Download || task.state === 'sending' && task.progressPhase === 'transfer' || task.format === 'folder' && task.state === 'verifying' && task.progressPhase === 'device-check' && task.bytesSent < task.size
   if (!transmitting || !Number.isFinite(task.transferBytesPerSecond) || task.transferBytesPerSecond! < 0 || !task.transferMeasuredAt) return undefined
   return now - task.transferMeasuredAt > 5000 ? 0 : task.transferBytesPerSecond
+}
+
+/** Match the progress bar's phase; source checks must not look like sent bytes. */
+export function installationTaskMegabytes(task: InstallationTask) {
+  const size = Number.isSafeInteger(task.size) && task.size > 0 ? task.size : 0
+  const raw = task.progressPhase === 'source-check' ? task.bytesChecked || 0 : task.bytesSent
+  const bytes = Number.isSafeInteger(raw) ? Math.max(0, Math.min(size, raw)) : 0
+  const total = Math.ceil(size / 1048576)
+  return { transferred: bytes === size ? total : Math.floor(bytes / 1048576), total }
 }

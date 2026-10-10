@@ -19,6 +19,7 @@ import { checkPs4InstallSpace, installSpaceMessage } from './installation-space'
 import { checkPs4Firmware } from './installation-firmware'
 import { cancelServiceInstallJob, getServiceInstallJob, getServiceInstallerStatus, releaseServiceInstallJob, serviceKeyConfigured, submitServicePackage, uploadServiceInstallIcon } from './ps4-service-installer'
 import type { InstallationTransport, ServiceInstallJob } from '../../shared/types/installation'
+import { Ps4TransferSpeed } from './ps4-transfer-speed'
 
 export type InstallationItemState = 'pending' | 'sending' | 'waiting' | 'receiving' | 'installing' | 'verifying' | 'delivered' | 'installed' | 'unconfirmed' | 'skipped' | 'failed' | 'cancelled'
 
@@ -69,6 +70,8 @@ const STALLED_PATCH_MS = 10 * 60_000
 const STALLED_GAME_MS = 15 * 60_000
 const STALLED_CANCEL_RETRY_MS = 60_000
 const runners = new Map<string, Promise<void>>()
+const transferSpeed = new Ps4TransferSpeed()
+export const getInstallationTransferTelemetry = (queue: InstallationQueue, item: InstallationQueueItem) => transferSpeed.read(queue, item)
 const runnerKey = () => currentConsoleIp() || 'legacy'
 
 const blankQueue = (): InstallationQueue => ({ version: 1, status: 'idle', items: [] })
@@ -88,6 +91,7 @@ function readQueue(): InstallationQueue {
 function writeQueue(queue: InstallationQueue) {
   queue.updatedAt = Date.now()
   writeJsonFile(queuePath(), queue)
+  transferSpeed.observe(queue)
 }
 
 function publicQueue(queue: InstallationQueue) {

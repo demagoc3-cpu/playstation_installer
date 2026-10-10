@@ -1452,5 +1452,8 @@
   "Загрузка на PS5": "Downloading to PS5",
   "МиБ/с": "MiB/s",
   "Мбит/с": "Mbit/s",
-  "Скорость передачи по байтам, подтверждённым PS5": "Transfer speed from bytes acknowledged by PS5"
+  "Скорость передачи по байтам, подтверждённым PS5": "Transfer speed from bytes acknowledged by PS5",
+  "Скорость загрузки по прогрессу PS4": "Download speed from PS4 progress",
+  "Передано / всего": "Transferred / total",
+  "Проверено / всего": "Checked / total"
 }

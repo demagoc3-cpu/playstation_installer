@@ -113,7 +113,38 @@ async function until(check) {
   while (!check()) { assert(Date.now() < deadline, `timed out in ${mode}`); await delay(30) }
 }
 try {
-  if (mode === 'removed-job') {
+  if (mode === 'service-speed' || mode === 'payload-speed') {
+    if (mode === 'service-speed') writeFileSync('.data/ps4-service-keys.json', JSON.stringify({ [ip]: token }))
+    const queue = await load('installation-queue'), scope = await load('console-scope'), tasks = await load('installation-tasks')
+    const task = () => scope.inConsoleScope(ip, () => tasks.getInstallationTasks({ ip, view: 'tree' }).active[0])
+    queue.startInstallationQueue({ ...input, transport: mode === 'service-speed' ? 'service' : 'payload' })
+    if (mode === 'service-speed') {
+      await until(() => readQueue().items[0].state === 'receiving')
+      assert.equal(task().transferBytesPerSecond, 0, 'initial resumed bytes are not current transfer')
+      const next = currentJob.downloadedBytes + 30 * 1048576
+      currentJob.downloadedBytes = next
+      await until(() => readQueue().items[0].bytesSent === next)
+      assert(task().transferBytesPerSecond > 0, 'task API must publish actual PS4 service progress rate')
+      assert.equal(task().consolePlatform, 'ps4')
+      assert.equal(task().bytesSent, next)
+      assert.equal('transferBytesPerSecond' in readQueue().items[0], false, 'live rate is not persisted')
+      currentJob.state = 'installed'; currentJob.downloadedBytes = item.size
+      await until(() => readQueue().status === 'completed')
+      const done = scope.inConsoleScope(ip, () => tasks.getInstallationTasks({ ip, view: 'tree' }).items[0])
+      assert.equal(done.transferBytesPerSecond, undefined)
+    } else {
+      await until(() => readQueue().items[0].state === 'waiting')
+      const library = await load('package-library')
+      scope.inConsoleScope(ip, () => library.recordPackageDelivery(item.id, 0, 150 * 1048576 - 1, false))
+      await until(() => readQueue().items[0].bytesSent === 150 * 1048576)
+      scope.inConsoleScope(ip, () => library.recordPackageDelivery(item.id, 0, 180 * 1048576 - 1, false))
+      await until(() => readQueue().items[0].bytesSent === 180 * 1048576)
+      assert(task().transferBytesPerSecond > 0, 'legacy HTTP delivery must publish its rate too')
+      assert.equal(task().progressPhase, 'transfer')
+      assert.equal('transferBytesPerSecond' in readQueue().items[0], false)
+      queue.cancelInstallationQueue(); await until(() => readQueue().status === 'cancelled')
+    }
+  } else if (mode === 'removed-job') {
     writeFileSync('.data/ps4-service-keys.json', JSON.stringify({[ip]:token}))
     const next={...item,id:'two',title:'Second Game',titleId:'CUSA00002',contentId:'EP0000-CUSA00002_00-ABCDEFGHIJKLMNOP'};
     writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages:[item,next],deliveries:{}}));

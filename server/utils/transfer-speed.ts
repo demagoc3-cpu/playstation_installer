@@ -1,7 +1,8 @@
 /** Live throughput of acknowledged bytes. Never persisted or restored as a rate. */
 export class TransferSpeed {
   private samples: Array<{ time: number; bytes: number }> = []
-  constructor(private clock: () => number = () => performance.now()) {}
+  private clock: () => number
+  constructor(clock: () => number = () => performance.now()) { this.clock = clock }
   reset() { this.samples = [] }
   observe(bytes: number) {
     const time = this.clock(), last = this.samples.at(-1)
