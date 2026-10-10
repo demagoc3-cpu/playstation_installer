@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-10",
+  "release": "v1.10.7",
+  "release_commit": "84c742244f20f7a3b2c8bc31ef7375da0dd18d28",
+  "service_ps4": "2.01",
+  "release_url": "https://github.com/demagoc3-cpu/playstation_installer/releases/tag/v1.10.7",
+  "docker_latest_pushed": "2026-10-07T07:13:05.060788Z",
+  "docker_platforms": [
+    "linux/amd64",
+    "linux/arm64"
+  ],
+  "image_generator": "built-in image_gen",
+  "publication": "prepared locally; no forum post or git push",
+  "validation": [
+    "BBCode balanced",
+    "referenced screenshots exist in v1.10.7",
+    "Compose YAML parsed; not deployed",
+    "banner visually inspected"
+  ],
+  "files": {
+    "docs/releases/forum-header-ps4-2026-10.bbcode.txt": {
+      "bytes": 39805,
+      "sha256": "44bb0126bd80e8910f5e02587be3fbb852bf80206a42d106a861289784b7ae6b"
+    },
+    "docs/assets/packageflow-ps4-features-2026-10.png": {
+      "bytes": 1792754,
+      "sha256": "9f335b335acee735bd22254fa82ceff2c22cf313ac95e4e987f3fa205fbe3e74"
+    },
+    "docs/assets/packageflow-ps4-features-2026-10.prompt.txt": {
+      "bytes": 3779,
+      "sha256": "1d074f893f5760864f5e7191a96db454b8f1e43e0271101406ef722ee5261468"
+    }
+  }
+}

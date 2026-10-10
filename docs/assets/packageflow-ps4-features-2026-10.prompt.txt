@@ -1,0 +1,22 @@
+Generator: built-in image_gen.
+Reference: docs/assets/packageflow-banner-2.01.png (existing brand/style).
+Purpose: 4PDA PS4 forum header, current published features, no upcoming features.
+
+Use case: infographic-diagram / ads-marketing.
+Redesign the referenced PackageFlow banner into a NEW comprehensive schematic infographic banner for a Russian 4PDA forum header about the CURRENT PS4 product. Reference image is for the exact existing PF monogram, brand spelling and purple-blue-cyan palette; replace its layout and copy completely. Deliver a finished wide raster banner, approximately 2:1 aspect ratio, 2400x1200 or similar. All text must be crisp, correct Cyrillic, readable when downscaled. Clear hierarchy, spacious cards, elegant dark navy background, restrained cyan/violet accent lines and clean technology icons, not visual noise. Brand PackageFlow must be the largest header at top left with the faithful PF monogram. Main subtitle exactly: "Установка PKG на PS4 по сети".
+
+The banner should explain the full product as a connected schematic, not just show one screen or a slogan.
+Main horizontal flow: left source node labelled "ПК / NAS" with small disk and server icons and "Папки с PKG" -> prominent central node labelled "PackageFlow WEB" with browser window icon -> right destination node labelled "PS4 + GoldHEN" with a recognizable black PS4 Slim and DualShock 4 (no PS5 objects). Label the main arrow to PS4 "Установка по HTTP". Beside WEB, a small PC+phone access node labelled "Браузер: ПК / телефон"; connect it to WEB. Beside PS4 a node labelled "Приложение PS4" with "Геймпад • Родная клавиатура"; connect it bidirectionally to WEB via the PS4 node. Clearly represent browser and PS4 app as two interfaces to one shared library.
+
+Below the main flow, six equal feature cards in two rows of three, with clean icons, connected neatly to the central system. These cards must use these exact titles and short texts:
+1 "Библиотека" / "Обложки • Поиск • Избранное" / "Пресеты • Импорт / экспорт"
+2 "Установка и очередь" / "Игра → Патчи → DLC" / "Прогресс • История • Отмена"
+3 "Управление PS4" / "Запуск • Остановка • Удаление" / "Прошивка • Диски • Обновления"
+4 "Файлы" / "Загрузка • Докачка • Копирование" / "Редактор • Корзина • Локальные PKG"
+5 "Сохранения" / "Резервные копии • ZIP" / "Восстановление • Откат"
+6 "Поиск и загрузки" / "Prowlarr / Jackett → qBittorrent" / "Скачалось → Установилось"
+Mark the last card with a small readable "Опционально" chip. Keep arrows from search to torrent to library semantically correct: qBittorrent downloads files, WEB serves PKG to PS4. No arrow should imply playing games from NAS.
+
+Bottom platform/support badges exactly: "Windows 10 / 11" | "Linux / macOS" | "Docker Compose / NAS" | "RU / EN".
+No PS5, no ELF, no remote desktop, no multiple console support, no parallel downloads, no unreleased Storage section, no BLAKE3 speed claims, no version numbers, no URLs or release-date text. These are a separate upcoming release and must not appear in this CURRENT PS4 feature banner.
+Use schematic icons and connectors, not fake screenshots or invented game covers. A small browser wireframe and console silhouette are enough. Ensure every one of the six functional areas is visible, clearly labelled, and fits comfortably with no text clipping. Preserve exact PackageFlow brand spelling.
