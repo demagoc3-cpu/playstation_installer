@@ -253,6 +253,14 @@ internal sealed class ConsoleManagerForm : Form
         var sha=r["release"]!["app"]!["sha256"]!.GetValue<string>();
         if(settings.SetupAppConsoleId!=id||settings.SetupAppSha256!=sha||settings.SetupAppRequestId.Length!=32) {settings.SetupAppConsoleId=id;settings.SetupAppSha256=sha;settings.SetupAppRequestId=Guid.NewGuid().ToString("N");settings.Save(ServerHost.SettingsPath);}
         var started=await Api("/api/desktop/console-setup",new {consoleId=id,action="install-app",requestId=settings.SetupAppRequestId},lifetime.Token);
+        var retry=started["retry"]?.GetValue<string>();
+        if(retry=="installed") {status.Text=T("PackageFlow уже установлен — наличие проверено на PS5.","PackageFlow is already installed — verified on PS5.");await Reload();return;}
+        if(retry=="absent") {
+            settings.SetupAppRequestId=Guid.NewGuid().ToString("N");settings.Save(ServerHost.SettingsPath);
+            started=await Api("/api/desktop/console-setup",new {consoleId=id,action="install-app",requestId=settings.SetupAppRequestId},lifetime.Token);
+        } else if(retry is "unconfirmed" or "unavailable" or "different-version") {
+            throw new InvalidOperationException(retry=="different-version" ? T("На PS5 есть другая версия PackageFlow. Требуется обновление приложения.","PS5 has a different PackageFlow version. An application update is required.") : T("Не удалось подтвердить результат прежней установки или наличие приложения. Повторная установка не отправлена — нажмите «Проверить» после восстановления связи.","The previous installation or application presence could not be confirmed. No duplicate was sent — check again after restoring the connection."));
+        }
         var queueId=started["receipt"]?["queueId"]?.GetValue<string>();
         for(var i=0;i<120;i++) {
             r=await Api("/api/desktop/console-setup?consoleId="+Uri.EscapeDataString(id),ct:lifetime.Token);var q=r["queue"];

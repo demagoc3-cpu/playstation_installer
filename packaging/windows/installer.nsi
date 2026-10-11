@@ -27,6 +27,8 @@ VIAddVersionKey "FileVersion" "${VERSION}"
 VIAddVersionKey "LegalCopyright" "PackageFlow contributors"
 
 !define MUI_ABORTWARNING
+!define MUI_ICON "../../apps/windows-launcher/PackageFlow.Windows/packageflow.ico"
+!define MUI_UNICON "../../apps/windows-launcher/PackageFlow.Windows/packageflow.ico"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\PackageFlow.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "PackageFlow"
 !define MUI_FINISHPAGE_RUN_PARAMETERS "$LauncherArguments"
@@ -94,6 +96,7 @@ Section "PackageFlow" Main
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PackageFlow" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PackageFlow" "UninstallString" '$\"$INSTDIR\Uninstall.exe$\"'
   WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PackageFlow" "InstallLocation" "$INSTDIR"
+  WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PackageFlow" "DisplayIcon" "$INSTDIR\PackageFlow.exe,0"
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PackageFlow" "NoModify" 1
   WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PackageFlow" "NoRepair" 1
   CreateDirectory "$SMPROGRAMS\PackageFlow"

@@ -47,6 +47,11 @@ export function getPs5Queue(id: string) {
   const { history: _, ...snapshot } = runner(id).queue, q = structuredClone(snapshot)
   return { ...q, items: q.items.map(item => { const { hash: _, sourceStamp: __, transferId: ___, ...publicItem } = item; return publicItem }) }
 }
+export function getPs5SetupAttempt(id: string, queueId: string, packageId: string) {
+  const q = runner(id).queue
+  const item = [q.items, ...q.history].flat().find(item => (item.queueId || (q.items.includes(item) ? q.id : undefined)) === queueId && item.packageId === packageId)
+  return item ? { state: item.state } : undefined
+}
 export function ps5TaskPackageId(id: string, queueId: string, taskId: string) {
   const q = runner(id).queue, item = q.items.find(item => item.transferId === taskId || item.packageId === taskId)
   if (q.id !== queueId || !item) throw createError({statusCode:409,message:'Задание больше не существует в этой очереди'})

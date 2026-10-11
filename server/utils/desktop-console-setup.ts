@@ -7,7 +7,9 @@ import { writeDurableJson } from './durable-json'
 import { getConsoleProfile, probeConsoleProfile, ps5ServiceRequest } from './console-profiles'
 import { consoleSetupBundle } from './console-setup-artifacts'
 import { bootstrapHealth, bootstrapReceipt, runPs5Bootstrap, type BootstrapFlow } from './ps5-bootstrap-driver'
-import { getPs5Queue, startPs5Queue } from './ps5-installation-queue'
+import { getPs5Queue, getPs5SetupAttempt, startPs5Queue } from './ps5-installation-queue'
+import { checkPs5InstalledPackage } from './installed-package-check'
+import { desktopAppRetryState } from './desktop-app-retry'
 import { registerPs5ImageFile, getPackage } from './package-library'
 import { claimConsoleWorker } from './console-worker-lock'
 import { trackDesktopRequest } from './desktop-lifecycle'
@@ -92,7 +94,11 @@ export async function installDesktopPs5App(id: unknown, requestId: unknown) {
   if (existsSync(receiptPath)) {
     const receipt=JSON.parse(readFileSync(receiptPath,'utf8'))
     if(receipt.consoleId!==p.id||receipt.ip!==p.ip)throw createError({statusCode:409,message:'Профиль приставки изменился'})
-    return {consoleId:p.id,receipt,queue:getPs5Queue(p.id)}
+    const retry = await desktopAppRetryState(getPs5SetupAttempt(p.id, receipt.queueId, receipt.packageId), () => {
+      const source = getPackage(receipt.packageId)
+      return checkPs5InstalledPackage(p.id, p.ip, source, AbortSignal.timeout(15000))
+    })
+    return {consoleId:p.id,receipt,queue:getPs5Queue(p.id),retry}
   }
   assertNoPs5ServiceUpdate(p.id)
   const b = await consoleSetupBundle(), snapshot=(await probeConsoleProfile(p.id)).consoles.find(x=>x.id===p.id)!
