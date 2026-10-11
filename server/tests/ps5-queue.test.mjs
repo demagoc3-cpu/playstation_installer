@@ -16,6 +16,23 @@ const api=await import(pathToFileURL(bundle).href)
 const input=(id,branch='ps5:PPSA95001',order=0)=>({packageId:id,title:id,fileName:`${id}.pkg`,titleId:branch.split(':')[1],size:100,type:order===0?'Игра':order===1?'Патч':'DLC',platform:branch.split(':')[0],format:'pkg',branch,order})
 const wait=async check=>{const end=Date.now()+4000;while(!check()){assert.ok(Date.now()<end,'queue timed out');await new Promise(r=>setTimeout(r,5))}}
 const make=(driver,id='one')=>{let durable;const q=api.ps5BlankQueue(id,`192.168.1.${id==='one'?5:6}`);const runner=new api.Ps5QueueRunner(q,value=>{durable=structuredClone(value)},driver,5);return {runner,q,read:()=>structuredClone(durable)}}
+test('installer creates its durable queue ID without appending to a nonexistent queue or replaying it',async()=>{
+  let release, calls=0
+  const {runner,q,read}=make({async run(){calls++;await new Promise(r=>{release=r});return{state:'installed'}},async cancel(){}})
+  const id='b'.repeat(32)
+  assert.throws(()=>runner.enqueue([input('app')],id),/Очередь изменилась/)
+  assert.equal(q.status,'idle');assert.equal(calls,0)
+  runner.enqueue([input('app')],undefined,id)
+  await wait(()=>release)
+  assert.equal(read().id,id);assert.equal(read().items[0].queueId,id)
+  assert.throws(()=>runner.enqueue([input('app')],undefined,id),/Неверный номер/)
+  assert.throws(()=>runner.enqueue([input('other')],undefined,'c'.repeat(32)),/Уже работает очередь/)
+  runner.enqueue([input('app')],id)
+  assert.equal(q.items.length,1)
+  release();await runner.settled();assert.equal(calls,1)
+  assert.throws(()=>runner.enqueue([input('app')],undefined,id),/Неверный номер/)
+  assert.throws(()=>runner.enqueue([input('app')],undefined,'bad'),/Неверный номер/)
+})
 test('PS5 branch ordering, failed base dependencies, deduplicated append and clear',async()=>{
   const seen=[];let release
   const driver={async run(item,signal,save){seen.push(item.packageId);save({state:'sending'});if(item.packageId==='base')await new Promise(r=>{release=r});if(item.packageId==='bad')throw new api.Ps5QueueFailure('bad base');return{state:'installed'}},async cancel(){}}
@@ -157,5 +174,20 @@ test('human completion receipt is scoped, durable, idempotent and cannot be undo
  const pending=make({async run(){return{state:'waiting'}},async cancel(){}});pending.runner.enqueue([input('pending')])
  assert.throws(()=>pending.runner.confirmInstalled(pending.q.id,'pending'),/после передачи/)
  pending.q.status='failed'
+})
+test('real PS5 request transport forwards the registration protocol and still rejects unrelated headers',async()=>{
+ const originalFetch=globalThis.fetch, originalError=globalThis.createError
+ globalThis.createError=createError
+ const profile=api.saveConsoleProfile({name:'image transport',platform:'ps5',ip:'192.168.1.8'}).consoles.find(c=>c.ip==='192.168.1.8')
+ const keys=join(process.env.PACKAGEFLOW_DATA_DIR,'ps5-service-keys.json')
+ writeFileSync(keys,JSON.stringify({...JSON.parse(readFileSync(keys,'utf8')),[profile.ip]:'b'.repeat(64)}))
+ let calls=0
+ try {
+  globalThis.fetch=async(url,options)=>{calls++;assert.equal(url,'http://192.168.1.8:8095/api/v1/images/commit');assert.equal(options.method,'POST');assert.equal(options.headers['X-PackageFlow-Image-Protocol'],'image-registration-v1');assert.equal(options.headers['X-PackageFlow-Transfer-Id'],'c'.repeat(32));return new Response(JSON.stringify({state:'publishing-image'}),{status:202})}
+  const result=await api.ps5OperationRequest(profile.id,'/api/v1/images/commit',{'X-PackageFlow-Transfer-Id':'c'.repeat(32),'X-PackageFlow-Image-Protocol':'image-registration-v1'})
+  assert.equal(result.status,202);assert.equal(calls,1)
+  await assert.rejects(api.ps5OperationRequest(profile.id,'/api/v1/images/commit',{'X-Unrelated':'bad'}),/Invalid PS5 operation/)
+  assert.equal(calls,1)
+ } finally {globalThis.fetch=originalFetch;globalThis.createError=originalError}
 })
 test.after(()=>{if(initialData===undefined)delete process.env.PACKAGEFLOW_DATA_DIR;else process.env.PACKAGEFLOW_DATA_DIR=initialData;rmSync(work,{recursive:true,force:true})})

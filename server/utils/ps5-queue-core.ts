@@ -49,13 +49,14 @@ export class Ps5QueueRunner {
     return { transferBytesPerSecond: this.speed.read() ?? 0, transferMeasuredAt: this.speedUpdatedAt || Date.now() }
   }
   snapshot() { return structuredClone(this.queue) }
-  enqueue(items: Omit<Ps5Item, 'transferId' | 'state' | 'detail' | 'bytesSent'>[], queueId?: string) {
+  enqueue(items: Omit<Ps5Item, 'transferId' | 'state' | 'detail' | 'bytesSent'>[], queueId?: string, initialQueueId?: string) {
     if (!items.length || items.length > 10000) throw new Ps5QueueFailure('Выберите пакеты для установки')
+    if (initialQueueId && (queueId || !/^[a-f0-9]{32}$/.test(initialQueueId) || initialQueueId === this.queue.id)) throw new Ps5QueueFailure('Неверный номер новой очереди')
     if (queueId && (queueId !== this.queue.id || this.queue.status !== 'running')) throw new Ps5QueueFailure('Очередь изменилась. Обновите задания')
     if (!queueId && this.queue.status === 'running') throw new Ps5QueueFailure('Уже работает очередь этой PS5')
     if (!queueId) {
       if (this.queue.items.length) this.queue.history = [this.queue.items, ...this.queue.history].slice(0, 10)
-      this.queue.items = []; this.queue.id = randomUUID(); this.queue.createdAt = Date.now()
+      this.queue.items = []; this.queue.id = initialQueueId || randomUUID(); this.queue.createdAt = Date.now()
     }
     const known = new Set(this.queue.items.filter(item => item.state !== 'cancelled').map(item => item.packageId))
     const additions = items.filter(item => !known.has(item.packageId) && (known.add(item.packageId), true))

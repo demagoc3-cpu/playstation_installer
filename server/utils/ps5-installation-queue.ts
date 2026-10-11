@@ -52,7 +52,7 @@ export function ps5TaskPackageId(id: string, queueId: string, taskId: string) {
   if (q.id !== queueId || !item) throw createError({statusCode:409,message:'Задание больше не существует в этой очереди'})
   return item.packageId
 }
-export async function startPs5Queue(input: { consoleId: string; packageIds?: unknown; librarySelection?: LibraryInstallationSelection; queueId?: string; overwritePackageIds?: string[] }) {
+export async function startPs5Queue(input: { consoleId: string; packageIds?: unknown; librarySelection?: LibraryInstallationSelection; queueId?: string; newQueueId?: string; overwritePackageIds?: string[] }) {
   assertNoPs5ServiceUpdate(input.consoleId)
   assertNoPs5Bootstrap(input.consoleId)
   const profile = getConsoleProfile(input.consoleId)
@@ -82,7 +82,7 @@ export async function startPs5Queue(input: { consoleId: string; packageIds?: unk
     }
   }
   try { current.enqueue(items.map(item => ({ packageId: item.id, title: item.title, fileName: item.fileName, size: item.size, type: item.type,
-    titleId: item.titleId, branch: contentBranchKey(item), order: item.installOrder, platform: contentPlatform(item), format: contentFormat(item), appVersion: item.appVersion, contentId: item.contentId, overwriteApproved: overwrite.includes(item.id) })), input.queueId); return getPs5Queue(profile.id) }
+    titleId: item.titleId, branch: contentBranchKey(item), order: item.installOrder, platform: contentPlatform(item), format: contentFormat(item), appVersion: item.appVersion, contentId: item.contentId, overwriteApproved: overwrite.includes(item.id) })), input.queueId, input.newQueueId); return getPs5Queue(profile.id) }
   catch (error) { if (error instanceof Ps5QueueFailure) throw createError({ statusCode: 409, message: error.message }); throw error }
 }
 export function cancelPs5Queue(id: string, queueId: string, packageIds?: string[], branches?: string[]) {

@@ -107,7 +107,7 @@ export async function installDesktopPs5App(id: unknown, requestId: unknown) {
     if(source.titleId!==b.manifest.app.titleId||source.contentId!==b.manifest.app.contentId||source.appVersion!==b.manifest.app.version)throw new Error('Приложение изменилось при подготовке')
     const receipt={consoleId:p.id,ip:p.ip,requestId,packageId:item.id,sha256:b.manifest.app.sha256,queueId:randomBytes(16).toString('hex'),state:'prepared',startedAt:Date.now()}
     writeDurableJson(receiptPath,receipt)
-    try { const queue=await startPs5Queue({consoleId:p.id,packageIds:[item.id],queueId:receipt.queueId});receipt.state='queued';writeDurableJson(receiptPath,receipt);return {consoleId:p.id,receipt,queue} }
+    try { const queue=await startPs5Queue({consoleId:p.id,packageIds:[item.id],newQueueId:receipt.queueId});receipt.state='queued';writeDurableJson(receiptPath,receipt);return {consoleId:p.id,receipt,queue} }
     catch(e){receipt.state='unconfirmed';writeDurableJson(receiptPath,receipt);throw e}
   } finally {lock()}
 }

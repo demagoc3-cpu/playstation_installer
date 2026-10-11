@@ -64,7 +64,7 @@ export async function ps5OperationRequest(consoleId: string, path: keyof typeof 
   headers: Record<string, string> = {}, body?: Uint8Array, signal?: AbortSignal) {
   const profile = getConsoleProfile(consoleId), token = ps5Token(profile.ip)
   if (profile.platform !== 'ps5' || !ps4ServiceIp(profile.ip) || !token) throw createError({ statusCode: 409, message: 'Требуется сопряжение PS5' })
-  if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Offset|Installer-Job|Web-Host|Web-Port|Console-Id|Update-Id|Request-Id|UI-Title|UI-Metadata-Hash|Title|Content|Version|User|Save-Kind|Save-Path|File-Id|Action|Destination|Source-Identity|Confirm-Title|Expected-App-Id)$/.test(key))) throw new Error('Invalid PS5 operation')
+  if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Offset|Installer-Job|Web-Host|Web-Port|Console-Id|Update-Id|Request-Id|UI-Title|UI-Metadata-Hash|Title|Content|Version|User|Save-Kind|Save-Path|File-Id|Action|Destination|Source-Identity|Confirm-Title|Expected-App-Id|Image-Protocol)$/.test(key))) throw new Error('Invalid PS5 operation')
   const response = await fetch(`http://${profile.ip}:8095${path}`, { method: operationMethods[path],
     headers: { ...headers, Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/octet-stream' } : {}) },
     body: body as BodyInit | undefined, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) })
