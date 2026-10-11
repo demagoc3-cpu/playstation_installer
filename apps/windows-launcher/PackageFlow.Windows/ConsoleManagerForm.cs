@@ -17,7 +17,7 @@ internal sealed class ConsoleManagerForm : Form
     private readonly Dictionary<string, JsonNode> profiles = new();
     private readonly List<Button> actions = [];
     private readonly DataGridView grid = new();
-    private readonly TextBox ip = new(), name = new(), code = new(), firmware = new();
+    private readonly TextBox ip = new(), name = new(), firmware = new();
     private readonly Label details = new(), status = new();
     private readonly Button discoverButton;
     private CancellationTokenSource? searchLifetime;
@@ -65,18 +65,16 @@ internal sealed class ConsoleManagerForm : Form
         var pairing = new BufferedTable { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
         pairing.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         pairing.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); pairing.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        code.UseSystemPasswordChar = true;
-        AddField(pairing, 0, T("Код с экрана / уведомления приставки", "Code from the console screen / notification"), code);
-        AddField(pairing, 1, T("Прошивка PS5 из настроек (для первого запуска ELF)", "PS5 firmware from Settings (for first ELF start)"), firmware);
+        AddField(pairing, 0, T("Прошивка PS5 из настроек (для первого запуска ELF)", "PS5 firmware from Settings (for first ELF start)"), firmware);
         layout.Controls.Add(pairing, 0, 4);
-        layout.Controls.Add(new Label { Text = T("PS4: GoldHEN + PyLoader. PS5: выполненный эксплойт + загрузчик ELF. После отправки ELF введите код сопряжения; для приложения нужен ShadowMount+.", "PS4: GoldHEN + PyLoader. PS5: completed exploit + ELF loader. After sending ELF, enter the pairing code; the application needs ShadowMount+."), Dock = DockStyle.Fill, ForeColor = Theme.Muted }, 0, 5);
+        layout.Controls.Add(new Label { Text = T("PS4: GoldHEN + PyLoader. PS5: выполненный эксплойт + загрузчик ELF. Подключение выполняется автоматически; для приложения нужен ShadowMount+.", "PS4: GoldHEN + PyLoader. PS5: completed exploit + ELF loader. Connection is automatic; the application needs ShadowMount+."), Dock = DockStyle.Fill, ForeColor = Theme.Muted }, 0, 5);
         var buttons = new BufferedFlow { Dock = DockStyle.Fill, WrapContents = true };
         discoverButton = new RoundedButton { Text = T("Найти", "Find"), Size = new Size(120, 40), BackColor = Theme.Card, ForeColor = Color.White, Margin = new Padding(0, 8, 10, 0) };
         discoverButton.Click += async (_, _) => await FindOrCancel(); buttons.Controls.Add(discoverButton);
         AddButton(buttons, T("Добавить", "Add"), AddManual);
         AddButton(buttons, T("Проверить", "Check"), CheckSelected);
         AddButton(buttons, T("Установить", "Install"), Install);
-        AddButton(buttons, T("Сопрячь", "Pair"), Pair);
+        AddButton(buttons, T("Подключить", "Connect"), Pair);
         AddButton(buttons, T("Выбрать", "Select"), SelectConsole);
         AddButton(buttons, T("Удалить приложение", "Remove app"), RemoveApp);
         AddButton(buttons, T("Удалить устройство", "Remove device"), RemoveDevice);
@@ -109,11 +107,11 @@ internal sealed class ConsoleManagerForm : Form
     {
         if (busy) return; busy = true; actions.ForEach(b => b.Enabled = false); grid.Enabled = false;
         discoverButton.Enabled = false;
-        ip.Enabled = name.Enabled = code.Enabled = firmware.Enabled = false;
+        ip.Enabled = name.Enabled = firmware.Enabled = false;
         try { searchLifetime?.Cancel(); await searchWork; await action(); }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (Exception e) when (!lifetime.IsCancellationRequested) { if (!IsDisposed) status.Text = e.Message; }
-        finally { busy = false; if (!IsDisposed) { discoverButton.Enabled = true; actions.ForEach(b => b.Enabled = true); grid.Enabled = true; ip.Enabled = name.Enabled = code.Enabled = firmware.Enabled = true; } }
+        finally { busy = false; if (!IsDisposed) { discoverButton.Enabled = true; actions.ForEach(b => b.Enabled = true); grid.Enabled = true; ip.Enabled = name.Enabled = firmware.Enabled = true; } }
     }
     private async Task<JsonNode> Api(string path, object? body = null, CancellationToken ct = default)
     {
@@ -151,7 +149,7 @@ internal sealed class ConsoleManagerForm : Form
     {
         var address = SelectedIp; var p = SelectedProfile; var d = address == null ? null : discovered.GetValueOrDefault(address);
         if (address == null) { details.Text = T("Нажмите «Найти» или добавьте приставку по IP.", "Click Find or add a console by IP."); return; }
-        if(lastSelected!=address){code.Clear();firmware.Clear();lastSelected=address;}
+        if(lastSelected!=address){firmware.Clear();lastSelected=address;}
         ip.Text = address; name.Text = p?["name"]?.GetValue<string>() ?? d?.Name ?? "";
         details.Text = T("Модель: ", "Model: ") + (p?["model"]?.GetValue<string>() ?? d?.Model ?? Unknown) + "\n" +
             T("WebKit: не проверено · kstuff: не проверено · ShadowMount+: не проверено\nВыберите «Проверить» для актуального ответа. Наличие загрузчика не подтверждает готовность ядра.", "WebKit: not checked · kstuff: not checked · ShadowMount+: not checked\nSelect Check for a current response. Loader availability does not prove kernel readiness.");
@@ -226,9 +224,9 @@ internal sealed class ConsoleManagerForm : Form
     }
     private async Task Pair()
     {
-        var id = await EnsureProfile(); await Api("/api/consoles/pair", new {id,code=code.Text.Trim()}, lifetime.Token);
-        code.Clear(); await Reload(); await SaveSelection(id);
-        status.Text = T("Сопряжение проверено. Приставка выбрана для работы.", "Pairing verified. The console is selected.");
+        var id = await EnsureProfile(); await Api("/api/consoles/pair", new {id}, lifetime.Token);
+        await Reload(); await SaveSelection(id);
+        status.Text = T("Подключение проверено. Приставка выбрана для работы.", "Connection verified. The console is selected.");
         if (settings.PendingSetupConsoleId == id) await Install();
     }
     private async Task SaveSelection(string id)
@@ -243,7 +241,13 @@ internal sealed class ConsoleManagerForm : Form
         var id = await EnsureProfile(); var p=SelectedProfile!;
         if(p["platform"]?.GetValue<string>()=="ps4") {
             await installPs4(p["ip"]!.GetValue<string>(), lifetime.Token, new Progress<string>(message => { if (!IsDisposed && !lifetime.IsCancellationRequested) status.Text=message; }));
-            await Reload();return;
+            await Reload();
+            if(SelectedProfile?["online"]?.GetValue<bool>()==true) {
+                if(SelectedProfile?["paired"]?.GetValue<bool>()!=true)await Api("/api/consoles/pair",new {id},lifetime.Token);
+                await Reload();await SaveSelection(id);
+                status.Text=T("PS4 подключена. PackageFlow готов к работе.","PS4 connected. PackageFlow is ready.");
+            }
+            return;
         }
         var r=await Api("/api/desktop/console-setup?consoleId="+Uri.EscapeDataString(id),ct:lifetime.Token);
         if(r["release"]==null)throw new InvalidOperationException(r["artifactMessage"]?.GetValue<string>() ?? T("Комплект PS5 не подготовлен.","PS5 bundle unavailable."));
@@ -258,7 +262,9 @@ internal sealed class ConsoleManagerForm : Form
         }
         if(r["profile"]?["paired"]?.GetValue<bool>()!=true) {
             settings.PendingSetupConsoleId=id;settings.Save(settingsPath);
-            status.Text=T("ELF работает. Введите код с PS5 и нажмите «Сопрячь» — установка приложения продолжится автоматически.","ELF is running. Enter the PS5 code and click Pair — application setup will continue automatically.");code.Focus();return;
+            status.Text=T("Подключаем PS5…","Connecting PS5…");
+            await Api("/api/consoles/pair",new {id},lifetime.Token);
+            await Reload();await SaveSelection(id);
         }
         var sha=r["release"]!["app"]!["sha256"]!.GetValue<string>();
         if(settings.SetupAppConsoleId!=id||settings.SetupAppSha256!=sha||settings.SetupAppRequestId.Length!=32) {settings.SetupAppConsoleId=id;settings.SetupAppSha256=sha;settings.SetupAppRequestId=Guid.NewGuid().ToString("N");settings.Save(settingsPath);}

@@ -132,7 +132,7 @@ internal static class Smoke
                 lines.Add("PASS: pending operation leaves Close available and closes without replaying a command.");
             }
             ConsoleSetupFlowTests.Run(testFolder,form,Pump);
-            lines.Add("PASS: Install waits for pairing; Pair continues app installation once; installed app is not resent.");
+            lines.Add("PASS: Install connects without a code and continues once; installed app is not resent.");
             for (var i = 0; i < 20; i++) {
                 var choice = Field<DarkChoice>(form, "mode"); Select(choice, i % 2);
                 Check(choice.SelectedIndex == i % 2, "Dropdown selection must survive its close event.");

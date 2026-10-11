@@ -4,7 +4,6 @@ const { t } = useAppLocale()
 import type { InstallationTransport } from '../../shared/types/installation'
 const props = defineProps<{ ip: string; modelValue: InstallationTransport; disabled: boolean }>()
 const emit = defineEmits<{ 'update:modelValue': [value: InstallationTransport]; status: [ready: boolean] }>()
-const key = ref('')
 const showKey = ref(false)
 const busy = ref(false)
 const message = ref('')
@@ -26,23 +25,19 @@ async function check() {
 async function saveKey() {
   const ip = props.ip; busy.value = true
   try {
-    const result = await $fetch<{ message: string }>('/api/ps4/service-key', { method: 'POST', body: { ip, code: key.value } })
+    const result = await $fetch<{ message: string }>('/api/ps4/service-key', { method: 'POST', body: { ip } })
     if (ip !== props.ip) return
-    key.value = ''; configured.value = true; showKey.value = false; message.value = result.message
+    configured.value = true; showKey.value = false; message.value = result.message
     emit('status', true)
   } catch (error: any) { message.value = error?.data?.message || 'Не удалось подключить PS4' }
   finally { busy.value = false }
 }
 watch(() => [props.ip, props.modelValue], () => {
-  key.value = ''; message.value = ''; configured.value = false; showKey.value = false
+  message.value = ''; configured.value = false; showKey.value = false
   emit('status', false)
   if (props.modelValue === 'service') void check()
 })
 onMounted(() => { if (props.modelValue === 'service') void check() })
-function inputCode(value: string) {
-  const symbols = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
-  key.value = symbols.length > 3 ? `${symbols.slice(0, 3)}-${symbols.slice(3)}` : symbols
-}
 </script>
 
 <template>
@@ -63,10 +58,8 @@ function inputCode(value: string) {
       <p>{{ t("Игры, патчи, DLC и автоустановка торрентов через фоновый сервис PS4.") }}</p>
       <p v-if="message" role="status">{{ t(message) }}</p>
       <form v-if="showKey" @submit.prevent="saveKey">
-        <label>{{ t("Код с экрана запускателя PS4") }} <input :value="key" @input="inputCode(($event.target as HTMLInputElement).value)" type="text" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" :disabled="busy || disabled" placeholder="F7Y-YUH">
-        </label>
-        <button :disabled="busy || disabled || !/^[a-z0-9]{3}-[a-z0-9]{3}$/i.test(key.trim())">{{ t("Подключить") }}</button>
-        <small>{{ t("Введите один раз в течение 5 минут. WEB сохранит подключение. Для нового кода откройте запускатель PS4 ещё раз.") }}</small>
+        <button :disabled="busy || disabled">{{ t(busy ? 'Подключаем…' : 'Подключить') }}</button>
+        <small>{{ t("Подключение выбранной PS4 выполняется без кода.") }}</small>
       </form>
     </template>
   </section>

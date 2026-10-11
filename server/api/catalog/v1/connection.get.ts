@@ -2,7 +2,7 @@ import { consoleFileRequest, serviceKeyConfigured } from '../../../utils/ps4-ser
 import { ps4ServiceIp } from '../../../utils/ps4-service'
 
 // A public catalog is not proof of pairing. Verify the saved bearer against
-// the console; neither the key nor pairing code is returned to the frontend.
+// the console; the key is not returned to the frontend.
 export default defineEventHandler(async event => {
   setHeader(event, 'Cache-Control', 'no-store')
   const ip = ps4ServiceIp(getQuery(event).ip)

@@ -7,5 +7,5 @@ export default defineEventHandler(async event => {
   assertInstallationOrigin(event, true)
   const body = await readBody(event), profile = getConsoleProfile(body?.id)
   const port = process.env.PACKAGEFLOW_PUBLIC_PORT || getRequestURL(event).port || process.env.PORT || '3000'
-  return pairConsoleProfile(profile.id, body?.code, serviceWebAddress(await getLocalIp(profile.ip), port))
+  return pairConsoleProfile(profile.id, serviceWebAddress(await getLocalIp(profile.ip), port))
 })

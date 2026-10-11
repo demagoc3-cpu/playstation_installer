@@ -10,19 +10,25 @@ internal static class ConsoleSetupFlowTests
     {
         public bool Paired;
         public int Installs;
+        public int PairRequests;
         public bool AlreadyInstalled;
         public JsonObject Profile => new() { ["id"]="fixture",["ip"]="192.168.50.5",["name"]="PS5",["platform"]="ps5",["online"]=true,["paired"]=Paired };
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage r,CancellationToken ct)
         {
             JsonNode body;
             var path=r.RequestUri!.AbsolutePath;
-            if(path=="/api/consoles/pair")Paired=true;
+            if(path=="/api/consoles/pair") {
+                var input=JsonNode.Parse(r.Content!.ReadAsStringAsync(ct).GetAwaiter().GetResult());
+                if(input?["id"]?.GetValue<string>()!="fixture"||input?["code"]!=null)throw new Exception("Automatic connection must target the selected console without a code.");
+                Paired=true;PairRequests++;
+            }
             if(path=="/api/consoles"||path=="/api/consoles/pair"||path=="/api/consoles/active")body=new JsonObject{["consoles"]=new JsonArray(Profile)};
             else if(path=="/api/desktop/console-setup"&&r.Method==HttpMethod.Get)body=new JsonObject{
                 ["profile"]=Profile,["release"]=new JsonObject{["app"]=new JsonObject{["sha256"]=new string('a',64)}},
                 ["queue"]=new JsonObject{["id"]="queue",["status"]="completed",["items"]=new JsonArray(new JsonObject{["state"]="installed"})}
             };
             else if(path=="/api/desktop/console-setup"&&r.Method==HttpMethod.Post) {
+                var request=JsonNode.Parse(r.Content!.ReadAsStringAsync(ct).GetAwaiter().GetResult());
                 if(!Paired)throw new Exception("App command before pairing.");
                 Installs++;
                 body=AlreadyInstalled?new JsonObject{["retry"]="installed"}:new JsonObject{["receipt"]=new JsonObject{["queueId"]="queue"}};
@@ -43,10 +49,8 @@ internal static class ConsoleSetupFlowTests
             if(!t.IsCompleted)throw new Exception("Setup UI did not finish.");t.GetAwaiter().GetResult();
         }
         Invoke("Install");
-        if(settings.PendingSetupConsoleId!="fixture"||transport.Installs!=0)throw new Exception("Setup must wait for pairing without installing.");
-        var code=(TextBox)typeof(ConsoleManagerForm).GetField("code",BindingFlags.NonPublic|BindingFlags.Instance)!.GetValue(manager)!;code.Text="123456";
-        Invoke("Pair");
-        if(transport.Installs!=1||settings.PendingSetupConsoleId!=""||code.Text.Length!=0)throw new Exception("Pair must continue the pending setup exactly once and clear the code.");
+        if(!transport.Paired||transport.PairRequests!=1||transport.Installs!=1||settings.PendingSetupConsoleId!="")throw new Exception("Install must automatically pair and continue exactly once.");
+        if(typeof(ConsoleManagerForm).GetField("code",BindingFlags.NonPublic|BindingFlags.Instance)!=null)throw new Exception("Pairing code UI must be absent.");
         transport.AlreadyInstalled=true;Invoke("Install");
         if(transport.Installs!=2)throw new Exception("An installed app must not cause a repeated install request.");
         manager.Close();

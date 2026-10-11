@@ -29,13 +29,13 @@ test('native status refreshes an expired console without a WEB tab and coalesces
       if (!healthy) throw new Error('Disconnected test console')
       const path = new URL(url).pathname
       const response = body => new Response(JSON.stringify(body))
-      if (path === '/health') { healthReads++; return response({ apiVersion: 'v1', firmwareRead: true, firmwareRaw: '0x13600007', serviceReport: { service: 'PackageFlowService-PS5', platform: 'ps5', consoleVerified: true, version: '0.1.3-dev' } }) }
-      if (path === '/api/v1/pair') return response({ apiVersion: 'v1', token: 'b'.repeat(64) })
+      if (path === '/health') { healthReads++; return response({ apiVersion: 'v1', pairingMode: 'automatic', firmwareRead: true, firmwareRaw: '0x13600007', serviceReport: { service: 'PackageFlowService-PS5', platform: 'ps5', consoleVerified: true, version: '0.1.3-dev' } }) }
+      if (path === '/api/v1/pair') return response({ apiVersion: 'v1', pairingMode: 'automatic', token: 'b'.repeat(64) })
       assert.equal(options.headers.Authorization, `Bearer ${'b'.repeat(64)}`)
       if (path === '/api/v1/system') return response({ service: 'PackageFlowService-PS5', storageRead: true, freeBytes: 8000000, totalBytes: 10000000 })
       return response({ service: 'PackageFlowService-PS5', capabilities: { installPs4Pkg: false, installPs5Content: false } })
     }
-    await api.pairConsoleProfile(profile.id, '123456', 'http://192.168.1.2:3000')
+    await api.pairConsoleProfile(profile.id, 'http://192.168.1.2:3000')
     time += 61000
     assert.equal(api.getConsoleProfiles().consoles[0].online, false)
     const before = healthReads

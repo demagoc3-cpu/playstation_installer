@@ -643,7 +643,7 @@ function startInstallationQueueScoped(input: { psIp: string; packageIds: string[
   try { transport = input.transport === undefined ? getInstallationPreference() : installationTransport(input.transport) }
   catch { throw createError({ statusCode: 400, message: 'Неизвестный способ установки' }) }
   if (transport === 'payload' && persistedConsoleIps().some(ip => ip !== input.psIp && inConsoleScope(ip, () => { const q = readQueue(); return q.transport === 'payload' && ['running', 'cancelling'].includes(q.status) }))) throw createError({ statusCode: 409, message: 'PyLoader уже используется другой приставкой. Дождитесь завершения её очереди.' })
-  if (transport === 'service' && !serviceKeyConfigured(input.psIp)) throw createError({ statusCode: 409, message: 'Сначала введите код сопряжения с экрана PS4' })
+  if (transport === 'service' && !serviceKeyConfigured(input.psIp)) throw createError({ statusCode: 409, message: 'Сначала подключите PS4 в разделе «Устройства»' })
   const packageIds = [...new Set(input.packageIds)]
   if (!packageIds.length) throw createError({ statusCode: 400, message: 'Нет пакетов для установки' })
   const items = createQueueItems(packageIds, input.packageUrls, transport)

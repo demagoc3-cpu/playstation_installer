@@ -140,13 +140,13 @@ export function removeConsoleProfile(id: unknown) {
 }
 
 /** Only the fixed PackageFlow port/path can be contacted. Credentials stay on WEB. */
-export async function ps5ServiceRequest(ip: string, path: '/health' | '/api/v1/capabilities' | '/api/v1/system' | '/api/v1/pair' | '/api/v1/install/readiness', code?: string) {
+export async function ps5ServiceRequest(ip: string, path: '/health' | '/api/v1/capabilities' | '/api/v1/system' | '/api/v1/pair' | '/api/v1/install/readiness') {
   if (!ps4ServiceIp(ip)) throw createError({ statusCode: 400, message: 'Неверный адрес приставки' })
   const headers: Record<string, string> = {}
-  if (path === '/api/v1/pair') headers['X-PackageFlow-Pairing-Code'] = code || ''
+  if (path === '/api/v1/pair') headers['X-PackageFlow-Pairing-Mode'] = 'automatic'
   else if (path !== '/health') {
     const token = ps5Token(ip)
-    if (!token) throw createError({ statusCode: 409, message: 'Введите код сопряжения PS5' })
+    if (!token) throw createError({ statusCode: 409, message: 'Подключите PS5 в разделе «Устройства»' })
     headers.Authorization = `Bearer ${token}`
   }
   const response = await fetch(`http://${ip}:8095${path}`, { method: path === '/api/v1/pair' ? 'POST' : 'GET', headers, redirect: 'error', signal: AbortSignal.timeout(3500) })
@@ -243,17 +243,17 @@ export async function updatePairedConsoleWebAddress(id: unknown, webUrl: string)
   return { updated: true, configured: true, message: 'Адрес WEB на PS5 обновлён' }
 }
 
-export async function pairConsoleProfile(id: unknown, code: unknown, webUrl: string) {
+export async function pairConsoleProfile(id: unknown, webUrl: string) {
   const profile = getConsoleProfile(id)
-  if (profile.platform === 'ps4') await saveServiceKey(profile.ip, code, webUrl)
+  if (profile.platform === 'ps4') await saveServiceKey(profile.ip, webUrl)
   else {
-    if (typeof code !== 'string' || !/^\d{6}$/.test(code)) throw createError({ statusCode: 400, message: 'Код PS5 должен содержать 6 цифр' })
     const health = await ps5ServiceRequest(profile.ip, '/health')
     if (health.status !== 200 || health.body?.apiVersion !== 'v1' || health.body?.serviceReport?.service !== 'PackageFlowService-PS5' || (health.body.serviceReport.platform && health.body.serviceReport.platform !== 'ps5') || health.body.serviceReport.consoleVerified !== true)
       throw createError({ statusCode: 409, message: 'По этому адресу не подтверждён сервис PS5' })
-    const response = await ps5ServiceRequest(profile.ip, '/api/v1/pair', code)
-    if (response.status !== 200 || response.body?.apiVersion !== 'v1' || !/^[0-9a-f]{64}$/.test(response.body?.token || ''))
-      throw createError({ statusCode: response.status === 401 ? 401 : 409, message: 'Сопряжение PS5 не выполнено. Проверьте код и откройте новое окно сопряжения.' })
+    if (health.body.pairingMode !== 'automatic') throw createError({ statusCode: 409, message: 'Обновите нагрузку PackageFlow для подключения без кода' })
+    const response = await ps5ServiceRequest(profile.ip, '/api/v1/pair')
+    if (response.status !== 200 || response.body?.apiVersion !== 'v1' || response.body?.pairingMode !== 'automatic' || !/^[0-9a-f]{64}$/.test(response.body?.token || ''))
+      throw createError({ statusCode: response.status === 401 ? 401 : 409, message: 'PS5 не подтвердила подключение. Проверьте связь и версию нагрузки PackageFlow.' })
     writeDurableJson(keyPath(), { ...readJsonFile(keyPath(), {}), [profile.ip]: response.body.token })
     try {
       await updatePairedConsoleWebAddress(profile.id, webUrl)

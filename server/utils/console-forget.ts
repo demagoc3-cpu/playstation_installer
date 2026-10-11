@@ -33,5 +33,5 @@ export function forgetConsole(id: unknown, confirmed: unknown) {
   if (desktopActivity().busy || p.platform==='ps5'&&pendingPs5Journal(p.id) || queue.items.some(item=>!['installed','failed','skipped','cancelled'].includes(item.state)))
     throw createError({statusCode:409,message:'Сначала завершите или отмените задания, затем удалите устройство'})
   const profiles=removeConsoleProfile(p.id)
-  return {profiles,remotePairing:'unchanged',message:'Устройство и ключ удалены из этого Windows/WEB. Данные приставки сохранены. Для нового сопряжения получите новый код в приложении на приставке.'}
+  return {profiles,remotePairing:'unchanged',message:'Устройство и ключ удалены из этого Windows/WEB. Данные приставки сохранены. Для нового подключения выберите найденную приставку и нажмите «Подключить».'}
 }

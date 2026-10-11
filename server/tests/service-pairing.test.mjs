@@ -12,17 +12,18 @@ test('pairing stores the credential privately and changes PS4 WEB host only afte
   process.env.PACKAGEFLOW_DATA_DIR = folder; globalThis.createError = createError
   await build({ entryPoints: [resolve('server/utils/ps4-service-installer.ts')], outfile: bundle, bundle: true, platform: 'node', format: 'esm', packages: 'external' })
   const api = await import(bundle), ip = '10.1.10.32', key = '0123456789abcdef0123456789abcdef'
-  let authRejected = false, serviceReady = true
+  let authRejected = false, serviceReady = true, pairingMode = undefined, pairCalls = 0
   let failed = false, saved = 'http://10.1.10.47:3000\n', staged = '', writes = 0
   globalThis.fetch = async (url, init) => {
     const path = new URL(url).pathname
     if (path === '/install/pair') {
-      assert.deepEqual(JSON.parse(init.body), { code: 'ABC-123' })
-      return Response.json(failed ? { error: 'pairing_code_invalid' } : { service: 'PackegeFlowService', paired: true, token: key }, { status: failed ? 403 : 200 })
+      pairCalls++;
+      assert.deepEqual(JSON.parse(init.body), { mode: 'automatic' })
+      return Response.json(failed ? { error: 'pairing_code_invalid' } : { service: 'PackegeFlowService', paired: true, pairingMode: 'automatic', token: key }, { status: failed ? 403 : 200 })
     }
     if (path === '/install/capabilities') {
       assert.equal(init.headers.Authorization, undefined)
-      return Response.json({ service: 'PackegeFlowService', installApi: 1, authentication: 'bearer', ready: serviceReady, contentTypes: ['PS4GD'], errorHex: '0x00000000' })
+      return Response.json({ service: 'PackegeFlowService', installApi: 1, authentication: 'bearer', pairingMode, ready: serviceReady, contentTypes: ['PS4GD'], errorHex: '0x00000000' })
     }
     assert.equal(init.headers.Authorization, `Bearer ${key}`)
     if (path === '/install/session' && authRejected) return Response.json({ error: 'unauthorized' }, { status: 401 })
@@ -36,15 +37,17 @@ test('pairing stores the credential privately and changes PS4 WEB host only afte
   }
   try {
     assert.equal((await api.getServiceInstallerStatus(ip)).paired, false)
-    failed = true
-    await assert.rejects(api.saveServiceKey(ip, 'ABC-123', 'http://192.168.1.55:4444'), { statusCode: 403 })
+    await assert.rejects(api.saveServiceKey(ip, 'http://192.168.1.55:4444'), { statusCode: 409 })
+    assert.equal(pairCalls, 0); assert.equal(writes, 0)
+    pairingMode = 'automatic'; failed = true
+    await assert.rejects(api.saveServiceKey(ip, 'http://192.168.1.55:4444'), { statusCode: 403 })
     assert.equal(writes, 0); assert.equal(saved, 'http://10.1.10.47:3000\n')
     failed = false
-    const result = await api.saveServiceKey(ip, 'abc-123', 'http://192.168.1.55:4444')
+    const result = await api.saveServiceKey(ip, 'http://192.168.1.55:4444')
     assert.equal(result.ready, true); assert.equal(saved, 'http://192.168.1.55:4444\n')
     assert.equal(JSON.parse(readFileSync(resolve(folder, 'ps4-service-keys.json'), 'utf8'))[ip], key)
     assert.ok(!JSON.stringify(result).includes(key))
-    await api.saveServiceKey(ip, 'ABC-123', 'http://192.168.1.66:5555')
+    await api.saveServiceKey(ip, 'http://192.168.1.66:5555')
     assert.equal(saved, 'http://192.168.1.66:5555\n')
     assert.equal((await api.getServiceInstallerStatus(ip)).paired, true)
     assert.equal((await api.updatePairedServiceWebAddress(ip, 'http://192.168.1.99:3333')).updated, true)

@@ -78,7 +78,7 @@ internal sealed partial class MainForm
         if (service["version"]?.GetValue<string>() is { Length: > 0 })
         {
             settings.PsIp = ip; settings.Save(ServerHost.SettingsPath);
-            consoleSetupStatus.Text = T("Сервис уже запущен. Получите код в «Подключениях» PS4.", "Service is already running. Get a code in PS4 Connections.");
+            consoleSetupStatus.Text = T("Сервис уже запущен. Нажмите «Подключить» для PS4.", "Service is already running. Click Connect for PS4.");
             applicationSummary = consoleSetupStatus.Text; return;
         }
         var loader = await Api("/api/ps4/status", new { ip });
@@ -114,7 +114,7 @@ internal sealed partial class MainForm
             if (state is "delivered" or "installed")
             {
                 consoleSetupStatus.Text = T("PKG передан. Дождитесь установки на PS4, запустите сервис.", "PKG transferred. Wait for PS4 installation, then launch the service.");
-                applicationSummary = T("PKG сервиса передан через PyLoader. Итог установки виден в «Уведомлениях → Загрузки» PS4. После завершения запустите PackageFlow и введите код сопряжения в мастере.", "The service PKG was transferred via PyLoader. Check Notifications → Downloads on PS4 for the installation result. Once complete, launch PackageFlow and enter its pairing code in the wizard.");
+                applicationSummary = T("PKG сервиса передан через PyLoader. Итог установки виден в «Уведомлениях → Загрузки» PS4. После завершения запустите PackageFlow и нажмите «Подключить» в мастере.", "The service PKG was transferred via PyLoader. Check Notifications → Downloads on PS4 for the installation result. Once complete, launch PackageFlow and click Connect in the wizard.");
                 MessageBox.Show(this, applicationSummary, "PackageFlow", MessageBoxButtons.OK, MessageBoxIcon.Information); return;
             }
             if (state == "unconfirmed") break;

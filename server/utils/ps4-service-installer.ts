@@ -16,7 +16,7 @@ function consoleIp(value: unknown) {
 }
 function token(ip: string) {
   const key = settings()[ip]
-  if (typeof key !== 'string' || !/^[0-9a-f]{32}$/.test(key)) throw createError({ statusCode: 409, message: 'Введите код сопряжения с экрана запускателя PS4' })
+  if (typeof key !== 'string' || !/^[0-9a-f]{32}$/.test(key)) throw createError({ statusCode: 409, message: 'Подключите PS4 в разделе «Устройства»' })
   return key
 }
 export function serviceKeyConfigured(ip: string) {
@@ -42,8 +42,8 @@ const explanations: Record<string, string> = {
   request_id_conflict: 'Идентификатор уже использован для другой команды',
   remove_job_not_found: 'Прежнее задание не найдено. Повторная команда не отправлена',
   service_key_required: 'Сохранённый ключ не принят; выполните сопряжение с PS4 заново',
-  pairing_code_invalid: 'Неверный код сопряжения',
-  pairing_expired_reopen_launcher: 'Код истёк или уже использован. Откройте запускатель на PS4 для нового кода',
+  pairing_code_invalid: 'Обновите службу PS4 для подключения без кода',
+  pairing_expired_reopen_launcher: 'Обновите службу PS4 для подключения без кода',
   game_already_exists_no_overwrite: 'Игра уже есть на PS4. Используйте «Переустановить» в библиотеке',
   application_changed_refresh: 'Запущенное приложение изменилось. Обновите его состояние',
   application_not_installed: 'Приложение больше не установлено на PS4',
@@ -156,14 +156,14 @@ export async function getServiceInstallerStatus(ip: string) {
   const configured = serviceKeyConfigured(ip)
   try {
     const c = capabilities(await request(ip, '/install/capabilities', 'GET'))
-    if (!configured) return { ready: false, configured, paired: false, contentTypes: c.contentTypes, version: c.version, message: 'Введите код сопряжения с экрана запускателя PS4' }
+    if (!configured) return { ready: false, configured, paired: false, contentTypes: c.contentTypes, version: c.version, message: 'Подключите PS4 в разделе «Устройства»' }
     capabilities(await request(ip, '/install/session', 'GET', token(ip)))
     // Pairing is authenticated independently from the installation API readiness.
     if (!c.ready) return { ready: false, configured, paired: true, contentTypes: c.contentTypes, version: c.version, message: `API установки недоступен (${c.errorHex})` }
     return { ready: true, configured, paired: true, localInstall: c.localInstall === true, contentTypes: c.contentTypes, version: c.version, message: c.contentTypes.includes('PS4GP') ? 'Сервис готов к установке игр, патчей и DLC' : 'Сервис готов к установке базовой игры; для патчей обновите PKG сервиса' }
   } catch (error: any) {
     // A stored key alone cannot prove pairing. Offline consoles are unknown;
-    // rejected authentication explicitly requires a new pairing code.
+    // rejected authentication requires connecting again.
     const paired = !configured || error?.statusCode === 401 || error?.statusCode === 403 ? false : null
     return { ready: false, configured, paired, contentTypes: [], message: error?.statusCode === 404 ? 'Обновите PackageFlowService до PKG 1.17' : error?.statusCode ? error.message : 'Сервис не отвечает на порту 12801' }
   }
@@ -178,13 +178,13 @@ export async function updatePairedServiceWebAddress(ip: string, webUrl: string) 
     (id, bytes) => consoleFileWrite(ip, id, 0, bytes))
   return { updated: true, configured: true, message: 'Адрес WEB на PS4 обновлён' }
 }
-export async function saveServiceKey(ip: string, value: unknown, webUrl?: string) {
+export async function saveServiceKey(ip: string, webUrl?: string) {
   ip = consoleIp(ip)
-  const code = typeof value === 'string' ? value.trim().toUpperCase() : ''
-  if (!/^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(code)) throw createError({ statusCode: 400, message: 'Введите код вида F7Y-YUH с экрана PS4' })
-  const paired = await request(ip, '/install/pair', 'POST', undefined, { code }) as { service?: string; token?: unknown; paired?: boolean }
-  if (paired?.service !== 'PackegeFlowService' || paired.paired !== true || typeof paired.token !== 'string' || !/^[0-9a-f]{32}$/.test(paired.token))
-    throw createError({ statusCode: 502, message: 'Неожиданный ответ сопряжения' })
+  const advertised = capabilities(await request(ip, '/install/capabilities', 'GET')) as ServiceInstallCapabilities & { pairingMode?: string }
+  if (advertised.pairingMode !== 'automatic') throw createError({ statusCode: 409, message: 'Обновите PackageFlow на PS4 для подключения без кода' })
+  const paired = await request(ip, '/install/pair', 'POST', undefined, { mode: 'automatic' }) as { service?: string; token?: unknown; paired?: boolean; pairingMode?: string }
+  if (paired?.service !== 'PackegeFlowService' || paired.paired !== true || paired.pairingMode !== 'automatic' || typeof paired.token !== 'string' || !/^[0-9a-f]{32}$/.test(paired.token))
+    throw createError({ statusCode: 502, message: 'Неожиданный ответ подключения' })
   const key = paired.token
   const c = capabilities(await request(ip, '/install/session', 'GET', key))
   if (!c.ready) throw createError({ statusCode: 503, message: `API установки недоступен (${c.errorHex})` })
@@ -202,7 +202,7 @@ export async function saveServiceKey(ip: string, value: unknown, webUrl?: string
       }
     }
   } catch {
-    throw createError({ statusCode: 500, message: 'WEB не смог сохранить подключение. Откройте запускатель PS4 для нового кода и повторите сопряжение' })
+    throw createError({ statusCode: 500, message: 'WEB не смог сохранить подключение. Проверьте доступность папки данных и повторите подключение' })
   } finally { rmSync(tmp, { force: true }) }
   if (webUrl) {
     try {
@@ -214,7 +214,7 @@ export async function saveServiceKey(ip: string, value: unknown, webUrl?: string
     }
   }
   // The saved key is never returned to the browser or printed to the event log.
-  return { ready: true, configured: true, contentTypes: c.contentTypes, message: 'PS4 сопряжена с WEB; повторный ввод кода не требуется' }
+  return { ready: true, configured: true, contentTypes: c.contentTypes, message: 'PS4 подключена к WEB' }
 }
 export interface ServiceInstallInput { requestId: string; contentId: string; titleId: string; title: string; url: string; contentType: string; size: number }
 /** BGFT reads its icon from a local PS4 path when the task is registered. */

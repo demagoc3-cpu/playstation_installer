@@ -16,7 +16,6 @@ const detailLoading = ref(false)
 const message = ref('')
 const paired = ref(false)
 const pairing = ref(false)
-const code = ref('')
 const operation = ref<RemoveOperation | null>(null)
 const dismissedOperation = ref('')
 const submitting = ref(false)
@@ -123,17 +122,16 @@ async function remove() {
 }
 async function launchCard(a:ConsoleApp){await readRuntime(a.titleId);if(runtime.value[a.titleId])await act(a,'launch')}
 async function removeCard(a:ConsoleApp){if(!details.value[a.titleId])await openApp(a);const d=details.value[a.titleId];if(d)askRemove(d,'game')}
-function inputCode(value: string) { const s = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6); code.value = s.length > 3 ? `${s.slice(0, 3)}-${s.slice(3)}` : s }
 async function pair() {
   const id = generation; pairing.value = true
   try {
-    await request('/api/ps4/service-key', { method: 'POST', body: { ip: targetIp, code: code.value } })
-    if (id === generation) { code.value = ''; paired.value = true; await refresh() }
+    await request('/api/ps4/service-key', { method: 'POST', body: { ip: targetIp } })
+    if (id === generation) { paired.value = true; await refresh() }
   } catch (error) { if (id === generation) message.value = errorText(error) }
   finally { if (id === generation) pairing.value = false }
 }
 async function initialize() {
-  generation++; clearTimeout(timer); catalog.value = undefined; details.value = {}; operation.value = null; confirmation.value = undefined; loading.value = false; detailLoading.value = false; submitting.value = false; pairing.value = false; selected.value = ''; message.value = ''; code.value = ''; paired.value = false; emit('status', false)
+  generation++; clearTimeout(timer); catalog.value = undefined; details.value = {}; operation.value = null; confirmation.value = undefined; loading.value = false; detailLoading.value = false; submitting.value = false; pairing.value = false; selected.value = ''; message.value = ''; paired.value = false; emit('status', false)
   try { dismissedOperation.value = localStorage.getItem(dismissalKey()) || '' } catch { dismissedOperation.value = '' }
   const id = generation
   try { const result = await request<{ configured: boolean }>('/api/ps4/service-installer', { query: { ip: targetIp } }); if (id === generation) paired.value = result.configured } catch { /* List request supplies the useful error. */ }
@@ -153,7 +151,7 @@ onBeforeUnmount(() => { generation++; clearTimeout(timer); clearInterval(runtime
     <ConsoleFiles v-if="consoleTab==='files'" :ps-ip="targetIp" />
     <div v-if="message" class="notice notice-row" role="alert"><span>{{ t(message) }}</span><button class="dismiss" type="button" :aria-label="t(&quot;Скрыть уведомление&quot;)" @click="message = ''">×</button></div>
     <div v-if="control?.action === 'restart' && ['pending', 'uncertain'].includes(control.state)" class="notice restart-notice" role="status">{{ t("Перезапуск сервиса ещё не подтверждён. Откройте PackageFlowService на PS4, затем проверьте результат. Пока установка обновления не завершена, изменяющие команды недоступны.") }}<button type="button" @click="pollControl">{{ t("Проверить результат") }}</button></div>
-    <form v-if="!paired" class="pair-card" @submit.prevent="pair"><h2>{{ t("Подключить PackageFlowService") }}</h2><p>{{ t("Откройте запускатель на PS4 и введите код с экрана. Уже сохранённое подключение используется автоматически.") }}</p><label>{{ t("Код PS4") }} <input :value="code" placeholder="F7Y-YUH" maxlength="7" autocomplete="off" @input="inputCode(($event.target as HTMLInputElement).value)"></label><button :disabled="pairing || !/^[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(code)">{{ t(pairing ? 'Подключаем…' : 'Подключить') }}</button></form>
+    <form v-if="!paired" class="pair-card" @submit.prevent="pair"><h2>{{ t("Подключить PackageFlowService") }}</h2><p>{{ t("Выбранная PS4 подключается без кода. Служба PackageFlow должна быть запущена.") }}</p><button :disabled="pairing">{{ t(pairing ? 'Подключаем…' : 'Подключить') }}</button></form>
     <section v-if="operation && (!operation.requestId || operation.requestId !== dismissedOperation)" class="operation" aria-live="polite"><div class="operation-heading"><h2>{{ t(statusLabels[operation.state]) }}</h2><button v-if="['removed', 'failed', 'partial'].includes(operation.state)" class="dismiss" type="button" :aria-label="t(&quot;Скрыть уведомление об удалении&quot;)" @click="dismissOperation">×</button></div><p>{{ operation.titleId }} · {{ t(operation.kind === 'game' ? 'Вся игра' : operation.kind === 'patch' ? 'Патч / бэкпорт' : operation.kind === 'dlcs' ? 'Все DLC' : `DLC ${operation.componentId}`) }}</p><progress v-if="operation.total" :value="operation.completed" :max="operation.total"/><p>{{ t(operation.completed) }} {{ t("из") }} {{ t(operation.total || '—') }} {{ t("компонентов ·") }} {{ t(operation.state === 'verifying' ? 'Команды выполнены, проверяем результат' : operation.state === 'removed' ? 'Компоненты больше не обнаружены на PS4' : 'Подтверждённые системные команды') }}</p><p v-if="operation.error">{{ t("Ошибка PS4:") }} {{ t(operation.errorHex) }}</p><p v-if="operation.pollError">{{ t("Ошибка проверки:") }} {{ t(operation.pollError) }}</p><p v-if="operation.message">{{ t(operation.message) }}</p><button v-if="!active" @click="poll">{{ t("Проверить результат") }}</button></section>
     <div v-if="catalog&&consoleTab==='ready'" class="search"><input v-model="query" type="search" :aria-label="t(&quot;Поиск установленных игр&quot;)" :placeholder="t(&quot;Название или CUSA&quot;)"><span>{{ t(catalog.apps.length) }} {{ t("приложений") }}</span></div>
     <p v-if="catalog && !catalog.complete" class="notice">{{ t("Список прочитан не полностью. В том числе проверьте, подключён ли внешний диск.") }}</p>

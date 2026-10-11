@@ -49,15 +49,15 @@ test('mixed library keeps platform, console installation and transfer state sepa
     const token = 'b'.repeat(64)
     globalThis.fetch = async (url, options) => {
       const path = new URL(url).pathname
-      if (path === '/health') return response({ apiVersion: 'v1', firmwareRead: true, firmwareRaw: '0x13600007', serviceReport: { service: 'PackageFlowService-PS5', consoleVerified: true, version: '0.1' } })
-      if (path === '/api/v1/pair') { assert.equal(options.headers['X-PackageFlow-Pairing-Code'], '123456'); return response({ apiVersion: 'v1', token }) }
+      if (path === '/health') return response({ apiVersion: 'v1', pairingMode: 'automatic', firmwareRead: true, firmwareRaw: '0x13600007', serviceReport: { service: 'PackageFlowService-PS5', consoleVerified: true, version: '0.1' } })
+      if (path === '/api/v1/pair') { assert.equal(options.headers['X-PackageFlow-Pairing-Mode'], 'automatic'); return response({ apiVersion: 'v1', pairingMode: 'automatic', token }) }
       assert.equal(options.headers.Authorization, `Bearer ${token}`)
       return response({ service: 'PackageFlowService-PS5', capabilities: { filesystem: true, installPs4Pkg: false, installPs5Content: false } })
     }
-    const paired = await api.pairConsoleProfile(ps5.id, '123456', 'http://192.168.1.2:3000')
+    const paired = await api.pairConsoleProfile(ps5.id, 'http://192.168.1.2:3000')
     assert.equal(paired.consoles[1].paired, true); assert.equal(paired.consoles[1].firmware, '13.60'); assert.deepEqual(paired.consoles[1].capabilities.formats, [])
     assert.ok(!JSON.stringify(paired).includes(token)); assert.ok(readFileSync(join(process.env.PACKAGEFLOW_DATA_DIR, 'ps5-service-keys.json'), 'utf8').includes(token))
-    globalThis.fetch = async () => response({ apiVersion: 'v1', serviceReport: { service: 'PackageFlowService-PS5', consoleVerified: false } })
+    globalThis.fetch = async () => response({ apiVersion: 'v1', pairingMode: 'automatic', serviceReport: { service: 'PackageFlowService-PS5', consoleVerified: false } })
     assert.equal((await api.probeConsoleProfile(ps5.id)).consoles[1].online, false, 'host stub cannot be a real console')
     api.selectConsoleProfile(ps5.id)
     await api.inConsoleScope(ps4.ip, async () => { await Promise.resolve(); assert.equal(api.currentConsoleIp(), ps4.ip); assert.equal(api.getInstallationQueue().psIp, undefined) })
