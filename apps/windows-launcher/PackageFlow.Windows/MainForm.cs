@@ -183,13 +183,24 @@ internal sealed partial class MainForm : Form
     }
 
     private void Buttons(FlowLayoutPanel parent, params (string Label, Func<Task> Action)[] items)
+        => Buttons(parent, true, items);
+
+    private void Buttons(FlowLayoutPanel parent, bool lockInterface, params (string Label, Func<Task> Action)[] items)
     {
         var footer = ((PageLayout)parent.Tag!).Footer;
         foreach (var item in items)
         {
             var button = new RoundedButton { WrapText = true, Text = item.Label, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 9), FlatStyle = FlatStyle.Flat, BackColor = Theme.Accent, ForeColor = Color.White, Padding = new Padding(4), Margin = new Padding(4) };
             button.FlatAppearance.BorderSize = 0;
-            button.Click += async (_, _) => await Act(item.Action, item.Label);
+            button.Click += async (_, _) => {
+                if (lockInterface) { await Act(item.Action, item.Label); return; }
+                if (busy) return;
+                button.Enabled = false;
+                try { await item.Action(); }
+                catch (OperationCanceledException) { }
+                catch (Exception error) { if (!IsDisposed) MessageBox.Show(this, FriendlyError(error), "PackageFlow", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+                finally { if (!IsDisposed) button.Enabled = true; }
+            };
             footer.ColumnCount++; footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 1));
             footer.Controls.Add(button, footer.ColumnCount - 1, 0); actionButtons.Add(button);
         }
@@ -346,7 +357,7 @@ internal sealed partial class MainForm : Form
         void FitTable() => card.Height = Math.Max(240, page.ClientSize.Height - 18);
         page.SizeChanged += (_, _) => FitTable(); FitTable();
         consoleGrid.CellDoubleClick += async (_, e) => { if(e.RowIndex >= 0) await Act(SelectSavedConsole); };
-        Buttons(page,
+        Buttons(page, false,
             (T("Найти / подключить", "Find / connect"), FindConsoles),
             (T("Обновить", "Refresh"), () => RefreshSavedConsoles(true)),
             (T("Выбрать", "Select"), SelectSavedConsole),

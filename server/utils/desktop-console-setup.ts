@@ -6,7 +6,7 @@ import { dataPath } from './data-path'
 import { writeDurableJson } from './durable-json'
 import { getConsoleProfile, probeConsoleProfile, ps5ServiceRequest } from './console-profiles'
 import { consoleSetupBundle } from './console-setup-artifacts'
-import { bootstrapReceipt, runPs5Bootstrap, type BootstrapFlow } from './ps5-bootstrap-driver'
+import { bootstrapHealth, bootstrapReceipt, runPs5Bootstrap, type BootstrapFlow } from './ps5-bootstrap-driver'
 import { getPs5Queue, startPs5Queue } from './ps5-installation-queue'
 import { registerPs5ImageFile, getPackage } from './package-library'
 import { claimConsoleWorker } from './console-worker-lock'
@@ -31,6 +31,15 @@ async function health(ip: string) {
     if (error?.cause?.code === 'ECONNREFUSED' || error?.code === 'ECONNREFUSED') return null
     throw error
   }
+}
+function servicePortConnects(ip: string): Promise<boolean> {
+  return new Promise((resolve,reject)=>{
+    const socket=createConnection({host:ip,port:8095})
+    const finish=(value:boolean)=>{socket.destroy();resolve(value)}
+    socket.setTimeout(1500,()=>finish(false))
+    socket.once('connect',()=>finish(true))
+    socket.once('error',(error:any)=>{socket.destroy();if(['ECONNREFUSED','ETIMEDOUT'].includes(error.code))resolve(false);else reject(error)})
+  })
 }
 function connect(ip: string) {
   return new Promise<{send(bytes: Uint8Array): Promise<void>;close(): void}>((done,fail) => {
@@ -61,7 +70,7 @@ export async function desktopConsoleSetupInfo(id: unknown) {
   const q = getPs5Queue(p.id)
   return {consoleId:p.id,profile,release,artifactMessage,flow:previous,loader,webKit:null,kstuff:null,shadowMount,installReady,queue:q}
 }
-export async function beginDesktopPs5Bootstrap(id: unknown, firmware: unknown) {
+export async function beginDesktopPs5Bootstrap(id: unknown, firmware: unknown, confirmedServiceStopped: unknown = false) {
   const p = target(id), b = await consoleSetupBundle().catch(e=>{throw createError({statusCode:409,message:e?.code==='ENOENT'?'В установщике нет проверенного комплекта PS5':e.message})}), previous = flow(p.id)
   assertNoPs5ServiceUpdate(p.id)
   if (firmware !== b.manifest.elf.firmware) throw createError({statusCode:409,message:'Перед первым запуском проверьте прошивку в настройках PS5. Этот ELF рассчитан только на 13.60'})
@@ -71,7 +80,7 @@ export async function beginDesktopPs5Bootstrap(id: unknown, firmware: unknown) {
   const f: BootstrapFlow = {id:randomBytes(16).toString('hex'),consoleId:p.id,ip:p.ip,version:b.manifest.elf.version,buildId:b.manifest.elf.buildId,sha256:b.manifest.elf.sha256,firmware:b.manifest.elf.firmware,startedAt:Date.now(),state:'checking',message:'Проверяем PS5 перед первым запуском ELF'}
   try { writeDurableJson(flowPath(p.id),f) } catch(e) {lock();throw e}
   running.add(p.id);const done=trackDesktopRequest()
-  void runPs5Bootstrap(f,b.elf,{idle:()=>idle(p.id),health:()=>health(p.ip),connect:()=>connect(p.ip),save:v=>writeDurableJson(flowPath(p.id),v),pause:()=>new Promise(resolve=>setTimeout(resolve,1000))})
+  void runPs5Bootstrap(f,b.elf,{idle:()=>idle(p.id),health:()=>bootstrapHealth(()=>ps5ServiceRequest(p.ip,'/health'),()=>servicePortConnects(p.ip),confirmedServiceStopped===true),connect:()=>connect(p.ip),save:v=>writeDurableJson(flowPath(p.id),v),pause:()=>new Promise(resolve=>setTimeout(resolve,1000))})
     .finally(()=>{running.delete(p.id);lock();done()})
     .catch(()=>{console.error('PS5 bootstrap stopped: its durable journal could not be updated; automatic retry remains blocked')})
   return {consoleId:p.id,flow:f}

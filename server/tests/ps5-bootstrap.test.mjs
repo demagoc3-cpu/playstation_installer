@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 const work=await mkdtemp(join(tmpdir(),'pf-bootstrap-'))
 await build({entryPoints:['server/utils/ps5-bootstrap-driver.ts'],outfile:join(work,'driver.mjs'),bundle:true,platform:'node',format:'esm'})
-const {runPs5Bootstrap,bootstrapReceipt}=await import(join(work,'driver.mjs'))
+const {runPs5Bootstrap,bootstrapReceipt,bootstrapHealth}=await import(join(work,'driver.mjs'))
 const flow=()=>({id:'a'.repeat(32),consoleId:'fixture',ip:'192.168.50.5',version:'0.1.0-dev',buildId:'fixture',sha256:'b'.repeat(64),firmware:'13.60',startedAt:1,state:'checking',message:''})
 const receipt=(f)=>({status:200,body:{apiVersion:'v1',pid:11,firmwareRead:true,firmwareRaw:'0x13600001',serviceReport:{service:'PackageFlowService-PS5',platform:'ps5',consoleVerified:true,version:f.version,buildId:f.buildId}}})
 test('first PS5 bootstrap persists sending before exactly one send and requires exact receipt',async()=>{
@@ -36,5 +36,16 @@ test('failure to persist sending intent prevents ELF delivery and closes the loa
  const f=flow();let sends=0,closed=0
  await assert.rejects(runPs5Bootstrap(f,new Uint8Array(),{idle:()=>true,health:async()=>null,connect:async()=>({send:async()=>{sends++},close:()=>closed++}),save:()=>{throw Error('disk full')},pause:async()=>{}}),/disk full/)
  assert.equal(sends,0);assert.equal(closed,1)
+})
+test('silent closed port requires explicit first-start confirmation; connected or malformed service never counts as absent',async()=>{
+ const timeout=Object.assign(new Error('timeout'),{name:'TimeoutError'})
+ const read=async()=>{throw timeout}
+ await assert.rejects(bootstrapHealth(read,async()=>false,false),/timeout/)
+ assert.equal(await bootstrapHealth(read,async()=>false,true),null)
+ await assert.rejects(bootstrapHealth(read,async()=>true,true),/timeout/)
+ await assert.rejects(bootstrapHealth(async()=>{throw new SyntaxError('bad JSON')},async()=>false,true),/bad JSON/)
+ await assert.rejects(bootstrapHealth(read,async()=>{throw Error('network failed')},true),/network failed/)
+ assert.equal(await bootstrapHealth(async()=>{throw Object.assign(new Error('refused'),{cause:{code:'ECONNREFUSED'}})},async()=>true,false),null)
+ assert.deepEqual(await bootstrapHealth(async()=>({status:200,body:{service:'existing'}}),async()=>false,true),{status:200,body:{service:'existing'}})
 })
 test.after(()=>rm(work,{recursive:true,force:true}))

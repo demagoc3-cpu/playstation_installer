@@ -104,6 +104,20 @@ internal static class Smoke
             }
             using (var manager = new ConsoleManagerForm(Field<ServerHost>(form,"host"), settings, (_, _, _) => Task.CompletedTask, preview:true)) {
                 manager.Show(form);Pump();
+                var running=(Task)typeof(ConsoleManagerForm).GetMethod("RunSearch",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(manager,new object[]{(Func<CancellationToken,Task>)(ct=>Task.Delay(Timeout.Infinite,ct))})!;
+                Pump();
+                Check(Field<DataGridView>(manager,"grid").Enabled && Field<TextBox>(manager,"ip").Enabled,"Discovery must leave console selection and manual input usable.");
+                Check(!manager.UseWaitCursor,"Discovery must not inherit an interface-wide wait cursor.");
+                var stop=Descendants(manager).OfType<Button>().Single(button=>button.Text=="Остановить поиск");
+                Check(stop.Enabled,"Search cancellation must remain available for an unreachable console.");
+                stop.PerformClick();
+                for(var i=0;i<20&&!running.IsCompleted;i++)Pump();
+                Check(running.IsCompleted,"Cancelled discovery must release the window promptly.");running.GetAwaiter().GetResult();
+                Check(stop.Text=="Найти" && Field<DataGridView>(manager,"grid").Enabled,"Cancelled discovery must restore Find and leave the list usable.");
+                manager.Close();lines.Add("PASS: stalled discovery keeps selection/input responsive; Stop search cancels and restores controls.");
+            }
+            using (var manager = new ConsoleManagerForm(Field<ServerHost>(form,"host"), settings, (_, _, _) => Task.CompletedTask, preview:true)) {
+                manager.Show(form);Pump();
                 var completion=new TaskCompletionSource();
                 var running=(Task)typeof(ConsoleManagerForm).GetMethod("Run",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(manager,new object[]{(Func<Task>)(()=>completion.Task)})!;
                 Pump();

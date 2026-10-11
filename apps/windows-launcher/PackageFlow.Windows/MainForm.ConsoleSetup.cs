@@ -15,7 +15,7 @@ internal sealed partial class MainForm
         if(refreshingConsoles || preview || IsDisposed)return;
         refreshingConsoles=true;
         try {
-            using var ct=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);ct.CancelAfter(TimeSpan.FromSeconds(30));
+            using var ct=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);ct.CancelAfter(TimeSpan.FromSeconds(12));
             var list=await host.Api("/api/consoles",ct:ct.Token);
             SavedConsoleGrid.Render(consoleGrid,list,settings.ConsoleId,settings.Language);
             consoleSetupStatus.Text=list["consoles"]!.AsArray().Count==0?T("Добавленных приставок пока нет. Нажмите «Найти / подключить».","No saved consoles. Click Find / connect."):T("Выберите строку. ● — выбранная приставка. WebKit и kstuff: не проверено.","Select a row. ● marks the selected console. WebKit and kstuff: not checked.");
@@ -23,7 +23,8 @@ internal sealed partial class MainForm
                 using var gate=new SemaphoreSlim(2);
                 await Task.WhenAll(list["consoles"]!.AsArray().Select(async p=>{
                     await gate.WaitAsync(ct.Token);
-                    try{await host.Api("/api/consoles/probe",new{id=p!["id"]!.GetValue<string>()},ct.Token);}
+                    using var check=CancellationTokenSource.CreateLinkedTokenSource(ct.Token);check.CancelAfter(TimeSpan.FromSeconds(6));
+                    try{await host.Api("/api/consoles/probe",new{id=p!["id"]!.GetValue<string>()},check.Token);}
                     catch(OperationCanceledException){}catch(Exception){}finally{gate.Release();}
                 }));
                 list=await host.Api("/api/consoles",ct:ct.Token);
@@ -37,7 +38,8 @@ internal sealed partial class MainForm
         EnsureStarted();
         var id=consoleGrid.SelectedRows.Count>0?consoleGrid.SelectedRows[0].Tag as string:null;
         if(id==null)throw new InvalidOperationException(T("Выберите приставку в таблице.","Select a console in the table."));
-        var list=await host.Api("/api/consoles/active",new{id},lifetime.Token);
+        using var timeout=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);timeout.CancelAfter(TimeSpan.FromSeconds(8));
+        var list=await host.Api("/api/consoles/active",new{id},timeout.Token);
         var selected=list["consoles"]!.AsArray().First(p=>p?["id"]?.GetValue<string>()==id)!;
         settings.ConsoleId=id;settings.PsIp=selected["ip"]!.GetValue<string>();settings.ConsolePlatform=selected["platform"]!.GetValue<string>();
         settings.Save(ServerHost.SettingsPath);psIp.Text=settings.PsIp;
@@ -51,8 +53,8 @@ internal sealed partial class MainForm
         psIp.Text = settings.PsIp;
         consoleSetupStatus.Text = settings.PsIp.Length > 0 ? settings.ConsolePlatform.ToUpperInvariant() + " · " + settings.PsIp : T("Приставка ещё не выбрана", "No console selected");
         applicationSummary = consoleSetupStatus.Text;
-        await RefreshSavedConsoles(true);
-        await RefreshHealth();
+        await RefreshSavedConsoles();
+        _ = RefreshHealth();
     }
     private async Task InstallPs4ConsoleService(string consoleIp, CancellationToken observation, IProgress<string> messages)
     {

@@ -2,6 +2,16 @@ export interface BootstrapFlow {
   id: string; consoleId: string; ip: string; version: string; buildId: string; sha256: string; firmware: string; startedAt: number;
   state: 'checking' | 'sending' | 'verifying' | 'completed' | 'failed' | 'unconfirmed'; message: string
 }
+/** Closed PS5 ports may silently drop SYNs. Only an explicit first-start
+ * confirmation permits that case; an accepted TCP connection is never absence. */
+export async function bootstrapHealth(read: () => Promise<{ status: number; body: any }>, connects: () => Promise<boolean>, confirmedServiceStopped: boolean) {
+  try { return await read() }
+  catch (error: any) {
+    if (error?.cause?.code === 'ECONNREFUSED' || error?.code === 'ECONNREFUSED') return null
+    if (confirmedServiceStopped && error?.name === 'TimeoutError' && !await connects()) return null
+    throw error
+  }
+}
 export function bootstrapReceipt(flow: BootstrapFlow, r: { status: number; body: any }) {
   const h = r.body, s = h?.serviceReport
   return r.status === 200 && h?.apiVersion === 'v1' && s?.service === 'PackageFlowService-PS5' && s.platform === 'ps5' && s.consoleVerified === true

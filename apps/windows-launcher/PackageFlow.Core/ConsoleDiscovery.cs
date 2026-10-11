@@ -62,7 +62,7 @@ public static class ConsoleDiscovery
         try { using var socket = new TcpClient(); await socket.ConnectAsync(ip, 9021, timeout.Token); return true; }
         catch (Exception) when (!ct.IsCancellationRequested) { return false; }
     }
-    public static async Task<DiscoveredConsole[]> Discover(string host, string mask, IEnumerable<DiscoveredConsole> saved, IProgress<int>? progress, CancellationToken ct)
+    public static async Task<DiscoveredConsole[]> Discover(string host, string mask, IEnumerable<DiscoveredConsole> saved, IProgress<int>? progress, CancellationToken ct, IProgress<DiscoveredConsole>? results = null)
     {
         var candidates = Ps4Discovery.Candidates(host, mask); // Includes private-network and scan-size bounds.
         var own = Number(IPAddress.Parse(host)); var subnet = Number(IPAddress.Parse(mask));
@@ -78,7 +78,7 @@ public static class ConsoleDiscovery
                     var packet = await udp.ReceiveAsync(timeout.Token);
                     if (packet.RemoteEndPoint.Address.AddressFamily != AddressFamily.InterNetwork || (Number(packet.RemoteEndPoint.Address) & subnet) != (own & subnet)) continue;
                     var item = ParseAnnouncement(packet.RemoteEndPoint.Address.ToString(), packet.RemoteEndPoint.Port, Encoding.UTF8.GetString(packet.Buffer));
-                    if (item != null && item.Platform == platform) found[item.Ip] = item;
+                    if (item != null && item.Platform == platform) { found[item.Ip] = item; results?.Report(item); }
                 }
             } catch (Exception) when (!ct.IsCancellationRequested) { /* Continue with bounded HTTP discovery. */ }
         }
@@ -103,6 +103,7 @@ public static class ConsoleDiscovery
                     if (loader?["status"]?.GetValue<string>() == "ready") found[ip] = new(ip, "PS4", "ps4", Loader: true);
                 }
             } catch (Exception) when (!token.IsCancellationRequested) { /* Malformed responses are not proof. */ }
+            if (found.TryGetValue(ip, out var result)) results?.Report(result);
             progress?.Report(Interlocked.Increment(ref completed) * 100 / addresses.Length);
         });
         return found.Values.OrderByDescending(x => x.Service).ThenByDescending(x => x.Loader).ThenBy(x => Number(IPAddress.Parse(x.Ip))).ToArray();
