@@ -1544,5 +1544,9 @@
   "Продолжить остановленную очередь": "Resume stopped queue",
   "Не удалось продолжить очередь": "Could not resume the queue",
   "Ошибки и пропуски": "Errors and skips",
-  "Ошибки и пропуски:": "Errors and skips:"
+  "Ошибки и пропуски:": "Errors and skips:",
+  "Перезапуск пока не подтверждён. Проверьте подключение; повторная команда не отправлена.": "Restart has not been confirmed. Check the connection; no repeat command was sent.",
+  "Сначала проверьте подключение к PS4.": "Check the PS4 connection first.",
+  "Не удалось запросить перезапуск сервиса.": "Unable to request the service restart.",
+  "PS4 отказала в перезапуске сервиса ({0}).": "PS4 refused to restart the service ({0})."
 }

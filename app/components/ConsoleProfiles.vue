@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ConsoleProfiles, DeviceActivity } from '#shared/types/consoles'
+import type { Ps4SystemSnapshot } from '#shared/types/ps4-system'
 import { ps5InstallMessage } from '#shared/ps5-install-readiness'
 const props = defineProps<{ profiles: ConsoleProfiles; activity?: DeviceActivity[] }>()
 const emit = defineEmits<{ updated: [value: ConsoleProfiles] }>()
@@ -14,6 +15,9 @@ function edit(profile?:ConsoleProfiles['consoles'][number]) { Object.assign(draf
 const showConfig = ref(false), configHost = ref(''), configPort = ref('3000')
 const active = computed(() => props.profiles.consoles.find(item => item.id === (detailId.value || props.profiles.activeId)))
 const updateId = ref('')
+const restartingId = ref('')
+let disposed = false
+onBeforeUnmount(() => { disposed = true })
 const updatingDevice = computed(() => props.profiles.consoles.find(item => item.id === updateId.value))
 watch(() => updatingDevice.value?.ip, () => { if (!updatingDevice.value) updateId.value = '' })
 async function request(path: string, body: unknown) {
@@ -21,6 +25,38 @@ async function request(path: string, body: unknown) {
   try { emit('updated', await $fetch<ConsoleProfiles>(`/api/consoles/${path}`, { method: 'POST', body })); code.value = '' }
   catch (error: any) { message.value = error?.data?.message || 'Не удалось сохранить подключение' }
   finally { pending.value = false }
+}
+async function restartService(profile: ConsoleProfiles['consoles'][number]) {
+  if (pending.value || restartingId.value || profile.platform !== 'ps4' || profile.transport === 'payload' || !profile.online || !profile.paired) return
+  // Keep the concrete target even when the user switches the active console.
+  const { id, ip, name } = profile
+  pending.value = true; message.value = ''; restartingId.value = id
+  try {
+    const before = await $fetch<Ps4SystemSnapshot>('/api/ps4/system-info', { query: { ip } })
+    if (!before.ready) throw new Error('Сначала проверьте подключение к PS4.')
+    const response = await $fetch<{ message: string; result?: { state: string; message?: string; errorHex?: string } }>('/api/ps4/service-restart', { method: 'POST', body: { ip } })
+    if (response.result?.state === 'failed') throw new Error(response.result.message || `PS4 отказала в перезапуске сервиса (${response.result.errorHex || '—'}).`)
+    message.value = `${name} (${ip}): ${t(response.message)}`
+    pending.value = false
+    // Poll reads only. A lost POST response must never cause another restart.
+    for (let attempt = 0; attempt < 15; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      if (disposed) return
+      try {
+        const after = await $fetch<Ps4SystemSnapshot>('/api/ps4/system-info', { query: { ip }, timeout: 3000 })
+        if (before.runtime?.processId && after.ready && after.runtime?.processId && after.runtime.processId !== before.runtime.processId) {
+          message.value = `${name} (${ip}): ${t('Сервис перезапущен и снова отвечает.')}`
+          if (props.profiles.consoles.some(item => item.id === id && item.ip === ip)) {
+            try { emit('updated', await $fetch<ConsoleProfiles>('/api/consoles/probe', { method: 'POST', body: { id } })) } catch { /* Restart is confirmed; refresh remains available. */ }
+          }
+          return
+        }
+      } catch { /* A short disconnect is expected while the daemon changes. */ }
+    }
+    message.value = `${name} (${ip}): ${t('Перезапуск пока не подтверждён. Проверьте подключение; повторная команда не отправлена.')}`
+  } catch (error: any) {
+    if (!disposed) message.value = `${name} (${ip}): ${t(error?.data?.message || error?.message || 'Не удалось запросить перезапуск сервиса.')}`
+  } finally { pending.value = false; restartingId.value = '' }
 }
 async function downloadConfig() {
   if (!active.value) return
@@ -45,7 +81,7 @@ async function create() {
 <section class="devices-workspace">
 <header class="profile-heading"><div><h1>{{ t('Устройства') }}</h1><p>{{ profiles.consoles.length }} {{ t('устройств') }} · {{ t('Отдельное сопряжение и очередь для каждой приставки') }}</p></div><div class="profile-actions"><button :disabled="pending" @click="request('refresh',{})">{{ t(pending?'Проверяем…':'Обновить подключения') }}</button><button class="primary" :disabled="pending" @click="edit()">＋ {{ t('Добавить устройство') }}</button></div></header>
 <div class="profile-toolbar"><input v-model="query" :placeholder="t('Найти по имени, модели или IP')"><select v-model="filter"><option value="all">{{ t('Все') }}</option><option value="ps4">PS4</option><option value="ps5">PS5</option></select><label><input v-model="onlyOnline" type="checkbox"> {{ t('В сети') }}</label></div>
-<div class="profiles-scroll"><table><thead><tr><th>{{ t('Устройство') }}</th><th>{{ t('Тип / модель') }}</th><th>{{ t('Соединение') }}</th><th>{{ t('Свободно') }}</th><th>{{ t('Задания') }}</th><th></th></tr></thead><tbody><tr v-for="profile in shown" :key="profile.id" :class="{selected:detailId===profile.id}"><td><strong>{{ profile.name }}</strong><small>{{ profile.ip }}</small></td><td>{{ profile.platform.toUpperCase() }} · {{ profile.model || '—' }}<small>{{ profile.firmware || '—' }} · {{ t('Сервис') }} {{ profile.version || '—' }}<template v-if="profile.pkgVersion"> · PKG {{ profile.pkgVersion }}</template></small></td><td><span :class="{online:profile.online}">● {{ t(profile.online?'В сети':'Нет связи') }}</span><small>{{ t(profile.paired?'Сопряжено':profile.transport==='payload'?'PyLoader':'Нужно сопряжение') }}</small></td><td>{{ bytes(profile.freeBytes) }}</td><td>{{ t('Активные:') }} {{ activityFor(profile.id)?.counts.active || 0 }}<small>{{ t('В очереди:') }} {{ activityFor(profile.id)?.counts.queued || 0 }}</small></td><td><div class="profile-actions"><button @click="detailId=profile.id;code=''">{{ t('Подключение') }}</button><button v-if="profile.transport!=='payload'" @click="updateId=profile.id">{{ t('Обновить сервис') }}</button><button @click="edit(profile)">{{ t('Изменить') }}</button><button :disabled="pending || profiles.activeId===profile.id" @click="request('active',{id:profile.id})">{{ t(profiles.activeId===profile.id?'Открыто':'Открыть') }}</button></div></td></tr></tbody></table><p v-if="!shown.length">{{ t('Устройства не найдены. Добавьте приставку или измените фильтр.') }}</p></div>
+<div class="profiles-scroll"><table><thead><tr><th>{{ t('Устройство') }}</th><th>{{ t('Тип / модель') }}</th><th>{{ t('Соединение') }}</th><th>{{ t('Свободно') }}</th><th>{{ t('Задания') }}</th><th></th></tr></thead><tbody><tr v-for="profile in shown" :key="profile.id" :class="{selected:detailId===profile.id}"><td><strong>{{ profile.name }}</strong><small>{{ profile.ip }}</small></td><td>{{ profile.platform.toUpperCase() }} · {{ profile.model || '—' }}<small>{{ profile.firmware || '—' }} · {{ t('Сервис') }} {{ profile.version || '—' }}<template v-if="profile.pkgVersion"> · PKG {{ profile.pkgVersion }}</template></small></td><td><span :class="{online:profile.online}">● {{ t(profile.online?'В сети':'Нет связи') }}</span><small>{{ t(profile.paired?'Сопряжено':profile.transport==='payload'?'PyLoader':'Нужно сопряжение') }}</small></td><td>{{ bytes(profile.freeBytes) }}</td><td>{{ t('Активные:') }} {{ activityFor(profile.id)?.counts.active || 0 }}<small>{{ t('В очереди:') }} {{ activityFor(profile.id)?.counts.queued || 0 }}</small></td><td><div class="profile-actions"><button @click="detailId=profile.id;code=''">{{ t('Подключение') }}</button><button v-if="profile.transport!=='payload'" @click="updateId=profile.id">{{ t('Обновить сервис') }}</button><button v-if="profile.platform==='ps4' && profile.transport!=='payload'" :disabled="pending || !!restartingId || !profile.online || !profile.paired || (activityFor(profile.id)?.counts.active || 0)>0 || (activityFor(profile.id)?.counts.queued || 0)>0" @click="restartService(profile)">{{ t(restartingId===profile.id?'Ожидаем перезапуска…':'Перезапустить сервис') }}</button><button @click="edit(profile)">{{ t('Изменить') }}</button><button :disabled="pending || profiles.activeId===profile.id" @click="request('active',{id:profile.id})">{{ t(profiles.activeId===profile.id?'Открыто':'Открыть') }}</button></div></td></tr></tbody></table><p v-if="!shown.length">{{ t('Устройства не найдены. Добавьте приставку или измените фильтр.') }}</p></div>
 <section v-if="active" class="profile-details"><div class="profile-heading"><h2>{{ active.name }} · {{ active.platform.toUpperCase() }}</h2><button :disabled="pending" @click="request('probe',{id:active.id})">{{ t('Проверить подключение') }}</button></div><p>{{ active.ip }} · {{ t(active.transport==='payload'?'PyLoader':'PackageFlowService') }}</p>
 <form v-if="active.transport!=='payload'" class="profile-actions" @submit.prevent="request('pair',{id:active.id,code})"><label>{{ t('Код с экрана приставки') }}<input v-model="code" :maxlength="active.platform==='ps5'?6:7" autocomplete="off" :placeholder="active.platform==='ps5'?'000000':'F7Y-YUH'" required></label><button class="primary" :disabled="pending || !code">{{ t(active.paired?'Повторить сопряжение':'Сопряжение') }}</button></form>
 <button v-if="active.platform==='ps5'" @click="openConfig">{{ t('Конфигурация приложения PS5') }}</button><p v-if="active.platform==='ps5'">{{ t(ps5InstallMessage(active.capabilities)) }}</p>
