@@ -38,6 +38,7 @@ internal sealed partial class MainForm : Form
         preview = previewSettings != null;
         settings = previewSettings ?? LauncherSettings.Load(ServerHost.SettingsPath);
         this.background = background;
+        tabs.SelectedIndexChanged += async (_, _) => { if(tabs.SelectedIndex==1&&!preview)await RefreshSavedConsoles(true); };
         Text = "PackageFlow for Windows";
         DoubleBuffered = true;
         SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint, true);
@@ -334,14 +335,21 @@ internal sealed partial class MainForm : Form
 
     private void ConnectionPage()
     {
-        var page = Page(T("2. Приставки", "2. Consoles"), T("Добавьте PS4 или PS5 через окно поиска. Там показаны найденные и сохранённые приставки, проверка службы, первоначальная установка и сопряжение.", "Add a PS4 or PS5 through discovery. The window lists discovered and saved consoles, checks the service, and handles initial installation and pairing."));
-        psIp = Field(page, T("Выбранная приставка", "Selected console"), settings.PsIp);
-        psIp.ReadOnly = true;
-        var setupCard = FieldCard(page, T("Подключение PS4 / PS5", "PS4 / PS5 connection")); setupCard.Height = 120;
-        consoleSetupStatus = new Label { Text = settings.PsIp.Length > 0 ? settings.ConsolePlatform.ToUpperInvariant() + " · " + settings.PsIp : T("PS4: GoldHEN + PyLoader\nPS5: эксплойт + ELF → сопряжение → приложение PackageFlow", "PS4: GoldHEN + PyLoader\nPS5: exploit + ELF → pairing → PackageFlow application"), Dock = DockStyle.Bottom, Height = 70, ForeColor = Theme.Muted, Font = new Font("Segoe UI", 9) };
-        setupCard.Controls.Add(consoleSetupStatus);
+        var page = Page(T("2. Приставки", "2. Consoles"), T("Добавленные приставки и их состояние. Выберите строку для работы; новые PS4 и PS5 добавляются через «Найти / подключить».", "Saved consoles and their status. Select a row to manage it; add PS4 and PS5 with Find / connect."), columns: 1);
+        psIp = new TextBox { Text = settings.PsIp, ReadOnly = true };
+        var card = FieldCard(page, T("Добавленные приставки PS4 / PS5", "Saved PS4 / PS5 consoles"));
+        card.Controls.OfType<Label>().Single().Height = 24;
+        consoleGrid = SavedConsoleGrid.Create(settings.Language);
+        card.Controls.Add(consoleGrid); consoleGrid.BringToFront();
+        consoleSetupStatus = new Label { Dock = DockStyle.Bottom, Height = 28, ForeColor = Theme.Muted, AutoEllipsis = true };
+        card.Controls.Add(consoleSetupStatus);
+        void FitTable() => card.Height = Math.Max(240, page.ClientSize.Height - 18);
+        page.SizeChanged += (_, _) => FitTable(); FitTable();
+        consoleGrid.CellDoubleClick += async (_, e) => { if(e.RowIndex >= 0) await Act(SelectSavedConsole); };
         Buttons(page,
             (T("Найти / подключить", "Find / connect"), FindConsoles),
+            (T("Обновить", "Refresh"), () => RefreshSavedConsoles(true)),
+            (T("Выбрать", "Select"), SelectSavedConsole),
             (T("Хранилище в WEB", "Storage in WEB"), () => { EnsureStarted(); OpenStorage(); return Task.CompletedTask; }),
             (T("Позже / к поиску", "Later / search"), () => { tabs.SelectedIndex = 2; return Task.CompletedTask; }));
     }

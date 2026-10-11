@@ -61,7 +61,28 @@ internal static class Smoke
                 Check(surface.GetPixel(5, 5).ToArgb() == Color.Magenta.ToArgb() && surface.GetPixel(25, 25).ToArgb() == Theme.Background.ToArgb(), "Partial repaint must not erase pixels outside the invalid region.");
             }
             lines.Add("PASS: partial repaint respects the invalid region.");
-            using (var manager = new ConsoleManagerForm(Field<ServerHost>(form,"host"), settings, _ => Task.CompletedTask, preview:true)) {
+            var savedGrid=Field<DataGridView>(form,"consoleGrid");
+            var savedFixtures=System.Text.Json.Nodes.JsonNode.Parse("""
+                {"consoles":[{"id":"fixture-ps4","ip":"192.168.50.4","name":"PS4 Living room","model":"Pro","platform":"ps4","online":true,"paired":true,"firmware":"9.00","version":"0.10.2","pkgVersion":"2.05","freeBytes":107374182400,"checkedAt":0,"capabilities":{"formats":["pkg"]}},
+                {"id":"fixture-ps5","ip":"192.168.50.5","name":"PS5 Bedroom","model":"Slim","platform":"ps5","online":false,"paired":false,"firmware":"13.60","capabilities":{"formats":[]}}]}
+                """)!;
+            savedFixtures["consoles"]![0]!["checkedAt"]=DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            SavedConsoleGrid.Render(savedGrid,savedFixtures,"fixture-ps4","ru");
+            var savedTabs=Field<PageHost>(form,"tabs");savedTabs.SelectedIndex=1;Pump();
+            Check(savedGrid.Rows.Count==2&&savedGrid.Columns.Count==10,"Main Consoles page must list every saved console with metadata.");
+            Check(savedGrid.Rows[1].Cells["firmware"].Value?.ToString()=="Не проверено","Offline firmware must not be presented as current.");
+            Check(savedGrid.Rows[0].Cells["version"].Value?.ToString()=="2.05","Service package version is missing.");
+            foreach(var size in new[]{new Size(980,700),new Size(1840,850)}) {
+                form.ClientSize=size;Pump();
+                Check(savedGrid.Width>600&&savedGrid.Height>200&&savedGrid.Parent!.ClientRectangle.Contains(savedGrid.Bounds),$"Main console table must fit the page at {size}: grid={savedGrid.Bounds}; parent={savedGrid.Parent!.ClientSize}; form={form.ClientSize}.");
+            }
+            form.ClientSize=new Size(1440,740);form.Location=new Point(10,10);Pump();
+            using(var shot=new Bitmap(form.ClientSize.Width,form.ClientSize.Height)) {
+                using(var graphics=Graphics.FromImage(shot))graphics.CopyFromScreen(form.PointToScreen(Point.Empty),Point.Empty,shot.Size);
+                shot.Save(Path.ChangeExtension(report,"saved-consoles.png"));
+            }
+            lines.Add("PASS: main Consoles page lists saved PS4/PS5, current status and metadata, fits narrow/wide windows.");
+            using (var manager = new ConsoleManagerForm(Field<ServerHost>(form,"host"), settings, (_, _, _) => Task.CompletedTask, preview:true)) {
                 manager.RenderRows(new[] {
                     System.Text.Json.Nodes.JsonNode.Parse("{\"id\":\"fixture-ps4\",\"ip\":\"192.168.50.4\",\"name\":\"PS4 Living room\",\"platform\":\"ps4\",\"online\":true,\"paired\":true,\"checkedAt\":1,\"firmware\":\"9.00\"}")!,
                     System.Text.Json.Nodes.JsonNode.Parse("{\"id\":\"fixture-ps5\",\"ip\":\"192.168.50.5\",\"name\":\"PS5 Bedroom\",\"platform\":\"ps5\",\"online\":false,\"paired\":false,\"firmware\":\"13.60\"}")!
@@ -80,6 +101,19 @@ internal static class Smoke
                 manager.Size=new Size(1120,700);manager.Location=new Point(5,5);Pump();
                 using var shot=new Bitmap(manager.ClientSize.Width,manager.ClientSize.Height);using(var graphics=Graphics.FromImage(shot))graphics.CopyFromScreen(manager.PointToScreen(Point.Empty),Point.Empty,shot.Size);shot.Save(Path.ChangeExtension(report,"consoles.png"));
                 manager.Close();lines.Add("PASS: PS4/PS5 modal renders saved/offline/unpaired rows at two sizes; unknown FW preserved.");
+            }
+            using (var manager = new ConsoleManagerForm(Field<ServerHost>(form,"host"), settings, (_, _, _) => Task.CompletedTask, preview:true)) {
+                manager.Show(form);Pump();
+                var completion=new TaskCompletionSource();
+                var running=(Task)typeof(ConsoleManagerForm).GetMethod("Run",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(manager,new object[]{(Func<Task>)(()=>completion.Task)})!;
+                Pump();
+                var close=Descendants(manager).OfType<Button>().Single(button=>button.Text=="Закрыть");
+                Check(close.Enabled,"A pending console operation must leave Close enabled.");
+                close.PerformClick();Pump();
+                Check(!manager.Visible,"Console modal must close while observing an accepted operation.");
+                Check(Field<CancellationTokenSource>(manager,"lifetime").IsCancellationRequested,"Closing must stop polling.");
+                completion.SetResult();Pump();running.GetAwaiter().GetResult();
+                lines.Add("PASS: pending operation leaves Close available and closes without replaying a command.");
             }
             for (var i = 0; i < 20; i++) {
                 var choice = Field<DarkChoice>(form, "mode"); Select(choice, i % 2);

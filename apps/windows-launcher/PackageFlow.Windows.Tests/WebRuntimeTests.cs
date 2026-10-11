@@ -22,6 +22,12 @@ internal static class WebRuntimeTests
             if(profiles["consoles"]!.AsArray().Count!=0)throw new Exception("Runtime test unexpectedly reused user console profiles.");
             using var anonymous=await http.GetAsync(host.WebUrl+"/api/desktop/console-setup?consoleId=fixture",lifetime.Token);
             if(anonymous.StatusCode!=HttpStatusCode.NotFound)throw new Exception("Windows setup API is available without the launcher key.");
+            if(File.Exists(Path.Combine(AppContext.BaseDirectory,"console-setup","manifest.json"))) {
+                var manifest=System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(folder,"data","web","console-setup","manifest.json")))!;
+                if(manifest["app"]?["version"]?.GetValue<string>()!="01.000.041")throw new Exception("PS5 application bundle was not staged.");
+                var artifact=await host.Api("/api/desktop/ps4-setup-artifact",new{},lifetime.Token);
+                if(artifact["version"]?.GetValue<string>()!="2.05"||artifact["sha256"]?.GetValue<string>()!=manifest["ps4"]?["sha256"]?.GetValue<string>())throw new Exception("PS4 bundled package was not verified and staged.");
+            }
             await host.Stop(lifetime.Token);
             File.WriteAllText(report,"PASS: packaged Windows Node + WEB starts with isolated data, new PS4/PS5 catalog, launcher authorization and orderly shutdown.\n");
         }

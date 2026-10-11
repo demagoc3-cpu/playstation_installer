@@ -10,7 +10,7 @@ internal sealed class ConsoleManagerForm : Form
 {
     private readonly ServerHost host;
     private readonly LauncherSettings settings;
-    private readonly Func<string, Task> installPs4;
+    private readonly Func<string, CancellationToken, IProgress<string>, Task> installPs4;
     private readonly CancellationTokenSource lifetime = new();
     private readonly Dictionary<string, DiscoveredConsole> discovered = new();
     private readonly Dictionary<string, JsonNode> profiles = new();
@@ -27,7 +27,7 @@ internal sealed class ConsoleManagerForm : Form
     private string Flag(bool? v) => v == true ? T("Готово", "Ready") : v == false ? T("Недоступно", "Unavailable") : Unknown;
     private string? SelectedIp => grid.SelectedRows.Count > 0 ? grid.SelectedRows[0].Tag as string : null;
     private JsonNode? SelectedProfile => SelectedIp is { } address ? profiles.GetValueOrDefault(address) : null;
-    public ConsoleManagerForm(ServerHost host, LauncherSettings settings, Func<string, Task> installPs4, bool preview = false)
+    public ConsoleManagerForm(ServerHost host, LauncherSettings settings, Func<string, CancellationToken, IProgress<string>, Task> installPs4, bool preview = false)
     {
         this.host = host; this.settings = settings; this.installPs4 = installPs4;
         Text = T("Приставки PS4 и PS5", "PS4 and PS5 consoles"); BackColor = Theme.Background; ForeColor = Color.White;
@@ -75,11 +75,14 @@ internal sealed class ConsoleManagerForm : Form
         AddButton(buttons, T("Установить", "Install"), Install);
         AddButton(buttons, T("Сопрячь", "Pair"), Pair);
         AddButton(buttons, T("Выбрать", "Select"), SelectConsole);
+        var close = new RoundedButton { Text = T("Закрыть", "Close"), Size = new Size(100, 40), BackColor = Theme.Card, ForeColor = Color.White, Margin = new Padding(0, 8, 0, 0) };
+        close.Click += (_, _) => Close(); buttons.Controls.Add(close);
         layout.Controls.Add(buttons, 0, 6);
         status.Dock = DockStyle.Fill; status.ForeColor = Theme.Muted; status.AutoEllipsis = true; status.Padding = new Padding(0, 8, 0, 0);
         layout.Controls.Add(status, 0, 7);
         ip.Text = settings.PsIp;
-        FormClosing += (_, e) => { if (busy) { e.Cancel = true; status.Text = T("Дождитесь результата операции. Передача не будет отправлена повторно.", "Wait for the operation result. Transfer will not be repeated."); } else lifetime.Cancel(); };
+        // Closing stops observation, not an already accepted console command.
+        FormClosing += (_, _) => lifetime.Cancel();
         if (!preview) Shown += async (_, _) => await Run(Discover);
         else ShowSelected();
     }
@@ -102,6 +105,7 @@ internal sealed class ConsoleManagerForm : Form
         if (busy) return; busy = true; actions.ForEach(b => b.Enabled = false); grid.Enabled = false;
         ip.Enabled = name.Enabled = platform.Enabled = code.Enabled = firmware.Enabled = false;
         try { await action(); }
+        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (Exception e) when (!lifetime.IsCancellationRequested) { if (!IsDisposed) status.Text = e.Message; }
         finally { busy = false; if (!IsDisposed) { actions.ForEach(b => b.Enabled = true); grid.Enabled = true; ip.Enabled = name.Enabled = platform.Enabled = code.Enabled = firmware.Enabled = true; } }
     }
@@ -197,7 +201,10 @@ internal sealed class ConsoleManagerForm : Form
     private async Task Install()
     {
         var id = await EnsureProfile(); var p=SelectedProfile!;
-        if(p["platform"]?.GetValue<string>()=="ps4") { await installPs4(p["ip"]!.GetValue<string>()); await Reload();return; }
+        if(p["platform"]?.GetValue<string>()=="ps4") {
+            await installPs4(p["ip"]!.GetValue<string>(), lifetime.Token, new Progress<string>(message => { if (!IsDisposed && !lifetime.IsCancellationRequested) status.Text=message; }));
+            await Reload();return;
+        }
         var r=await host.Api("/api/desktop/console-setup?consoleId="+Uri.EscapeDataString(id),ct:lifetime.Token);
         if(r["release"]==null)throw new InvalidOperationException(r["artifactMessage"]?.GetValue<string>() ?? T("Комплект PS5 не подготовлен.","PS5 bundle unavailable."));
         if(r["profile"]?["online"]?.GetValue<bool>()!=true) {

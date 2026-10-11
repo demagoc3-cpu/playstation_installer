@@ -57,6 +57,11 @@ test('real Nuxt routes: native v1/v2 reads, receipts, task removal and reviewed 
     assert.equal(onlyFive.games.length,1);assert.equal(onlyFive.games[0].details.titleId,five.titleId)
     assert.equal(onlyFive.games[0].packages[0].format,'pkg');assert.equal(onlyFive.games[0].packages[0].contentId,five.contentId)
     assert.equal(JSON.stringify(mixedCatalog).includes(dir),false,'extended metadata still hides source paths')
+    const favoriteFive=await post('/api/catalog/v1',{ip:'192.168.50.4',platform:'ps5',favoriteIds:[onlyFive.games[0].id]})
+    assert.deepEqual(favoriteFive.games,onlyFive.games,'POST favorites retain the same platform and package metadata as GET')
+    assert.equal(favoriteFive.platform,'ps5');assert.equal(favoriteFive.capabilities.catalogFeatures.packageMetadata,true)
+    assert.equal((await post('/api/catalog/v1',{platform:'all',favoriteIds:[]})).total,0)
+
     assert.equal((await fetch(base+'/api/desktop/console-setup?consoleId=five')).status,404,'setup is only available to the Windows launcher')
     const launcherHeaders={'x-packageflow-launcher-key':'fixture-launcher-key','Content-Type':'application/json'}
     assert.equal((await fetch(base+'/api/desktop/console-setup?consoleId=four',{headers:launcherHeaders})).status,400,'PS5 bootstrap rejects a PS4 target')

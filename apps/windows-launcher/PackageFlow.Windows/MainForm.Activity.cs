@@ -139,6 +139,7 @@ internal sealed partial class MainForm
             try {
                 using var ct = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); ct.CancelAfter(TimeSpan.FromSeconds(6));
                 var list = await host.Api("/api/consoles", ct: ct.Token);
+                SavedConsoleGrid.Render(consoleGrid,list,settings.ConsoleId,settings.Language);
                 var profiles = list["consoles"]!.AsArray();
                 var selected = profiles.FirstOrDefault(p => p?["id"]?.GetValue<string>() == settings.ConsoleId)
                     ?? profiles.FirstOrDefault(p => p?["ip"]?.GetValue<string>() == settings.PsIp)
@@ -146,6 +147,7 @@ internal sealed partial class MainForm
                 if (selected == null) { Component("Pairing", T("Нет сопряжения", "Not paired"), T("Настройте в «Приставки»", "Set up in Consoles"), false); return; }
                 var id = selected["id"]!.GetValue<string>();
                 var checkedList = await host.Api("/api/consoles/probe", new {id}, ct.Token);
+                SavedConsoleGrid.Render(consoleGrid,checkedList,settings.ConsoleId,settings.Language);
                 var info = checkedList["consoles"]!.AsArray().First(p => p?["id"]?.GetValue<string>() == id)!;
                 var paired = info["online"]?.GetValue<bool>() == true ? info["paired"]?.GetValue<bool>() : null;
                 var ip = info["ip"]!.GetValue<string>();

@@ -19,10 +19,11 @@ const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(2)} МБ`
  * never break the transfer.
  */
 function streamRange(event: H3Event, file: ReadStream, id: string, fileName: string, start: number, end: number, completed: boolean) {
-  const record = (last: number, done: boolean) => {
+  const owner = currentConsoleIp()
+  const record = (last: number, done: boolean) => inConsoleScope(owner, () => {
     if (last < start) return
     try { recordPackageDelivery(id, start, last, done) } catch (error) { logEvent('warn', 'Не удалось записать прогресс передачи:', error) }
-  }
+  })
   const expected = end - start + 1
   let sent = 0
   let reportedAt = 0
@@ -36,14 +37,14 @@ function streamRange(event: H3Event, file: ReadStream, id: string, fileName: str
   })
   const response = event.node.res
   const unregister = registerActiveTransfer(id, () => response.destroy())
-  response.once('close', () => {
+  response.once('close', () => inConsoleScope(owner, () => {
     unregister()
     if (response.writableFinished) { record(end, completed); return }
     file.destroy()
     if (isDeliveryBlocked(id)) { logEvent('info', `Передача «${fileName}» остановлена: установка отменена`); return }
     record(start + sent - 1, false)
     logEvent('warn', `PS4 оборвала загрузку «${fileName}»: диапазон ${start}-${end}, отдано ${mb(sent)} из ${mb(expected)}`)
-  })
+  }))
   file.once('error', (error) => { logEvent('warn', `Ошибка чтения PKG ${fileName} (${start}-${end}):`, error); counter.destroy(error) })
   return sendStream(event, file.pipe(counter))
 }

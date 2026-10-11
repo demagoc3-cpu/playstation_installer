@@ -31,20 +31,37 @@ const load = name => import(pathToFileURL(resolve(root, `server/utils/${name}.ts
 const until = async predicate => {for(let i=0;i<100;i++){if(predicate())return; await new Promise(done => setTimeout(done,50))}throw new Error('Timed out')}
 try {
  const updates = await load('service-updates')
- const artifact = await updates.stageServicePackage(pkg({TITLE:'PackageFlowService',TITLE_ID:'PFLS00001',CONTENT_ID:'IV0000-PFLS00001_00-PACKAGEFLOWSRV00',CATEGORY:'gde',APP_VER:'01.92'}))
+ const artifact = await updates.stageServicePackage(pkg({TITLE:'PackageFlowService',TITLE_ID:'PFLS00001',CONTENT_ID:'IV0000-PFLS00001_00-PACKAGEFLOWSRV00',CATEGORY:'gde',APP_VER:'01.92',SYSTEM_VER:'00000000'}))
  const path = updates.serviceArtifact(artifact.id).path
  const { bootstrapService } = await load('service-bootstrap')
  const calls = globalThis.bootstrapCalls, input = ['192.168.88.147', artifact.id, 'http://192.168.88.10:3000']
  if(mode === 'changed') { const data=readFileSync(path); data[4000] ^= 1;writeFileSync(path,data) }
  if(mode === 'stopping') (await load('desktop-lifecycle')).beginDesktopStop()
- if(mode !== 'success') {
+ if(mode === 'normal-no-service') {
+  const {registerPackageFile}=await load('package-library')
+  const game=await registerPackageFile(path)
+  const {startInstallationQueue,getInstallationQueue,cancelInstallationQueue}=await load('installation-queue')
+  startInstallationQueue({psIp:input[0],packageIds:[game.id],packageUrls:{[game.id]:`http://192.168.88.10:3000/json/${game.id}.json`},transport:'payload'})
+  await new Promise(done=>setTimeout(done,1800))
+  assert.equal(getInstallationQueue(input[0]).items[0].state,'pending')
+  assert.equal(calls.commands,0,'Ordinary queues must not bypass live checks when the service is absent')
+  cancelInstallationQueue(input[0])
+ } else if(mode === 'changed-after-acceptance') {
+  const result=await bootstrapService(...input)
+  const data=readFileSync(path);data[4000]^=1;writeFileSync(path,data)
+  const {getInstallationQueue}=await load('installation-queue')
+  await until(()=>getInstallationQueue(input[0]).status==='failed')
+  assert.equal(calls.commands,0,'Changed accepted artifacts must never reach PyLoader')
+  assert.equal(getInstallationQueue(input[0]).id,result.queue.id)
+ } else if(!['success','late-download'].includes(mode)) {
   await assert.rejects(bootstrapService(...input), {statusCode: mode === 'offline' ? 502 : mode === 'stopping' ? 503 : 409})
   assert.equal(calls.payload,0);assert.equal(calls.commands,0)
  } else {
   const result = await bootstrapService(...input)
   assert.equal(result.version,'1.92'); assert.equal(result.queue.transport,'payload')
   const id=result.queue.items[0].packageId
-  assert.equal(result.queue.items[0].url, `http://192.168.88.10:3000/json/${id}.json?console=${input[0]}`)
+  assert.equal(result.queue.items[0].url, `http://192.168.88.10:3000/ps4/manifest/${input[0]}/${id}.json`)
+  assert.equal(result.queue.bootstrapArtifactId,artifact.id)
   await until(() => calls.commands === 1)
   assert.equal(globalThis.bootstrapJob.contentId,'IV0000-PFLS00001_00-PACKAGEFLOWSRV00')
   assert.equal(globalThis.bootstrapJob.contentType,'PS4GDE'); assert.equal(globalThis.bootstrapJob.size,artifact.size)
@@ -54,7 +71,18 @@ try {
   assert.equal(calls.commands,1)
   const library=await load('package-library')
   const { inConsoleScope } = await load('console-scope')
-  inConsoleScope(input[0], () => library.recordPackageDelivery(id,0,artifact.size-1,true))
+  if(mode==='late-download') {
+   const clock=Date.now
+   try {
+    let now=clock();Date.now=()=>now
+    inConsoleScope(input[0],()=>library.recordPackageDelivery(id,0,1023,false))
+    now+=31000
+    await until(()=>getInstallationQueue(input[0]).status==='completed')
+    assert.equal(getInstallationQueue(input[0]).items[0].state,'unconfirmed','Header-only delivery cannot claim full transfer')
+    inConsoleScope(input[0],()=>library.recordPackageDelivery(id,1024,artifact.size-1,true))
+    assert.equal(getInstallationQueue(input[0]).items[0].bytesSent,artifact.size,'Late body must refresh terminal queue progress')
+   } finally { Date.now=clock }
+  } else inConsoleScope(input[0], () => library.recordPackageDelivery(id,0,artifact.size-1,true))
   await until(() => getInstallationQueue(input[0]).status === 'completed')
   assert.equal(getInstallationQueue(input[0]).items[0].state,'delivered','PyLoader transfer is not an installation confirmation')
   assert.equal(library.getLibraryPackages(input[0]).find(item=>item.id===id).installedAt,undefined)

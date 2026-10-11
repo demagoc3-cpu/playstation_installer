@@ -15,12 +15,12 @@ public static class ConsoleArtifacts
         var json = JsonNode.Parse(File.ReadAllText(manifest)) ?? throw new InvalidDataException("Invalid console manifest.");
         if (json["schemaVersion"]?.GetValue<int>() != 1) throw new InvalidDataException("Unsupported console manifest.");
         var files = new List<(string Source, string Target)>();
-        foreach (var role in new[] { "elf", "app" }) {
+        foreach (var role in json["ps4"] == null ? new[] { "elf", "app" } : new[] { "elf", "app", "ps4" }) {
             var entry = json[role] ?? throw new InvalidDataException("Incomplete PS5 release bundle.");
             var name = entry["fileName"]?.GetValue<string>() ?? "";
             var size = entry["size"]?.GetValue<long>() ?? 0;
             var hash = entry["sha256"]?.GetValue<string>() ?? "";
-            if (!Regex.IsMatch(name, "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$") || name.Contains("..") || !Regex.IsMatch(hash, "^[a-f0-9]{64}$") || size <= 0 || size > (role == "elf" ? 4 * 1024 * 1024 : 256 * 1024 * 1024))
+            if (!Regex.IsMatch(name, "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$") || name.Contains("..") || !Regex.IsMatch(hash, "^[a-f0-9]{64}$") || size <= 0 || size > (role == "elf" ? 4 * 1024 * 1024 : role == "ps4" ? 25 * 1024 * 1024 : 256 * 1024 * 1024))
                 throw new InvalidDataException("Invalid console artifact.");
             var source = Path.Combine(bundle, name);
             var info = new FileInfo(source);

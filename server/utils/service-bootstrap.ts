@@ -29,7 +29,7 @@ export async function bootstrapService(value: unknown, id: string, baseUrl: stri
   const pkg = await registerPackageFile(artifact.path)
   if (pkg.titleId !== 'PFLS00001' || pkg.contentType !== 'PS4GDE')
     throw createError({ statusCode: 400, message: 'Ожидается PKG PackageFlowService.' })
-  const queue = startInstallationQueue({ psIp: ip, packageIds: [pkg.id], packageUrls: { [pkg.id]: `${baseUrl}/json/${pkg.id}.json` }, transport: 'payload' })
+  const queue = startInstallationQueue({ psIp: ip, packageIds: [pkg.id], packageUrls: { [pkg.id]: `${baseUrl}/json/${pkg.id}.json` }, transport: 'payload', bootstrapArtifactId: id })
   savePsIp(ip)
   return { version: artifact.version, queue }
 }

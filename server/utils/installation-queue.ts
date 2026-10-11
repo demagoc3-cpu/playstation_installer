@@ -13,13 +13,14 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { writeJsonFile } from './json-store'
 import { blockPackageDelivery, getPackage, getLibraryPackages, getPackageDelivery, markPackageInstalled, readPackageIcon, readPackageMetadata, resetPackageDelivery } from './package-library'
 import { sendPackage, startInstaller } from './ps4-installer'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { serviceArtifact } from './service-updates'
 import { createError } from 'h3'
 import { installationTransport, serviceJobDetail } from './installation-transport'
 import { getInstallationPreference } from './installation-preference'
 import { checkPs4InstallSpace, installSpaceMessage } from './installation-space'
 import { checkPs4InstalledPackage } from './installed-package-check'
-import { checkPs4Firmware } from './installation-firmware'
+import { assessPackageFirmware, checkPs4Firmware } from './installation-firmware'
 import { cancelServiceInstallJob, getActiveServiceInstallJob, getServiceInstallJob, getServiceInstallerStatus, releaseServiceInstallJob, serviceKeyConfigured, submitServicePackage, uploadServiceInstallIcon } from './ps4-service-installer'
 import type { InstallationTransport, ServiceInstallJob } from '../../shared/types/installation'
 import { Ps4TransferSpeed } from './ps4-transfer-speed'
@@ -55,6 +56,7 @@ interface InstallationQueue {
   status: 'idle' | 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled'
   transport?: InstallationTransport
   maintenanceId?: string
+  bootstrapArtifactId?: string
   id?: string
   psIp?: string
   items: InstallationQueueItem[]
@@ -78,6 +80,18 @@ export const getInstallationTransferTelemetry = (queue: InstallationQueue, item:
 const runnerKey = () => currentConsoleIp() || 'legacy'
 
 const blankQueue = (): InstallationQueue => ({ version: 1, status: 'idle', items: [] })
+
+// Only the verified service installer can operate without the service it installs.
+// Ordinary PyLoader game queues still require live installed/firmware checks.
+function isServiceBootstrap(queue: InstallationQueue, pkg: ReturnType<typeof getPackage>) {
+  if (!queue.bootstrapArtifactId) return false
+  const artifact = serviceArtifact(queue.bootstrapArtifactId)
+  if (queue.transport !== 'payload' || queue.items.length !== 1 || pkg.path !== artifact.path ||
+      pkg.titleId !== 'PFLS00001' || pkg.contentId !== 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00' || pkg.contentType !== 'PS4GDE' ||
+      createHash('sha256').update(readFileSync(pkg.path)).digest('hex') !== artifact.sha256)
+    throw createError({ statusCode: 409, message: 'Проверенный пакет первоначальной установки службы изменился' })
+  return true
+}
 
 /** Reinstalling a game is a user queue; service updates remain protected. */
 export function canManageInstallationQueue(queue: {maintenanceId?:string;psIp?:string}) {
@@ -112,6 +126,27 @@ function writeQueue(queue: InstallationQueue) {
 }
 
 function publicQueue(queue: InstallationQueue) {
+  // BGFT can pause after its header probe, then fetch the body after the queue's
+  // observation window. Read actual delivery again; never claim installation.
+  if (queue.transport === 'payload' && readQueue().id === queue.id) {
+    let changed = false
+    for (const item of queue.items) {
+      if (!item.dispatchedAt || !['delivered','unconfirmed'].includes(item.state)) continue
+      let delivery: ReturnType<typeof getPackageDelivery>
+      try { delivery = getPackageDelivery(item.packageId) } catch { continue } // Archived sources may have been removed.
+      const bytes = Math.min(delivery.bytesSent,delivery.size)
+      if (bytes > item.bytesSent) { item.bytesSent=bytes; changed=true }
+      const detail='PS4 скачала пакет полностью; итог установки проверьте на приставке'
+      if (delivery.completedAt && !delivery.partial && (item.state === 'unconfirmed' || item.detail !== detail)) {
+        item.state='delivered';item.completedAt=delivery.completedAt
+        item.detail=detail;changed=true
+      }
+    }
+    if (changed) {
+      if (queue.status === 'completed' && queue.items.every(item=>item.state==='delivered')) queue.message='Все пакеты скачаны PS4; итог установки проверьте на приставке'
+      if (readQueue().id === queue.id) writeQueue(queue)
+    }
+  }
   const missing = queue.items.some(item => !item.fileName)
   const packages = missing ? new Map(getLibraryPackages().map(item => [item.id, item])) : new Map()
   return { ...queue, items: queue.items.map((item) => {
@@ -287,8 +322,10 @@ async function runQueue(releaseWorker: () => void) {
       queue.currentIndex = index
       let item = queue.items[index]!
       const packageInfo = getPackage(item.packageId)
+      const bootstrap = !!queue.bootstrapArtifactId
+      if (bootstrap && !item.dispatchedAt) isServiceBootstrap(queue, packageInfo)
 
-      if (!item.serviceDispatchedAt && !item.dispatchedAt && !item.cancelRequested) {
+      if (!bootstrap && !item.serviceDispatchedAt && !item.dispatchedAt && !item.cancelRequested) {
         const present = await checkPs4InstalledPackage(queue.psIp, packageInfo, queue.transport === 'payload')
         const checked = stillCurrent(queue, index); if (!checked) return
         queue = checked; item = queue.items[index]!
@@ -474,7 +511,9 @@ async function runQueue(releaseWorker: () => void) {
         // The alternate sender must not bypass the firmware admission check.
         const metadata = packageInfo.requiredFirmware || packageInfo.sdkFirmware ? packageInfo
           : await readPackageMetadata(packageInfo.path, packageInfo.fileName).catch(() => packageInfo)
-        const firmware = await checkPs4Firmware(queue.psIp, metadata)
+        // No console version is invented: this exception accepts only our
+        // verified homebrew with zero firmware requirements in PARAM/SFO.
+        const firmware = bootstrap ? assessPackageFirmware('0.00', metadata) : await checkPs4Firmware(queue.psIp, metadata)
         const checked = stillCurrent(queue, index); if (!checked) return
         queue = checked; item = queue.items[index]!
         if (item.cancelRequested) continue
@@ -494,6 +533,7 @@ async function runQueue(releaseWorker: () => void) {
         resetPackageDelivery(item.packageId)
         const iconData = await readPackageIcon(item.packageId).catch(() => undefined)
         if (!stillCurrent(queue, index)) return
+        if (bootstrap) isServiceBootstrap(queue, getPackage(item.packageId))
         await sendPackage({ url: item.url, title: packageInfo.title, contentId: packageInfo.contentId, contentType: packageInfo.contentType, size: packageInfo.size, iconData })
 
         const updated = readQueue()
@@ -512,7 +552,7 @@ async function runQueue(releaseWorker: () => void) {
       const delivery = getPackageDelivery(item.packageId)
       item.bytesSent = Math.min(delivery.bytesSent, delivery.size)
       if (delivery.completedAt) {
-        item.state = 'delivered'
+        item.state = delivery.partial ? 'unconfirmed' : 'delivered'
         item.completedAt = delivery.completedAt
         if (!delivery.partial) item.bytesSent = delivery.size
         item.detail = delivery.partial
@@ -590,7 +630,7 @@ function createQueueItems(packageIds: string[], packageUrls: Record<string, stri
   })
 }
 
-function startInstallationQueueScoped(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string }) {
+function startInstallationQueueScoped(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string; bootstrapArtifactId?: string }) {
   assertDesktopWritable()
   const profiles = readJsonFile<{ consoles?: Array<{ ip: string; platform: string }> }>(dataPath('console-profiles.json'), {})
   if (profiles.consoles?.some(item => item.ip === input.psIp && item.platform === 'ps5')) throw createError({ statusCode: 409, message: 'Установка на PS5 через маршрут PS4 недоступна. Нужен подтверждённый backend PS5.' })
@@ -608,7 +648,8 @@ function startInstallationQueueScoped(input: { psIp: string; packageIds: string[
   if (!packageIds.length) throw createError({ statusCode: 400, message: 'Нет пакетов для установки' })
   const items = createQueueItems(packageIds, input.packageUrls, transport)
   archiveQueue(active)
-  const queue: InstallationQueue = { version: 1, id: input.maintenanceId || randomUUID(), maintenanceId: input.maintenanceId, transport, status: 'running', psIp: input.psIp, items, createdAt: Date.now(), message: 'Подготавливаем последовательную очередь установки…' }
+  const queue: InstallationQueue = { version: 1, id: input.maintenanceId || randomUUID(), maintenanceId: input.maintenanceId, bootstrapArtifactId: input.bootstrapArtifactId, transport, status: 'running', psIp: input.psIp, items, createdAt: Date.now(), message: 'Подготавливаем последовательную очередь установки…' }
+  if (input.bootstrapArtifactId) for (const item of items) isServiceBootstrap(queue, getPackage(item.packageId))
   writeQueue(queue)
   logEvent('info', `${transport === 'service' ? 'PackageFlowService' : 'PyLoader'}: очередь установки, пакетов ${items.length}`)
   ensureInstallationQueueRunning()
@@ -830,7 +871,7 @@ export function getInstallationHistory(ip?: string): InstallationQueue[] { retur
 export function ensureInstallationQueueRunning(ip?: string) { return inConsoleScope(ip, () => ensureInstallationQueueRunningScoped()) }
 export function peekInstallationQueue(ip?: string) { return inConsoleScope(ip, () => publicQueue(readQueue())) }
 export function getInstallationQueue(ip?: string) { return inConsoleScope(ip, () => getInstallationQueueScoped()) }
-export function startInstallationQueue(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string }) { return inConsoleScope(input.psIp, () => startInstallationQueueScoped(input)) }
+export function startInstallationQueue(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string; bootstrapArtifactId?: string }) { return inConsoleScope(input.psIp, () => startInstallationQueueScoped(input)) }
 export function appendInstallationQueue(input: { psIp: string; queueId: string; packageIds: string[]; packageUrls: Record<string, string> }) { return inConsoleScope(input.psIp, () => appendInstallationQueueScoped(input)) }
 export function cancelCurrentInstallation(expectedId: string, packageId: string, ip: string) { return inConsoleScope(ip, () => cancelCurrentInstallationScoped(expectedId, packageId, ip)) }
 export function cancelInstallationItems(expectedId: string, packageIds: string[], ip: string) { return inConsoleScope(ip, () => cancelInstallationItemsScoped(expectedId, packageIds, ip)) }

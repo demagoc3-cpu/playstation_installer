@@ -624,13 +624,15 @@ function covers(ranges: DeliveryStatus['ranges'], from: number, to: number) {
 /** Marks the delivery complete once the downloadable region is covered, or the console went quiet after receiving data. */
 function settleDelivery(item: StoredPackage, delivery: DeliveryStatus) {
   if (contentFormat(item) === 'folder') return false
-  if (delivery.completedAt) return false
+  if (delivery.completedAt && !delivery.partial) return false
   const end = requiredEnd(item)
   const ps4Pkg = contentPlatform(item) === 'ps4' && contentFormat(item) === 'pkg'
   if (covers(delivery.ranges, ps4Pkg ? Math.min(BOOTSTRAP_BYTES, end - 1) : 0, end - 1) || delivery.bytesSent >= item.size) {
     delivery.completedAt = Date.now()
+    delete delivery.partial
     return true
   }
+  if (delivery.completedAt) return false
   const quiet = delivery.lastActivityAt && Date.now() - delivery.lastActivityAt >= IDLE_COMPLETE_MS
   if (ps4Pkg && delivery.bytesSent > 0 && quiet && !activeTransfers.has(consoleDeliveryKey(item.id))) {
     delivery.completedAt = Date.now()
@@ -651,7 +653,7 @@ export function recordPackageDelivery(id: string, start: number, end: number, co
   const ranges = [...delivery.ranges, { start, end }].sort((a, b) => a.start - b.start)
   delivery.ranges = ranges.reduce<Array<{ start: number; end: number }>>((merged, range) => { const previous = merged.at(-1); if (previous && range.start <= previous.end + 1) previous.end = Math.max(previous.end, range.end); else merged.push({ ...range }); return merged }, [])
   delivery.bytesSent = delivery.ranges.reduce((total, range) => total + range.end - range.start + 1, 0)
-  if (completed && start === 0 && end >= item.size - 1) delivery.completedAt ||= Date.now()
+  if (completed && start === 0 && end >= item.size - 1) { delivery.completedAt = Date.now(); delete delivery.partial }
   else settleDelivery(item, delivery)
   scheduleDeliveryFlush()
 }
