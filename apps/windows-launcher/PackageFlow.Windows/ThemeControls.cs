@@ -138,7 +138,7 @@ internal sealed class DarkChoice : Control
     public int SelectedIndex { get => selected; set { if (selected == value) return; selected = value; Invalidate(); SelectedIndexChanged?.Invoke(this, EventArgs.Empty); } }
     public object? SelectedItem => selected >= 0 && selected < Items.Count ? Items[selected] : null;
     public DarkChoice() {
-        DoubleBuffered = true; TabStop = true; Height = 29; Cursor = Cursors.Hand; AccessibleRole = AccessibleRole.ComboBox;
+        DoubleBuffered = true; SetStyle(ControlStyles.ResizeRedraw,true); TabStop = true; Height = 29; Cursor = Cursors.Hand; AccessibleRole = AccessibleRole.ComboBox;
         menu.BackColor = Theme.Card; menu.ShowImageMargin = false;
         menu.Renderer = new ToolStripProfessionalRenderer(new DarkMenuColors());
     }

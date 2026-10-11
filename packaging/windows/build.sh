@@ -144,6 +144,8 @@ shutil.copy2(repo / 'LICENSE', payload)
 }), encoding='utf-8')
 PYTHON
 
+node scripts/package-console-bundle.mjs "${PF_PS5_BUNDLE:-}" "$PF_PAYLOAD/console-setup"
+
 if (( !skip_installer )); then
   "$PF_MAKENSIS" -V2 -DVERSION="$PF_VERSION" -DPAYLOAD="$PF_PAYLOAD" \
     -DOUTPUT="$PF_REPO/dist/windows/PackageFlowSetup-$PF_VERSION-x64.exe" packaging/windows/installer.nsi

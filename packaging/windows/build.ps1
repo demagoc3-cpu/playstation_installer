@@ -1,6 +1,7 @@
 param(
     [ValidatePattern('^\d+\.\d+\.\d+$')][string]$Version = '1.10.7',
     [string]$DockerImage = 'demagoc3/packageflow:latest',
+    [string]$Ps5Bundle = '',
     [switch]$SkipWebBuild,
     [switch]$SkipInstaller
 )
@@ -46,6 +47,9 @@ try {
     Copy-Item (Join-Path $nodeFolder.FullName 'LICENSE') (Join-Path $payload 'runtime/LICENSE')
     Copy-Item 'LICENSE' $payload
     Copy-Item 'packaging/windows/configure-firewall.ps1' $payload
+    $bundleSource = if ($Ps5Bundle) { $Ps5Bundle } else { '-' }
+    & node 'scripts/package-console-bundle.mjs' $bundleSource (Join-Path $payload 'console-setup')
+    if ($LASTEXITCODE) { throw 'PS5 release bundle validation failed' }
     @{version=$Version;dockerImage=$DockerImage} | ConvertTo-Json | Set-Content (Join-Path $payload 'release.json') -Encoding utf8
     # PDBs are build artifacts; the installed application needs no SDK.
     Get-ChildItem $payload -Filter '*.pdb' | Remove-Item

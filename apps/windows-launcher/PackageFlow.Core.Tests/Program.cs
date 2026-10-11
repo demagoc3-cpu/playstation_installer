@@ -18,6 +18,7 @@ if (args.Length == 5 && args[0] == "--compose-fixture")
 var directory = Path.Combine(Path.GetTempPath(), "pf-windows-test-" + Guid.NewGuid()); Directory.CreateDirectory(directory);
 try
 {
+    ConsoleSetupTests.Run(directory);
     var settings = new LauncherSettings { Mode = "compose", HostIp = "10.1.10.47", GamesDirectory = directory };
     var legacyPath = Path.Combine(directory, "legacy-launcher.json");
     File.WriteAllText(legacyPath, "{\"Schema\":1,\"Mode\":\"native\",\"FlareSolverr\":true}");

@@ -73,6 +73,7 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
         // An unrelated development server must never be adopted or stopped.
         CheckPort(settings.Port); CheckPort(settings.PayloadPort);
         Directory.CreateDirectory(Path.Combine(HostDataDirectory, "web"));
+        ConsoleArtifacts.Stage(Path.Combine(InstallDirectory, "console-setup"), Path.Combine(HostDataDirectory, "web", "console-setup"));
         if (settings.Mode == "compose")
         {
             Status?.Invoke("Checking Docker Desktop…");

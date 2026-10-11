@@ -56,6 +56,7 @@ export function buildConsoleCatalog(packages: LocalPackage[], language: 'ru' | '
   const nextOffset = Math.min(offset + limit, filtered.length)
   return {
     schemaVersion: 1,
+    sort,
     mode: 'web-library',
     capabilities: { download: false, install: true, localTorrent: false },
     offset, limit, total: filtered.length, nextOffset, hasMore: nextOffset < filtered.length,

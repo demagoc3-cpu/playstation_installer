@@ -98,6 +98,7 @@ function publicProfile(item: StoredProfile): ConsoleProfile {
     online: !!snapshot?.online && Date.now() - (snapshot.checkedAt || 0) < 60000 }
 }
 export function getConsoleProfiles(): ConsoleProfiles { const saved = store(); return { activeId: saved.activeId, consoles: saved.consoles.map(publicProfile) } }
+export function consolePairConfigured(id: string) { const p = getConsoleProfile(id); return p.platform === 'ps5' ? !!ps5Token(p.ip) : serviceKeyConfigured(p.ip) }
 
 export function saveConsoleProfile(input: { id?: unknown; name?: unknown; ip?: unknown; platform?: unknown; model?: unknown; transport?: unknown }) {
   if (!input || typeof input !== 'object') throw createError({ statusCode: 400, message: 'Укажите параметры приставки' })

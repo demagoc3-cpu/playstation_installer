@@ -34,13 +34,13 @@ internal sealed partial class MainForm
         if (!host.Started) await host.Start(lifetime.Token);
         string? addressWarning = null;
         if (settings.PendingWebAddress) {
-            Report(T("Обновляем адрес WEB на сопряжённой PS4…", "Updating the paired PS4 WEB address…"));
+            Report(T("Обновляем адрес WEB на сопряжённых приставках…", "Updating the paired consoles' WEB address…"));
             try {
-                var address = await host.Api("/api/desktop/rebind", new { ip = settings.PsIp }, lifetime.Token);
+                var address = await host.Api("/api/desktop/rebind", new { all = true }, lifetime.Token);
                 if (address["updated"]?.GetValue<bool>() == true || address["configured"]?.GetValue<bool>() == false) { settings.PendingWebAddress = false; settings.Save(ServerHost.SettingsPath); }
                 if (address["updated"]?.GetValue<bool>() != true && address["configured"]?.GetValue<bool>() == true)
-                    addressWarning = T("Адрес WEB на PS4 не обновлён: проверьте подключение и повторно примените настройки.", "PS4 WEB address was not updated: check the connection and apply settings again.");
-            } catch { addressWarning = T("Не удалось обновить адрес WEB на PS4. Проверьте подключение и повторите сопряжение.", "Could not update the PS4 WEB address. Check the connection and pair again."); }
+                    addressWarning = T("Адрес WEB обновлён не на всех приставках. Проверьте подключение и повторно примените настройки.", "WEB address was not updated on all consoles. Check connections and apply settings again.");
+            } catch { addressWarning = T("Не удалось обновить адрес WEB на приставках. Проверьте подключение и повторите сопряжение.", "Could not update console WEB addresses. Check connections and pair again."); }
         }
         Report(T("Настройки применены. Добавьте папки и сетевые подключения в WEB → Хранилище.", "Settings applied. Add folders and network connections in WEB → Storage."));
         applicationSummary = T("Настройки применены • Хранилище в WEB", "Settings applied • Storage in WEB") + (addressWarning == null ? "" : " • " + addressWarning);

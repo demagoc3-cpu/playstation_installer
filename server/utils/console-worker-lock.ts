@@ -3,7 +3,7 @@ import { closeSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync
 import { dataPath } from './data-path'
 
 /** A shared data directory must have only one worker for each console operation. */
-export function claimConsoleWorker(kind: 'installation' | 'reinstall', ip: string): (() => void) | undefined {
+export function claimConsoleWorker(kind: 'installation' | 'reinstall' | 'bootstrap', ip: string): (() => void) | undefined {
   if (!/^(?:\d{1,3}\.){3}\d{1,3}$/.test(ip)) return undefined
   const directory = dataPath('consoles', ip)
   mkdirSync(directory, { recursive: true })

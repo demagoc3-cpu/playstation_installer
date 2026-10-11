@@ -29,6 +29,11 @@ public sealed class LauncherSettings
     public string ProtectedTrackerPassword { get; set; } = "";
     public bool PendingWebAddress { get; set; }
     public string PsIp { get; set; } = "";
+    public string ConsoleId { get; set; } = "";
+    public string ConsolePlatform { get; set; } = "ps4";
+    public string SetupAppRequestId { get; set; } = "";
+    public string SetupAppConsoleId { get; set; } = "";
+    public string SetupAppSha256 { get; set; } = "";
 
     public bool RequiresRestart(LauncherSettings next) => Mode != next.Mode || Port != next.Port || PayloadPort != next.PayloadPort || HostIp != next.HostIp ||
         FlareSolverrVisibleBrowser != next.FlareSolverrVisibleBrowser ||
@@ -36,7 +41,7 @@ public sealed class LauncherSettings
 
     public void Validate()
     {
-        if (Schema != 1 || Language is not ("ru" or "en") || Mode is not ("native" or "compose"))
+        if (Schema != 1 || Language is not ("ru" or "en") || Mode is not ("native" or "compose") || ConsolePlatform is not ("ps4" or "ps5"))
             throw new InvalidOperationException("Unsupported launcher settings.");
         if (Port is < 1024 or > 65535 || PayloadPort is < 1024 or > 65535 || Port == PayloadPort)
             throw new InvalidOperationException("Invalid server ports.");

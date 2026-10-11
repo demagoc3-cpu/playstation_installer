@@ -7,47 +7,21 @@ namespace PackageFlow.Windows;
 
 internal sealed partial class MainForm
 {
-    private DarkChoice detectedConsoles = null!;
     private Label consoleSetupStatus = null!;
-    private sealed record ConsoleChoice(DiscoveredPs4 Device, string Description)
-    {
-        public override string ToString() => $"{Device.Ip} · {Device.Name} · {Description}";
-    }
     private async Task FindConsoles()
     {
-        var ip = settings.HostIp;
-        var addresses = NetworkInterface.GetAllNetworkInterfaces()
-            .Where(network => network.OperationalStatus == OperationalStatus.Up && network.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-            .SelectMany(network => network.GetIPProperties().UnicastAddresses)
-            .Where(address => address.Address.AddressFamily == AddressFamily.InterNetwork).ToArray();
-        var local = addresses.FirstOrDefault(address => address.Address.ToString() == ip)
-            ?? addresses.FirstOrDefault(address => ServerHost.LanAddresses().FirstOrDefault() == address.Address.ToString());
-        if (local == null) throw new InvalidOperationException(T("Выберите IPv4 компьютера на вкладке установки.", "Select the computer's IPv4 address in Installation."));
-        ip = local.Address.ToString();
-        var candidates = Ps4Discovery.Candidates(ip, local.IPv4Mask.ToString());
-        Report(T($"Ищем PS4 рядом с {ip}: обнаружение консоли и проверка {candidates.Length} адресов…", $"Finding PS4 near {ip}: console discovery and probing {candidates.Length} addresses…"));
-        consoleSetupStatus.Text = T("Ищем приставки в локальной сети…", "Finding consoles on the local network…");
-        var progressWork = new Progress<int>(percent => { if (IsDisposed) return; progress.Value = percent; progress.Invalidate(); status.Text = T($"Поиск PS4 в сети: {percent}%", $"PS4 discovery: {percent}%"); });
-        var devices = await Ps4Discovery.Discover(ip, local.IPv4Mask.ToString(), progressWork, lifetime.Token);
-        detectedConsoles.Items.Clear();
-        foreach (var device in devices)
-            detectedConsoles.Items.Add(new ConsoleChoice(device, device.Service ? T("Сервис", "Service") : device.PyLoader ? "PyLoader" : device.RestMode ? T("Режим покоя", "Rest mode") : T("Включите PyLoader", "Enable PyLoader")));
-        if (devices.Length > 0)
-        {
-            detectedConsoles.SelectedIndex = 0;
-            consoleSetupStatus.Text = T($"Найдено приставок: {devices.Length}. Выберите нужную.", $"Consoles found: {devices.Length}. Select your console.");
-            applicationSummary = consoleSetupStatus.Text;
-        }
-        else
-        {
-            consoleSetupStatus.Text = T("PS4 не найдена. Проверьте сеть и введите IP вручную.", "No PS4 found. Check the network or enter its IP manually.");
-            applicationSummary = consoleSetupStatus.Text;
-        }
+        EnsureStarted();
+        using var dialog = new ConsoleManagerForm(host, settings, InstallPs4ConsoleService);
+        dialog.ShowDialog(this);
+        psIp.Text = settings.PsIp;
+        consoleSetupStatus.Text = settings.PsIp.Length > 0 ? settings.ConsolePlatform.ToUpperInvariant() + " · " + settings.PsIp : T("Приставка ещё не выбрана", "No console selected");
+        applicationSummary = consoleSetupStatus.Text;
+        await RefreshHealth();
     }
-    private async Task InstallConsoleService()
+    private async Task InstallPs4ConsoleService(string consoleIp)
     {
         EnsureStarted();
-        if (!IPAddress.TryParse(psIp.Text.Trim(), out var address) || address.AddressFamily != AddressFamily.InterNetwork || IPAddress.IsLoopback(address) || address.GetAddressBytes()[0] is 0 or >= 224)
+        if (!IPAddress.TryParse(consoleIp.Trim(), out var address) || address.AddressFamily != AddressFamily.InterNetwork || IPAddress.IsLoopback(address) || address.GetAddressBytes()[0] is 0 or >= 224)
             throw new InvalidOperationException(T("Введите IP приставки или найдите её в сети.", "Enter the console's IP or find it on your network."));
         var ip = address.ToString();
         consoleSetupStatus.Text = T("Проверяем PyLoader на PS4…", "Checking PyLoader on PS4…");
@@ -72,7 +46,7 @@ internal sealed partial class MainForm
         for (var attempt = 0; attempt < 180; attempt++)
         {
             await Task.Delay(1500, lifetime.Token);
-            var queue = await host.Api("/api/ps4/installation", ct: lifetime.Token);
+            var queue = await host.Api("/api/ps4/installation?ip=" + Uri.EscapeDataString(ip), ct: lifetime.Token);
             if (queue["id"]?.GetValue<string>() != queueId) throw new InvalidOperationException(T("Очередь изменилась. Проверьте установку в WEB и на PS4.", "The queue changed. Check installation in WEB and on PS4."));
             var item = queue["items"]?.AsArray().FirstOrDefault();
             var bytes = item?["bytesSent"]?.GetValue<long>() ?? 0;

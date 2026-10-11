@@ -419,6 +419,19 @@ export async function registerPackageFile(file: string) {
   return publicItem(item)
 }
 
+/** Register one verified bundled PS5 image, without scanning unrelated sources. */
+export async function registerPs5ImageFile(file: string) {
+  const path = resolve(file), root = dirname(path), info = await stat(path)
+  const { cover, ...metadata } = await readPs5ImageMetadata(path)
+  const id = hash(path), coverPath = await cachePs5Cover(root, id, cover)
+  const item: StoredPackage = { ...metadata, id, path, fileName: basename(path), size: info.size, libraryRoot: root,
+    sourceModifiedAt: info.mtimeMs, coverPath, icon: { offset: 0, size: coverPath ? cover!.length : 0 }, iconSize: coverPath ? cover!.length : 0 }
+  const library = readLibrary(), index = library.packages.findIndex(previous => previous.path === path)
+  if (index >= 0) library.packages[index] = item; else library.packages.push(item)
+  writeLibrary(library)
+  return publicItem(item)
+}
+
 export function getLibraryPackages(ip?: string): LocalPackage[] {
   if (ip && ip !== currentConsoleIp()) return inConsoleScope(ip, () => getLibraryPackages())
   // Display/search/pagination use the last scan's index. Probing every source

@@ -21,7 +21,7 @@ internal sealed partial class MainForm : Form
     private bool exiting, busy;
     private readonly List<Control> actionButtons = [];
     private DarkChoice language = null!, mode = null!, lan = null!;
-    private TextBox games = null!, port = null!, payloadPort = null!, psIp = null!, pairCode = null!;
+    private TextBox games = null!, port = null!, payloadPort = null!, psIp = null!;
     private TextBox prowlarrUrl = null!, prowlarrKey = null!, trackerUser = null!, trackerPassword = null!;
     private DarkChoice indexers = null!;
     private CheckBox autoStart = null!, composeProwlarr = null!, installFlare = null!, visibleFlare = null!;
@@ -288,7 +288,7 @@ internal sealed partial class MainForm : Form
         games = new TextBox { Text = settings.GamesDirectory };
         var addresses = ServerHost.LanAddresses();
         var selected = Array.IndexOf(addresses, settings.HostIp);
-        lan = Choice(page, T("IPv4 компьютера (для PS4)", "Computer LAN IPv4 (for PS4)"), addresses, selected >= 0 ? selected : addresses.Length > 0 ? 0 : -1);
+        lan = Choice(page, T("IPv4 компьютера (для приставок)", "Computer LAN IPv4 (for consoles)"), addresses, selected >= 0 ? selected : addresses.Length > 0 ? 0 : -1);
         port = Field(page, T("Порт WEB", "WEB port"), settings.Port.ToString());
         payloadPort = Field(page, T("Порт PS4 → WEB", "PS4 callback port"), settings.PayloadPort.ToString());
         autoStart = Check(page, T("Запускать при входе в Windows", "Start at Windows sign-in"), settings.AutoStart);
@@ -298,7 +298,7 @@ internal sealed partial class MainForm : Form
             (T("Применить", "Apply"), ApplyInstallation),
             (T("Хранилище в WEB", "Storage in WEB"), () => { OpenStorage(); return Task.CompletedTask; }),
             (T("Остановить", "Stop"), () => host.Stop(lifetime.Token)),
-            (T("Разрешить доступ PS4", "Allow PS4 access"), Firewall));
+            (T("Разрешить доступ приставкам", "Allow console access"), Firewall));
         Buttons(page, (T("Скачать Docker Desktop", "Download Docker Desktop"), () => { ProcessRunner.Open("https://docs.docker.com/desktop/setup/install/windows-install/"); return Task.CompletedTask; }));
         Buttons(page, (T("Подготовить компоненты", "Prepare components"), PrepareFirstRun));
     }
@@ -334,33 +334,16 @@ internal sealed partial class MainForm : Form
 
     private void ConnectionPage()
     {
-        var page = Page(T("2. PS4", "2. PS4"), T("Найдите приставку или введите IP. Если сервиса ещё нет, включите GoldHEN и PyLoader на PS4 и установите его. Затем запустите PackageFlow на приставке и получите код в «Подключениях».", "Find your console or enter its IP. If the service is missing, enable GoldHEN and PyLoader on PS4, then install it. Launch PackageFlow on the console and get a code in Connections."));
-        psIp = Field(page, T("IP приставки", "Console IP"), settings.PsIp);
-        pairCode = Field(page, T("Код сопряжения", "Pairing code"), secret: true);
-        detectedConsoles = Choice(page, T("Найденные приставки", "Discovered consoles"), [], -1);
-        detectedConsoles.SelectedIndexChanged += (_, _) => { if (detectedConsoles.SelectedItem is ConsoleChoice item) psIp.Text = item.Device.Ip; };
-        var setupCard = FieldCard(page, T("Первоначальная установка", "Initial installation")); setupCard.Height = 100;
-        consoleSetupStatus = new Label { Text = T("GoldHEN + PyLoader → установка PKG →\nзапуск сервиса на PS4 → код сопряжения", "GoldHEN + PyLoader → install PKG →\nlaunch service on PS4 → pairing code"), Dock = DockStyle.Bottom, Height = 50, ForeColor = Theme.Muted, Font = new Font("Segoe UI", 9) };
+        var page = Page(T("2. Приставки", "2. Consoles"), T("Добавьте PS4 или PS5 через окно поиска. Там показаны найденные и сохранённые приставки, проверка службы, первоначальная установка и сопряжение.", "Add a PS4 or PS5 through discovery. The window lists discovered and saved consoles, checks the service, and handles initial installation and pairing."));
+        psIp = Field(page, T("Выбранная приставка", "Selected console"), settings.PsIp);
+        psIp.ReadOnly = true;
+        var setupCard = FieldCard(page, T("Подключение PS4 / PS5", "PS4 / PS5 connection")); setupCard.Height = 120;
+        consoleSetupStatus = new Label { Text = settings.PsIp.Length > 0 ? settings.ConsolePlatform.ToUpperInvariant() + " · " + settings.PsIp : T("PS4: GoldHEN + PyLoader\nPS5: эксплойт + ELF → сопряжение → приложение PackageFlow", "PS4: GoldHEN + PyLoader\nPS5: exploit + ELF → pairing → PackageFlow application"), Dock = DockStyle.Bottom, Height = 70, ForeColor = Theme.Muted, Font = new Font("Segoe UI", 9) };
         setupCard.Controls.Add(consoleSetupStatus);
         Buttons(page,
-            (T("Найти PS4", "Find PS4"), FindConsoles),
-            (T("Установить сервис", "Install service"), InstallConsoleService),
-            (T("Проверить службу", "Check service"), async () =>
-            {
-                EnsureStarted();
-                var result = await host.Api("/api/ps4/service-installer?ip=" + Uri.EscapeDataString(psIp.Text.Trim()), ct: lifetime.Token);
-                MessageBox.Show(this, result["message"]?.GetValue<string>() ?? result.ToJsonString(), "PackageFlow");
-            }),
-            (T("Сопряжение", "Pairing"), async () =>
-            {
-                EnsureStarted();
-                await host.Api("/api/ps4/service-key", new { ip = psIp.Text.Trim(), code = pairCode.Text.Trim() }, lifetime.Token);
-                await host.Api("/api/ps4/status", new { ip = psIp.Text.Trim() }, lifetime.Token);
-                settings.PsIp = psIp.Text.Trim(); settings.Save(ServerHost.SettingsPath); pairCode.Clear();
-                tabs.SelectedIndex = 2;
-            }),
+            (T("Найти / подключить", "Find / connect"), FindConsoles),
+            (T("Хранилище в WEB", "Storage in WEB"), () => { EnsureStarted(); OpenStorage(); return Task.CompletedTask; }),
             (T("Позже / к поиску", "Later / search"), () => { tabs.SelectedIndex = 2; return Task.CompletedTask; }));
-        Buttons(page, (T("Хранилище в WEB", "Storage in WEB"), () => { EnsureStarted(); OpenStorage(); return Task.CompletedTask; }));
     }
 
     private void SearchPage()

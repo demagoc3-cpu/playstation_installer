@@ -28,6 +28,10 @@ internal static class Smoke
     {
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
         var report = args.FirstOrDefault() ?? Path.Combine(Path.GetTempPath(), "PackageFlow-ui-tests.txt");
+        if(args.Contains("--web-runtime")) {
+            try { WebRuntimeTests.Run(report).GetAwaiter().GetResult();return 0; }
+            catch(Exception error){File.WriteAllText(report,"FAIL: "+error);return 1;}
+        }
         if (args.Contains("--discover")) {
             try {
                 var flag = Array.IndexOf(args, "--discover");
@@ -57,6 +61,26 @@ internal static class Smoke
                 Check(surface.GetPixel(5, 5).ToArgb() == Color.Magenta.ToArgb() && surface.GetPixel(25, 25).ToArgb() == Theme.Background.ToArgb(), "Partial repaint must not erase pixels outside the invalid region.");
             }
             lines.Add("PASS: partial repaint respects the invalid region.");
+            using (var manager = new ConsoleManagerForm(Field<ServerHost>(form,"host"), settings, _ => Task.CompletedTask, preview:true)) {
+                manager.RenderRows(new[] {
+                    System.Text.Json.Nodes.JsonNode.Parse("{\"id\":\"fixture-ps4\",\"ip\":\"192.168.50.4\",\"name\":\"PS4 Living room\",\"platform\":\"ps4\",\"online\":true,\"paired\":true,\"checkedAt\":1,\"firmware\":\"9.00\"}")!,
+                    System.Text.Json.Nodes.JsonNode.Parse("{\"id\":\"fixture-ps5\",\"ip\":\"192.168.50.5\",\"name\":\"PS5 Bedroom\",\"platform\":\"ps5\",\"online\":false,\"paired\":false,\"firmware\":\"13.60\"}")!
+                },new[]{new DiscoveredConsole("192.168.50.6","Unpaired PS5","ps5",Loader:true)});
+                manager.Show(form);Pump();
+                var deviceGrid=Field<DataGridView>(manager,"grid");Check(deviceGrid.Rows.Count==3,"Discovery must show saved, offline and unpaired devices together.");
+                Check(deviceGrid.Rows[1].Cells["firmware"].Value?.ToString()=="Не проверено","Offline profile firmware must not be shown as live evidence.");
+                foreach(var size in new[]{new Size(1000,700),new Size(1120,740)}){
+                    manager.ClientSize=size;Pump();
+                    Check(deviceGrid.Width>900&&deviceGrid.Height>100,"Console list must remain usable at minimum window size.");
+                    foreach(var button in Descendants(manager).OfType<Button>())Check(button.Right<=button.Parent!.ClientSize.Width,"Console modal buttons are clipped.");
+                    foreach(var input in Descendants(manager).OfType<TextBox>())Check(input.Visible&&input.Height>=input.PreferredHeight&&input.Top>=0&&input.Bottom<=input.Parent!.ClientSize.Height,$"Console modal input is clipped or hidden: bounds={input.Bounds}; preferredHeight={input.PreferredHeight}; visible={input.Visible}; parent={input.Parent!.ClientSize}.");
+                    foreach(var input in Descendants(manager).Where(c=>c is TextBox or DarkChoice))Check(input.Width>100&&manager.RectangleToScreen(manager.ClientRectangle).Contains(new Rectangle(input.PointToScreen(Point.Empty),input.Size)), $"Console modal field falls outside the window: bounds={input.Bounds}; parent={input.Parent!.ClientSize}; screen={input.PointToScreen(Point.Empty)}.");
+                    foreach(var input in Descendants(manager).Where(c=>c is TextBox or DarkChoice))Check(input.Parent!.ClientRectangle.Contains(input.Bounds),$"Console modal field is clipped by its parent: bounds={input.Bounds}; parent={input.Parent.ClientSize}.");
+                }
+                manager.Size=new Size(1120,700);manager.Location=new Point(5,5);Pump();
+                using var shot=new Bitmap(manager.ClientSize.Width,manager.ClientSize.Height);using(var graphics=Graphics.FromImage(shot))graphics.CopyFromScreen(manager.PointToScreen(Point.Empty),Point.Empty,shot.Size);shot.Save(Path.ChangeExtension(report,"consoles.png"));
+                manager.Close();lines.Add("PASS: PS4/PS5 modal renders saved/offline/unpaired rows at two sizes; unknown FW preserved.");
+            }
             for (var i = 0; i < 20; i++) {
                 var choice = Field<DarkChoice>(form, "mode"); Select(choice, i % 2);
                 Check(choice.SelectedIndex == i % 2, "Dropdown selection must survive its close event.");
@@ -102,11 +126,11 @@ internal static class Smoke
             var cards = Field<Dictionary<string, StatusCard>>(form, "healthCards");
             Check(cards.Values.All(c => c.Controls.Cast<Control>().All(label => label.Top >= 0 && label.Bottom <= c.ClientSize.Height)), "Status card text must fit inside the card.");
             Check(cards.Keys.SequenceEqual(new[] { "WEB", "Pairing", "qBittorrent", "Prowlarr", "FlareSolverr" }), "Pairing card must follow WEB.");
-            Check(Field<TextBox>(form, "torrentFolder").Parent!.Controls.OfType<Button>().Any(), "qBittorrent folder picker missing.");
+            Check(Field<TextBox>(form, "torrentFolder").Text==testFolder, "qBittorrent download-path mapping field missing.");
             Check(Descendants(form).OfType<LogoButton>().Count() == 2, "Both header links need logos.");
             var actions = tabs.TabPages[0].Controls.OfType<TableLayoutPanel>().Single(p => p.Dock == DockStyle.Bottom);
             Check(actions.Controls.OfType<Button>().Any(b => b.Text == "Применить"), "Settings need an Apply button.");
-            lines.Add("PASS: pairing card ordering, header logos, Apply button and folder picker.");
+            lines.Add("PASS: pairing card ordering, header logos, Apply button and qBittorrent path mapping.");
             form.ClientSize = new Size(1100, 780); form.Location = new Point(25, 25); Pump();
             foreach (var pageIndex in new[] { 0, 1, 2 }) {
                 tabs.SelectedIndex = pageIndex; Pump();

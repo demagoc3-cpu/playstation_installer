@@ -41,5 +41,9 @@ export function desktopActivity() {
   const commands = ledger('console-app-commands.json', { records: [] })
   if (!Array.isArray(commands.records)) throw createError({ statusCode: 503, message: 'Invalid command ledger' })
   if (commands.records.some((r: any) => ['pending', 'uncertain'].includes(r.state))) reasons.push('command')
+  const ids = existsSync(dataPath('consoles')) ? readdirSync(dataPath('consoles'),{withFileTypes:true}).filter(d=>d.isDirectory()&&/^[a-zA-Z0-9_-]{1,64}$/.test(d.name)).map(d=>d.name) : []
+  if (ids.some(id=> {const q=ledger(`consoles/${id}/ps5-installation-queue.json`,{});return q.status==='running'||q.items?.some((i:any)=>['sending','verifying','installing','waiting','unconfirmed'].includes(i.state))})) reasons.push('ps5-installation')
+  const setup = existsSync(dataPath('console-setup')) ? readdirSync(dataPath('console-setup')).filter(f=>/^bootstrap-[a-zA-Z0-9_-]+\.json$/.test(f)) : []
+  if (setup.some(file=>!['completed','failed'].includes(ledger(`console-setup/${file}`,{}).state))) reasons.push('ps5-bootstrap')
   return { busy: reasons.length > 0, reasons }
 }

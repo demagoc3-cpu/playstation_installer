@@ -38,7 +38,7 @@ test('real Nuxt routes: native v1/v2 reads, receipts, task removal and reviewed 
     writeFileSync(join(folder,'installation-history.json'),JSON.stringify([{version:1,id:'fixture-past',status:'completed',transport:'service',psIp:profile.ip,items:Array.from({length:61},(_,i)=>qi('past-'+i))}]))
   }
   const fiveDir=join(data,'consoles','five');mkdirSync(fiveDir,{recursive:true});writeFileSync(join(fiveDir,'ps5-installation-queue.json'),JSON.stringify({version:1,consoleId:'five',psIp:profiles[2].ip,id:'five-queue',status:'failed',createdAt:1,items:[{...qi('five-history'),titleId:five.titleId,transferId:'a'.repeat(32),platform:'ps5',format:'pkg',branch:'ps5:PPSA95001',order:0},{...qi('five-accepted'),titleId:'PPSA95002',transferId:'b'.repeat(32),platform:'ps5',format:'pkg',branch:'ps5:PPSA95002',order:0,state:'unconfirmed',installDispatched:true}],history:[]}))
-  let output='';const child=spawn(process.execPath,['--import',resolve('server/tests/fixtures/native-http-service.mjs'),resolve('.output/server/index.mjs')],{env:{...process.env,PACKAGEFLOW_DATA_DIR:data,PACKAGEFLOW_HOST_IP:'192.168.50.2',NITRO_HOST:'127.0.0.1',NITRO_PORT:String(port),HOST:'127.0.0.1',PORT:String(port)},stdio:['ignore','pipe','pipe']})
+  let output='';const child=spawn(process.execPath,['--import',resolve('server/tests/fixtures/native-http-service.mjs'),resolve('.output/server/index.mjs')],{env:{...process.env,PACKAGEFLOW_DATA_DIR:data,PACKAGEFLOW_LAUNCHER_KEY:'fixture-launcher-key',PACKAGEFLOW_HOST_IP:'192.168.50.2',NITRO_HOST:'127.0.0.1',NITRO_PORT:String(port),HOST:'127.0.0.1',PORT:String(port)},stdio:['ignore','pipe','pipe']})
   child.stdout.on('data',b=>output+=b);child.stderr.on('data',b=>output+=b)
   const base=`http://127.0.0.1:${port}`,pause=()=>new Promise(r=>setTimeout(r,30))
   const get=async path=>{const r=await fetch(base+path);assert.equal(r.status,200,await r.clone().text());assert.equal(r.headers.get('cache-control'),'no-store');return r.json()}
@@ -48,6 +48,22 @@ test('real Nuxt routes: native v1/v2 reads, receipts, task removal and reviewed 
   try{
     const snapshots={}
     for(let n=0;n<150;n++){try{const r=await fetch(base+'/api/catalog/v2/activity?consoleId=five&source=tasks');if(r.status===200)break}catch{}assert.equal(child.exitCode,null,output);await pause()}
+    const defaultCatalog=await get('/api/catalog/v1?ip=192.168.50.4')
+    assert.equal(defaultCatalog.platform,'ps4');assert.equal(defaultCatalog.games.some(g=>g.platform==='ps5'),false,'legacy v1 defaults to PS4')
+    const mixedCatalog=await get('/api/catalog/v1?ip=192.168.50.4&platform=all&sort=title-desc')
+    assert.equal(mixedCatalog.capabilities.catalogFeatures.platformFilter,true);assert.equal(mixedCatalog.sort,'title-desc')
+    assert.ok(mixedCatalog.games.some(g=>g.platform==='ps4'));assert.ok(mixedCatalog.games.some(g=>g.platform==='ps5'))
+    const onlyFive=await get('/api/catalog/v1?ip=192.168.50.4&platform=ps5')
+    assert.equal(onlyFive.games.length,1);assert.equal(onlyFive.games[0].details.titleId,five.titleId)
+    assert.equal(onlyFive.games[0].packages[0].format,'pkg');assert.equal(onlyFive.games[0].packages[0].contentId,five.contentId)
+    assert.equal(JSON.stringify(mixedCatalog).includes(dir),false,'extended metadata still hides source paths')
+    assert.equal((await fetch(base+'/api/desktop/console-setup?consoleId=five')).status,404,'setup is only available to the Windows launcher')
+    const launcherHeaders={'x-packageflow-launcher-key':'fixture-launcher-key','Content-Type':'application/json'}
+    assert.equal((await fetch(base+'/api/desktop/console-setup?consoleId=four',{headers:launcherHeaders})).status,400,'PS5 bootstrap rejects a PS4 target')
+    const missingBundle=await fetch(base+'/api/desktop/console-setup',{method:'POST',headers:launcherHeaders,body:JSON.stringify({action:'bootstrap',consoleId:'five',firmware:'13.60'})})
+    assert.equal(missingBundle.status,409,'no bundle means no ELF delivery')
+    const unsafeOrigin=await fetch(base+'/api/desktop/console-setup',{method:'POST',headers:{...launcherHeaders,Origin:'http://another-origin.invalid'},body:JSON.stringify({action:'bootstrap',consoleId:'five'})})
+    assert.equal(unsafeOrigin.status,403)
     const one=await get('/api/catalog/v1/activity?ip=192.168.50.4&source=tasks&page=1&mask=15')
     assert.equal(one.tasks.length,50);assert.equal(one.taskPages,2);assert.equal(one.tasks[0].packageId,one.tasks[0].id);assert.equal(one.tasks[0].canDismiss,true);assert.equal(one.tasks[0].branchId,'ps4:CUSA99999');assert.deepEqual(one.taskControls.actions,['remove-items','remove-games','stop-reinstall'])
     const fiveTasks=await get('/api/catalog/v2/activity?consoleId=five&source=tasks');assert.equal(fiveTasks.consolePlatform,'ps5');assert.equal(fiveTasks.tasks.find(t=>t.packageId==='five-history').id,'a'.repeat(32));assert.equal(fiveTasks.tasks.find(t=>t.packageId==='five-accepted').canDismiss,false)
@@ -66,7 +82,9 @@ test('real Nuxt routes: native v1/v2 reads, receipts, task removal and reviewed 
     snapshots['ps4-install-preview.json']=review
     assert.equal(review.device.eligible,true,review.device.reason);assert.deepEqual(review.device.installedPackages.map(p=>p.packageId).sort(),['classic','old']);assert.equal(review.consoleId,'four');assert.equal(JSON.stringify(review).includes(dir),false,'no source paths or credentials in native preview')
     const reviewed={ip:profiles[0].ip,consoleId:'four',gameId:'review',action:'install-reviewed',requestId:'4'.repeat(32),packageIds:review.selection.packageIds,overwritePackageIds:[],reviewToken:review.device.reviewToken}
-    assert.equal((await command(1,reviewed)).state,'accepted');assert.equal(trace().filter(r=>r.path==='/install/jobs').length,1,'skip old games installs only the new selected game')
+    assert.equal((await command(1,reviewed)).state,'accepted')
+    for(let n=0;n<150&&trace().filter(r=>r.path==='/install/jobs').length===0;n++)await pause()
+    assert.equal(trace().filter(r=>r.path==='/install/jobs').length,1,'skip old games installs only the new selected game')
     const again=await post('/api/catalog/v1/install-preview',previewBody);assert.equal(again.device.installedPackages.length,3)
     const replace={...reviewed,requestId:'5'.repeat(32),reviewToken:again.device.reviewToken,overwritePackageIds:again.selection.packageIds}
     const accepted=await command(1,replace);assert.equal(accepted.state,'accepted',accepted.message)

@@ -3,6 +3,7 @@ import { createError } from 'h3'
 import { dataPath } from './data-path'
 import { latestInstallationAttempts } from '../../shared/latest-installation-attempts'
 import { assertNoPs5ServiceUpdate } from './ps5-service-updates'
+import { assertNoPs5Bootstrap } from './ps5-bootstrap-journal'
 import { writeDurableJson } from './durable-json'
 import { getConsoleProfile, getConsoleProfiles, probeConsoleProfile } from './console-profiles'
 import { getLibraryPackages, getPackage, markPackageInstalled } from './package-library'
@@ -53,6 +54,7 @@ export function ps5TaskPackageId(id: string, queueId: string, taskId: string) {
 }
 export async function startPs5Queue(input: { consoleId: string; packageIds?: unknown; librarySelection?: LibraryInstallationSelection; queueId?: string; overwritePackageIds?: string[] }) {
   assertNoPs5ServiceUpdate(input.consoleId)
+  assertNoPs5Bootstrap(input.consoleId)
   const profile = getConsoleProfile(input.consoleId)
   if (profile.platform !== 'ps5') throw createError({ statusCode: 400, message: 'Выберите PS5' })
   const snapshot = (await probeConsoleProfile(profile.id)).consoles.find(p => p.id === profile.id)!

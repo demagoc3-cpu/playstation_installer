@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 import { createError } from 'h3'
 import { dataPath } from './data-path'
 import { writeDurableJson } from './durable-json'
+import { assertNoPs5Bootstrap } from './ps5-bootstrap-journal'
 import { getConsoleProfile, ps5OperationRequest, ps5ServiceRequest } from './console-profiles'
 import { runPs5ServiceUpdate, ps5ServiceUpdateReceipt, type Ps5ServiceUpdateFlow, type UpdateConnection } from './ps5-service-update-driver'
 
@@ -70,6 +71,7 @@ export function assertNoPs5ServiceUpdate(id: string) {
 }
 export async function beginPs5ServiceUpdate(id: unknown) {
   const p = profile(id), candidate = release(), previous = saved(p.id)
+  assertNoPs5Bootstrap(p.id)
   if (!candidate) throw createError({ statusCode: 409, message: 'Проверенный ELF службы PS5 не подготовлен' })
   if (!p.verified || p.firmware !== candidate.firmware) throw createError({ statusCode: 409, message: 'Обновление ещё не подтверждено для прошивки этого устройства' })
   if (running.has(p.id) || previous && !['completed','failed'].includes(previous.state)) throw createError({ statusCode: 409, message: 'Проверьте результат предыдущего обновления. Повтор не отправлен.' })

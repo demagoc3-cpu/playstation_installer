@@ -137,17 +137,22 @@ internal sealed partial class MainForm
         async Task Pairing()
         {
             try {
-                using var ct = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); ct.CancelAfter(TimeSpan.FromSeconds(4));
-                var saved = await host.Api("/api/ps4/settings", ct: ct.Token);
-                var ip = saved["ip"]?.GetValue<string>() ?? "";
-                if (ip.Length == 0) ip = settings.PsIp;
-                if (!restoredPs && ip.Length > 0) { if (psIp.Text.Length == 0) psIp.Text = ip; restoredPs = true; }
-                if (ip.Length == 0) { Component("Pairing", T("Нет сопряжения", "Not paired"), T("Настройте в «PS4»", "Set up in PS4"), false); return; }
-                var info = await host.Api("/api/ps4/service-installer?ip=" + Uri.EscapeDataString(ip), ct: ct.Token);
-                var paired = info["paired"]?.GetValue<bool>();
+                using var ct = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); ct.CancelAfter(TimeSpan.FromSeconds(6));
+                var list = await host.Api("/api/consoles", ct: ct.Token);
+                var profiles = list["consoles"]!.AsArray();
+                var selected = profiles.FirstOrDefault(p => p?["id"]?.GetValue<string>() == settings.ConsoleId)
+                    ?? profiles.FirstOrDefault(p => p?["ip"]?.GetValue<string>() == settings.PsIp)
+                    ?? profiles.FirstOrDefault(p => p?["id"]?.GetValue<string>() == list["activeId"]?.GetValue<string>());
+                if (selected == null) { Component("Pairing", T("Нет сопряжения", "Not paired"), T("Настройте в «Приставки»", "Set up in Consoles"), false); return; }
+                var id = selected["id"]!.GetValue<string>();
+                var checkedList = await host.Api("/api/consoles/probe", new {id}, ct.Token);
+                var info = checkedList["consoles"]!.AsArray().First(p => p?["id"]?.GetValue<string>() == id)!;
+                var paired = info["online"]?.GetValue<bool>() == true ? info["paired"]?.GetValue<bool>() : null;
+                var ip = info["ip"]!.GetValue<string>();
+                if (!restoredPs) { psIp.Text = ip; restoredPs = true; }
                 Component("Pairing", paired == true ? T("Сопряжено", "Paired") : paired == false ? T("Нет сопряжения", "Not paired") : T("Не проверено", "Not checked"),
-                    paired == null ? T("PS4 недоступна • ", "PS4 unavailable • ") + ip : "PS4 • " + ip, paired);
-            } catch { Component("Pairing", T("Не проверено", "Not checked"), T("Проверьте WEB и PS4", "Check WEB and PS4"), null); }
+                    info["platform"]!.GetValue<string>().ToUpperInvariant() + " • " + ip, paired);
+            } catch { Component("Pairing", T("Не проверено", "Not checked"), T("Проверьте WEB и приставку", "Check WEB and console"), null); }
         }
         async Task Flare()
         {
