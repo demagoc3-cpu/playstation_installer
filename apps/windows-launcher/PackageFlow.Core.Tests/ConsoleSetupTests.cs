@@ -15,6 +15,11 @@ internal static class ConsoleSetupTests
         Check(ConsoleDiscovery.ParseAnnouncement("192.168.1.5",9302,packet.Replace("200 Ok","620 Standby"))?.RestMode==true,"Discovery must preserve rest mode without waking PS5.");
         var health=JsonNode.Parse("{\"apiVersion\":\"v1\",\"firmwareRead\":true,\"firmwareRaw\":\"0x13600000\",\"serviceReport\":{\"service\":\"PackageFlowService-PS5\",\"platform\":\"ps5\",\"consoleVerified\":true}}")!;
         Check(ConsoleDiscovery.IsPs5Service(health)&&ConsoleDiscovery.Ps5Firmware(health)=="13.60","Recognize verified PS5 service and BCD firmware.");
+        Check(ConsoleDiscovery.FromServices("192.168.1.5",null,health)?.Platform=="ps5","Platform must come from the verified ELF response.");
+        var four=JsonNode.Parse("{\"service\":\"PackegeFlowService\",\"environment\":\"ps4\"}")!;
+        Check(ConsoleDiscovery.FromServices("192.168.1.4",four,null)?.Platform=="ps4","Preserve PS4 detection.");
+        Check(ConsoleDiscovery.FromServices("192.168.1.4",JsonNode.Parse("{\"service\":\"PackegeFlowService\"}"),null)==null,"A service name without platform verification is insufficient.");
+        try {ConsoleDiscovery.FromServices("192.168.1.5",four,health);throw new Exception("Conflicting platforms accepted.");}catch(InvalidDataException){}
         health["firmwareRaw"]="0x13a00000";Check(ConsoleDiscovery.Ps5Firmware(health)==null,"Invalid BCD must not become firmware.");
         health["serviceReport"]!["consoleVerified"]=false;Check(!ConsoleDiscovery.IsPs5Service(health),"Host diagnostics must not be treated as a console.");
         var source=Path.Combine(directory,"console-bundle");var dest=Path.Combine(directory,"console-stage");Directory.CreateDirectory(source);

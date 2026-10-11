@@ -111,9 +111,34 @@ export async function installDesktopPs5App(id: unknown, requestId: unknown) {
     if(existsSync(receiptPath))return {consoleId:p.id,receipt:JSON.parse(readFileSync(receiptPath,'utf8')),queue:getPs5Queue(p.id)}
     const item=await registerPs5ImageFile(b.appPath), source=getPackage(item.id)
     if(source.titleId!==b.manifest.app.titleId||source.contentId!==b.manifest.app.contentId||source.appVersion!==b.manifest.app.version)throw new Error('Приложение изменилось при подготовке')
+    const presence=await checkPs5InstalledPackage(p.id,p.ip,source,AbortSignal.timeout(15000))
+    if(presence.state==='installed')return {consoleId:p.id,retry:'installed',queue:getPs5Queue(p.id)}
+    if(presence.state==='base-present')throw createError({statusCode:409,message:'На PS5 установлена другая версия PackageFlow. Обновление приложения требуется отдельно'})
+    if(presence.state!=='absent')throw createError({statusCode:409,message:'PS5 не подтвердила наличие приложения. Установка не отправлена; восстановите связь и проверьте снова'})
     const receipt={consoleId:p.id,ip:p.ip,requestId,packageId:item.id,sha256:b.manifest.app.sha256,queueId:randomBytes(16).toString('hex'),state:'prepared',startedAt:Date.now()}
     writeDurableJson(receiptPath,receipt)
     try { const queue=await startPs5Queue({consoleId:p.id,packageIds:[item.id],newQueueId:receipt.queueId});receipt.state='queued';writeDurableJson(receiptPath,receipt);return {consoleId:p.id,receipt,queue} }
     catch(e){receipt.state='unconfirmed';writeDurableJson(receiptPath,receipt);throw e}
   } finally {lock()}
+}
+
+/** This removes the retained source, not only its home-screen registration. */
+export async function removeDesktopPs5App(id: unknown, requestId: unknown, confirmed: unknown) {
+  const p=target(id)
+  if(confirmed!==true||typeof requestId!=='string'||!/^[a-f0-9]{32}$/.test(requestId))throw createError({statusCode:400,message:'Подтвердите удаление PackageFlow и его образа'})
+  const {ps5ConsoleActivity,ps5ConsoleGameInfo,ps5ConsoleGameCommand,ps5ConsoleGameCommandStatus}=await import('./ps5-console-games')
+  const commandPath=dataPath('ps5-game-commands',`${requestId}.json`)
+  if(existsSync(commandPath)) {
+    const command=JSON.parse(readFileSync(commandPath,'utf8'))
+    if(command.titleId!=='PPSA95001'||command.action!=='delete')throw createError({statusCode:409,message:'Номер удаления относится к другой операции'})
+    return ps5ConsoleGameCommandStatus(p.id,requestId)
+  }
+  const b=await consoleSetupBundle({verifyFiles:false})
+  // No arbitrary title/path may be supplied by the desktop client.
+  if(b.manifest.app.titleId!=='PPSA95001')throw createError({statusCode:409,message:'Неизвестный идентификатор PackageFlow'})
+  const current=await ps5ConsoleGameInfo(p.id,b.manifest.app.titleId)
+  if(current.contentId!==b.manifest.app.contentId||!current.managed||!current.canManageSource||!current.sourceAvailable)throw createError({statusCode:409,message:'PS5 не подтвердила управляемый источник PackageFlow. Удаление не отправлено'})
+  const active=await ps5ConsoleActivity(p.id)
+  if(active.running)throw createError({statusCode:409,message:'Закройте игру или приложение на PS5 перед удалением PackageFlow'})
+  return ps5ConsoleGameCommand(p.id,{requestId,titleId:current.titleId,sourceIdentity:current.sourceIdentity,confirmTitleId:current.titleId,action:'delete'})
 }

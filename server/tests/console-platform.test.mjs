@@ -79,6 +79,8 @@ test('mixed library keeps platform, console installation and transfer state sepa
       if (path === '/install/capabilities') return response(cap)
       assert.equal(options.headers.Authorization, `Bearer ${ps4Token}`)
       if (path === '/install/session') return response(cap)
+      if (path === '/install/jobs/active') return response({ service:cap.service,active:!!jobs.get(ip)&&!['installed','cancelled'].includes(jobs.get(ip).state),requestId:jobs.get(ip)?.requestId||'' })
+      if (path === '/apps/title/CUSA95001') return response({ service:cap.service,complete:true,app:{titleId:'CUSA95001',installed:false},revision:'d'.repeat(16),total:0,components:[],next:null })
       if (path === '/install/jobs' && options.method === 'POST') {
         const body = JSON.parse(options.body)
         assert.equal(new URL(body.url).pathname, `/ps4/manifest/${ip}/ps4-test.json`)

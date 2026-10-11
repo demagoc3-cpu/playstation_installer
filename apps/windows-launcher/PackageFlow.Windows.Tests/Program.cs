@@ -93,7 +93,9 @@ internal static class Smoke
                 foreach(var size in new[]{new Size(1000,700),new Size(1120,740)}){
                     manager.ClientSize=size;Pump();
                     Check(deviceGrid.Width>900&&deviceGrid.Height>100,"Console list must remain usable at minimum window size.");
-                    foreach(var button in Descendants(manager).OfType<Button>())Check(button.Right<=button.Parent!.ClientSize.Width,"Console modal buttons are clipped.");
+                    foreach(var button in Descendants(manager).OfType<Button>())Check(button.Right<=button.Parent!.ClientSize.Width&&button.Bottom<=button.Parent.ClientSize.Height,"Console modal buttons are clipped.");
+                    Check(!Descendants(manager).OfType<DarkChoice>().Any(),"Platform must be detected, not selected manually.");
+                    Check(Descendants(manager).OfType<Button>().Any(b=>b.Text=="Удалить приложение")&&Descendants(manager).OfType<Button>().Any(b=>b.Text=="Удалить устройство"),"Removal controls are missing.");
                     foreach(var input in Descendants(manager).OfType<TextBox>())Check(input.Visible&&input.Height>=input.PreferredHeight&&input.Top>=0&&input.Bottom<=input.Parent!.ClientSize.Height,$"Console modal input is clipped or hidden: bounds={input.Bounds}; preferredHeight={input.PreferredHeight}; visible={input.Visible}; parent={input.Parent!.ClientSize}.");
                     foreach(var input in Descendants(manager).Where(c=>c is TextBox or DarkChoice))Check(input.Width>100&&manager.RectangleToScreen(manager.ClientRectangle).Contains(new Rectangle(input.PointToScreen(Point.Empty),input.Size)), $"Console modal field falls outside the window: bounds={input.Bounds}; parent={input.Parent!.ClientSize}; screen={input.PointToScreen(Point.Empty)}.");
                     foreach(var input in Descendants(manager).Where(c=>c is TextBox or DarkChoice))Check(input.Parent!.ClientRectangle.Contains(input.Bounds),$"Console modal field is clipped by its parent: bounds={input.Bounds}; parent={input.Parent.ClientSize}.");
@@ -129,6 +131,8 @@ internal static class Smoke
                 completion.SetResult();Pump();running.GetAwaiter().GetResult();
                 lines.Add("PASS: pending operation leaves Close available and closes without replaying a command.");
             }
+            ConsoleSetupFlowTests.Run(testFolder,form,Pump);
+            lines.Add("PASS: Install waits for pairing; Pair continues app installation once; installed app is not resent.");
             for (var i = 0; i < 20; i++) {
                 var choice = Field<DarkChoice>(form, "mode"); Select(choice, i % 2);
                 Check(choice.SelectedIndex == i % 2, "Dropdown selection must survive its close event.");

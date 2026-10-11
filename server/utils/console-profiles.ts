@@ -124,9 +124,18 @@ export function saveConsoleProfile(input: { id?: unknown; name?: unknown; ip?: u
 export function selectConsoleProfile(id: unknown) { const profile = getConsoleProfile(id); const saved = store(); saved.activeId = profile.id; writeJsonFile(profilePath(), saved); return getConsoleProfiles() }
 export function removeConsoleProfile(id: unknown) {
   const profile = getConsoleProfile(id), saved = store()
+  // Remove only this client's stored credentials. Never revoke another WEB's access implicitly.
+  for(const file of ['ps5-service-keys.json','ps4-service-keys.json']) {
+    const path=dataPath(file)
+    if(!existsSync(path))continue
+    const keys=readJsonFile<Record<string,string>|null>(path,null)
+    if(!keys||typeof keys!=='object'||Array.isArray(keys))throw createError({statusCode:503,message:'Не удалось прочитать ключи сопряжения. Устройство не удалено'})
+    delete keys[profile.ip];writeDurableJson(path,keys)
+  }
+  if(getSavedPsIp()===profile.ip)writeDurableJson(dataPath('ps4.json'),{ip:''})
   saved.consoles = saved.consoles.filter(item => item.id !== profile.id)
   if (saved.activeId === profile.id) saved.activeId = saved.consoles[0]?.id || null
-  snapshots.delete(profile.id); writeJsonFile(profilePath(), saved)
+  snapshots.delete(profile.id); writeDurableJson(profilePath(), saved)
   return getConsoleProfiles()
 }
 

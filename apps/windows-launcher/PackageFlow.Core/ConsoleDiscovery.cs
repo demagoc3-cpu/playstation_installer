@@ -44,6 +44,44 @@ public static class ConsoleDiscovery
         && health["serviceReport"]?["service"]?.GetValue<string>() == "PackageFlowService-PS5"
         && health["serviceReport"]?["platform"]?.GetValue<string>() == "ps5"
         && health["serviceReport"]?["consoleVerified"]?.GetValue<bool>() == true;
+    public static DiscoveredConsole? FromServices(string ip, JsonNode? ps4, JsonNode? ps5)
+    {
+        var four = ps4?["service"]?.GetValue<string>() == "PackegeFlowService" && ps4["environment"]?.GetValue<string>() == "ps4";
+        var five = IsPs5Service(ps5);
+        if (four && five) throw new InvalidDataException("Conflicting console platform responses.");
+        return five ? new(ip, "PS5", "ps5", true, Firmware: Ps5Firmware(ps5)) : four ? new(ip, "PS4", "ps4", true) : null;
+    }
+    // Detect a manually entered address without guessing from a generic ELF port.
+    public static async Task<DiscoveredConsole?> Detect(string ip, CancellationToken ct)
+    {
+        if (!IPAddress.TryParse(ip, out var address) || address.AddressFamily != AddressFamily.InterNetwork || IPAddress.IsLoopback(address) || address.GetAddressBytes()[0] is 0 or >= 224)
+            throw new ArgumentException("Invalid console IPv4.");
+        using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false });
+        var ps4 = Read(http, ip, 12801, "/system/info", ct); var ps5 = Read(http, ip, 8095, "/health", ct);
+        await Task.WhenAll(ps4, ps5);
+        var service = FromServices(ip, ps4.Result, ps5.Result);
+        if (service != null) return service;
+        async Task<DiscoveredConsole?> Announce(string platform) {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct); timeout.CancelAfter(1800);
+            try {
+                using var udp = new UdpClient(AddressFamily.InterNetwork);
+                await udp.SendAsync(Encoding.ASCII.GetBytes(SearchMessage(platform)), new IPEndPoint(address, DiscoveryPort(platform)), timeout.Token);
+                while (!timeout.IsCancellationRequested) {
+                    var packet = await udp.ReceiveAsync(timeout.Token);
+                    if (!packet.RemoteEndPoint.Address.Equals(address)) continue;
+                    var row = ParseAnnouncement(ip, packet.RemoteEndPoint.Port, Encoding.UTF8.GetString(packet.Buffer));
+                    if (row?.Platform == platform) return row;
+                }
+            } catch (Exception) when (!ct.IsCancellationRequested) { }
+            return null;
+        }
+        var announcements = await Task.WhenAll(Announce("ps4"), Announce("ps5"));
+        if (announcements.Count(row => row != null) > 1) throw new InvalidDataException("Conflicting console discovery responses.");
+        var known = announcements.FirstOrDefault(row => row != null);
+        if (known != null) return known;
+        // PyLoader's own HTTP protocol identifies PS4; port 9021 alone does not identify PS5.
+        return (await Read(http, ip, 9090, "/status", ct))?["status"]?.GetValue<string>() == "ready" ? new(ip, "PS4", "ps4", Loader: true) : null;
+    }
     private static async Task<JsonNode?> Read(HttpClient http, string ip, int port, string path, CancellationToken ct)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct); timeout.CancelAfter(1200);

@@ -31,6 +31,9 @@ public sealed class LauncherSettings
     public string PsIp { get; set; } = "";
     public string ConsoleId { get; set; } = "";
     public string ConsolePlatform { get; set; } = "ps4";
+    public string SetupRemoveAppConsoleId { get; set; } = "";
+    public string SetupRemoveAppRequestId { get; set; } = "";
+    public string PendingSetupConsoleId { get; set; } = "";
     public string SetupAppRequestId { get; set; } = "";
     public string SetupAppConsoleId { get; set; } = "";
     public string SetupAppSha256 { get; set; } = "";
