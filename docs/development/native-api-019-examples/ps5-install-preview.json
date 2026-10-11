@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 2,
+  "consoleId": "five",
+  "consolePlatform": "ps5",
+  "selection": {
+    "packageIds": [
+      "native-five"
+    ]
+  },
+  "files": 1,
+  "size": 8192,
+  "packages": [
+    {
+      "packageId": "native-five",
+      "title": "PS5 fixture",
+      "titleId": "PPSA95001",
+      "type": "Игра",
+      "version": "01.000.001",
+      "size": 8192
+    }
+  ],
+  "device": {
+    "eligible": true,
+    "reason": "",
+    "selectedBytes": 0,
+    "queueBytes": 0,
+    "reviewToken": "093b080a99e7e8cd694deabb502f73ca1aed53e29f95198034f6313d3456f7c8",
+    "queuedPackages": [],
+    "pending": 0,
+    "requiredBytes": 0,
+    "installedPackages": [
+      {
+        "packageId": "native-five",
+        "title": "PS5 fixture",
+        "titleId": "PPSA95001",
+        "type": "Игра",
+        "version": "01.000.001",
+        "size": 8192,
+        "detail": "Пакет уже установлен на этой приставке; повторная установка пропущена",
+        "canOverwrite": true,
+        "canReinstall": false,
+        "reinstallReason": "",
+        "affected": []
+      }
+    ],
+    "consoleId": "five",
+    "name": "PS5 fixture",
+    "ip": "192.168.50.5",
+    "platform": "ps5",
+    "online": true,
+    "paired": true,
+    "firmware": "13.60",
+    "freeBytes": 8589934592
+  }
+}

@@ -29,7 +29,7 @@ Packages remain grouped by CUSA; each game branch stays on one page. **Per page*
 - Cancel installation: stop the queue; accepted PS4 jobs need console confirmation.
 - Reset: return a package to a ready-to-send state.
 
-PackageFlowService confirms installation through PS4 state. PyLoader reports file transfer only. The service route checks firmware requirements and available space before dispatch. Incompatible or unreadable game/patch requirements are skipped; the next packages continue. DLC compatibility is determined by PS4. An automatic compatibility check is not proof that a game launches successfully.
+PackageFlowService confirms installation through PS4 state. PyLoader reports file transfer only. Both senders check firmware requirements before dispatch; the service route also checks available space. Incompatible or unreadable game/patch requirements are skipped; the next packages continue. DLC compatibility is determined by PS4. An automatic compatibility check is not proof that a game launches successfully.
 
 An installed package may be marked manually in the WEB library. This is a saved library marker; the native card's base-game status is checked on the console separately.
 
@@ -65,3 +65,13 @@ The previous ten installation queues are retained. Table pages contain 50 rows; 
 ## Consistent display
 
 Library, presets and tasks share the same game tree, PKG metadata, notification fonts and status colours. **Clear** hides completed and failed entries while keeping active and waiting jobs. On PS4 use **L1** to clear and **R1** to change history pages. See [presets and controls](presets.md).
+
+### Library metadata and firmware admission
+
+Collapsed game rows show compact platform, format and FW tags below the title, next to the cover. Title ID (CUSA/PPSA) and version appear on each expanded package. Unknown values are never inferred from Title ID or filenames.
+
+Before a new PS5 batch enters the queue, WEB reads the selected source PARAM for PKG, Folder, UFS2, exFAT, PFS and FFPFSC. These are bounded metadata reads, without hashing the whole game again or walking a folder tree. The declared system minimum and SDK requirement are checked independently; a higher requirement, unreadable PARAM, missing requirements or changed source identity prevents dispatch. The driver also checks the currently connected PS5 firmware before transmission and after WEB recovery. Missing live firmware pauses the task. Accepted system jobs are reconciled without being resubmitted.
+
+PS4 firmware checks also apply to the PyLoader sender, which needs firmware information from the PS4 service. PS4 requirements are not numerically compared against PS5 firmware for PS4 packages installed on PS5; that compatibility is assessed by the PS5 system installer. Backport labels do not override PARAM requirements. Passing these checks is not a guarantee that a game will launch.
+
+WEB reads the selected console's component inventory before dispatch; local markers and old tasks never prove installation. Installed selected packages open in a separate table: checked means reinstall, unchecked means skip. Confirm the choices before starting; required space is recalculated and the device is checked again. The Selected packages table lets you remove unwanted rows. Existing active tasks are displayed separately, and appending requires explicit confirmation. PS4 base replacement requires all affected patches and DLC to be selected for replacement too. Folder/images must first be removed in On console. PS5 DLC inventory remains unknown when the payload cannot prove it; it never falls back to WEB marks. PyLoader uses a paired PackageFlowService for live presence checks.

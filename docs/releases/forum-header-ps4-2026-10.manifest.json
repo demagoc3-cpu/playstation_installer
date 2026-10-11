@@ -15,12 +15,13 @@
     "BBCode balanced",
     "referenced screenshots exist in v1.10.7",
     "Compose YAML parsed; not deployed",
-    "banner visually inspected"
+    "banner visually inspected",
+    "six screenshot exports packaged; JPEG extensions corrected; ZIP and hashes verified"
   ],
   "files": {
     "docs/releases/forum-header-ps4-2026-10.bbcode.txt": {
-      "bytes": 39805,
-      "sha256": "44bb0126bd80e8910f5e02587be3fbb852bf80206a42d106a861289784b7ae6b"
+      "bytes": 39961,
+      "sha256": "afcb14692a11341e1c8ab40fcda10aa98e7f58e14fb0d357413667da53a7e11b"
     },
     "docs/assets/packageflow-ps4-features-2026-10.png": {
       "bytes": 1792754,
@@ -29,6 +30,10 @@
     "docs/assets/packageflow-ps4-features-2026-10.prompt.txt": {
       "bytes": 3779,
       "sha256": "1d074f893f5760864f5e7191a96db454b8f1e43e0271101406ef722ee5261468"
+    },
+    "docs/releases/ps4-screenshots-2026-10-10.md": {
+      "bytes": 3375,
+      "sha256": "b0db53dab630fef8ef0537749c90924649bc221806b253f8ed119267f748e1e9"
     }
   }
 }

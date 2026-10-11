@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 2,
+  "consoleId": "five",
+  "consolePlatform": "ps5",
+  "queueId": "five-queue",
+  "queueStatus": "failed",
+  "taskPage": 1,
+  "taskPages": 1,
+  "taskTotal": 1,
+  "counts": {
+    "active": 0,
+    "queued": 0,
+    "completed": 1,
+    "failed": 1
+  },
+  "currentPackageId": "five-accepted",
+  "taskControls": {
+    "version": 1,
+    "actions": [
+      "remove-items",
+      "remove-games"
+    ]
+  },
+  "installReview": {
+    "version": 1,
+    "previewPath": "install-preview",
+    "submitAction": "install-reviewed"
+  },
+  "tasks": [
+    {
+      "packageId": "five-accepted",
+      "titleId": "PPSA95002",
+      "title": "five-accepted",
+      "fileName": "five-accepted.pkg",
+      "type": "Игра",
+      "size": 100,
+      "bytesSent": 100,
+      "state": "unconfirmed",
+      "detail": "fixture receipt",
+      "platform": "ps5",
+      "format": "pkg",
+      "branch": "ps5:PPSA95002",
+      "order": 0,
+      "id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "queueId": "five-queue",
+      "psIp": "192.168.50.5",
+      "canConfirm": false,
+      "canDismiss": false,
+      "consolePlatform": "ps5",
+      "category": "failed",
+      "groupTitle": "five-accepted",
+      "createdAt": 1,
+      "transport": "service",
+      "canCancel": false,
+      "cancelRequested": false,
+      "branchId": "ps5:PPSA95002",
+      "kind": "game",
+      "progress": 99
+    },
+    {
+      "packageId": "five-history",
+      "titleId": "PPSA95001",
+      "title": "five-history",
+      "fileName": "five-history.pkg",
+      "type": "Игра",
+      "size": 100,
+      "bytesSent": 100,
+      "state": "installed",
+      "detail": "fixture receipt",
+      "platform": "ps5",
+      "format": "pkg",
+      "branch": "ps5:PPSA95001",
+      "order": 0,
+      "id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "queueId": "five-queue",
+      "psIp": "192.168.50.5",
+      "canConfirm": false,
+      "canDismiss": true,
+      "consolePlatform": "ps5",
+      "category": "completed",
+      "groupTitle": "PS5 fixture",
+      "createdAt": 1,
+      "transport": "service",
+      "canCancel": false,
+      "cancelRequested": false,
+      "branchId": "ps5:PPSA95001",
+      "kind": "game",
+      "progress": 100
+    }
+  ]
+}

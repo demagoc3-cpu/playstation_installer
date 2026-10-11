@@ -1,0 +1,11 @@
+{
+  "consoleId": "five",
+  "gameId": "review",
+  "action": "install-reviewed",
+  "requestId": "66666666666666666666666666666666",
+  "packageIds": [
+    "native-five"
+  ],
+  "overwritePackageIds": [],
+  "reviewToken": "093b080a99e7e8cd694deabb502f73ca1aed53e29f95198034f6313d3456f7c8"
+}

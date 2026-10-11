@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "consoleId": "four",
+  "consolePlatform": "ps4",
+  "selection": {
+    "packageIds": [
+      "classic",
+      "fresh",
+      "old"
+    ]
+  },
+  "files": 3,
+  "size": 24576,
+  "packages": [
+    {
+      "packageId": "classic",
+      "title": "classic",
+      "titleId": "SLES53741",
+      "type": "Игра",
+      "version": "01.00",
+      "size": 8192
+    },
+    {
+      "packageId": "fresh",
+      "title": "fresh",
+      "titleId": "CUSA95002",
+      "type": "Игра",
+      "version": "01.00",
+      "size": 8192
+    },
+    {
+      "packageId": "old",
+      "title": "old",
+      "titleId": "CUSA95001",
+      "type": "Игра",
+      "version": "01.00",
+      "size": 8192
+    }
+  ],
+  "device": {
+    "eligible": true,
+    "reason": "",
+    "selectedBytes": 8192,
+    "queueBytes": 0,
+    "reviewToken": "a4ccbf68fad067a6b96affce89a7282a4af9cc01f9da184ac50652488a5b8517",
+    "queuedPackages": [],
+    "pending": 0,
+    "requiredBytes": 536879104,
+    "installedPackages": [
+      {
+        "packageId": "classic",
+        "title": "classic",
+        "titleId": "SLES53741",
+        "type": "Игра",
+        "version": "01.00",
+        "size": 8192,
+        "detail": "Пакет уже установлен на этой приставке; повторная установка пропущена",
+        "canOverwrite": false,
+        "canReinstall": true,
+        "reinstallReason": "",
+        "affected": []
+      },
+      {
+        "packageId": "old",
+        "title": "old",
+        "titleId": "CUSA95001",
+        "type": "Игра",
+        "version": "01.00",
+        "size": 8192,
+        "detail": "Пакет уже установлен на этой приставке; повторная установка пропущена",
+        "canOverwrite": false,
+        "canReinstall": true,
+        "reinstallReason": "",
+        "affected": []
+      }
+    ],
+    "consoleId": "four",
+    "name": "PS4 fixture",
+    "ip": "192.168.50.4",
+    "platform": "ps4",
+    "online": true,
+    "paired": true,
+    "firmware": "9.00",
+    "freeBytes": 8589934592
+  }
+}

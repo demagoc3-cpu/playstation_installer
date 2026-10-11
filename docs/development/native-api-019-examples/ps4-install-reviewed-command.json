@@ -1,0 +1,18 @@
+{
+  "ip": "192.168.50.4",
+  "consoleId": "four",
+  "gameId": "review",
+  "action": "install-reviewed",
+  "requestId": "55555555555555555555555555555555",
+  "packageIds": [
+    "classic",
+    "fresh",
+    "old"
+  ],
+  "overwritePackageIds": [
+    "classic",
+    "fresh",
+    "old"
+  ],
+  "reviewToken": "c02b8cff67d25d1f0d0701603fb892dbb7838a6a4759ad81039a8ba195298b43"
+}

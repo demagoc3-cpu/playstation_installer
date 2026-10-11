@@ -6,8 +6,11 @@ WEB → Search uses a configured Torznab-compatible indexer. It is not a built-i
 
 1. Configure an indexer you are entitled to use in Jackett or Prowlarr.
 2. Copy its Torznab URL and API key. Example Jackett URL: `http://127.0.0.1:9117/api/v2.0/indexers/<indexer>/results/torznab/`; Prowlarr: `http://127.0.0.1:9696/<id>/api`.
-3. In PackageFlow select Source, enter its name/URL/key and categories, then save. The default category is `1180` (PS4). Enter other categories as comma-separated numbers, or leave categories blank to search all platforms. Leaving the API key blank when updating settings retains the saved key.
-4. Enter a query, Find, open a result card, then choose Download or Download and install. qBittorrent downloads the release; the second action enables automatic PKG installation through the PS4 service.
+3. In PackageFlow select Source, enter its name/URL/key and categories, then save. Default categories are `1180` (PS4) and `100546` (PS5). Leaving the API key blank when updating settings retains the saved key.
+4. Select **PS4**, **PS5**, or both beside the search field. Selecting both sends one query with `1180,100546`; search is disabled when neither is selected. The browser remembers your selection. Changing platforms clears previous results; select **Find** to run a new search.
+5. Enter a query, Find, open a result card, then choose Download or Download and install. qBittorrent downloads the release; the second action enables automatic PKG installation through the PS4 service. Automatic PS5 installation is not supported yet.
+
+Checkboxes set the categories for WEB searches and subsequent pages. Source categories remain available for API requests without `platforms`: enter custom category numbers separated by commas, or leave them blank to search all categories. Switching checkboxes does not overwrite saved source categories.
 
 Results default to newest first. WEB requests pages of 50 releases; **Show more** appends the next page without duplicates. Sorting applies to all loaded results. When the source provides a total, it appears alongside the loaded count.
 
@@ -20,6 +23,8 @@ The first tracker query may take longer than repeat queries: WEB waits up to 60 
 ## Result cards
 
 Results appear as cards. Open a card to see its size, seeders and leechers, publication date, source, and full release title. Version, language and Backport labels are inferred from the title; they describe the author's release, not verified PKG metadata.
+
+Colored format tags appear beside PS4/PS5 on the cover and in the open card, using the library's colors: green PKG, gold Folder, light green UFS2, turquoise exFAT, pink PFS, and blue FFPFSC. PS4 always displays PKG. PS5 formats come from the release title or its format field and update automatically when source details load. Missing formats display a neutral “Format not specified” tag. These labels describe the release rather than inspected downloaded files.
 
 Descriptions and covers are prefetched for visible cards when the source provides a release page link. At most two requests run concurrently; opening a card reuses an ongoing request or ready data. If the page requires sign-in or is unavailable, Torznab data remains visible. Background loading and card hover use HTTP only. Opening a RuTracker card can use local FlareSolverr if HTTP is blocked; configure its address with `PACKAGEFLOW_FLARESOLVERR_URL` (default `http://127.0.0.1:8191`).
 

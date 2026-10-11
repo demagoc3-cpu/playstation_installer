@@ -3,6 +3,7 @@
 Готовый текст: [BBCode для 4PDA](forum-header-ps4-2026-10.bbcode.txt).
 Баннер: [PNG — схема всех основных функций](../assets/packageflow-ps4-features-2026-10.png).
 Промпт: [imagegen, встроенный генератор](../assets/packageflow-ps4-features-2026-10.prompt.txt).
+Скриншоты: [состав набора и подписи для публикации](ps4-screenshots-2026-10-10.md).
 
 ## Как вставить на форум
 
