@@ -15,7 +15,7 @@ test('hover preloads without Chromium and opening upgrades an in-flight backgrou
     const watch = () => {}, onMounted = () => {}, onBeforeUnmount = () => {}
     const $fetch = (url, options) => globalThis.pfCardFetch(url, options)
   `
-  await build({ stdin: { contents: prefix + source + '\nexport { preload, open, detailCache, detailBusy, cancelPreload }', loader: 'ts', resolveDir: process.cwd() }, outfile: path, bundle: true, platform: 'node', format: 'esm', packages: 'external' })
+  await build({ stdin: { contents: prefix + source + '\nexport { preload, open, detailCache, detailBusy, cancelPreload, formats }', loader: 'ts', resolveDir: resolve('app/components') }, outfile: path, bundle: true, platform: 'node', format: 'esm', packages: 'external', alias: { '#shared/search-formats': resolve('shared/search-formats.ts') } })
   const result = { id: 'release', sourcePage: 'https://rutracker.org/forum/viewtopic.php?t=1', title: 'Release' }
   const calls = [], finishes = []
   const previousObserver = globalThis.IntersectionObserver
@@ -24,6 +24,8 @@ test('hover preloads without Chromium and opening upgrades an in-flight backgrou
   globalThis.pfCardFetch = (url, options) => new Promise(resolve => { calls.push({ url, options }); finishes.push(resolve) })
   try {
     const cards = await import(path)
+    assert.deepEqual(cards.formats({ title: 'Game', platform: 'PS4', formats: ['folder'] }), ['pkg'])
+    assert.deepEqual(cards.formats({ title: '[PS5] Game [PKG]', platform: 'PS5' }), ['pkg'])
     const hover = cards.preload(result, true)
     assert.equal(calls.length, 1)
     assert.equal(calls[0].options.query, undefined, 'Hover must not request browser fallback')
@@ -34,10 +36,11 @@ test('hover preloads without Chromium and opening upgrades an in-flight backgrou
     await new Promise(resolve => setImmediate(resolve))
     assert.equal(calls.length, 2)
     assert.deepEqual(calls[1].options.query, { browser: '1' }, 'Click must retry the HTTP-only failure interactively')
-    finishes.shift()({ status: 'available', description: 'Description', fields: [] })
+    finishes.shift()({ status: 'available', description: 'Description', fields: [{ label: 'Формат', value: 'Folder' }] })
     await click
     assert.equal(cards.detailCache.release.description, 'Description')
     assert.equal(cards.detailBusy.value, false)
+    assert.deepEqual(cards.formats(result), ['folder'], 'Prefetched source format updates the card without another request')
     await cards.open(result)
     assert.equal(calls.length, 2, 'A cached description must not navigate Chromium again')
     const cancelledResult = { ...result, id: 'cancelled-release' }

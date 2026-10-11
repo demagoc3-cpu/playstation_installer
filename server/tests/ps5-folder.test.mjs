@@ -51,7 +51,7 @@ test('Folder rejects source changes, unsafe paths and links before publication',
 test('Folder admission is independent of PKG; untested firmware and malformed receipts remain disabled', () => {
   const body = { service: 'PackageFlowService-PS5', schemaVersion: 1, route: 'staged-pkg', ready: false, reason: 'installer_unavailable', formats: [], platforms: [], exactVersionReceipt: false, folder: { schemaVersion: 1, route: 'staged-folder', ready: true, platforms: ['ps5'] } }
   const c = api.ps5InstallCapabilities(200, body, '13.60'); assert.deepEqual(c.formats, ['folder']); assert.equal(c.installPs5, true); assert.equal(c.installPs4, false); assert.equal(c.installation.ready, false)
-  const profile = { platform: 'ps5', online: true, paired: true, capabilities: c }
+  const profile = { platform: 'ps5', firmware: '13.60', online: true, paired: true, capabilities: c }
   assert.equal(api.deviceInstallReason(profile, [{ platform: 'ps5', format: 'folder', size: 10 }], 10), '')
   assert.notEqual(api.deviceInstallReason(profile, [{ platform: 'ps5', format: 'pkg', size: 10 }], 10), '')
   assert.notEqual(api.deviceInstallReason({ ...profile, platform: 'ps4' }, [{ platform: 'ps5', format: 'folder', size: 10 }], 10), '')

@@ -153,7 +153,7 @@ async function prepareAdaptedBackup(set: SaveSet, sourceTask: SaveSetSlot, ip: s
         throw new Error(`Adapted backup checksum mismatch: ${file.path}`)
       return { path: file.path, bytes: original.bytes, sha256: original.sha256 }
     })
-    const manifest: SaveBackupManifest = { format: 'pfs-decrypted-save-backup-v1', id, userId: targetUserId,
+    const manifest: SaveBackupManifest = { format: 'pfs-decrypted-save-backup-v1', id, userId: targetUserId, sourceIp: current.manifest.sourceIp,
       titleId: sourceTask.titleId, slot: sourceTask.slot, createdAt: new Date().toISOString(), visibility: 'internal', files }
     writeDurableJson(resolve(target, 'metadata.json'), manifest)
     readSaveBackup(id, true)

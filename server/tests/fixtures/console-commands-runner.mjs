@@ -14,10 +14,12 @@ registerHooks({
  resolve(s,c,next){try{return next(s,c)}catch(e){if(s.startsWith('.')&&!/\.[a-z]+$/.test(s))return next(s+'.ts',c);if(s==='h3')return {url:'mock:h3',shortCircuit:true};throw e}},
  load(url,c,next){
   if(url==='mock:h3')return {format:'module',shortCircuit:true,source:'export const createError = v => Object.assign(new Error(v.message),v)'}
-  if(url.endsWith('/package-library.ts'))return {format:'module',shortCircuit:true,source:'export const getLibraryPackages = () => globalThis.commandLibrary'}
+  if(url.endsWith('/package-library.ts'))return {format:'module',shortCircuit:true,source:'export const getLibraryPackages = () => globalThis.commandLibrary; export const getPackage = id => globalThis.commandLibrary.find(p=>p.id===id)'}
   if(url.endsWith('/ps4-installer.ts'))return {format:'module',shortCircuit:true,source:'export const getLocalIp = async () => "10.1.10.47"'}
   if(url.endsWith('/installation-queue.ts'))return {format:'module',shortCircuit:true,source:`
    export const getInstallationQueue=()=>globalThis.commandQueue;
+   export const peekInstallationQueue=()=>globalThis.commandQueue;
+   export const canManageInstallationQueue=()=>true;
    export const getInstallationHistory=()=>[];
    export const cancelInstallationItems=(id,pkgs,ip)=>{globalThis.commandCalls.cancel++;globalThis.cancelledItems=pkgs;return globalThis.commandQueue};
    export const cancelGameInstallations=(id,ip,games)=>{globalThis.commandCalls.cancel++;globalThis.cancelledGames=games;return globalThis.commandQueue};

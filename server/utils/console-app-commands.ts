@@ -1,6 +1,7 @@
 import { inConsoleScope } from './console-scope'
 import { filterContent } from '../../shared/content-platform'
-import { clearFinishedTasks } from './task-visibility'
+import { clearFinishedTasks, removeInstallationTasks } from './task-visibility'
+import { normalizeNativeTaskControl, normalizeNativeInstallReview } from './native-task-contract'
 import { getPreset, resolvePreset, presetSelection } from './presets'
 import { dataPath } from './data-path'
 import { createHash } from 'node:crypto'
@@ -31,15 +32,24 @@ export function consoleCommand(id: unknown, ipValue: unknown) {
 }
 export function submitConsoleCommand(body: any, port: string) {
   const ip = ps4ServiceIp(body?.ip)
-  if (!ip || !/^[a-f0-9]{32}$/.test(body?.requestId || '') || typeof body.gameId !== 'string' || !['all', 'selected', 'reinstall-preview', 'reinstall', 'patches', 'dlc', 'cancel-current', 'cancel-all', 'cancel-game', 'install-preset', 'install-favorites', 'clear-tasks', 'cancel-item', 'cancel-items', 'cancel-games'].includes(body.action))
+  if (!ip || !/^[a-f0-9]{32}$/.test(body?.requestId || '') || typeof body.gameId !== 'string' || !['all', 'selected', 'reinstall-preview', 'reinstall', 'patches', 'dlc', 'cancel-current', 'cancel-all', 'cancel-game', 'install-preset', 'install-favorites', 'clear-tasks', 'cancel-item', 'cancel-items', 'cancel-games', 'remove-items', 'remove-games', 'stop-reinstall', 'install-reviewed'].includes(body.action))
     throw createError({ statusCode: 400, message: 'Некорректная команда приложения' })
+  const taskControl = normalizeNativeTaskControl(body, 'ps4')
+  const review = body.action === 'install-reviewed' ? normalizeNativeInstallReview(body) : undefined
+  // Copy normalized new commands before the async worker; callers cannot alter
+  // the selection after its receipt has been persisted. Legacy fingerprints stay intact.
+  if (taskControl) body = { ...body, ...taskControl }
+  if (review) body = { ...body, ...review }
   if (body.packageIds !== undefined && (!Array.isArray(body.packageIds) || body.packageIds.some((id: unknown) => typeof id !== 'string')))
     throw createError({ statusCode: 400, message: 'Некорректный выбор пакетов' })
   for (const [action, key] of [['cancel-items', 'packageIds'], ['cancel-games', 'gameIds']]) {
     if (body.action === action && (!Array.isArray(body[key]) || !body[key].length || body[key].length > 256 || body[key].some((id: unknown) => typeof id !== 'string' || !/^[\w.-]{1,63}$/.test(id))))
       throw createError({ statusCode: 400, message: 'Выберите задания для отмены' })
   }
-  const fingerprint = createHash('sha256').update(JSON.stringify([ip, body.gameId, body.action, body.packageIds || [], body.confirmTitleId, body.revision, body.queueId, body.currentPackageId, body.presetId, body.favoriteIds, body.gameIds])).digest('hex')
+  const identity = [ip, body.gameId, body.action, body.packageIds || [], body.confirmTitleId, body.revision, body.queueId, body.currentPackageId, body.presetId, body.favoriteIds, body.gameIds]
+  if (taskControl) identity.push(body.maintenanceId)
+  if (review) identity.push(review.consoleId, review.reviewToken, review.overwritePackageIds)
+  const fingerprint = createHash('sha256').update(JSON.stringify(identity)).digest('hex')
   const existing = read().records.find(r => r.id === body.requestId)
   if (existing) {
     if (existing.ip !== ip || existing.fingerprint !== fingerprint) throw createError({ statusCode: 409, message: 'Идентификатор уже использован другой командой' })
@@ -50,7 +60,7 @@ export function submitConsoleCommand(body: any, port: string) {
   if (control && (typeof body.queueId !== 'string' || !body.queueId || (['cancel-current', 'cancel-item'].includes(body.action) && typeof body.currentPackageId !== 'string')))
     throw createError({ statusCode: 400, message: 'Не указано текущее задание' })
   let packages, missingFavorites = 0
-  try { packages = control || body.action === 'clear-tasks' ? [] : body.action === 'install-favorites' ? (() => {
+  try { packages = control || taskControl || review || body.action === 'clear-tasks' ? [] : body.action === 'install-favorites' ? (() => {
     const library = filterContent(getLibraryPackages(ip), 'ps4'), { groups, missing } = resolveConsoleFavorites(library, body.favoriteIds)
     if (!groups.size) throw new Error('Избранные игры отсутствуют в библиотеке. Обновите список избранного.')
     missingFavorites = missing.length
@@ -62,9 +72,19 @@ export function submitConsoleCommand(body: any, port: string) {
   live.add(record.id); try { save(record) } catch (e) { live.delete(record.id); throw e }
   void (async () => {
     try {
-      if (body.action === 'clear-tasks') { record.result = clearFinishedTasks([], ip); record.message = 'Завершённые задания и ошибки убраны из списка' } else if (control) {
+      if (review) {
+        const { submitNativeInstallReview } = await import('./native-install-review')
+        const result = await submitNativeInstallReview(body, 'ps4', `localhost:${port}`)
+        record.result = result; record.message = result.message
+        if (result.state !== 'queued') record.state = result.state === 'uncertain' ? 'uncertain' : 'failed'
+      } else if (taskControl) {
+        record.result = body.action === 'stop-reinstall' ? await (await import('./selected-reinstallation')).stopSelectedReinstall(ip, body.maintenanceId)
+          : removeInstallationTasks(ip, body.queueId, body.action === 'remove-items' ? body.packageIds : undefined, body.action === 'remove-games' ? body.gameIds : undefined)
+        record.message = (record.result as { message: string }).message
+      } else if (body.action === 'clear-tasks') { record.result = clearFinishedTasks([], ip); record.message = 'Завершённые задания и ошибки убраны из списка' } else if (control) {
         const active = getInstallationQueue(ip)
-        if (active.id !== body.queueId || active.psIp !== ip || active.transport !== 'service' || !(['cancel-item', 'cancel-game', 'cancel-items', 'cancel-games'].includes(body.action) ? ['running', 'failed'].includes(active.status) : ['running', 'cancelling'].includes(active.status)))
+        const selection = ['cancel-item', 'cancel-game', 'cancel-items', 'cancel-games'].includes(body.action)
+        if (!selection && (active.id !== body.queueId || active.psIp !== ip || active.transport !== 'service' || !(body.action === 'cancel-all' ? ['running', 'cancelling', 'failed'].includes(active.status) : ['running', 'cancelling'].includes(active.status))))
           throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите «Задания»' })
         const queue = body.action === 'cancel-items' ? cancelInstallationItems(body.queueId, body.packageIds, ip) : body.action === 'cancel-games' ? cancelGameInstallations(body.queueId, ip, body.gameIds) : body.action === 'cancel-item' ? cancelInstallationItem(body.queueId, body.currentPackageId, ip) : body.action === 'cancel-current' ? cancelCurrentInstallation(body.queueId, body.currentPackageId, ip) : body.action === 'cancel-game' ? cancelGameInstallation(body.queueId, ip, body.gameId) : cancelInstallationQueue(ip)
         record.result = { queueId: queue.id }; record.message = 'Отмена запрошена; ожидаем подтверждение PS4'

@@ -9,10 +9,11 @@ import { blake3 } from '@noble/hashes/blake3.js'
 const work = await mkdtemp(join(tmpdir(), 'pf-image-web-'))
 process.env.PACKAGEFLOW_DATA_DIR = join(work, 'data')
 const bundle = join(work, 'image-api.mjs')
-await build({ stdin: { contents: "export * from './server/utils/ps5-image-driver'; export * from './server/utils/ps5-queue-driver'; export * from './shared/ps5-install-readiness';", resolveDir: resolve('.') }, outfile: bundle, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent' })
+await build({ stdin: { contents: "export * from './server/utils/ps5-image-driver'; export * from './server/utils/ps5-queue-driver'; export * from './server/utils/console-profiles'; export * from './shared/ps5-install-readiness'; export * from './shared/device-eligibility';", resolveDir: resolve('.') }, outfile: bundle, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent' })
 const api = await import(pathToFileURL(bundle).href), signal = new AbortController().signal
 const digest = bytes => Buffer.from(blake3(bytes)).toString('hex')
 const param = Buffer.from(JSON.stringify({ titleId: 'PPSA95040', contentId: 'IV0000-PPSA95040_00-PACKAGEFLOWUI001', contentVersion: '01.000.038', applicationCategoryType: 0,
+  requiredSystemSoftwareVersion: '0x1400000000000000', sdkVersion: '0x0800000000000000',
   localizedParameters: { defaultLanguage: 'en-US', 'en-US': { titleName: 'Owned image fixture' } } }))
 function exfat() {
   const b = Buffer.alloc(1024 * 1024); b.write('EXFAT   ', 3); b.writeUInt16LE(0xaa55, 510)
@@ -119,15 +120,71 @@ test('changed sources, wrong formats, PS4, patches, links and abort are rejected
   const stop = new AbortController(); stop.abort(new Error('abort image'))
   await assert.rejects(api.createImagePlan(valid.path, valid.item, stop.signal, () => {}), /abort image/)
 })
-test('production admission stays closed and never infers image support from PKG or prepared candidates', async () => {
+test('admission never infers image support from PKG or prepared candidates', async () => {
   const ready = { service: 'PackageFlowService-PS5', schemaVersion: 1, route: 'staged-pkg', exactVersionReceipt: false, ready: true, reason: 'ready', formats: ['pkg'], platforms: ['ps4', 'ps5'],
     images: { schemaVersion: 1, route: 'staged-image', prepared: true, ready: false, candidateFormats: api.ps5ImageFormats, formats: [], registrationReceipt: false } }
   assert.deepEqual(api.ps5InstallCapabilities(200, ready, '13.60').formats, ['pkg'])
   for (const format of api.ps5ImageFormats) {
     const item = { format, installDispatched: false }
-    assert.equal((await api.ps5QueueDriver('not-a-real-console').run(item, signal, () => {})).state, 'waiting')
     await assert.rejects(api.ps5QueueDriver('not-a-real-console').run({ ...item, installDispatched: true }, signal, () => {}), /Повтор не отправлен/)
   }
+})
+
+test('only exact verified image backend admits the four formats; image patches and PS4 are refused', () => {
+  const images = { schemaVersion: 1, route: 'staged-image', protocol: 'image-registration-v1', backend: 'ShadowMountPlus-1.7beta3', ready: true, reason: 'ready', platforms: ['ps5'], formats: api.ps5ImageFormats, registrationReceipt: true }
+  const body = { service: 'PackageFlowService-PS5', schemaVersion: 1, images }
+  const caps = api.ps5InstallCapabilities(200, body, '13.60')
+  assert.deepEqual(caps.formats, api.ps5ImageFormats)
+  for (const change of [{ ready: false }, { registrationReceipt: false }, { protocol: 'other' }, { backend: 'other' }, { platforms: ['ps4'] }, { formats: ['ufs2'] }])
+    assert.deepEqual(api.ps5InstallCapabilities(200, { ...body, images: { ...images, ...change } }, '13.60').formats, [])
+  assert.deepEqual(api.ps5InstallCapabilities(200, body, '12.60').formats, [])
+  const profile = { platform: 'ps5', firmware: '13.60', online: true, paired: true, capabilities: caps }
+  const base = { platform: 'ps5', format: 'exfat', size: 100, installOrder: 0 }
+  assert.equal(api.deviceInstallReason(profile, [base], 100), '')
+  assert.notEqual(api.deviceInstallReason(profile, [base, { ...base, installOrder: 1 }], 200), '')
+  assert.notEqual(api.deviceInstallReason(profile, [base, { ...base, platform: 'ps4' }], 200), '')
+})
+test('registration recovery binds all receipt fields and does not reopen the source or send another commit', async () => {
+  const f = await fixture('registration-recovery', 'exfat')
+  const plan = await api.createImagePlan(f.path, f.item, signal, () => {})
+  await rm(f.path)
+  const item = { ...f.item, hash: plan.imageHash, installDispatched: true }
+  const receipt = { ...publication(plan), proof: 'image-registration', state: 'registered', registered: true, installed: true }
+  const calls = []
+  const request = async (id, route) => { calls.push(route); assert.equal(id, plan.id); assert.equal(route, '/api/v1/images/status'); return { status: 200, body: receipt } }
+  const result = await api.runRegisteredImagePlan(plan, item, signal, request, () => {})
+  assert.equal(result.state, 'installed'); assert.equal(result.confirmation, 'service-registration'); assert.equal(calls.length, 1)
+  for (const patch of [{ title: 'PPSA99999' }, { content: 'wrong' }, { version: '99.999.999' }, { imageHash: '0'.repeat(64) }, { manifestHash: '0'.repeat(64) }, { sourceName: 'other.exfat' }, { size: 1 }, { proof: 'image-publication' }, { registered: false }, { state: 'published' }])
+    assert.throws(() => api.imageRegistrationResult(plan, { status: 200, body: { ...receipt, ...patch } }), /не соответствует/)
+  let saved
+  const waiting = await api.runRegisteredImagePlan(plan, item, signal, async () => ({ status: 200, body: { ...receipt, state: 'published', installed: false, registered: false } }), patch => saved = patch)
+  assert.equal(waiting.state, 'installing'); assert.ok(saved.imagePublishedAt)
+  await assert.rejects(api.runRegisteredImagePlan(plan, { ...item, imagePublishedAt: Date.now() - 121000 }, signal, async () => ({ status: 200, body: { ...receipt, state: 'published', installed: false, registered: false } }), () => {}), /не подтверждена/)
+})
+
+test('all four production image routes refuse a higher PARAM minimum before hashing, transfer or mounting', async () => {
+  const previousFetch = globalThis.fetch, calls = []
+  try {
+    await mkdir(process.env.PACKAGEFLOW_DATA_DIR, { recursive: true })
+    const profile = api.saveConsoleProfile({ name: 'Image firmware fixture', platform: 'ps5', ip: '192.168.1.5' }).consoles[0]
+    await writeFile(join(process.env.PACKAGEFLOW_DATA_DIR, 'ps5-service-keys.json'), JSON.stringify({ [profile.ip]: 'd'.repeat(64) }))
+    globalThis.fetch = async (url, options) => {
+      const path = new URL(url).pathname; calls.push(path); assert.equal(options.method, 'GET')
+      if (path === '/health') return new Response(JSON.stringify({ apiVersion: 'v1', firmwareRead: true, firmwareRaw: '0x13600007', serviceReport: { service: 'PackageFlowService-PS5', consoleVerified: true } }))
+      if (path === '/api/v1/capabilities') return new Response(JSON.stringify({ service: 'PackageFlowService-PS5', capabilities: { installPs5Content: true } }))
+      if (path === '/api/v1/system') return new Response(JSON.stringify({ service: 'PackageFlowService-PS5', storageRead: false }))
+      assert.equal(path, '/api/v1/install/readiness')
+      return new Response(JSON.stringify({ service: 'PackageFlowService-PS5', schemaVersion: 1, images: { schemaVersion: 1, route: 'staged-image', protocol: 'image-registration-v1', backend: 'ShadowMountPlus-1.7beta3', ready: true, reason: 'ready', platforms: ['ps5'], formats: api.ps5ImageFormats, registrationReceipt: true } }))
+    }
+    await api.probeConsoleProfile(profile.id); calls.length = 0
+    for (const format of api.ps5ImageFormats) {
+      const f = await fixture(`blocked-${format}`, format)
+      await writeFile(join(process.env.PACKAGEFLOW_DATA_DIR, 'package-library.json'), JSON.stringify({ version: 2, packages: [{ ...f.item, id: f.item.packageId, path: f.path, fileName: 'image', title: 'Owned image fixture', type: 'Игра', installOrder: 0, libraryRoot: work, sourceModifiedAt: 1, iconSize: 0, icon: { offset: 0, size: 0 } }], deliveries: {} }))
+      await assert.rejects(api.ps5QueueDriver(profile.id).run(f.item, signal, patch => Object.assign(f.item, patch)), /PARAM 14.00.*13.60/)
+      assert.equal(f.item.hash, undefined); assert.equal(f.item.bytesSent, 0)
+    }
+    assert.equal(calls.length, 8, 'only readiness and live firmware GETs, no transfer/registration')
+  } finally { globalThis.fetch = previousFetch }
 })
 
 test.after(async () => { await rm(work, { recursive: true, force: true }) })

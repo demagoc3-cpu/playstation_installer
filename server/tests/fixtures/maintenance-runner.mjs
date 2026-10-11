@@ -27,6 +27,7 @@ writeFileSync('.data/package-library.json',JSON.stringify({version:2,packages:[i
 const app={titleId,title:'Mario Collection',version:'01.00',installed:true,protected:false}, part={id:'base',kind:'base',title:app.title,version:'01.00',contentId:cid,sizeBytes:base.length,storage:'internal',canRemove:true}
 let removePosts=0, installPosts=0, controlPosts=0, updatePosts=0, removeState='running', removal, installedJob, controlResult, version='1.19', consoleFirmware='12.50'
 let releaseDownloads=0, uiRunning=mode.startsWith('auto-close'); if(uiRunning)version=mode==='auto-close-legacy'?'2.02':'2.03'
+let liveComponents=[part], removalApplied=false
 const response=(v,status=200)=>new Response(JSON.stringify(v),{status,headers:{'Content-Type':'application/json'}})
 globalThis.fetch=async(url,options={})=>{
  const u=new URL(url),path=u.pathname
@@ -37,11 +38,12 @@ globalThis.fetch=async(url,options={})=>{
  if(path==='/storage') return response({service:'PackegeFlowService',volumes:[{id:'internal',path:'/user',available:true,availableBytes:20*1024**3}]})
  assert.equal(options.headers.Authorization,`Bearer ${token}`)
  if(path==='/apps/list') return response({service:'PackegeFlowService',appsApi:1,revision,complete:true,total:0,next:null,apps:[]})
- if(path.startsWith('/apps/title/')) return response({service:'PackegeFlowService',revision,complete:true,total:1,next:null,app,components:[part]})
+ if(path.startsWith('/apps/title/')) return response({service:'PackegeFlowService',revision,complete:true,total:liveComponents.length,next:null,app:{...app,installed:liveComponents.length>0},components:liveComponents})
  if(path.startsWith('/apps/runtime/')) return response({service:'PackegeFlowService',titleId:path.split('/').at(-1),running:uiRunning,appId:uiRunning?0x6000100d:-1})
  if(path==='/apps/remove') { removePosts++;const b=JSON.parse(options.body);removal={service:'PackegeFlowService',...b,state:removeState,completed:0,total:1,error:0,errorHex:'0x00000000',pollError:0};return response(removal) }
- if(path.startsWith('/apps/operations/')) return response({...removal,state:removeState,completed:removeState==='removed'?1:0})
- if(path==='/install/jobs'||path==='/install/service-update') { if(path.endsWith('service-update'))updatePosts++;else installPosts++;const b=JSON.parse(options.body);installedJob={service:'PackegeFlowService',jobId:b.requestId,requestId:b.requestId,contentId:b.contentId,taskId:43,state:path.endsWith('service-update')?'downloading':'installed',totalBytes:b.size,downloadedBytes:b.size,downloadTotalBytes:b.size,error:0,errorHex:'0x00000000',pollError:0};return response(installedJob) }
+ if(path.startsWith('/apps/operations/')) { if(removeState==='removed'&&!removalApplied){liveComponents=[];removalApplied=true} return response({...removal,state:removeState,completed:removeState==='removed'?1:0}) }
+ if(path==='/install/jobs/active') return response({service:'PackegeFlowService',active:false})
+ if(path==='/install/jobs'||path==='/install/service-update') { if(path.endsWith('service-update'))updatePosts++;else {installPosts++;const b=JSON.parse(options.body);liveComponents.push({...part,kind:b.contentType==='PS4GP'?'patch':b.contentType==='PS4AC'?'dlc':'base'})}const b=JSON.parse(options.body);installedJob={service:'PackegeFlowService',jobId:b.requestId,requestId:b.requestId,contentId:b.contentId,taskId:43,state:path.endsWith('service-update')?'downloading':'installed',totalBytes:b.size,downloadedBytes:b.size,downloadTotalBytes:b.size,error:0,errorHex:'0x00000000',pollError:0};return response(installedJob) }
  if(path.startsWith('/install/jobs/')) return response(installedJob)
  if(path==='/apps/control' && mode.startsWith('auto-close')) {controlPosts++;const b=JSON.parse(options.body);assert.equal(b.titleId,'PFLS00001');assert.equal(b.action,'stop');assert.equal(b.expected,'6000100D');controlResult={service:'PackegeFlowService',...b,state:mode==='auto-close-denied'?'failed':'pending',appId:0x6000100d,error:0,errorHex:'0x00000000'};if(mode==='auto-close-lost')throw new Error('Stop reply lost');return response(controlResult)}
  if(path==='/apps/control') {controlPosts++;const b=JSON.parse(options.body);controlResult={service:'PackegeFlowService',...b,state:b.action==='restart'?'pending':'running',appId:0x6000100d,error:0,errorHex:'0x00000000'};if(mode==='control')throw new Error('Reply lost');return response(controlResult)}

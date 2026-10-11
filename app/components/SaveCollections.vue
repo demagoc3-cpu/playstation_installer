@@ -2,6 +2,8 @@
 const { t, formatLocale } = useAppLocale()
 
 const props = defineProps<{ ip: string; users: { userId: string; games: { titleId: string; title: string }[] }[] }>()
+const targetIp = props.ip
+const request = useConsoleRequest()
 
 interface SaveSetGame { userId: string; titleId: string; title: string; discovered: boolean; error?: string }
 interface SaveSetSlot { userId: string; titleId: string; title: string; slot: string; status: 'pending' | 'complete' | 'error'; error?: string }
@@ -60,14 +62,15 @@ function runText(run: RestoreRun) {
   return 'Часть слотов требует внимания'
 }
 async function refreshSets() {
-  const result = await $fetch<{ sets: SaveSet[] }>('/api/ps4/saves/sets/list', { method: 'POST', body: {} })
-  sets.value = result.sets
-  if (selected.value) selected.value = result.sets.find(set => set.id === selected.value?.id) || selected.value
+  const result = await request<{ sets: SaveSet[] }>('/api/ps4/saves/sets/list', { method: 'POST', body: { ip: targetIp } })
+  sets.value = result.sets.filter(set => set.sourceIp === targetIp)
+  if (selected.value) selected.value = sets.value.find(set => set.id === selected.value?.id) || selected.value
 }
 async function openSet(id: string) {
   busy.value = 'open'; error.value = ''; notice.value = ''; matches.value = []; checked.value = []
   try {
-    const result = await $fetch<{ set: SaveSet; runs: RestoreRun[] }>('/api/ps4/saves/sets/details', { method: 'POST', body: { id } })
+    const result = await request<{ set: SaveSet; runs: RestoreRun[] }>('/api/ps4/saves/sets/details', { method: 'POST', body: { id } })
+    if (result.set.sourceIp !== targetIp) throw new Error('Этот набор создан на другой приставке. Выберите её для управления копиями.')
     selected.value = result.set; runs.value = result.runs
     if (!props.users.some(user => user.userId === targetUserId.value)) targetUserId.value = props.users[0]?.userId || ''
   } catch (cause) { error.value = failure(cause) }
@@ -77,7 +80,7 @@ async function create() {
   if (!name.value.trim() || busy.value) return
   busy.value = 'create'; error.value = ''; notice.value = ''
   try {
-    const set = await $fetch<SaveSet>('/api/ps4/saves/sets/create', { method: 'POST', body: { ip: props.ip, name: name.value.trim() } })
+    const set = await request<SaveSet>('/api/ps4/saves/sets/create', { method: 'POST', body: { ip: targetIp, name: name.value.trim() } })
     name.value = ''; await refreshSets(); await openSet(set.id)
     notice.value = 'Создание набора началось. Сохранения размещаются на компьютере в папке с указанным именем.'
   } catch (cause) { error.value = failure(cause) }
@@ -113,7 +116,7 @@ async function resume() {
   if (!selected.value || busy.value) return
   busy.value = 'resume'; error.value = ''
   try {
-    await $fetch('/api/ps4/saves/sets/resume', { method: 'POST', body: { id: selected.value.id } })
+    await request('/api/ps4/saves/sets/resume', { method: 'POST', body: { id: selected.value.id } })
     await refreshSets()
   } catch (cause) { error.value = failure(cause) }
   finally { busy.value = '' }
@@ -123,7 +126,7 @@ async function download() {
   const set = selected.value
   busy.value = 'download'; error.value = ''
   try {
-    const blob = await $fetch<Blob>('/api/ps4/saves/sets/archive', { method: 'POST', body: { id: set.id }, responseType: 'blob' })
+    const blob = await request<Blob>('/api/ps4/saves/sets/archive', { method: 'POST', body: { id: set.id }, responseType: 'blob' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url; link.download = `${set.name}-${set.id}.zip`
@@ -136,7 +139,7 @@ async function preview() {
   if (!selected.value || !targetUserId.value || busy.value) return
   busy.value = 'preview'; error.value = ''; notice.value = ''; checked.value = []
   try {
-    const result = await $fetch<{ matches: Match[] }>('/api/ps4/saves/sets/preview', { method: 'POST', body: { id: selected.value.id, ip: props.ip, targetUserId: targetUserId.value } })
+    const result = await request<{ matches: Match[] }>('/api/ps4/saves/sets/preview', { method: 'POST', body: { id: selected.value.id, ip: targetIp, targetUserId: targetUserId.value } })
     matches.value = result.matches
     notice.value = result.matches.length ? 'Выберите игры с пометкой «Можно восстановить».' : 'В этом наборе пока нет готовых сейвов.'
   } catch (cause) { error.value = failure(cause) }
@@ -153,7 +156,7 @@ async function restore() {
   if (!window.confirm(t(`Восстановить сохранения ${checked.value.length} игр? Перед этим закройте эти игры на PS4. Для каждого слота будет создана копия для отката.`))) return
   busy.value = 'restore'; error.value = ''; notice.value = ''
   try {
-    await $fetch('/api/ps4/saves/sets/restore', { method: 'POST', body: { id: selected.value.id, ip: props.ip, targetUserId: targetUserId.value, selected: checked.value } })
+    await request('/api/ps4/saves/sets/restore', { method: 'POST', body: { id: selected.value.id, ip: targetIp, targetUserId: targetUserId.value, selected: checked.value } })
     matches.value = []; checked.value = []
     await openSet(selected.value.id)
     notice.value = 'Восстановление началось. После записи проверьте сейвы внутри игр и подтвердите результат.'
@@ -168,7 +171,7 @@ async function settle(task: RestoreTask, action: 'finalize' | 'rollback') {
   if (!window.confirm(t(question))) return
   busy.value = task.rollbackId; error.value = ''; notice.value = ''
   try {
-    await $fetch(`/api/ps4/saves/${action}`, { method: 'POST', body: { ip: props.ip, id: task.rollbackId } })
+    await request(`/api/ps4/saves/${action}`, { method: 'POST', body: { ip: targetIp, id: task.rollbackId } })
     await openSet(selected.value.id)
     notice.value = action === 'finalize' ? 'Результат подтверждён.' : 'Предыдущий сейв возвращён.'
   } catch (cause) { error.value = failure(cause) }
@@ -178,7 +181,7 @@ async function resumeRestore() {
   if (!selected.value || !latestRun.value || busy.value) return
   busy.value = 'resumeRestore'; error.value = ''
   try {
-    await $fetch('/api/ps4/saves/sets/restore-resume', { method: 'POST', body: { id: latestRun.value.id } })
+    await request('/api/ps4/saves/sets/restore-resume', { method: 'POST', body: { id: latestRun.value.id } })
     await openSet(selected.value.id)
   } catch (cause) { error.value = failure(cause) }
   finally { busy.value = '' }
@@ -188,7 +191,7 @@ async function poll() {
   try {
     await refreshSets()
     if (selected.value && (['queued', 'running'].includes(selected.value.status) || ['queued', 'running'].includes(latestRun.value?.status || ''))) {
-      const result = await $fetch<{ set: SaveSet; runs: RestoreRun[] }>('/api/ps4/saves/sets/details', { method: 'POST', body: { id: selected.value.id } })
+      const result = await request<{ set: SaveSet; runs: RestoreRun[] }>('/api/ps4/saves/sets/details', { method: 'POST', body: { id: selected.value.id } })
       selected.value = result.set; runs.value = result.runs
     }
   } catch { /* A temporary connection error must not replace the last visible state. */ }

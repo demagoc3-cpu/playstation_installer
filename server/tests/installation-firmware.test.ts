@@ -9,6 +9,19 @@ registerHooks({ resolve(specifier, context, next) {
   }
 } })
 const { assessPackageFirmware } = await import('../utils/installation-firmware.ts')
+const { assessContentFirmware } = await import('../../shared/installation-firmware.ts')
+
+test('PS5 checks declared PARAM and SDK independently with numeric version comparisons', () => {
+  const game = { contentType: 'PS5GD', requiredFirmware: '13.60', sdkFirmware: '12.00' }
+  assert.equal(assessContentFirmware('13.60', game, 'ps5').state, 'compatible')
+  assert.equal(assessContentFirmware('13.20', game, 'ps5').state, 'incompatible')
+  assert.equal(assessContentFirmware('9.60', { ...game, requiredFirmware: '10.00' }, 'ps5').state, 'incompatible')
+  assert.equal(assessContentFirmware('9.60', { ...game, requiredFirmware: '5.10', sdkFirmware: '10.00' }, 'ps5').state, 'incompatible')
+  assert.equal(assessContentFirmware('13.60', { contentType: 'PS5GD' }, 'ps5').state, 'unverified')
+  assert.equal(assessContentFirmware(undefined, game, 'ps5').state, 'unavailable')
+  assert.equal(assessContentFirmware('13.60', { contentType: 'PS5GD', requiredFirmware: '0.00' }, 'ps5').state, 'compatible')
+  assert.equal(assessContentFirmware('13.60', { contentType: 'PS5GD', requiredFirmware: '4.xx' }, 'ps5').state, 'unverified')
+})
 
 test('compares both SDK and SYSTEM_VER; a lowered SDK alone does not certify a backport', () => {
   assert.equal(assessPackageFirmware('5.05', { contentType: 'PS4GP', requiredFirmware: '7.00', sdkFirmware: '5.05' }).state, 'incompatible')

@@ -3,7 +3,7 @@ import type { LocalPackage } from './package-library'
 import { librarySearchTokens, matchesLibrarySearch } from '../../shared/library-pagination.ts'
 import { packageHasId } from '../../shared/package-identity.ts'
 
-export interface ConsoleCatalogQuery { offset?: unknown; limit?: unknown; q?: unknown; favoriteIds?: unknown; groupByPlatform?: boolean }
+export interface ConsoleCatalogQuery { offset?: unknown; limit?: unknown; q?: unknown; favoriteIds?: unknown; groupByPlatform?: boolean; sort?: unknown }
 
 /** Saved favorites may predate a reindex or contain removed games. Resolve
  * package aliases to their whole branch; missing entries do not hide valid ones. */
@@ -38,9 +38,18 @@ export function buildConsoleCatalog(packages: LocalPackage[], language: 'ru' | '
   const favorites = Array.isArray(query.favoriteIds)
     ? resolveConsoleFavorites(packages, query.favoriteIds.slice(0, 1024).filter((id): id is string => typeof id === 'string' && /^[\w.:-]{1,48}$/.test(id)), query.groupByPlatform).groups : undefined
   const collator = new Intl.Collator('ru', { numeric: true, sensitivity: 'base' })
+  // Choose the same base for global sorting and the returned card, including
+  // branches with several base variants. Never mutate the caller's package list.
+  for (const items of groups.values()) items.sort((a, b) => a.installOrder - b.installOrder || a.fileName.localeCompare(b.fileName) || a.id.localeCompare(b.id))
   const baseOf = (items: LocalPackage[]) => items.find(item => item.type === 'Игра') || items[0]!
+  const baseSizeOf = (items: LocalPackage[]) => items.find(item => item.type === 'Игра')?.size || 0
+  const sort = ['title-asc', 'title-desc', 'size-asc', 'size-desc'].includes(String(query.sort)) ? String(query.sort) : 'title-asc'
   const filtered = [...groups.entries()].filter(([id, items]) => (!favorites || favorites.has(id)) && items.some(item => matchesLibrarySearch(item, tokens)))
-    .sort(([aid, a], [bid, b]) => collator.compare(baseOf(a).title, baseOf(b).title) || collator.compare(aid, bid))
+    .sort(([aid, a], [bid, b]) => {
+      const title = collator.compare(baseOf(a).title, baseOf(b).title)
+      const primary = sort.startsWith('size-') ? baseSizeOf(a) - baseSizeOf(b) : title
+      return (sort.endsWith('-desc') ? -primary : primary) || title || collator.compare(aid, bid) || aid.localeCompare(bid)
+    })
   const limit = Number.isSafeInteger(Number(query.limit)) && Number(query.limit) > 0 ? Math.min(30, Number(query.limit)) : 24
   const requested = Number.isSafeInteger(Number(query.offset)) && Number(query.offset) >= 0 ? Number(query.offset) : 0
   const offset = Math.min(Math.floor(requested / limit) * limit, Math.max(0, Math.ceil(filtered.length / limit) - 1) * limit)
@@ -52,7 +61,6 @@ export function buildConsoleCatalog(packages: LocalPackage[], language: 'ru' | '
     offset, limit, total: filtered.length, nextOffset, hasMore: nextOffset < filtered.length,
     totalPackages: packages.length,
     games: filtered.slice(offset, offset + limit).map(([id, items]) => {
-      items.sort((a, b) => a.installOrder - b.installOrder || a.fileName.localeCompare(b.fileName))
       const base = items.find(item => item.type === 'Игра') || items[0]!
       const cover = items.find(item => item.iconSize > 0)
       return {
@@ -65,6 +73,7 @@ export function buildConsoleCatalog(packages: LocalPackage[], language: 'ru' | '
         cover: cover ? `/api/packages/${cover.id}?asset=icon` : '',
         packageCount: items.length,
         size: items.reduce((sum, item) => sum + item.size, 0),
+        baseSize: baseSizeOf(items),
         patchCount: items.filter(p => p.type === 'Патч' || p.type === 'Бэкпорт').length,
         dlcCount: items.filter(p => p.type === 'DLC').length,
         packages: items.slice(0, 128).map(item => ({

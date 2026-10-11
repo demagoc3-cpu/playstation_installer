@@ -16,6 +16,7 @@ export interface SaveBackupManifest {
   slot: string
   createdAt: string
   visibility?: 'manual' | 'internal'
+  sourceIp?: string
   files: BackupFile[]
 }
 
@@ -28,6 +29,7 @@ export function readSaveBackup(id: unknown, verifyFiles = false): { root: string
   if (manifest?.format !== 'pfs-decrypted-save-backup-v1' || manifest.id !== id ||
       !/^[0-9a-f]{8}$/i.test(manifest.userId) || !/^[A-Z0-9]{9}$/.test(manifest.titleId) ||
       !/^[A-Za-z0-9_-]{1,31}$/.test(manifest.slot) || !Number.isFinite(Date.parse(manifest.createdAt)) ||
+      (manifest.sourceIp !== undefined && (typeof manifest.sourceIp !== 'string' || !/^(?:\d{1,3}\.){3}\d{1,3}$/.test(manifest.sourceIp) || manifest.sourceIp.split('.').some(part => Number(part) > 255))) ||
       !Array.isArray(manifest.files) || manifest.files.length < 1 || manifest.files.length > 512)
     throw createError({ statusCode: 422, message: 'Описание резервной копии повреждено' })
   const seen = new Set<string>()
@@ -55,12 +57,13 @@ export function readSaveBackup(id: unknown, verifyFiles = false): { root: string
   return { root, manifest, bytes }
 }
 
-export function listSaveBackups(userId: string, titleId: string) {
+export function listSaveBackups(userId: string, titleId: string, sourceIp?: string | null) {
   if (!existsSync(saveBackupRoot)) return []
   return readdirSync(saveBackupRoot).filter(id => uuid.test(id)).flatMap(id => {
     try {
       const { manifest, bytes } = readSaveBackup(id)
-      return manifest.visibility !== 'internal' && manifest.userId === userId && manifest.titleId === titleId
+      return manifest.visibility !== 'internal' && manifest.userId === userId && manifest.titleId === titleId &&
+        (sourceIp === null ? manifest.sourceIp === undefined : !sourceIp || manifest.sourceIp === sourceIp)
         ? [{ id, slot: manifest.slot, createdAt: manifest.createdAt, files: manifest.files.length, bytes }] : []
     } catch { return [] }
   }).sort((a, b) => b.createdAt.localeCompare(a.createdAt))

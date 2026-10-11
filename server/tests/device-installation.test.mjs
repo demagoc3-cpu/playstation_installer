@@ -32,6 +32,7 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
       if(ip===two.ip&&offline)throw new Error('offline')
       if(ip===five.ip){if(path==='/health')return response({apiVersion:'v1',firmwareRead:true,firmwareRaw:'0x13600007',serviceReport:{service:'PackageFlowService-PS5',version:'0.1.3',consoleVerified:true}});assert.equal(options.headers.Authorization,`Bearer ${'c'.repeat(64)}`);if(path==='/api/v1/system')return response({service:'PackageFlowService-PS5',storageRead:true,freeBytes:500000000,totalBytes:1000000000});return response({service:'PackageFlowService-PS5',capabilities:{installPs4Pkg:false,installPs5Content:false,backgroundService:false}})}
       assert.ok([one.ip,two.ip].includes(ip),'captured recipients only')
+      if(path.startsWith('/apps/title/'))return response({service:cap.service,complete:true,revision:'a'.repeat(16),app:{titleId:path.split('/')[3],installed:false},total:0,next:null,components:[]})
       if(path==='/ping')return response({...cap,status:'ok'})
       if(path==='/system/info')return response({...cap,environment:'ps4',firmware:{version:'12.50'},model:{name:'Slim',family:'Slim'},hen:{}})
       if(path==='/storage')return response({...cap,volumes:[{id:'internal',path:'/user',available:true,totalBytes:1000000000,freeBytes:900000000,availableBytes:900000000,usedBytes:100000000}]})
@@ -39,6 +40,7 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
       if(path==='/install/capabilities')return response(cap)
       assert.equal(options.headers.Authorization,`Bearer ${ip===one.ip?'a'.repeat(32):'b'.repeat(32)}`)
       if(path==='/install/session')return response(cap)
+      if(path==='/install/jobs/active')return response({service:cap.service,active:false})
       if(path==='/install/jobs'&&options.method==='POST'){
         const body=JSON.parse(options.body);const address=new URL(body.url);assert.ok(address.pathname.startsWith(`/ps4/manifest/${ip}/`));assert.ok(body.url.endsWith('.json'));assert.equal(address.search,'');posts.push({ip,titleId:body.titleId,contentType:body.contentType})
         const job={service:cap.service,jobId:body.requestId,requestId:body.requestId,contentId:body.contentId,taskId:42,state:'downloading',totalBytes:131072,downloadedBytes:1,downloadTotalBytes:131072,error:0,errorHex:'0x00000000',pollError:0};jobs.set(ip,job);return response(job)
@@ -72,7 +74,7 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
     await until(()=>api.getInstallationQueue(one.ip).items.every(item=>item.state==='cancelled'))
     assert.equal(api.getInstallationQueue(two.ip).status,'running');assert.equal(jobs.get(two.ip).state,'downloading')
     api.markPackageInstalled(base.id,true,two.ip)
-    const summary=api.deviceActivities([base.id]);assert.ok(summary.find(item=>item.consoleId===two.id).installedPackageIds.includes(base.id));assert.equal(summary.find(item=>item.consoleId===one.id).installedPackageIds.length,0)
+    const summary=api.deviceActivities([base.id]);assert.equal(summary.find(item=>item.consoleId===two.id).installedPackageIds.length,0,'a local mark is never a live installed badge');assert.equal(summary.find(item=>item.consoleId===one.id).installedPackageIds.length,0)
     assert.equal(api.deviceActivities().flatMap(item=>item.installedPackageIds).length,0,'summary does not load whole installed library into response')
     api.cancelInstallationQueue(two.ip);await until(()=>api.getInstallationQueue(two.ip).status==='cancelled')
     api.clearFinishedTasks([],one.ip);const hidden=api.getTaskVisibility().hidden

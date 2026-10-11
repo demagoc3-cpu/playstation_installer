@@ -2,10 +2,12 @@
 const { t, locale, formatLocale } = useAppLocale()
 useHead(() => ({ htmlAttrs: { lang: locale.value } }))
 
-import type { ConsoleProfiles, ContentPlatform, ContentFormat, DeviceSelection, DeviceActivity } from '#shared/types/consoles'
+import type { ConsoleProfiles, ContentPlatform, ContentFormat, PackageSignature, DeviceSelection, DeviceActivity } from '#shared/types/consoles'
 import { contentBranchKey, contentPlatform, contentFormat } from '#shared/content-platform'
+import { gameDetails } from '#shared/game-details'
 import type { InstallationTransport } from '../shared/types/installation'
 import type { SearchResult, SearchPage } from '#shared/types/search'
+import { DEFAULT_SEARCH_CATEGORIES, type SearchPlatform } from '#shared/search-platforms'
 import { packageHasId } from '#shared/package-identity'
 import type { LibraryPage, LibrarySummary } from '#shared/library-pagination'
 type PackageType = 'Игра' | 'Патч' | 'Бэкпорт' | 'DLC'
@@ -16,7 +18,7 @@ const donationBtc = String(donationConfig?.btc || '').trim()
 const donationUsdtTrc20 = String(donationConfig?.usdtTrc20 || '').trim()
 const hasDonations = Boolean(donationBtc || donationUsdtTrc20)
 type PackageState = 'ready' | 'sending' | 'queued' | 'receiving' | 'installing' | 'delivered' | 'installed' | 'skipped' | 'failed'
-interface ServerPackage { id: string; platform?: ContentPlatform; format?: ContentFormat; sourceIds?: string[]; title: string; groupTitle?: string; groupIconId?: string; groupPackages?: number; groupReadyDlc?: number; fileName: string; appVersion?: string; masterVersion?: string; requiredFirmware?: string; sdkFirmware?: string; packageVolume?: 'application' | 'patch' | 'add-on' | 'unknown'; packageDigest?: string; size: number; iconSize?: number; type: PackageType; titleId: string; installOrder: number; url: string; contentId: string; contentType: string; libraryRoot: string; installedAt?: number }
+interface ServerPackage { id: string; platform?: ContentPlatform; format?: ContentFormat; signature?: PackageSignature; sourceIds?: string[]; title: string; groupTitle?: string; groupIconId?: string; groupPackages?: number; groupReadyDlc?: number; fileName: string; appVersion?: string; masterVersion?: string; requiredFirmware?: string; sdkFirmware?: string; packageVolume?: 'application' | 'patch' | 'add-on' | 'unknown'; packageDigest?: string; size: number; iconSize?: number; type: PackageType; titleId: string; installOrder: number; url: string; contentId: string; contentType: string; libraryRoot: string; installedAt?: number }
 interface PackageItem extends ServerPackage { rowId: string; state: PackageState; detail: string; bytesSent: number; completedAt?: number; iconUrl?: string }
 interface GameGroup { id: string; title: string; items: PackageItem[]; cover?: string; total: number; readyDlc: number }
 interface TorrentItem { hash: string; name: string; state: string; size: number; progress: number; downloaded: number; speed: number; eta: number; seeds: number; autoInstall: boolean }
@@ -31,21 +33,39 @@ const installSelection = ref<DeviceSelection | null>(null)
 const deviceActivity = ref<DeviceActivity[]>([])
 const activityDeviceNames = (id: string, installed = false) => { const item=packages.value.find(item=>item.id===id);return deviceActivity.value.filter(entry => (installed ? entry.installedPackageIds : entry.activePackageIds).some(value=>item?packageHasId(item,value):value===id)).map(entry => consoleProfiles.value.consoles.find(profile=>profile.id===entry.consoleId)?.name || entry.consoleId) }
 function deviceLabel(item: ServerPackage) { const names=activityDeviceNames(item.id); const installed=activityDeviceNames(item.id,true); return names.length ? `Устанавливается: ${names.join(', ')}` : installed.length ? `Установлено на: ${installed.join(', ')}` : '' }
+function groupInstallationLabel(group: GameGroup) {
+  const details = gameDetails(group.items)
+  if (!details?.hasBase) return t('Нет базовой игры')
+  const names = activityDeviceNames(details.packageId, true)
+  return names.length ? `${t('Подтверждено на приставке')}: ${names.join(', ')}` : t('Статус установки неизвестен')
+}
 function groupDeviceLabel(group:GameGroup) { return [...new Set(group.items.flatMap(item=>activityDeviceNames(item.id)))].join(', ') }
 let devicesRefreshRunning=false, activityRefreshRunning=false
 async function refreshDevices() { if(devicesRefreshRunning)return; devicesRefreshRunning=true; try { const value=await $fetch<ConsoleProfiles>('/api/consoles/refresh',{method:'POST',body:{}}); consoleProfiles.value={...value,activeId:consoleProfiles.value.activeId}; } catch {} finally { devicesRefreshRunning=false } }
 async function refreshDeviceActivity() { if(activityRefreshRunning)return;activityRefreshRunning=true;try { deviceActivity.value=await $fetch<DeviceActivity[]>('/api/consoles/activity',{method:'POST',body:{packageIds:packages.value.map(item=>item.id)}});isSending.value=deviceActivity.value.some(entry=>['running','cancelling'].includes(entry.status)) } catch {} finally { activityRefreshRunning=false } }
+async function confirmedSelectionQueued() { clearSelection(); await devicesQueued() }
 async function devicesQueued() { await refreshDeviceActivity(); await restoreInstallationQueue() }
 const consoleProfiles = ref<ConsoleProfiles>({ activeId: null, consoles: [] })
 const activeConsole = computed(() => consoleProfiles.value.consoles.find(item => item.id === consoleProfiles.value.activeId))
 const consolePlatform = computed(() => activeConsole.value?.platform || 'ps4')
 const consoleLabel = computed(() => activeConsole.value?.name || 'PS4')
+const consoleSelectionPending = ref(false), consoleSelectionError = ref('')
+async function selectManagementConsole(id: string) {
+  if (consoleSelectionPending.value || id === consoleProfiles.value.activeId) return
+  consoleSelectionPending.value = true; consoleSelectionError.value = ''
+  try { await updateConsoleProfiles(await $fetch<ConsoleProfiles>('/api/consoles/active', { method: 'POST', body: { id } })) }
+  catch (error: any) { consoleSelectionError.value = errorText(error) || t('Не удалось выбрать приставку') }
+  finally { consoleSelectionPending.value = false }
+}
 const libraryPlatform = ref<'all' | 'ps4' | 'ps5'>('all')
 async function updateConsoleProfiles(value: ConsoleProfiles) {
   const old = activeConsole.value?.id; consoleProfiles.value = value
   const current = activeConsole.value
   if (current) { psIp.value = current.ip; installationMethod.value = current.transport || 'service' }
   if (old !== current?.id) {
+    saveFocusTitleId.value = ''
+    activeGamePreview.value = ''
+    statusMessage.value = current ? `Проверяем подключение: ${current.name} · ${current.platform.toUpperCase()}` : 'Выберите приставку'
     libraryController?.abort(); libraryGeneration++; deliveryTimers.forEach(timer => window.clearInterval(timer)); deliveryTimers.clear()
     queueItems.value = []; queueId.value = ''; queueStatus.value = 'idle'; isCancelling.value = false; installAfterDownload.value = false; maintenanceFlow.value = null; connected.value = serviceConnected.value = consoleConnected.value = false
     if (libraryMounted) { await connect(); await loadLibraryPage(); await restoreInstallationQueue() }
@@ -56,6 +76,8 @@ async function restoreConsoles() {
   return restorePsIp()
 }
 const activeSection = ref<Section>('library')
+const activeGamePreview = useState<string>('packageflow-game-preview', () => '')
+watch(activeSection, () => { activeGamePreview.value = '' })
 const saveFocusTitleId = ref('')
 const connected = ref(false)
 const showIpEditor = ref(false)
@@ -77,7 +99,11 @@ let libraryGeneration = 0
 let librarySearchTimer: ReturnType<typeof setTimeout> | undefined
 let libraryMounted = false
 const tooltipPositions = reactive<Record<string, { top: string; left: string }>>({})
-const reinstallTarget = ref<PackageItem | null>(null)
+const reinstallTarget = ref<{ id: string; title: string; url: string } | null>(null)
+const reinstallIp = ref('')
+function prepareReinstall(ip: string, pkg: { id: string; title: string; url: string }) {
+  reinstallIp.value = ip; reinstallTarget.value = pkg; installSelection.value = null
+}
 const maintenanceFlow = ref<any>(null)
 const maintenanceActive = computed(() => maintenanceFlow.value && !['completed', 'failed'].includes(maintenanceFlow.value.state))
 const expanded = ref(new Set<string>())
@@ -110,10 +136,11 @@ const installAfterDownload = ref(false)
 const showTorrentSettings = ref(false)
 const torrentSettings = reactive({ baseUrl: 'http://127.0.0.1:8080', username: '', password: '', downloadPath: '', remotePath: '' })
 const torrentFiles = ref<Record<string, TorrentFile[]>>({})
-const searchSettings = reactive({ name: 'Torznab', endpoint: '', apiKey: '', categories: '1180' })
+const searchSettings = reactive({ name: 'Torznab', endpoint: '', apiKey: '', categories: DEFAULT_SEARCH_CATEGORIES })
 const searchHasApiKey = ref(false)
 const searchConfigured = ref(false)
 const searchQuery = ref('')
+const searchPlatforms = ref<SearchPlatform[]>(['ps4', 'ps5'])
 const searchResults = ref<SearchResult[]>([])
 const showSearchSettings = ref(false)
 const searchBusy = ref(false)
@@ -121,6 +148,7 @@ const searchLoadingMore = ref(false)
 const searchHasMore = ref(false)
 const searchTotal = ref<number>()
 let searchedQuery = '', nextSearchOffset = 0
+let searchedPlatforms = ''
 let searchGeneration = 0
 let searchController: AbortController | undefined
 
@@ -128,6 +156,21 @@ const searchWasRun = ref(false)
 const searchStatus = ref('')
 const searchDownloadPending = ref('')
 const searchDownloadMessage = ref('')
+watch(searchPlatforms, platforms => {
+  searchController?.abort(); searchGeneration++
+  searchBusy.value = false; searchLoadingMore.value = false
+  searchResults.value = []; searchHasMore.value = false; searchTotal.value = undefined
+  searchWasRun.value = false; searchStatus.value = ''; searchDownloadMessage.value = ''
+  if (import.meta.client) {
+    try { localStorage.setItem('packageflow-search-platforms', JSON.stringify(platforms)) } catch { /* Search still works when browser storage is unavailable. */ }
+  }
+}, { deep: true, flush: 'sync' })
+onMounted(() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('packageflow-search-platforms') || 'null')
+    if (Array.isArray(saved) && saved.every(platform => platform === 'ps4' || platform === 'ps5')) searchPlatforms.value = [...new Set(saved)] as SearchPlatform[]
+  } catch { /* Keep both platforms selected by default. */ }
+})
 let torrentTimer: number | undefined
 interface LogEntry { id: number; time: number; level: 'info' | 'warn' | 'error'; text: string; count: number }
 const logEntries = ref<LogEntry[]>([])
@@ -240,6 +283,7 @@ async function connect() {
       if (!unchanged()) return
       consoleProfiles.value = { ...result, activeId: id }
       if (platform === 'ps5') { statusMessage.value = activeConsole.value?.online ? 'Сервис PS5 отвечает' : 'Сервис PS5 не отвечает на порту 8095'; return }
+      if (transport === 'service') statusMessage.value = activeConsole.value?.online ? 'Сервис PS4 отвечает' : 'Сервис PS4 не отвечает на порту 12801'
     } catch (error: any) {
       if (!unchanged()) return
       statusMessage.value = errorText(error) || 'Не удалось проверить приставку'
@@ -300,6 +344,7 @@ async function loadLibraryPage(background = false) {
 function searchLibrary() {
   if (librarySearchTimer) clearTimeout(librarySearchTimer)
   librarySearchTimer = undefined
+  if (appliedLibraryQuery.value !== libraryQuery.value.trim()) clearSelection()
   appliedLibraryQuery.value = libraryQuery.value.trim()
   libraryPage.value = 1
   void loadLibraryPage()
@@ -368,17 +413,18 @@ async function saveTorrentSettings() { try { qbit.value = await $fetch<QbitStatu
 async function addTorrent() { if (installAfterDownload.value && consolePlatform.value === 'ps5') { statusMessage.value = 'Автоустановка на PS5 пока недоступна'; return }; if (!torrentSource.value.trim()) return; try { await $fetch('/api/torrents/add', { method: 'POST', body: { source: torrentSource.value, installAfterDownload: installAfterDownload.value, consoleId: activeConsole.value?.id } }); torrentSource.value = ''; statusMessage.value = installAfterDownload.value ? 'Torrent добавлен: после загрузки начнётся установка на PS4' : 'Торрент передан qBittorrent'; await refreshTorrents() } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось добавить торрент' } }
 async function controlTorrent(item: TorrentItem, action: 'pause' | 'resume' | 'delete') { try { await $fetch(`/api/torrents/${item.hash}/${action}`, { method: 'POST' }); await refreshTorrents() } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось изменить торрент-задачу' } }
 async function setTorrentAutoInstall(item: TorrentItem, enabled: boolean) { try { await $fetch(`/api/torrents/${item.hash}/auto-install`, { method: 'POST', body: { enabled, consoleId: activeConsole.value?.id } }); await refreshTorrents(); if (enabled && item.progress >= 1) statusMessage.value = 'Автоустановка включена: добавляем завершённый torrent в очередь…' } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось изменить автоустановку torrent' } }
-async function loadSearchSettings() { try { const data = await $fetch<SearchSettings>('/api/search/settings'); searchSettings.name = data.name; searchSettings.endpoint = data.endpoint; searchSettings.categories = data.categories ?? '1180'; searchHasApiKey.value = !!data.hasApiKey; searchConfigured.value = data.configured } catch { searchConfigured.value = false } }
-async function saveSearchSettings() { try { const data = await $fetch<SearchSettings>('/api/search/settings', { method: 'POST', body: searchSettings }); searchSettings.name = data.name; searchSettings.endpoint = data.endpoint; searchSettings.categories = data.categories ?? '1180'; searchHasApiKey.value = !!data.hasApiKey; searchConfigured.value = data.configured; searchSettings.apiKey = ''; showSearchSettings.value = false; statusMessage.value = 'Источник поиска сохранён' } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось сохранить источник поиска' } }
+async function loadSearchSettings() { try { const data = await $fetch<SearchSettings>('/api/search/settings'); searchSettings.name = data.name; searchSettings.endpoint = data.endpoint; searchSettings.categories = data.categories ?? DEFAULT_SEARCH_CATEGORIES; searchHasApiKey.value = !!data.hasApiKey; searchConfigured.value = data.configured } catch { searchConfigured.value = false } }
+async function saveSearchSettings() { try { const data = await $fetch<SearchSettings>('/api/search/settings', { method: 'POST', body: searchSettings }); searchSettings.name = data.name; searchSettings.endpoint = data.endpoint; searchSettings.categories = data.categories ?? DEFAULT_SEARCH_CATEGORIES; searchHasApiKey.value = !!data.hasApiKey; searchConfigured.value = data.configured; searchSettings.apiKey = ''; showSearchSettings.value = false; statusMessage.value = 'Источник поиска сохранён' } catch (error: any) { statusMessage.value = errorText(error) || 'Не удалось сохранить источник поиска' } }
 async function searchTorrents() {
-  if (!searchQuery.value.trim() || searchBusy.value) return
+  if (!searchConfigured.value || !searchQuery.value.trim() || !searchPlatforms.value.length || searchBusy.value) return
   const generation = ++searchGeneration
   searchController?.abort(); searchController = new AbortController(); searchLoadingMore.value = false
   searchedQuery = searchQuery.value.trim(); nextSearchOffset = 0
+  searchedPlatforms = searchPlatforms.value.join(',')
   searchBusy.value = true; searchWasRun.value = true; searchStatus.value = ''; searchDownloadMessage.value = ''
   searchResults.value = []; searchHasMore.value = false; searchTotal.value = undefined
   try {
-    const page = await $fetch<SearchPage>('/api/search', { signal: searchController.signal, query: { q: searchedQuery, paged: '1', offset: 0, limit: 50 } })
+    const page = await $fetch<SearchPage>('/api/search', { signal: searchController.signal, query: { q: searchedQuery, platforms: searchedPlatforms, paged: '1', offset: 0, limit: 50 } })
     if (generation !== searchGeneration) return
     searchResults.value = page.results; nextSearchOffset = page.nextOffset
     searchHasMore.value = page.hasMore; searchTotal.value = page.total
@@ -393,7 +439,7 @@ async function loadMoreSearch() {
   const generation = searchGeneration
   searchLoadingMore.value = true
   try {
-    const page = await $fetch<SearchPage>('/api/search', { signal: searchController?.signal, query: { q: searchedQuery, paged: '1', offset: nextSearchOffset, limit: 50 } })
+    const page = await $fetch<SearchPage>('/api/search', { signal: searchController?.signal, query: { q: searchedQuery, platforms: searchedPlatforms, paged: '1', offset: nextSearchOffset, limit: 50 } })
     if (generation !== searchGeneration) return
     const seen = new Set(searchResults.value.map(result => result.id || result.source))
     const added = page.results.filter(result => !seen.has(result.id || result.source))
@@ -520,12 +566,12 @@ onMounted(() => { void restoreInstallationMethod().then(restoreConsoles).then((r
       <LanguageSwitcher />
       </div>
     </header>
-    <DeviceInstallModal v-if="installSelection" :selection="installSelection" @close="installSelection=null" @queued="devicesQueued" />
+    <DeviceInstallModal v-if="installSelection" :key="JSON.stringify(installSelection)" :selection="installSelection" @close="installSelection=null" @queued="confirmedSelectionQueued" @reinstall="prepareReinstall" />
     <PresetPicker v-if="showPresetPicker" :package-ids="selectedItems.map(item => item.id)" @close="showPresetPicker = false" @added="statusMessage = 'Выбранные пакеты добавлены в пресет'" />
-    <ReinstallGame v-if="consolePlatform === 'ps4'" :ip="psIp" :pkg="reinstallTarget" @close="reinstallTarget = null" @changed="refreshConsoleLibrary" @progress="maintenanceFlow = $event" />
+    <ReinstallGame :ip="reinstallIp || psIp" :pkg="reinstallTarget" @close="reinstallTarget = null" @changed="refreshConsoleLibrary" @progress="maintenanceFlow = $event" />
     <nav class="sidebar" :aria-label="t(&quot;Разделы PackageFlow&quot;)">
       <span class="sidebar-caption">{{ t("РАЗДЕЛЫ") }}</span>
-      <button :class="{ active: activeSection === 'library' }" :title="t(&quot;Библиотека&quot;)" @click="activeSection = 'library'"><span aria-hidden="true">▦</span><span class="nav-label">{{ t("Библиотека") }}</span><small v-if="isSending" class="nav-badge live" :title="t(&quot;Идёт установка&quot;)">●</small></button><button :class="{ active: activeSection === 'console' }" :title="t(&quot;На консоли&quot;)" @click="activeSection = 'console'"><span aria-hidden="true">▣</span><span class="nav-label">{{ t("На консоли") }}</span></button><button :class="{ active: activeSection === 'saves' }" :title="t(&quot;Сохранения&quot;)" @click="activeSection = 'saves'"><span aria-hidden="true">▤</span><span class="nav-label">{{ t("Сохранения") }}</span></button><button :class="{ active: activeSection === 'torrents' }" :title="t(&quot;Загрузки torrent&quot;)" @click="activeSection = 'torrents'"><span aria-hidden="true">⇣</span><span class="nav-label">{{ t("Загрузки") }}</span><small v-if="activeTorrents" class="nav-badge">{{ t(activeTorrents) }}</small></button><button :class="{ active: activeSection === 'search' }" :title="t(&quot;Поиск torrent&quot;)" @click="activeSection = 'search'"><span aria-hidden="true">⌕</span><span class="nav-label">{{ t("Поиск") }}</span></button><button :class="{ active: activeSection === 'log' }" :title="t(&quot;Журнал&quot;)" @click="activeSection = 'log'"><span aria-hidden="true">☰</span><span class="nav-label">{{ t("Журнал") }}</span><small v-if="logProblems" class="nav-badge warn">{{ t(logProblems) }}</small></button>
+      <button :class="{ active: activeSection === 'library' }" :title="t(&quot;Библиотека&quot;)" @click="activeSection = 'library'"><span aria-hidden="true">▦</span><span class="nav-label">{{ t("Библиотека") }}</span><small v-if="isSending" class="nav-badge live" :title="t(&quot;Идёт установка&quot;)">●</small></button><button :class="{ active: activeSection === 'console' }" :title="t(&quot;На консоли&quot;)" @click="activeSection = 'console'"><span aria-hidden="true">▣</span><span class="nav-label">{{ t("На консоли") }}</span></button><button :class="{ active: activeSection === 'saves' }" :title="t(&quot;Сохранения&quot;)" @click="openSaves('')"><span aria-hidden="true">▤</span><span class="nav-label">{{ t("Сохранения") }}</span></button><button :class="{ active: activeSection === 'torrents' }" :title="t(&quot;Загрузки torrent&quot;)" @click="activeSection = 'torrents'"><span aria-hidden="true">⇣</span><span class="nav-label">{{ t("Загрузки") }}</span><small v-if="activeTorrents" class="nav-badge">{{ t(activeTorrents) }}</small></button><button :class="{ active: activeSection === 'search' }" :title="t(&quot;Поиск torrent&quot;)" @click="activeSection = 'search'"><span aria-hidden="true">⌕</span><span class="nav-label">{{ t("Поиск") }}</span></button><button :class="{ active: activeSection === 'log' }" :title="t(&quot;Журнал&quot;)" @click="activeSection = 'log'"><span aria-hidden="true">☰</span><span class="nav-label">{{ t("Журнал") }}</span><small v-if="logProblems" class="nav-badge warn">{{ t(logProblems) }}</small></button>
 
       <button :class="{ active: activeSection === 'tasks' }" :title="t('Задания')" @click="activeSection = 'tasks'"><span aria-hidden="true">☷</span><span class="nav-label">{{ t('Задания') }}</span><small v-if="isSending" class="nav-badge live">●</small></button>
       <button :class="{ active: activeSection === 'presets' }" :title="t('Пресеты')" @click="activeSection = 'presets'"><span aria-hidden="true">▤</span><span class="nav-label">{{ t('Пресеты') }}</span></button>
@@ -572,7 +618,7 @@ onMounted(() => { void restoreInstallationMethod().then(restoreConsoles).then((r
         <div class="library-scroll" tabindex="0" :aria-label="t('Список игр библиотеки')">
         <p v-if="libraryError" class="library-error" role="alert">{{ t(libraryError) }} <button class="tiny" @click="loadLibraryPage()">{{ t('Повторить') }}</button></p>
         <p v-if="!libraryBusy && !groups.length && !libraryError" class="empty">{{ t(appliedLibraryQuery ? 'В библиотеке ничего не найдено. Измените запрос.' : 'Добавьте локальную или сетевую папку в разделе «Хранилище».') }}</p>
-        <GameTreeBranch v-for="group in groups" :key="group.id" :title="group.title" :title-id="group.items[0]?.titleId || group.id" :cover="group.cover" :count="group.items.length" :total="group.total" :open="isOpen(group.id)" @toggle="toggleGroup(group.id)"><template #summary><button v-if="groupDeviceLabel(group)" class="tiny" @click="activeSection='tasks'">{{ t('Устанавливается:') }} {{ groupDeviceLabel(group) }}</button></template><template #actions>              <label class="select-all"><input type="checkbox" :aria-label="t(`Выбрать ${group.title}`)" :checked="group.items.every((item) => isSelected(item.rowId))" @change="setGroupSelected(group, ($event.target as HTMLInputElement).checked)"></label>
+        <GameTreeBranch v-for="group in groups" :key="group.id" :title="group.title" :title-id="group.items[0]?.titleId || group.id" :cover="group.cover" :count="group.items.length" :total="group.total" :open="isOpen(group.id)" :packages="group.items" :installation="groupInstallationLabel(group)" @toggle="toggleGroup(group.id)"><template #summary><button v-if="groupDeviceLabel(group)" class="tiny" @click="activeSection='tasks'">{{ t('Устанавливается:') }} {{ groupDeviceLabel(group) }}</button></template><template #actions>              <label class="select-all"><input type="checkbox" :aria-label="t(`Выбрать ${group.title}`)" :checked="group.items.every((item) => isSelected(item.rowId))" @change="setGroupSelected(group, ($event.target as HTMLInputElement).checked)"></label>
               <button class="tiny" :disabled="!group.readyDlc" @click="installDlc(group)">DLC</button>
               <button class="tiny" :disabled="isSending" @click="removeBranch(group)">{{ t("Удалить ветку") }}</button>
 </template><PackageTreeRow v-for="item in group.items" :key="item.rowId" :item="item" :checked="isSelected(item.rowId)" :detail="deviceLabel(item)" :state="activityDeviceNames(item.id).length ? 'installing' : 'ready'" @select="toggleSelected(item.rowId)"><template #actions>                <button class="tiny install-one" :disabled="!canInstallPackage(item)" @click="installOne(item)">{{ t('Установить') }}</button>
@@ -593,11 +639,21 @@ onMounted(() => { void restoreInstallationMethod().then(restoreConsoles).then((r
       <section class="settings-card"><h2>{{ t('Хранилище') }}</h2><p>{{ t('Локальные папки, SMB, NFS и WebDAV. Подключения и индексация управляются в одном разделе.') }}</p><button class="secondary" @click="activeSection='storage'">{{ t('Открыть хранилище') }}</button></section>
       <section class="settings-card"><h2>{{ t('Другие подключения') }}</h2><div class="actions"><button class="secondary" @click="activeSection = 'torrents'; if (!showTorrentSettings) toggleTorrentSettings()">qBittorrent</button><button class="secondary" @click="activeSection = 'search'; showSearchSettings = true">Torznab</button></div><p>{{ t('Статус «файл полностью передан» подтверждается по HTTP-раздаче пакета. PyLoader не возвращает финальный результат установки. PackageFlowService дополнительно сообщает состояние системного задания и подтверждение установки.') }}</p></section>
     </section>
-    <section v-show="activeSection === 'torrents'" class="content tool-page"><p class="eyebrow">QBITTORRENT</p><h1>{{ t("Загрузки torrent") }}</h1><p class="page-status">{{ t(statusMessage) }}</p><section class="torrent-card"><div class="torrent-head"><div><h2>{{ t("Загрузки torrent") }}</h2><p>{{ t(qbit.ready ? `qBittorrent подключён${qbit.version ? ` · ${qbit.version}` : ''}` : 'Подключите qBittorrent Web UI (на этом ПК или в локальной сети), чтобы добавить разрешённую magnet- или .torrent-ссылку.') }}</p></div><div class="actions"><button class="secondary" @click="refreshTorrents">{{ t("Обновить") }}</button><button class="secondary" @click="toggleTorrentSettings">{{ t("Настроить") }}</button></div></div><form v-if="showTorrentSettings" class="torrent-settings" @submit.prevent="saveTorrentSettings"><label class="wide"><span>{{ t("Адрес qBittorrent Web UI — этот ПК, NAS или другой компьютер в сети") }}</span><input v-model="torrentSettings.baseUrl" placeholder="http://192.168.1.10:8080"></label><label><span>{{ t("Логин") }}</span><input v-model="torrentSettings.username" placeholder="admin" autocomplete="username"></label><label><span>{{ t("Пароль") }}</span><input v-model="torrentSettings.password" type="password" :placeholder="t(qbit.hasPassword ? 'пусто — оставить сохранённый' : '')" autocomplete="current-password"></label><label><span>{{ t('Хранилище загрузок qBittorrent') }}</span><StoragePathSelect :visible="activeSection==='torrents'&&showTorrentSettings" v-model="torrentSettings.downloadPath" @manage="activeSection='storage'" /></label><label><span>{{ t("Та же папка в qBittorrent — если он на другом компьютере (необязательно)") }}</span><input v-model="torrentSettings.remotePath" placeholder="/downloads"></label><div class="wide"><button class="primary">{{ t("Сохранить и проверить") }}</button></div></form><form class="torrent-add" @submit.prevent="addTorrent"><input v-model="torrentSource" :disabled="!qbit.ready" :placeholder="t(&quot;Вставьте разрешённую magnet- или HTTPS .torrent-ссылку&quot;)"><label class="torrent-auto"><input v-model="installAfterDownload" type="checkbox" :disabled="!qbit.ready || consolePlatform === 'ps5'"> {{ t("Установить после загрузки") }}</label><button class="primary" :disabled="!qbit.ready || !torrentSource.trim()">{{ t("Скачать") }}</button></form><p v-if="!torrents.length && qbit.ready" class="empty">{{ t("Нет torrent-задач PackageFlow.") }}</p><div v-for="torrent in torrents" :key="torrent.hash" class="torrent-row"><div class="torrent-name"><strong>{{ torrent.name }}</strong><span>{{ t(formatBytes(torrent.downloaded)) }} {{ t("из") }} {{ t(formatBytes(torrent.size)) }} · {{ t(torrent.seeds) }} {{ t("сидов ·") }} {{ t(formatBytes(torrent.speed)) }}{{ t("/с") }}</span><div class="progress"><i :style="{ width: `${Math.round(torrent.progress * 100)}%` }" /></div></div><span class="torrent-percent">{{ t(Math.round(torrent.progress * 100)) }}%</span><label class="torrent-auto"><input type="checkbox" :checked="torrent.autoInstall" :disabled="consolePlatform === 'ps5' && !torrent.autoInstall" @change="setTorrentAutoInstall(torrent, ($event.target as HTMLInputElement).checked)"> {{ t("Автоустановка") }}</label><button class="tiny" @click="toggleTorrentFiles(torrent)">{{ t(torrentFiles[torrent.hash] ? 'Скрыть файлы' : 'Файлы') }}</button><button class="tiny" @click="controlTorrent(torrent, isTorrentStopped(torrent) ? 'resume' : 'pause')">{{ t(isTorrentStopped(torrent) ? 'Продолжить' : 'Пауза') }}</button><button class="remove" :title="t(&quot;Убрать задачу, не удаляя файлы&quot;)" @click="controlTorrent(torrent, 'delete')">×</button><div v-if="torrentFiles[torrent.hash]" class="torrent-files"><label v-for="file in torrentFiles[torrent.hash]" :key="file.index"><input type="checkbox" :checked="file.priority > 0" @change="setTorrentFile(torrent, file, ($event.target as HTMLInputElement).checked)"><span>{{ file.name }}</span><small>{{ t(formatBytes(file.size)) }} · {{ t(Math.round(file.progress * 100)) }}%</small></label></div></div></section></section><section v-show="activeSection === 'search'" class="content tool-page"><p class="eyebrow">TORZNAB</p><h1>{{ t("Поиск torrent") }}</h1><p class="page-status">{{ t(searchStatus) }}</p><section class="search-card"><div class="search-head"><div><p class="eyebrow">{{ t("РАЗРЕШЁННЫЙ ИСТОЧНИК") }}</p><h2>{{ t("Поиск torrent") }}</h2></div><button class="secondary" @click="showSearchSettings = !showSearchSettings">{{ t("Источник") }}</button></div><form v-if="showSearchSettings" class="search-settings" @submit.prevent="saveSearchSettings"><input v-model="searchSettings.name" :placeholder="t(&quot;Название источника&quot;)"><input v-model="searchSettings.endpoint" placeholder="URL Torznab API"><input v-model="searchSettings.apiKey" type="password" :placeholder="t(searchHasApiKey ? 'API‑ключ сохранён — пусто, чтобы оставить' : 'API‑ключ (если нужен)')"><input v-model="searchSettings.categories" :placeholder="t('Категории: 1180 (PS4)')" :title="t('Категории Torznab: номера через запятую, пусто — все')"><button class="primary">{{ t("Сохранить") }}</button></form><p v-if="showSearchSettings" class="search-note">{{ t("1180 — игры PS4. Пустое поле категорий — поиск по всем платформам.") }}</p><form class="search-form" @submit.prevent="searchTorrents"><input v-model="searchQuery" :disabled="!searchConfigured" :placeholder="t(&quot;Название пакета&quot;)"><button class="primary" :disabled="!searchConfigured || !searchQuery.trim() || searchBusy">{{ t(searchBusy ? 'Ищем…' : 'Найти') }}</button></form><p v-if="!searchConfigured" class="search-note">{{ t("Добавьте разрешённый Torznab‑источник через кнопку «Источник».") }}</p><SearchResults :results="searchResults" :busy="searchBusy" :loading-more="searchLoadingMore" :has-more="searchHasMore" :total="searchTotal" :ready="qbit.ready" :pending="searchDownloadPending" :message="searchDownloadMessage" :visible="activeSection === 'search'" :searched="searchWasRun" @download="downloadSearchResult" @load-more="loadMoreSearch" /></section></section><section v-show="activeSection === 'log'" class="content tool-page"><p class="eyebrow">{{ t("СОБЫТИЯ СЕРВЕРА") }}</p><h1>{{ t("Журнал") }}</h1><section class="log-card"><div class="log-head"><h2>{{ t("Журнал") }}</h2><p>{{ t("События сервера: запросы PS4, передача пакетов, qBittorrent и ошибки.") }}</p><button class="tiny" :disabled="!logEntries.length" @click="clearLog">{{ t("Очистить") }}</button></div><div ref="logBox" class="log-list"><p v-if="!logEntries.length" class="log-empty">{{ t("Пока событий нет.") }}</p><div v-for="entry in logEntries" :key="entry.id" class="log-line" :class="entry.level"><time>{{ t(logTime(entry.time)) }}</time><span>{{ t(entry.text) }}</span><b v-if="entry.count > 1">×{{ t(entry.count) }}</b></div></div></section></section>
-    <section v-if="consolePlatform === 'ps5' && ['console', 'saves', 'ftp', 'system'].includes(activeSection)" class="content tool-page"><h1>{{ consoleLabel }}</h1><p>{{ t('Этот раздел станет доступен после подключения соответствующих возможностей сервиса PS5.') }}</p></section>
+    <section v-show="activeSection === 'torrents'" class="content tool-page"><p class="eyebrow">QBITTORRENT</p><h1>{{ t("Загрузки torrent") }}</h1><p class="page-status">{{ t(statusMessage) }}</p><section class="torrent-card"><div class="torrent-head"><div><h2>{{ t("Загрузки torrent") }}</h2><p>{{ t(qbit.ready ? `qBittorrent подключён${qbit.version ? ` · ${qbit.version}` : ''}` : 'Подключите qBittorrent Web UI (на этом ПК или в локальной сети), чтобы добавить разрешённую magnet- или .torrent-ссылку.') }}</p></div><div class="actions"><button class="secondary" @click="refreshTorrents">{{ t("Обновить") }}</button><button class="secondary" @click="toggleTorrentSettings">{{ t("Настроить") }}</button></div></div><form v-if="showTorrentSettings" class="torrent-settings" @submit.prevent="saveTorrentSettings"><label class="wide"><span>{{ t("Адрес qBittorrent Web UI — этот ПК, NAS или другой компьютер в сети") }}</span><input v-model="torrentSettings.baseUrl" placeholder="http://192.168.1.10:8080"></label><label><span>{{ t("Логин") }}</span><input v-model="torrentSettings.username" placeholder="admin" autocomplete="username"></label><label><span>{{ t("Пароль") }}</span><input v-model="torrentSettings.password" type="password" :placeholder="t(qbit.hasPassword ? 'пусто — оставить сохранённый' : '')" autocomplete="current-password"></label><label><span>{{ t('Хранилище загрузок qBittorrent') }}</span><StoragePathSelect :visible="activeSection==='torrents'&&showTorrentSettings" v-model="torrentSettings.downloadPath" @manage="activeSection='storage'" /></label><label><span>{{ t("Та же папка в qBittorrent — если он на другом компьютере (необязательно)") }}</span><input v-model="torrentSettings.remotePath" placeholder="/downloads"></label><div class="wide"><button class="primary">{{ t("Сохранить и проверить") }}</button></div></form><form class="torrent-add" @submit.prevent="addTorrent"><input v-model="torrentSource" :disabled="!qbit.ready" :placeholder="t(&quot;Вставьте разрешённую magnet- или HTTPS .torrent-ссылку&quot;)"><label class="torrent-auto"><input v-model="installAfterDownload" type="checkbox" :disabled="!qbit.ready || consolePlatform === 'ps5'"> {{ t("Установить после загрузки") }}</label><button class="primary" :disabled="!qbit.ready || !torrentSource.trim()">{{ t("Скачать") }}</button></form><p v-if="!torrents.length && qbit.ready" class="empty">{{ t("Нет torrent-задач PackageFlow.") }}</p><div v-for="torrent in torrents" :key="torrent.hash" class="torrent-row"><div class="torrent-name"><strong>{{ torrent.name }}</strong><span>{{ t(formatBytes(torrent.downloaded)) }} {{ t("из") }} {{ t(formatBytes(torrent.size)) }} · {{ t(torrent.seeds) }} {{ t("сидов ·") }} {{ t(formatBytes(torrent.speed)) }}{{ t("/с") }}</span><div class="progress"><i :style="{ width: `${Math.round(torrent.progress * 100)}%` }" /></div></div><span class="torrent-percent">{{ t(Math.round(torrent.progress * 100)) }}%</span><label class="torrent-auto"><input type="checkbox" :checked="torrent.autoInstall" :disabled="consolePlatform === 'ps5' && !torrent.autoInstall" @change="setTorrentAutoInstall(torrent, ($event.target as HTMLInputElement).checked)"> {{ t("Автоустановка") }}</label><button class="tiny" @click="toggleTorrentFiles(torrent)">{{ t(torrentFiles[torrent.hash] ? 'Скрыть файлы' : 'Файлы') }}</button><button class="tiny" @click="controlTorrent(torrent, isTorrentStopped(torrent) ? 'resume' : 'pause')">{{ t(isTorrentStopped(torrent) ? 'Продолжить' : 'Пауза') }}</button><button class="remove" :title="t(&quot;Убрать задачу, не удаляя файлы&quot;)" @click="controlTorrent(torrent, 'delete')">×</button><div v-if="torrentFiles[torrent.hash]" class="torrent-files"><label v-for="file in torrentFiles[torrent.hash]" :key="file.index"><input type="checkbox" :checked="file.priority > 0" @change="setTorrentFile(torrent, file, ($event.target as HTMLInputElement).checked)"><span>{{ file.name }}</span><small>{{ t(formatBytes(file.size)) }} · {{ t(Math.round(file.progress * 100)) }}%</small></label></div></div></section></section><section v-show="activeSection === 'search'" class="content tool-page"><p class="eyebrow">TORZNAB</p><h1>{{ t("Поиск torrent") }}</h1><p class="page-status">{{ t(searchStatus) }}</p><section class="search-card"><div class="search-head"><div><p class="eyebrow">{{ t("РАЗРЕШЁННЫЙ ИСТОЧНИК") }}</p><h2>{{ t("Поиск torrent") }}</h2></div><button class="secondary" @click="showSearchSettings = !showSearchSettings">{{ t("Источник") }}</button></div><form v-if="showSearchSettings" class="search-settings" @submit.prevent="saveSearchSettings"><input v-model="searchSettings.name" :placeholder="t(&quot;Название источника&quot;)"><input v-model="searchSettings.endpoint" placeholder="URL Torznab API"><input v-model="searchSettings.apiKey" type="password" :placeholder="t(searchHasApiKey ? 'API‑ключ сохранён — пусто, чтобы оставить' : 'API‑ключ (если нужен)')"><input v-model="searchSettings.categories" :placeholder="t('Категории: 1180 (PS4), 100546 (PS5)')" :title="t('Категории Torznab: номера через запятую, пусто — все')"><button class="primary">{{ t("Сохранить") }}</button></form><p v-if="showSearchSettings" class="search-note">{{ t("1180 — PS4, 100546 — PS5. Чекбоксы поиска задают категории выбранных платформ.") }}</p><fieldset class="search-platforms"><legend>{{ t("Платформы поиска") }}</legend><label :class="{ selected: searchPlatforms.includes('ps4') }"><input v-model="searchPlatforms" type="checkbox" value="ps4">PS4</label><label :class="{ selected: searchPlatforms.includes('ps5') }"><input v-model="searchPlatforms" type="checkbox" value="ps5">PS5</label></fieldset><p v-if="!searchPlatforms.length" class="search-note">{{ t("Выберите PS4 или PS5 для поиска") }}</p><form class="search-form" @submit.prevent="searchTorrents"><input v-model="searchQuery" :disabled="!searchConfigured" :placeholder="t(&quot;Название пакета&quot;)"><button class="primary" :disabled="!searchConfigured || !searchQuery.trim() || !searchPlatforms.length || searchBusy">{{ t(searchBusy ? 'Ищем…' : 'Найти') }}</button></form><p v-if="!searchConfigured" class="search-note">{{ t("Добавьте разрешённый Torznab‑источник через кнопку «Источник».") }}</p><SearchResults :results="searchResults" :busy="searchBusy" :loading-more="searchLoadingMore" :has-more="searchHasMore" :total="searchTotal" :ready="qbit.ready" :pending="searchDownloadPending" :message="searchDownloadMessage" :visible="activeSection === 'search'" :searched="searchWasRun" @download="downloadSearchResult" @load-more="loadMoreSearch" /></section></section><section v-show="activeSection === 'log'" class="content tool-page"><p class="eyebrow">{{ t("СОБЫТИЯ СЕРВЕРА") }}</p><h1>{{ t("Журнал") }}</h1><section class="log-card"><div class="log-head"><h2>{{ t("Журнал") }}</h2><p>{{ t("События сервера: запросы PS4, передача пакетов, qBittorrent и ошибки.") }}</p><button class="tiny" :disabled="!logEntries.length" @click="clearLog">{{ t("Очистить") }}</button></div><div ref="logBox" class="log-list"><p v-if="!logEntries.length" class="log-empty">{{ t("Пока событий нет.") }}</p><div v-for="entry in logEntries" :key="entry.id" class="log-line" :class="entry.level"><time>{{ t(logTime(entry.time)) }}</time><span>{{ t(entry.text) }}</span><b v-if="entry.count > 1">×{{ t(entry.count) }}</b></div></div></section></section>
+    <section v-if="consolePlatform === 'ps5' && ['ftp', 'system'].includes(activeSection)" class="content tool-page"><h1>{{ consoleLabel }}</h1><p>{{ t('Этот раздел станет доступен после подключения соответствующих возможностей сервиса PS5.') }}</p></section>
     <section v-if="activeSection === 'donate' && hasDonations" class="content tool-page"><DonatePanel :btc="donationBtc" :usdt-trc20="donationUsdtTrc20" /></section><section v-if="activeSection === 'ftp' && consolePlatform === 'ps4'" class="content tool-page"><ConsoleFiles :ps-ip="psIp" /></section>
-    <section v-if="activeSection === 'console' && consolePlatform === 'ps4'" class="content tool-page"><ConsoleApps :ip="psIp" @status="consoleConnected = $event" @changed="refreshConsoleLibrary" @saves="openSaves" /></section>
-    <section v-if="activeSection === 'saves' && consolePlatform === 'ps4'" class="content tool-page"><ConsoleSaves :ip="psIp" :focus-title-id="saveFocusTitleId" /></section>
+    <section v-if="['console', 'saves'].includes(activeSection)" class="content tool-page">
+      <ConsoleTargetPicker :profiles="consoleProfiles" :pending="consoleSelectionPending" @select="selectManagementConsole" />
+      <p v-if="consoleSelectionError" role="alert">{{ consoleSelectionError }}</p>
+      <template v-if="activeConsole">
+        <ConsoleApps v-if="activeSection === 'console' && consolePlatform === 'ps4'" :key="activeConsole.id + activeConsole.ip" :ip="activeConsole.ip" @status="consoleConnected = $event" @changed="refreshConsoleLibrary" @saves="openSaves" />
+        <ConsoleSaves v-else-if="activeSection === 'saves' && consolePlatform === 'ps4'" :key="activeConsole.id + activeConsole.ip" :ip="activeConsole.ip" :focus-title-id="saveFocusTitleId" />
+        <Ps5ConsoleApps v-else-if="activeSection === 'console' && consolePlatform === 'ps5'" :key="activeConsole.id" :console-id="activeConsole.id" @saves="openSaves" />
+        <Ps5ConsoleSaves v-else-if="activeSection === 'saves' && consolePlatform === 'ps5'" :key="activeConsole.id" :console-id="activeConsole.id" :focus-title-id="saveFocusTitleId" />
+        <div v-else><h1>{{ t(activeSection === 'console' ? 'На консоли' : 'Сохранения') }} · {{ activeConsole.name }}</h1><p>{{ t('Этот раздел станет доступен после подключения соответствующих возможностей сервиса PS5.') }}</p></div>
+      </template>
+      <div v-else><p>{{ t('Добавьте приставку и выберите её для установки.') }}</p><button @click="activeSection = 'devices'">{{ t('Открыть устройства') }}</button></div>
+    </section>
     <section v-if="activeSection === 'system' && consolePlatform === 'ps4'" class="content tool-page"><SystemInfo :ps-ip="psIp" /></section>
   </main>
 
@@ -630,6 +686,7 @@ onMounted(() => { void restoreInstallationMethod().then(restoreConsoles).then((r
 .torrent-row { grid-template-columns: minmax(200px, 1fr) 44px 108px 70px 78px 22px; }.torrent-files { grid-column: 1 / -1; display: grid; gap: 5px; padding: 8px 0 2px; border-top: 1px solid #302e36; }.torrent-files label { display: grid; grid-template-columns: 18px minmax(180px, 1fr) 115px; gap: 8px; align-items: center; color: #bab6c4; font-size: 10px; }.torrent-files span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.torrent-files small { color: #89858f; font: 9px 'DM Mono', monospace; text-align: right; }
 .torrent-auto { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; color: #c6c2cf; font-size: 10px; white-space: nowrap; }
 .search-card { max-width: 1240px; margin: 0 auto 38px; overflow: hidden; border: 1px solid #2d2c33; border-radius: 10px; background: #19191c; }.search-head { padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; }.search-head .eyebrow { margin-bottom: 4px; }.search-head h2 { margin: 0; font-size: 14px; }.search-settings, .search-form { display: flex; gap: 8px; padding: 12px 20px; border-top: 1px solid #2b2a30; }.search-settings { flex-wrap: wrap; }.search-settings input, .search-form input { min-width: 160px; flex: 1; color: #e9e8ef; background: #121216; border: 1px solid #3b3941; border-radius: 6px; padding: 9px 10px; font-size: 11px; }.search-note { padding: 0 20px 16px; color: #85838b; font-size: 10px; }.search-result { display: flex; justify-content: space-between; gap: 14px; align-items: center; padding: 11px 20px; border-top: 1px solid #25242a; }.search-result strong { display: block; font-size: 11px; }.search-result span { color: #85828a; font: 10px 'DM Mono', monospace; }
+.search-platforms { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 8px 20px 14px; border: 0; }.search-platforms legend { padding: 0; color: #aaa5b3; font-size: 11px; }.search-platforms label { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; color: #aaa5b3; border: 1px solid #3b3941; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; }.search-platforms label.selected { color: #e9e8ef; border-color: #8965ca; background: #332742; }.search-platforms input { margin: 0; accent-color: #a67adf; }.search-platforms label:focus-within { outline: 2px solid #a67adf; outline-offset: 2px; }
 .state.skipped { color: #e3bd77; }
 .log-card { margin-top: 20px; overflow: hidden; border: 1px solid #2d2c33; border-radius: 10px; background: #19191c; }.log-head { padding: 14px 20px; display: flex; align-items: center; gap: 14px; }.log-head p { flex: 1; margin: 0; color: #85838b; font-size: 10px; }.log-toggle { display: flex; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; color: inherit; }.log-toggle span { display: inline-block; color: #aaa3cf; font-size: 20px; transition: transform .18s ease; }.log-toggle span.open { transform: rotate(90deg); }.log-toggle h2 { margin: 0; font-size: 14px; }.log-badge { padding: 2px 6px; border-radius: 9px; background: #b9534a; color: white; font: 700 9px 'DM Mono', monospace; }.log-list { max-height: 260px; overflow-y: auto; padding: 8px 20px 12px; border-top: 1px solid #2b2a30; font: 10px/1.55 'DM Mono', monospace; }.log-line { display: grid; grid-template-columns: 62px 1fr auto; gap: 10px; padding: 2px 0; color: #bab6c4; }.log-line time { color: #6f6c78; }.log-line span { word-break: break-word; }.log-line b { color: #e3bd77; font-weight: 500; }.log-line.warn span { color: #e3bd77; }.log-line.error span { color: #e78a80; }.log-empty { margin: 6px 0; color: #77747f; }
 .danger { border: 0; color: white; background: #b9534a; border-radius: 6px; padding: 10px 13px; font-size: 11px; font-weight: 800; }.danger:hover:not(:disabled) { background: #cc6158; }.mark.reset { color: #e3bd77; }

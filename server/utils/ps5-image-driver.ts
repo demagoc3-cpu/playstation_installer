@@ -98,13 +98,48 @@ export function imagePublicationResult(p: ImagePlan, reply: { status: number; bo
   // No appmeta/mount.lnk shortcut. Publication is not a system registration.
   if (b.state === 'published') return { state: 'unconfirmed', detail: 'Образ опубликован для ShadowMount. Системная регистрация и запуск пока не подтверждены' }
 }
+export function imageRegistrationResult(p: ImagePlan, reply: { status: number; body: any }): Partial<Ps5Item> | undefined {
+  if (reply.status !== 200) return
+  const b = reply.body, suffix = { ufs2: 'ffpkg', exfat: 'exfat', pfs: 'ffpfs', ffpfsc: 'ffpfsc' }[p.format]
+  if (b.id !== p.id || b.title !== p.title || b.content !== p.content || b.version !== p.appVersion || b.format !== p.format ||
+      b.proof !== 'image-registration' || b.manifestHash !== p.manifestHash || b.imageHash !== p.imageHash || b.size !== p.size ||
+      b.sourceName !== `${p.title}.${suffix}` || b.backend !== 'shadowmount' || !['copying', 'prepared', 'published', 'registered'].includes(b.state) ||
+      b.installed !== (b.state === 'registered') || b.registered !== (b.state === 'registered')) fail('Подтверждение регистрации образа не соответствует заданию')
+  if (b.state === 'registered') return { state: 'installed', confirmation: 'service-registration', confirmedAt: Date.now(), detail: `PS5 подтвердила системную регистрацию образа, версия ${p.appVersion}` }
+}
+/** A dispatched registration is reconciled by reads only, even without the
+ * original local image. Publication receipts remain a separate legacy protocol. */
+export async function runRegisteredImagePlan(p: ImagePlan, item: Ps5Item, signal: AbortSignal, request: FolderRequest, save: (patch: Partial<Ps5Item>) => void) {
+  return runImagePlan(p, item, signal, request, save, 'image-registration-v1')
+}
+export async function cancelImagePlan(p: ImagePlan | undefined, item: Ps5Item, request: FolderRequest) {
+  if (item.installDispatched) throw new Ps5QueueUncertain('Образ уже передан на регистрацию. Отмена не отправлена')
+  if (!p) { if (item.bytesSent) fail('План передаваемого образа недоступен'); return }
+  await verifyImagePlan(p, item, p.root)
+  const publication = await request(p.id, '/api/v1/images/status', {})
+  if (publication.status !== 404) throw new Ps5QueueUncertain('Публикация образа могла начаться. Требуется сверка')
+  for (const id of [p.imageId, p.id]) {
+    const r = await request(id, '/api/v1/transfers/cancel', {})
+    if ([200, 404].includes(r.status)) continue
+    if (r.status === 409) {
+      const status = await request(id, '/api/v1/transfers/status', {})
+      if (status.status === 200 && status.body.id === id && status.body.verified === true) continue
+    }
+    throw new Error('Отмена передачи образа не подтверждена')
+  }
+}
 /** Candidate for an explicitly coordinated image test. Public admission remains
  * disabled until the mount + system registration + lifecycle gate passes. */
-export async function runImagePlan(p: ImagePlan, item: Ps5Item, signal: AbortSignal, request: FolderRequest, save: (patch: Partial<Ps5Item>) => void): Promise<Partial<Ps5Item>> {
+export async function runImagePlan(p: ImagePlan, item: Ps5Item, signal: AbortSignal, request: FolderRequest, save: (patch: Partial<Ps5Item>) => void, protocol: 'image-publication-v1' | 'image-registration-v1' = 'image-publication-v1'): Promise<Partial<Ps5Item>> {
   await verifyImagePlan(p, item, p.root); signal.throwIfAborted()
   if (item.installDispatched) {
     const r = await request(p.id, '/api/v1/images/status', {}, undefined, signal)
-    const result = imagePublicationResult(p, r); if (result) return result
+    const result = protocol === 'image-registration-v1' ? imageRegistrationResult(p, r) : imagePublicationResult(p, r); if (result) return result
+    if (protocol === 'image-registration-v1' && r.status === 200 && r.body.state === 'published') {
+      if (!item.imagePublishedAt) save({ imagePublishedAt: Date.now() })
+      else if (Date.now() - item.imagePublishedAt > 120_000) throw new Ps5QueueUncertain('Образ передан, но системная регистрация ещё не подтверждена. Повтор не отправлен')
+      return { state: 'installing', detail: 'Образ передан. Ожидаем системную регистрацию PS5' }
+    }
     const op = await request(p.id, '/api/v1/operations/status', {}, undefined, signal)
     if (op.status === 200 && op.body.id === p.id && op.body.phase === 'publishing-image' && op.body.running === true) return { state: 'installing', detail: 'Служба подготавливает образ на PS5' }
     // Explicit resume can be added after inspecting a durable owned receipt.
@@ -126,7 +161,8 @@ export async function runImagePlan(p: ImagePlan, item: Ps5Item, signal: AbortSig
   await upload(p.id, manifest.length, p.manifestHash, async (b, position) => { const n = Math.min(b.length, manifest.length - position); manifest.copy(b, 0, position, position + n); return n },
     async () => true, signal, request, () => {}, () => {})
   signal.throwIfAborted(); save({ state: 'installing', installDispatched: true, detail: 'Публикуем проверенный образ для ShadowMount' })
-  const r = await request(p.id, '/api/v1/images/commit', { 'X-PackageFlow-Experimental': 'image-publication-v1' }, undefined, signal)
+  const headers = protocol === 'image-registration-v1' ? { 'X-PackageFlow-Image-Protocol': protocol } : { 'X-PackageFlow-Experimental': protocol }
+  const r = await request(p.id, '/api/v1/images/commit', headers, undefined, signal)
   if (![200, 202].includes(r.status)) throw new Ps5QueueUncertain('Ответ публикации потерян. Повтор не отправлен')
   return { state: 'installing' }
 }

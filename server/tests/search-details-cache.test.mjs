@@ -25,13 +25,21 @@ test('durable descriptions survive restart, coalesce loads, expire, and recover 
     const path = resolve('.data/search-details-cache', `${cache.detailsCacheKey(topic)}.json`)
     const stored = readFileSync(path, 'utf8')
     assert.ok(!stored.includes('tracking')); assert.ok(!stored.includes('seeders')); assert.equal(readdirSync('.data/search-details-cache').length, 1)
+    assert.equal(JSON.parse(stored).version, 2)
+    const legacyTopic = 'https://example.test/legacy-format'
+    const legacyPath = resolve('.data/search-details-cache', `${cache.detailsCacheKey(legacyTopic)}.json`)
+    writeFileSync(legacyPath, JSON.stringify({ version: 1, expires: Date.now() + 1000, details: value }))
+    const withFormat = { ...value, fields: [...value.fields, { label: 'Формат', value: 'Folder' }] }
+    let legacyLoads = 0
+    assert.deepEqual(await cache.cachedSearchDetails(legacyTopic, async () => { legacyLoads++; return withFormat }), withFormat)
+    assert.equal(legacyLoads, 1, 'Old cached synopses must refresh to expose source format fields')
     const saved = JSON.parse(stored); saved.expires = Date.now() - 1; writeFileSync(path, JSON.stringify(saved))
     const updated = { ...value, description: 'Updated release' }
     assert.deepEqual(await cache.cachedSearchDetails(topic, async () => { calls++; return updated }), updated)
     assert.equal(calls, 2)
     writeFileSync(path, '{broken')
     assert.deepEqual(await cache.cachedSearchDetails(topic, async () => { calls++; return value }), value)
-    writeFileSync(path, JSON.stringify({ version: 1, expires: Date.now() + 1000, details: { ...value, cover: 'javascript:alert(1)' } }))
+    writeFileSync(path, JSON.stringify({ version: 2, expires: Date.now() + 1000, details: { ...value, cover: 'javascript:alert(1)' } }))
     await cache.cachedSearchDetails(topic, async () => { calls++; return value }); assert.equal(calls, 4)
     Date.now = () => originalNow() + 2 * 24 * 60 * 60 * 1000
     await cache.cachedSearchDetails(topic, async () => { calls++; return value }); assert.equal(calls, 5)

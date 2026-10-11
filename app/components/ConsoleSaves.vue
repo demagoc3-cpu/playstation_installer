@@ -2,6 +2,8 @@
 const { t, formatLocale } = useAppLocale()
 
 const props = defineProps<{ ip: string; focusTitleId?: string }>()
+const targetIp = props.ip
+const request = useConsoleRequest()
 interface SaveGame { titleId: string; title: string; installed: boolean | null }
 interface SaveUser { userId: string; games: SaveGame[] }
 interface SaveSlot { name: string; containerBytes: number; modifiedAt: number }
@@ -12,6 +14,7 @@ const selectedUser = ref('')
 const selectedTitle = ref('')
 const slots = ref<SaveSlot[]>([])
 const backups = ref<SaveBackup[]>([])
+const unassignedBackups = ref<SaveBackup[]>([])
 const restores = ref<SaveRestore[]>([])
 const query = ref('')
 const loading = ref(false)
@@ -25,6 +28,7 @@ const expandedBackupSlots = ref<string[]>([])
 let generation = 0
 let slotGeneration = 0
 let initialFocus = true
+const changingSave = computed(() => !!creatingSlot.value || !!restoreActionId.value)
 const currentUser = computed(() => users.value.find(user => user.userId === selectedUser.value))
 const visibleGames = computed(() => (currentUser.value?.games || []).filter(game =>
   `${game.title} ${game.titleId}`.toLocaleLowerCase().includes(query.value.toLocaleLowerCase())))
@@ -42,7 +46,7 @@ async function refresh() {
   const id = ++generation
   loading.value = true; error.value = ''
   try {
-    const result = await $fetch<{ users: SaveUser[] }>('/api/ps4/saves', { method: 'POST', body: { ip: props.ip } })
+    const result = await request<{ users: SaveUser[] }>('/api/ps4/saves', { method: 'POST', body: { ip: targetIp } })
     if (id !== generation) return
     users.value = result.users
     const focused = initialFocus && props.focusTitleId && result.users.find(user => user.games.some(game => game.titleId === props.focusTitleId))
@@ -56,13 +60,13 @@ async function refresh() {
 async function openGame(titleId: string) {
   const id = generation
   const slotId = ++slotGeneration
-  selectedTitle.value = titleId; slots.value = []; backups.value = []; restores.value = []; loadingSlots.value = true; error.value = ''
+  selectedTitle.value = titleId; slots.value = []; backups.value = []; unassignedBackups.value = []; restores.value = []; loadingSlots.value = true; error.value = ''
   try {
     const [result, previous] = await Promise.all([
-      $fetch<{ slots: SaveSlot[] }>('/api/ps4/saves/slots', { method: 'POST', body: { ip: props.ip, userId: selectedUser.value, titleId } }),
-      $fetch<{ backups: SaveBackup[]; restores: SaveRestore[] }>('/api/ps4/saves/backups', { method: 'POST', body: { ip: props.ip, userId: selectedUser.value, titleId } }),
+      request<{ slots: SaveSlot[] }>('/api/ps4/saves/slots', { method: 'POST', body: { ip: targetIp, userId: selectedUser.value, titleId } }),
+      request<{ backups: SaveBackup[]; unassignedBackups?: SaveBackup[]; restores: SaveRestore[] }>('/api/ps4/saves/backups', { method: 'POST', body: { ip: targetIp, userId: selectedUser.value, titleId } }),
     ])
-    if (id === generation && slotId === slotGeneration && selectedTitle.value === titleId) { slots.value = result.slots; backups.value = previous.backups; restores.value = previous.restores }
+    if (id === generation && slotId === slotGeneration && selectedTitle.value === titleId) { slots.value = result.slots; backups.value = previous.backups; unassignedBackups.value = previous.unassignedBackups || []; restores.value = previous.restores }
   } catch (cause) { if (id === generation && slotId === slotGeneration) error.value = errorText(cause) }
   finally { if (id === generation && slotId === slotGeneration) loadingSlots.value = false }
 }
@@ -82,7 +86,7 @@ async function restoreBackup(backup: SaveBackup) {
   restoreActionId.value = backup.id; error.value = ''; notice.value = ''
   const titleId = selectedTitle.value
   try {
-    await $fetch('/api/ps4/saves/restore', { method: 'POST', body: { ip: props.ip, id: backup.id } })
+    await request('/api/ps4/saves/restore', { method: 'POST', body: { ip: targetIp, id: backup.id } })
     notice.value = 'Файлы восстановлены. Запустите игру и проверьте прогресс. Затем подтвердите результат или верните прежний сейв.'
     await openGame(titleId)
   } catch (cause) { error.value = errorText(cause) }
@@ -97,19 +101,20 @@ async function settleRestore(record: SaveRestore, action: 'finalize' | 'rollback
   restoreActionId.value = record.rollbackId; error.value = ''; notice.value = ''
   const titleId = selectedTitle.value
   try {
-    await $fetch(`/api/ps4/saves/${action}`, { method: 'POST', body: { ip: props.ip, id: record.rollbackId } })
+    await request(`/api/ps4/saves/${action}`, { method: 'POST', body: { ip: targetIp, id: record.rollbackId } })
     notice.value = action === 'finalize' ? 'Восстановление подтверждено.' : 'Предыдущий сейв возвращён. Проверьте его в игре.'
     await openGame(titleId)
   } catch (cause) { error.value = errorText(cause) }
   finally { restoreActionId.value = '' }
 }
 async function downloadBackup(backup: SaveBackup) {
+  const titleId = selectedTitle.value
   downloadingId.value = backup.id; error.value = ''
   try {
-    const archive = await $fetch<Blob>('/api/ps4/saves/archive', { method: 'POST', body: { id: backup.id }, responseType: 'blob' })
+    const archive = await request<Blob>('/api/ps4/saves/archive', { method: 'POST', body: { id: backup.id }, responseType: 'blob' })
     const url = URL.createObjectURL(archive)
     const link = document.createElement('a')
-    link.href = url; link.download = `${selectedTitle.value}-${backup.slot}-${backup.id}.zip`
+    link.href = url; link.download = `${titleId}-${backup.slot}-${backup.id}.zip`
     document.body.appendChild(link); link.click(); link.remove()
     setTimeout(() => URL.revokeObjectURL(url), 60_000)
   } catch (cause) { error.value = errorText(cause) }
@@ -120,7 +125,7 @@ async function createBackup(slot: SaveSlot) {
   const userId = selectedUser.value, titleId = selectedTitle.value
   creatingSlot.value = slot.name; error.value = ''
   try {
-    const result = await $fetch<SaveBackup>('/api/ps4/saves/export', { method: 'POST', body: { ip: props.ip, userId, titleId, slot: slot.name } })
+    const result = await request<SaveBackup>('/api/ps4/saves/export', { method: 'POST', body: { ip: targetIp, userId, titleId, slot: slot.name } })
     if (userId === selectedUser.value && titleId === selectedTitle.value) {
       backups.value.unshift({ ...result, createdAt: new Date().toISOString() })
       notice.value = `Копия слота ${slot.name} создана. Её можно скачать или восстановить из списка ниже.`
@@ -131,18 +136,20 @@ async function createBackup(slot: SaveSlot) {
 async function createAllBackups() {
   if (creatingSlot.value || !slots.value.length) return
   const titleId = selectedTitle.value, userId = selectedUser.value
+  const pendingSlots = [...slots.value]
   creatingSlot.value = 'all'; error.value = ''; notice.value = ''
   let completed = 0
   try {
-    for (const slot of slots.value) {
-      const result = await $fetch<SaveBackup>('/api/ps4/saves/export', { method: 'POST', body: { ip: props.ip, userId, titleId, slot: slot.name } })
+    for (const slot of pendingSlots) {
+      const result = await request<SaveBackup>('/api/ps4/saves/export', { method: 'POST', body: { ip: targetIp, userId, titleId, slot: slot.name } })
       backups.value.unshift({ ...result, createdAt: new Date().toISOString() })
       completed++
     }
     notice.value = `Созданы копии всех ${completed} слотов игры. Их можно скачать по отдельности.`
-  } catch (cause) { error.value = `${errorText(cause)}. Успешно сохранено слотов: ${completed} из ${slots.value.length}.` }
+  } catch (cause) { error.value = `${errorText(cause)}. Успешно сохранено слотов: ${completed} из ${pendingSlots.length}.` }
   finally { creatingSlot.value = '' }
 }
+onBeforeUnmount(() => { generation++; slotGeneration++ })
 onMounted(() => void refresh())
 watch(() => props.ip, () => void refresh())
 watch(() => props.focusTitleId, titleId => {
@@ -155,19 +162,24 @@ watch(() => props.focusTitleId, titleId => {
 <template>
   <section class="saves-page">
     <header><div><p class="eyebrow">PLAYSTATION 4</p><h1>{{ t("Сохранения") }}</h1><p>{{ t("Сейвы остаются в этом списке, даже если игра удалена с приставки.") }}</p></div><button :disabled="loading" @click="refresh">{{ t(loading ? 'Читаем…' : 'Обновить список') }}</button></header>
-    <SaveCollections :ip="props.ip" :users="users" />
+    <SaveCollections :key="targetIp" :ip="targetIp" :users="users" />
     <h2 class="separate-title">{{ t("Отдельные копии игр и слотов") }}</h2>
     <p>{{ t("Слот — одно сохранение внутри игры. Копия игры сохраняет все её слоты. Именной набор выше охватывает все игры и профили PS4.") }}</p>
     <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
     <p v-if="notice" class="notice" role="status">{{ t(notice) }}</p>
-    <div v-if="users.length" class="filters"><label>{{ t("Профиль PS4") }} <select v-model="selectedUser" @change="chooseUser(selectedUser)"><option v-for="(user, index) in users" :key="user.userId" :value="user.userId">{{ t("Профиль") }} {{ t(index + 1) }} · {{ t(user.games.length) }} {{ t("игр") }}</option></select></label><input v-model="query" :placeholder="t(&quot;Название или CUSA&quot;)" :aria-label="t(&quot;Найти сохранения игры&quot;)"></div>
+    <div v-if="users.length" class="filters"><label>{{ t("Профиль PS4") }} <select :disabled="changingSave" v-model="selectedUser" @change="chooseUser(selectedUser)"><option v-for="(user, index) in users" :key="user.userId" :value="user.userId">{{ t("Профиль") }} {{ t(index + 1) }} · {{ t(user.games.length) }} {{ t("игр") }}</option></select></label><input v-model="query" :placeholder="t(&quot;Название или CUSA&quot;)" :aria-label="t(&quot;Найти сохранения игры&quot;)"></div>
     <p v-if="!loading && !users.length && !error" class="empty">{{ t("Сохранения не найдены.") }}</p>
     <p v-else-if="!loading && !visibleGames.length && !error" class="empty">{{ t("Для этого профиля игр с сохранениями не найдено.") }}</p>
     <div v-for="game in visibleGames" :key="game.titleId" class="game">
-      <button class="game-button" :aria-expanded="selectedTitle === game.titleId" @click="toggleGame(game.titleId)">
+      <button class="game-button" :disabled="changingSave" :aria-expanded="selectedTitle === game.titleId" @click="toggleGame(game.titleId)">
         <span><strong>{{ t(game.title === game.titleId ? `Игра ${game.titleId}` : game.title) }}</strong><small>{{ t(game.title === game.titleId ? '' : `${game.titleId} · `) }}{{ t(game.installed === true ? 'Игра установлена' : game.installed === false ? 'Игра сейчас не установлена' : 'Состояние игры неизвестно') }}</small></span><span class="expand">{{ t(selectedTitle === game.titleId ? '−' : '+') }}</span>
       </button>
       <div v-if="selectedTitle === game.titleId" class="slots">
+        <div v-if="unassignedBackups.length" class="notice">
+          <strong>{{ t('Старые копии без привязки к приставке') }}</strong>
+          <p>{{ t('Приставка-источник не была записана. Эти архивы можно скачать; автоматическое восстановление отключено.') }}</p>
+          <div v-for="backup in unassignedBackups" :key="backup.id" class="backup-row"><span>{{ backup.slot }} · {{ new Date(backup.createdAt).toLocaleString(formatLocale) }} · {{ bytes(backup.bytes) }}</span><button :disabled="!!downloadingId" @click="downloadBackup(backup)">{{ t('Скачать') }}</button></div>
+        </div>
         <p v-if="loadingSlots">{{ t("Читаем слоты…") }}</p><p v-else-if="!slots.length">{{ t("Слоты не найдены. Обновите список, если игра только что создала сейв.") }}</p>
         <div v-if="slots.length" class="all-slots"><span>{{ t("Для полной копии прогресса сохраните все слоты игры.") }}</span><button :disabled="!!creatingSlot || !!restoreActionId" @click="createAllBackups">{{ t(creatingSlot === 'all' ? 'Копируем все слоты…' : 'Создать копию игры') }}</button></div>
         <div v-for="slot in slots" :key="slot.name" class="slot">

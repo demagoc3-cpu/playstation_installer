@@ -2,7 +2,7 @@ import { dataPath } from './data-path'
 import { syncServiceWebAddress } from './service-web-address'
 import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
-import { ps4ServiceIp } from './ps4-service'
+import { ps4ManagementIp } from './console-management-target'
 import { validServiceJob } from './installation-transport'
 import type { ServiceInstallCapabilities, ServiceInstallJob } from '../../shared/types/installation'
 
@@ -12,9 +12,7 @@ function settings(): Settings {
   try { const data = JSON.parse(readFileSync(settingsPath, 'utf8')); return data && typeof data === 'object' && !Array.isArray(data) ? data : {} } catch { return {} }
 }
 function consoleIp(value: unknown) {
-  const ip = ps4ServiceIp(value)
-  if (!ip) throw createError({ statusCode: 400, message: 'Укажите корректный IPv4-адрес PS4' })
-  return ip
+  return ps4ManagementIp(value)
 }
 function token(ip: string) {
   const key = settings()[ip]
@@ -140,7 +138,8 @@ async function request(ip: string, path: string, method: 'GET' | 'POST', key?: s
   if (!response.ok) {
     const fileErrors: Record<number, string> = { 400: 'Неверный путь или параметры операции', 403: 'Изменение этого пути запрещено или он содержит защищённые файлы', 404: 'Файл не найден или путь содержит символическую ссылку', 409: 'Файл изменился или имя уже занято. Обновите папку', 422: 'Перемещение между дисками выполняется через копирование', 503: 'Операция не завершена. Проверьте исходный файл и резервную копию' }
     const message = data?.error === 'file_operation_failed' ? fileErrors[response.status] || 'PS4 не смогла выполнить файловую операцию' : explanations[data?.error] || 'Сервис не принял запрос'
-    throw createError({ statusCode: response.status, message: `${message}${data?.errorHex ? ` (${data.errorHex})` : ''}`,
+    const errorCode = typeof data?.errorHex === 'string' && !/^0x0+$/i.test(data.errorHex) ? ` (${data.errorHex})` : ''
+    throw createError({ statusCode: response.status, message: `${message}${errorCode}`,
       data: { serviceError: typeof data?.error === 'string' ? data.error : undefined } })
   }
   return data

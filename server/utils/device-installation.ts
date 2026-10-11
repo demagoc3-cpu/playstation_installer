@@ -2,15 +2,18 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { createError } from 'h3'
 import { getConsoleProfile, getConsoleProfiles, refreshConsoleProfile, refreshConsoleProfiles } from './console-profiles'
-import { getPackage, getLibraryPackages, installedPackageIdsForConsole } from './package-library'
+import { beginSelectedReinstall, selectedReinstallPlan, replacementCoversComponents } from './selected-reinstallation'
+import { readMaintenance } from './maintenance-store'
+import { installedPackagePreviewChecker } from './installed-package-check'
+import { getPackage, getLibraryPackages } from './package-library'
 import { presetSelection } from './presets'
-import { filterContent, contentBranchKey } from '../../shared/content-platform'
+import { filterContent, contentBranchKey, contentFormat } from '../../shared/content-platform'
 import { deviceInstallReason } from '../../shared/device-eligibility'
 import type { DeviceSelection, DeviceInstallPreview, DeviceActivity } from '../../shared/types/consoles'
-import { getInstallationQueue, getInstallationHistory, appendInstallationQueue, startInstallationQueue } from './installation-queue'
+import { getInstallationQueue, peekInstallationQueue, getInstallationHistory, appendInstallationQueue, startInstallationQueue } from './installation-queue'
 import { getPs5Queue, getPs5TaskCounts, startPs5Queue } from './ps5-installation-queue'
 import { latestInstallationAttempts } from '../../shared/latest-installation-attempts'
-import { getTaskVisibility, taskVisibilityKey } from './task-visibility'
+import { getTaskVisibility, installationTaskHidden } from './task-visibility'
 import { installationTaskCategory } from '../../shared/types/tasks'
 import { getLocalIp } from './ps4-installer'
 import { dataPath } from './data-path'
@@ -30,16 +33,20 @@ export function resolveDeviceSelection(selection: DeviceSelection): string[] {
   if (!Array.isArray(ids) || !ids.length || ids.length > 10000 || ids.some(id => typeof id !== 'string' || !/^[a-zA-Z0-9_.-]{1,128}$/.test(id))) throw createError({ statusCode: 400, message: 'Выберите файлы для установки (не более 10000)' })
   // Resolve aliases once so duplicate source files cannot be sent twice.
   const library = getLibraryPackages()
-  const aliases=new Map(library.flatMap(item=>[item.id,...(item.sourceIds || [])].map(id=>[id,item.id] as const)))
+  const direct = new Map(library.map(item=>[item.id,item.id]))
+  const aliases = new Map<string,Set<string>>()
+  for(const item of library)for(const alias of item.sourceIds || []){const owners=aliases.get(alias)||new Set<string>();owners.add(item.id);aliases.set(alias,owners)}
   return [...new Set(ids.map(id => {
-    const canonical=aliases.get(id)
-    if(!canonical) throw createError({statusCode:404,message:'Файл больше не доступен в библиотеке. Обновите выбор'})
-    return canonical
+    if(direct.has(id))return direct.get(id)!
+    const owners=aliases.get(id)
+    if(!owners?.size)throw createError({statusCode:404,message:'Файл больше не доступен в библиотеке. Обновите выбор'})
+    if(owners.size!==1)throw createError({statusCode:409,message:'Неоднозначный идентификатор пакета. Обновите библиотеку и выбор'})
+    return [...owners][0]!
   }))]
 }
 export function deviceQueue(id: string) {
   const profile = getConsoleProfile(id)
-  return profile.platform === 'ps5' ? getPs5Queue(id) : getInstallationQueue(profile.ip)
+  return profile.platform === 'ps5' ? getPs5Queue(id) : peekInstallationQueue(profile.ip)
 }
 export function deviceActivities(packageIds: string[] = []): DeviceActivity[] {
   const visible = new Set(packageIds)
@@ -47,49 +54,87 @@ export function deviceActivities(packageIds: string[] = []): DeviceActivity[] {
   return getConsoleProfiles().consoles.map(profile => {
     try {
       const queue = deviceQueue(profile.id)
+      const flow=readMaintenance()[profile.ip]
+      if(flow?.kind==='selected-reinstall'&&!['completed','failed','installing'].includes(flow.state))return {consoleId:profile.id,status:'running',queueId:flow.id,message:flow.message,counts:{active:1,queued:flow.input.packageIds.length,completed:0,failed:0},activePackageIds:flow.input.packageIds,queuedPackageIds:flow.input.packageIds,installedPackageIds:[]}
       const counts = profile.platform === 'ps5' ? getPs5TaskCounts(profile.id) : {active:0,queued:0,completed:0,failed:0}
       if(profile.platform==='ps4') {
         const attempts = [queue,...getInstallationHistory(profile.ip).filter(record=>record.id!==queue.id)].flatMap(record => record.items
-          .filter(item => !hidden.has(taskVisibilityKey(record.id,item)) || !['completed','failed'].includes(installationTaskCategory(item.state)))
-          .map(item => ({ ...item, psIp:profile.ip, createdAt:record.createdAt || 0 })))
-        for (const item of latestInstallationAttempts(attempts)) counts[installationTaskCategory(item.state)]++
+          .map(item => ({ ...item, psIp:profile.ip, createdAt:record.createdAt || 0,
+            taskHidden:installationTaskHidden(hidden,record.id,item,profile.ip)&&['completed','failed'].includes(installationTaskCategory(item.state)) })))
+        for (const item of latestInstallationAttempts(attempts).filter(item=>!item.taskHidden)) counts[installationTaskCategory(item.state)]++
       }
       const running = ['running','cancelling'].includes(queue.status)
       return { consoleId:profile.id, status:queue.status, queueId:queue.id, message:queue.message, counts,
         activePackageIds:running ? queue.items.filter(item => ['sending','waiting','receiving','installing','verifying','unconfirmed'].includes(item.state)).map(item => item.packageId) : [],
         queuedPackageIds:running ? queue.items.filter(item => item.state === 'pending' && visible.has(item.packageId)).map(item => item.packageId) : [],
-        installedPackageIds:visible.size ? installedPackageIdsForConsole(profile.ip,packageIds) : [] }
+        installedPackageIds:[] }
     } catch { return { consoleId:profile.id, status:'unavailable', message:'Не удалось прочитать задания устройства', counts:{ active:0,queued:0,completed:0,failed:0 }, activePackageIds:[],queuedPackageIds:[],installedPackageIds:[] } }
   })
 }
+// This short-lived memory cache contains only live device replies. It never reads installation marks.
+const liveActivitySnapshots=new Map<string,{until:number;value:Promise<string[]>}>()
+export async function deviceActivitiesLive(packageIds:string[]=[]):Promise<DeviceActivity[]>{
+ const activity=deviceActivities(packageIds),check=installedPackagePreviewChecker()
+ await Promise.all(activity.map(async entry=>{
+  const profile=getConsoleProfile(entry.consoleId)
+  if(!profile.online || !(profile.paired || profile.transport==='payload') || !packageIds.length)return
+  const key=JSON.stringify([profile.id,profile.ip,profile.transport,packageIds]),cached=liveActivitySnapshots.get(key)
+  if(cached&&cached.until>Date.now()){entry.installedPackageIds=await cached.value;return}
+  const value=(async()=>{const present:string[]=[];for(let offset=0;offset<packageIds.length;offset+=8){await Promise.all(packageIds.slice(offset,offset+8).map(async id=>{try{const pkg=getPackage(id);if((await check(profile,pkg)).state==='installed')present.push(id)}catch{/* Unavailable package is not installed proof. */}}))}return present})()
+  if(liveActivitySnapshots.size>64)liveActivitySnapshots.clear()
+  liveActivitySnapshots.set(key,{until:Date.now()+5000,value});entry.installedPackageIds=await value
+ }))
+ return activity
+}
+const activeStates = ['pending','sending','waiting','receiving','installing','verifying','unconfirmed']
+const packageSummary = (item: ReturnType<typeof getPackage>) => ({packageId:item.id,title:item.title,titleId:item.titleId,type:item.type,version:item.appVersion || '',size:item.size})
 export async function previewDeviceInstall(selection: DeviceSelection, destinations?: string[]): Promise<DeviceInstallPreview> {
   const ids = resolveDeviceSelection(selection), items = ids.map(id => getPackage(id))
   if (destinations) for (let offset=0;offset<destinations.length;offset+=8) await Promise.all(destinations.slice(offset,offset+8).map(id => refreshConsoleProfile(id, true)))
   else await refreshConsoleProfiles()
+  const checkInstalled = installedPackagePreviewChecker()
   const size = items.reduce((sum,item) => sum + item.size, 0)
-  return { selection:{ packageIds:ids }, files:ids.length, size, devices:getConsoleProfiles().consoles.map(profile => {
+  return { selection:{ packageIds:ids }, files:ids.length, size, packages:items.map(packageSummary), devices:(await Promise.all(getConsoleProfiles().consoles.map(async profile => {
     if (destinations && !destinations.includes(profile.id)) return null
     const queue = deviceQueue(profile.id), running = ['running','cancelling'].includes(queue.status)
-    const existing = new Set(running ? queue.items.filter(item => item.state !== 'cancelled').map(item => item.packageId) : [])
-    const additional = items.filter(item => !existing.has(item.id)).reduce((sum,item) => sum + item.size, 0)
+    const existing = new Set(running ? queue.items.filter(item => activeStates.includes(item.state)).map(item => item.packageId) : [])
+    const checks = []
+    if (profile.online && (profile.paired || profile.transport === 'payload')) for (let offset=0;offset<items.length;offset+=8) checks.push(...await Promise.all(items.slice(offset,offset+8).map(async item => ({ item, check: await checkInstalled(profile,item) }))))
+    const installedPackages = checks.filter(({check}) => ['installed','base-present'].includes(check.state)).map(({item,check}) => {
+      const components=check.components || []
+      const relevant=components.filter(c=>item.installOrder===0 || c.kind===(item.type==='DLC'?'dlc':'patch') && (c.kind!=='dlc'||c.contentId===item.contentId))
+      const covers = replacementCoversComponents(relevant,items)
+      const removable = !!relevant.length && relevant.every(c=>c.canRemove)
+      const inQueueHistory=running&&queue.items.some(old=>old.packageId===item.id&&!activeStates.includes(old.state))
+      const canReinstall=profile.platform==='ps4' && profile.transport!=='payload' && !running && removable && covers
+      return {...packageSummary(item), detail:check.detail,canOverwrite:profile.platform==='ps5'&&!inQueueHistory&&contentFormat(item)==='pkg',canReinstall,
+        reinstallReason:inQueueHistory || running && profile.platform==='ps4' ? 'Дождитесь завершения прежней очереди перед переустановкой' : profile.platform==='ps4' ? !covers ? 'Добавьте в набор все патчи и DLC, которые удаляются вместе с базой' : !removable ? 'Служба не подтвердила возможность удаления компонента' : '' : contentFormat(item)!=='pkg'?'Переустановка этого формата доступна через «На консоли»':'',
+        affected:item.installOrder===0?relevant.filter(c=>c.kind!=='base').map(c=>`${c.kind}: ${c.title || c.contentId}`):[]}
+    })
+    const installedIds = new Set(installedPackages.map(item => item.packageId))
+    const additional = items.filter(item => !existing.has(item.id) && !installedIds.has(item.id)).reduce((sum,item) => sum + item.size, 0)
     const pendingBytes = running ? queue.items.filter(item => ['pending','sending','waiting','receiving','installing','verifying','unconfirmed'].includes(item.state)).reduce((sum,item) => sum + (item.size || 0), 0) : 0
     // Conservative estimate: a staged PS5 PKG also needs room for its installed content.
     const sourceBytes=additional+pendingBytes
     const requiredBytes = sourceBytes ? profile.platform === 'ps5' ? sourceBytes*2 : requiredInstallSpace(sourceBytes) : 0
-    const payloadBusy = profile.transport === 'payload' && getConsoleProfiles().consoles.some(other => other.id !== profile.id && other.platform === 'ps4' && getInstallationQueue(other.ip).transport === 'payload' && ['running','cancelling'].includes(getInstallationQueue(other.ip).status))
+    const payloadBusy = profile.transport === 'payload' && getConsoleProfiles().consoles.some(other => other.id !== profile.id && other.platform === 'ps4' && peekInstallationQueue(other.ip).transport === 'payload' && ['running','cancelling'].includes(peekInstallationQueue(other.ip).status))
     const multiplePayload = profile.transport === 'payload' && !!destinations && getConsoleProfiles().consoles.filter(other => destinations.includes(other.id) && other.transport === 'payload').length > 1
-    const reason = deviceInstallReason(profile,items,requiredBytes) || (payloadBusy || multiplePayload ? 'Для параллельной установки используйте PackageFlowService. PyLoader обслуживает одну приставку' : '') || (queue.status === 'cancelling' ? 'Дождитесь завершения отмены очереди' : '') ||
+    const finishedRetry=running && items.some(item=>!installedIds.has(item.id)&&queue.items.some(old=>old.packageId===item.id&&!activeStates.includes(old.state)))
+    const maintenance=readMaintenance()[profile.ip]
+    const reason = maintenance&&!['completed','failed'].includes(maintenance.state) ? 'Дождитесь завершения переустановки или обновления службы' : deviceInstallReason(profile,items,requiredBytes) || (sourceBytes && profile.freeBytes===undefined ? 'Не удалось прочитать свободное место с приставки' : '') || checks.find(({check})=>check.state === 'unavailable')?.check.detail || (payloadBusy || multiplePayload ? 'Для параллельной установки используйте PackageFlowService. PyLoader обслуживает одну приставку' : '') || (finishedRetry ? 'Выбранный пакет есть в истории текущей очереди. Дождитесь её завершения перед новым заданием' : '') || (queue.status === 'cancelling' ? 'Дождитесь завершения отмены очереди' : '') ||
       (running && profile.platform === 'ps4' && queue.transport !== (profile.transport || 'service') ? 'Очередь использует другой способ установки' : '')
-    return { profile, eligible:!reason, reason, pending:running ? queue.items.filter(item => item.state === 'pending').length : 0, requiredBytes }
-  }).filter((item): item is NonNullable<typeof item> => item !== null) }
+    const queuedPackages = running ? queue.items.filter(item=>activeStates.includes(item.state)).map(item=>({packageId:item.packageId,title:item.title || item.packageId,titleId:item.titleId || '',type:item.type || '',version:'',size:item.size || 0})) : []
+    const reviewToken=createHash('sha256').update(JSON.stringify({ids:[...ids].sort(),checks:checks.map(({item,check})=>[item.id,check.state,check.revision || '',(check.components || []).map(c=>[c.id,c.kind,c.contentId,c.version,c.canRemove]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),queue:running?{id:queue.id,items:queuedPackages.map(item=>item.packageId)}:null})).digest('hex')
+    return { profile, eligible:!reason, reason, selectedBytes:additional,queueBytes:pendingBytes,reviewToken,queuedPackages, pending:running ? queue.items.filter(item => item.state === 'pending').length : 0, requiredBytes, installedPackages }
+  }))).filter((item): item is NonNullable<typeof item> => item !== null) }
 }
 
-export async function dispatchDeviceInstall(id: string, packageIds: string[], host: string) {
+export async function dispatchDeviceInstall(id: string, packageIds: string[], host: string, overwritePackageIds: string[] = []) {
   const profile = getConsoleProfile(id), queue = deviceQueue(id), running = queue.status === 'running'
-  const seen = new Set(running ? queue.items.filter(item => item.state !== 'cancelled').map(item => item.packageId) : [])
+  const seen = new Set(running ? queue.items.filter(item => activeStates.includes(item.state)).map(item => item.packageId) : [])
   const ids = packageIds.filter(id => !seen.has(id)).map(id=>getPackage(id)).sort((a,b)=>contentBranchKey(a).localeCompare(contentBranchKey(b)) || a.installOrder-b.installOrder || (a.appVersion || '').localeCompare(b.appVersion || '',undefined,{numeric:true}) || a.fileName.localeCompare(b.fileName,undefined,{numeric:true})).map(item=>item.id)
   if (!ids.length) return queue
-  if (profile.platform === 'ps5') return startPs5Queue({ consoleId:id, packageIds:ids, queueId:running ? queue.id : undefined })
+  if (profile.platform === 'ps5') return startPs5Queue({ consoleId:id, packageIds:ids, queueId:running ? queue.id : undefined, overwritePackageIds:overwritePackageIds.filter(id=>ids.includes(id)) })
   const pcIp = await getLocalIp(profile.ip), port = host.match(/:(\d+)$/)?.[1] || '3000'
   const input = { psIp:profile.ip, packageIds:ids, packageUrls:Object.fromEntries(ids.map(id => [id,`http://${pcIp}:${port}/json/${id}.json`])) }
   return running ? appendInstallationQueue({ ...input, queueId:queue.id! }) : startInstallationQueue({ ...input, transport:profile.transport || 'service' })
@@ -105,12 +150,15 @@ export function readDeviceBatch(id: string) {
   if (!existsSync(path)) throw createError({statusCode:404,message:'Установка не найдена'})
   return publicBatch(JSON.parse(readFileSync(path,'utf8')) as BatchRecord)
 }
-export async function installDeviceBatch(id: string, selection: DeviceSelection, destinations: string[], host: string) {
+export async function installDeviceBatch(id: string, selection: DeviceSelection, destinations: string[], host: string, overwrite: Record<string,string[]> = {}, reviewTokens: Record<string,string> = {}) {
   const path = batchPath(id)
   if (!Array.isArray(destinations) || !destinations.length || destinations.some(id => typeof id !== 'string')) throw createError({statusCode:400,message:'Выберите устройства'})
   const targets = [...new Set(destinations)].sort(); targets.forEach(getConsoleProfile)
   const ids = resolveDeviceSelection(selection).sort()
-  const fingerprint = createHash('sha256').update(JSON.stringify({targets,ids})).digest('hex')
+  if (!overwrite || Array.isArray(overwrite) || typeof overwrite !== 'object' || Object.entries(overwrite).some(([target, values]) => !targets.includes(target)  || !Array.isArray(values) || values.some(value => typeof value !== 'string' || !ids.includes(value) || contentFormat(getPackage(value)) !== 'pkg'))) throw createError({ statusCode:400, message:'Неверное подтверждение повторной установки' })
+  if (!reviewTokens || Array.isArray(reviewTokens) || typeof reviewTokens!=='object' || Object.entries(reviewTokens).some(([target,token])=>!targets.includes(target)||!(/^[a-f0-9]{64}$/.test(token)))) throw createError({statusCode:400,message:'Неверное подтверждение состава установки'})
+  const overwriteBinding = Object.fromEntries(Object.entries(overwrite).filter(([,values])=>values.length).sort().map(([key, values])=>[key,[...new Set(values)].sort()]))
+  const fingerprint = createHash('sha256').update(JSON.stringify({targets,ids,...(Object.keys(overwriteBinding).length?{overwrite:overwriteBinding}:{}),...(Object.keys(reviewTokens).length?{reviewTokens}: {})})).digest('hex')
   if (existsSync(path)) {
     const saved = JSON.parse(readFileSync(path,'utf8')) as BatchRecord
     if (saved.fingerprint !== fingerprint) throw createError({statusCode:409,message:'Этот идентификатор уже использован для другой установки'})
@@ -123,12 +171,38 @@ export async function installDeviceBatch(id: string, selection: DeviceSelection,
   writeDurableJson(path,saved)
   const operation = (async () => {
     const preview = await previewDeviceInstall({packageIds:ids},targets)
+    const reinstallPlans=new Map<string,Awaited<ReturnType<typeof selectedReinstallPlan>>>()
+    for (const device of preview.devices) {
+      const approved=overwriteBinding[device.profile.id] || []
+      const approvedPackages=approved.map(id=>device.installedPackages.find(pkg=>pkg.packageId===id))
+      if ((device.installedPackages.length || device.queuedPackages.length || reviewTokens[device.profile.id]) && reviewTokens[device.profile.id]!==device.reviewToken) {device.eligible=false;device.reason='Состав устройства или очереди изменился. Обновите и подтвердите таблицу заново';continue}
+      if(approvedPackages.some(pkg=>!pkg || !(pkg.canOverwrite || pkg.canReinstall))) {device.eligible=false;device.reason='Выбранные пакеты нельзя переустановить этим способом';continue}
+      const extra=approvedPackages.reduce((sum,pkg)=>sum+(pkg?.size || 0),0), sourceBytes=device.selectedBytes+device.queueBytes+extra
+      device.requiredBytes=sourceBytes ? device.profile.platform==='ps5'?sourceBytes*2:requiredInstallSpace(sourceBytes):0
+      const reason=deviceInstallReason(device.profile,ids.map(getPackage),device.requiredBytes) || (device.requiredBytes && device.profile.freeBytes===undefined ? 'Не удалось прочитать свободное место с приставки' : '')
+      if(reason){device.eligible=false;device.reason=reason;continue}
+      if(device.profile.platform==='ps4'&&approved.length){
+        if(device.queuedPackages.length){device.eligible=false;device.reason='Для переустановки дождитесь завершения или отмены прежней очереди';continue}
+        reinstallPlans.set(device.profile.id,await selectedReinstallPlan(device.profile.ip,approved))
+      }
+    }
     if (preview.devices.some(device => !device.eligible)) {
       saved.results = saved.results.map(result => ({...result,state:'failed',message:preview.devices.find(device=>device.profile.id===result.consoleId)?.reason || 'Установка не началась: проверьте остальные выбранные устройства'}))
     } else {
       // Separate results and queue identity for every console; one failure never stops the others.
       await Promise.all(saved.results.map(async result => {
-        try { const queue = await dispatchDeviceInstall(result.consoleId,ids,host); result.state='queued'; result.queueId=queue.id; result.message='Файлы добавлены в очередь устройства' }
+        try {
+          const device=preview.devices.find(v=>v.profile.id===result.consoleId)!, approved=overwriteBinding[result.consoleId] || []
+          const sendIds=ids.filter(id=>!device.installedPackages.some(pkg=>pkg.packageId===id) || approved.includes(id)).map(getPackage).sort((a,b)=>contentBranchKey(a).localeCompare(contentBranchKey(b)) || a.installOrder-b.installOrder || (a.appVersion || '').localeCompare(b.appVersion || '',undefined,{numeric:true})).map(pkg=>pkg.id)
+          if(!sendIds.length){result.state='queued';result.message='Все выбранные пакеты подтверждены на приставке и пропущены';return}
+          const steps=reinstallPlans.get(result.consoleId)
+          if(steps){
+            const pcIp=await getLocalIp(device.profile.ip),port=host.match(/:(\d+)$/)?.[1] || '3000'
+            const flow=await beginSelectedReinstall(device.profile.ip,{packageIds:sendIds,packageUrls:Object.fromEntries(sendIds.map(id=>[id,`http://${pcIp}:${port}/json/${id}.json`]))},steps)
+            result.queueId=flow.id;result.message='Переустановка выбранных компонентов принята. После удаления начнётся выбранный набор'
+          }else{const queue=await dispatchDeviceInstall(result.consoleId,sendIds,host,approved);result.queueId=queue.id;result.message='Только выбранные новые пакеты и переустановки добавлены в очередь'}
+          result.state='queued'
+        }
         catch (error: any) { result.state='failed'; result.message=error?.message || 'Не удалось запустить очередь устройства' }
         writeDurableJson(path,saved)
       }))

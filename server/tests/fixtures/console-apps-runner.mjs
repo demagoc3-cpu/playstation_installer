@@ -9,6 +9,7 @@ process.chdir(directory); mkdirSync('.data')
 globalThis.createError = v => Object.assign(new Error(v.message), v)
 registerHooks({ resolve(s, c, next) { try { return next(s,c) } catch(e) { if(s.startsWith('.') && !/\.[a-z]+$/.test(s)) return next(`${s}.ts`,c); throw e } } })
 const ip = '192.168.88.147', token = 'abcdef0123456789abcdef0123456789'
+writeFileSync('.data/legacy-console.json', JSON.stringify({ version: 1, ip }))
 writeFileSync('.data/ps4-service-keys.json',JSON.stringify({[ip]:token}))
 const label = 'ABCDEFGHIJKLMNOP', revision = '0123456789abcdef'
 const app = {titleId:'CUSA00001',title:'Real console game',version:'01.23',installed:true,protected:false}
@@ -47,7 +48,9 @@ try {
    await client.submitConsoleRemoval(ip,input); assert.equal(posts,1)
    const running=await client.getConsoleRemoval(ip);assert.equal(running.state,'running');assert.equal(running.pending,false);assert.equal(gets,1)
    job.state='verifying';job.completed=1;const checking=await client.getConsoleRemoval(ip);assert.equal(checking.state,'verifying');assert(JSON.parse(readFileSync('.data/package-library.json')).packages.every(p=>p.installedAt))
-   job.state='removed';const removed=await client.getConsoleRemoval(ip);assert.equal(removed.state,'removed'); const library=JSON.parse(readFileSync('.data/package-library.json')).packages;assert(library[0].installedAt&&library[1].installedAt);assert.equal(library[2].installedAt,undefined);store.assertNoRemoval(ip)
+   // Installed marks are per console now; the shared source index deliberately
+   // keeps its legacy fields. Verify the selected device's public projection.
+   job.state='removed';const removed=await client.getConsoleRemoval(ip);assert.equal(removed.state,'removed'); const library=(await load('package-library')).getLibraryPackages(ip);assert(library[0].installedAt&&library[1].installedAt);assert.equal(library[2].installedAt,undefined);store.assertNoRemoval(ip)
    await client.submitConsoleRemoval(ip,input);assert.equal(posts,1);assert.equal(JSON.stringify(removed).includes(token),false)
   }
  }

@@ -7,6 +7,7 @@ import { authenticatedServiceRequest, consoleFileRead, consoleFileRequest, conso
 import { consoleRuntime } from './console-control'
 import { getLibraryPackages } from './package-library'
 import { readSaveBackup, saveBackupRoot } from './save-backup-store'
+import { ps4ManagementIp } from './console-management-target'
 
 const userIdPattern = /^[0-9a-f]{8}$/i
 const titleIdPattern = /^[A-Z0-9]{9}$/
@@ -97,6 +98,7 @@ interface BackupFile { path: string; bytes: number; sha256: string }
 /** Copy an already mounted and unmounted read-only export from PS4 /data to WEB.
  * The local directory is only published by metadata.json after all hashes match. */
 export async function createSaveBackup(ip: string, rawUserId: unknown, rawTitleId: unknown, rawSlot: unknown, internal = false) {
+  ip = ps4ManagementIp(ip)
   const userId = validUser(rawUserId), titleId = validTitle(rawTitleId)
   if (typeof rawSlot !== 'string' || !/^[A-Za-z0-9_-]{1,31}$/.test(rawSlot))
     throw createError({ statusCode: 400, message: 'Неверное имя сохранения' })
@@ -153,7 +155,7 @@ export async function createSaveBackup(ip: string, rawUserId: unknown, rawTitleI
     await copy(remoteRoot, localFiles, '', 0)
     if (count !== staged.files || transferred !== staged.bytes || !files.length)
       throw createError({ statusCode: 502, message: 'Состав сохранения не совпал с экспортом PS4' })
-    const manifest = { format: 'pfs-decrypted-save-backup-v1', id, userId, titleId, slot: rawSlot, createdAt: new Date().toISOString(),
+    const manifest = { format: 'pfs-decrypted-save-backup-v1', id, sourceIp: ip, userId, titleId, slot: rawSlot, createdAt: new Date().toISOString(),
       visibility: internal ? 'internal' : 'manual', files }
     writeFileSync(resolve(localRoot, 'metadata.json'), JSON.stringify(manifest, null, 2), { flag: 'wx', mode: 0o600 })
     let cleanupPending = false
@@ -173,7 +175,10 @@ function gameFiles(files: { path: string; bytes: number; sha256: string }[]) {
 
 /** Existing-save restore on the same PS4 and profile. The current slot is saved first. */
 export async function restoreSaveBackup(ip: string, rawId: unknown) {
+  ip = ps4ManagementIp(ip)
   const source = readSaveBackup(rawId, true)
+  if (!source.manifest.sourceIp || source.manifest.sourceIp !== ip)
+    throw createError({ statusCode: 409, message: 'Копия не привязана к выбранной PS4. Восстановление остановлено' })
   const { userId, titleId, slot } = source.manifest
   const catalog = await getConsoleCatalog(ip)
   if (!catalog.complete || !catalog.apps.some(app => app.titleId === titleId))

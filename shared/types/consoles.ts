@@ -10,6 +10,7 @@ export interface ConsoleCapabilities {
   background: boolean
   contentTypes?: string[]
   folder?: { route: 'staged-folder'; ready: true; verificationWindow?: 2 }
+  images?: { route: 'staged-image'; ready: true; protocol: 'image-registration-v1'; backend: 'ShadowMountPlus-1.7beta3'; registrationReceipt: true }
   installation?: { route: 'staged-pkg'; ready: boolean; reason: string; exactVersionReceipt: false }
 }
 
@@ -36,11 +37,13 @@ export interface DeviceSelection {
   librarySelection?: { scope: 'all' | 'dlc'; titleId?: string; platform?: 'all' | 'ps4' | 'ps5' }
   preset?: { id: string; keys?: string[] }
 }
+export interface InstallPackageSummary { packageId:string; title:string; titleId:string; type:string; version:string; size:number }
 export interface DeviceInstallPreview {
   selection: { packageIds: string[] }
   files: number
   size: number
-  devices: Array<{ profile: ConsoleProfile; eligible: boolean; reason: string; pending: number; requiredBytes: number }>
+  packages: InstallPackageSummary[]
+  devices: Array<{ profile: ConsoleProfile; eligible: boolean; reason: string; pending: number; requiredBytes: number; selectedBytes:number; queueBytes:number; reviewToken:string; queuedPackages:InstallPackageSummary[]; installedPackages: Array<InstallPackageSummary & { detail:string; canOverwrite:boolean; canReinstall:boolean; reinstallReason:string; affected:string[] }> }>
 }
 export interface DeviceActivity {
   consoleId: string; status: string; queueId?: string; message?: string

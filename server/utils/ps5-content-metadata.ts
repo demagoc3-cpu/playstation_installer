@@ -196,21 +196,21 @@ export function ps5ParamMetadata(raw: Buffer) {
   if (!/^PPSA\d{5}$/.test(value.titleId || '') || typeof value.contentId !== 'string' || !value.contentId.includes(`${value.titleId}_`)) throw new Error('Invalid PS5 metadata')
   const localized = value.localizedParameters || {}, name = localized['ru-RU']?.titleName || localized[localized.defaultLanguage]?.titleName || localized['en-US']?.titleName
   if (typeof name !== 'string' || !name.trim() || name.length > 512 || /[\x00-\x1f]/.test(name)) throw new Error('Invalid PS5 title')
-  const firmware = (field: unknown) => { const match = typeof field === 'string' && /^0x([0-9a-f]{8})([0-9a-f]{8})$/i.exec(field); const version = match && (match[1] === '00000000' ? match[2] : match[1]); return version && /^\d{4}/.test(version) && !/^0000/.test(version) ? `${Number(version.slice(0, 2))}.${version.slice(2, 4)}` : undefined }
+  const firmware = (field: unknown, allowZero = false) => { const match = typeof field === 'string' && /^0x([0-9a-f]{8})([0-9a-f]{8})$/i.exec(field); const version = match && (match[1] === '00000000' ? match[2] : match[1]); return version && /^\d{4}/.test(version) && (allowZero || !/^0000/.test(version)) ? `${Number(version.slice(0, 2))}.${version.slice(2, 4)}` : undefined }
   // Unknown PS5 category values must not be treated as a base game.
   const category = value.applicationCategoryType
   if (category !== 0) throw new Error('Unsupported PS5 category')
-  return { platform: 'ps5' as const, signature: 'unknown' as const, title: name.trim(), titleId: value.titleId as string, contentId: value.contentId as string, appVersion: String(value.contentVersion || ''), masterVersion: String(value.masterVersion || ''), requiredFirmware: firmware(value.requiredSystemSoftwareVersion), sdkFirmware: firmware(value.sdkVersion), type: 'Игра' as const, contentType: 'PS5GD', packageVolume: 'application' as const, installOrder: 0, packageDigest: '' }
+  return { platform: 'ps5' as const, signature: 'unknown' as const, title: name.trim(), titleId: value.titleId as string, contentId: value.contentId as string, appVersion: String(value.contentVersion || ''), masterVersion: String(value.masterVersion || ''), requiredFirmware: firmware(value.requiredSystemSoftwareVersion, true), sdkFirmware: firmware(value.sdkVersion), type: 'Игра' as const, contentType: 'PS5GD', packageVolume: 'application' as const, installOrder: 0, packageDigest: '' }
 }
 
-async function metadata(entries: Entry[], depth = 0): Promise<{ param: Buffer; cover?: Buffer }> {
+async function metadata(entries: Entry[], depth = 0, includeCover = true): Promise<{ param: Buffer; cover?: Buffer }> {
   const sys = entries.find(item => item.directory && item.name.toLowerCase() === 'sce_sys')
-  if (sys) { const files = await sys.entries(), param = files.find(item => !item.directory && item.name.toLowerCase() === 'param.json'); if (param) return { param: await param.read(), cover: await files.find(item => !item.directory && item.name.toLowerCase() === 'icon0.png')?.read().catch(() => undefined) } }
-  if (depth === 0) for (const folder of entries.filter(item => item.directory && /^PPSA\d{5}$/i.test(item.name))) { try { return await metadata(await folder.entries(), depth + 1) } catch {} }
+  if (sys) { const files = await sys.entries(), param = files.find(item => !item.directory && item.name.toLowerCase() === 'param.json'); if (param) return { param: await param.read(), cover: includeCover ? await files.find(item => !item.directory && item.name.toLowerCase() === 'icon0.png')?.read().catch(() => undefined) : undefined } }
+  if (depth === 0) for (const folder of entries.filter(item => item.directory && /^PPSA\d{5}$/i.test(item.name))) { try { return await metadata(await folder.entries(), depth + 1, includeCover) } catch {} }
   throw new Error('PS5 param.json missing')
 }
 
-export async function readPs5ImageMetadata(path: string) {
+export async function readPs5ImageMetadata(path: string, includeCover = true) {
   const source = await fileReader(path)
   try {
     const head = await source.reader.read(0, Math.min(512, source.reader.size))
@@ -231,23 +231,27 @@ export async function readPs5ImageMetadata(path: string) {
         throw new Error('PS5 metadata entry missing')
       }
       const param = ps5ParamMetadata(await entry(0x2000))
-      return { ...param, format: 'pkg' as const, signature: head[5] === 0 ? 'fake' as const : 'retail' as const, cover: await entry(0x1200).catch(() => undefined) }
+      return { ...param, format: 'pkg' as const, signature: head[5] === 0 ? 'fake' as const : 'retail' as const, cover: includeCover ? await entry(0x1200).catch(() => undefined) : undefined }
     }
     let format: ContentFormat, entries: Entry[]
     if (head.toString('ascii', 3, 11) === 'EXFAT   ') { format = 'exfat'; entries = await exfatEntries(source.reader) }
     else if (head.length >= 16 && u64(head, 0) === 2 && u64(head, 8) === 20130315) { const pfs = await pfsEntries(source.reader); format = pfs.compressed ? 'ffpfsc' : 'pfs'; entries = pfs.entries }
     else { format = 'ufs2'; entries = await ufsEntries(source.reader) }
-    const result = await metadata(entries)
+    const result = await metadata(entries, 0, includeCover)
     return { ...ps5ParamMetadata(result.param), format, cover: result.cover }
   } finally { await source.close() }
 }
 
-export async function readPs5FolderMetadata(path: string) {
+export async function readPs5FolderParam(path: string) {
   const root = await realpath(path)
   const paramPath = join(root, 'sce_sys', 'param.json'), bootPath = join(root, 'eboot.bin')
   for (const file of [paramPath, bootPath]) { const info = await lstat(file); if (!info.isFile() || await realpath(file) !== file) throw new Error('Invalid PS5 folder') }
   if ((await stat(paramPath)).size > 128 * 1024) throw new Error('param.json too large')
-  const param = ps5ParamMetadata(await readFile(paramPath))
+  return ps5ParamMetadata(await readFile(paramPath))
+}
+
+export async function readPs5FolderMetadata(path: string) {
+  const root = await realpath(path), param = await readPs5FolderParam(root)
   let files = 0, size = 0, modifiedAt = 0
   async function measure(directory: string, depth = 0) {
     if (depth > 32) throw new Error('Folder depth limit exceeded')

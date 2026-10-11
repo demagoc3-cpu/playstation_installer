@@ -5,6 +5,8 @@ import { createError } from 'h3'
 import { writeJsonFile } from './json-store'
 import type { SearchResult, SearchPage } from '../../shared/types/search'
 import { searchTitleMetadata } from '../../shared/search-metadata'
+import { searchReleaseFormats } from '../../shared/search-formats'
+import { DEFAULT_SEARCH_CATEGORIES, SEARCH_PLATFORM_CATEGORIES, type SearchPlatform } from '../../shared/search-platforms'
 import { htmlText, publicWebUrl } from './search-source-parser'
 import { registerSearchResults } from './search-source'
 
@@ -12,11 +14,11 @@ const settingsPath = dataPath('search-providers.json')
 export interface SearchSettings { name: string; endpoint: string; apiKey: string; categories: string }
 export interface PublicSearchSettings { name: string; endpoint: string; categories: string; hasApiKey: boolean; configured: boolean }
 
-const blank = (): SearchSettings => ({ name: 'Torznab', endpoint: '', apiKey: '', categories: '1180' })
+const blank = (): SearchSettings => ({ name: 'Torznab', endpoint: '', apiKey: '', categories: DEFAULT_SEARCH_CATEGORIES })
 function readSettings(): SearchSettings {
   try {
     const stored = JSON.parse(readFileSync(settingsPath, 'utf8'))
-    let category = '1180'
+    let category = DEFAULT_SEARCH_CATEGORIES
     try { category = new URL(stored.endpoint).searchParams.get('cat') ?? category } catch { /* Validated before searching. */ }
     return { ...blank(), ...stored, categories: stored.categories ?? category }
   } catch { return blank() }
@@ -79,10 +81,11 @@ export function parseTorznabResults(xml: string): SearchResult[] {
     const cover = publicWebUrl(torznabAttr(block, 'coverurl') || tag(block, 'coverurl') || attr(media, 'url'))
     const seeders = optionalNumber(torznabAttr(block, 'seeders')), peers = optionalNumber(torznabAttr(block, 'peers'))
     const leechers = optionalNumber(torznabAttr(block, 'leechers')) ?? (peers !== undefined && seeders !== undefined ? Math.max(0, peers - seeders) : undefined)
+    const metadata = searchTitleMetadata(title, categories)
     results.push({ title, source, size: positiveNumber(attr(enclosure, 'length') || torznabAttr(block, 'size') || tag(block, 'size')),
       seeders, leechers, peers, grabs: optionalNumber(torznabAttr(block, 'grabs')), published: tag(block, 'pubDate') || undefined,
       sourcePage, indexer, cover, description: description && description !== title ? description : undefined,
-      categories, ...searchTitleMetadata(title, categories) })
+      categories, ...metadata, formats: searchReleaseFormats(title, description, [], metadata.platform) })
   }
   return results
 }
@@ -106,8 +109,17 @@ export function parseSearchPage(xml: string, offset: number, _limit: number): Se
     notice: repeated ? 'Источник не поддерживает следующую страницу результатов.' : undefined }
 }
 
-export async function searchPackagePage(query: string, offset = 0, limit = 50): Promise<SearchPage> {
+export function parseSearchPlatforms(value: unknown): SearchPlatform[] | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string') throw createError({ statusCode: 400, message: 'Неверные платформы поиска' })
+  const platforms = value.split(',')
+  if (!platforms.length || platforms.some(platform => platform !== 'ps4' && platform !== 'ps5')) throw createError({ statusCode: 400, message: 'Выберите PS4 или PS5 для поиска' })
+  return [...new Set(platforms)] as SearchPlatform[]
+}
+
+export async function searchPackagePage(query: string, offset = 0, limit = 50, platforms?: SearchPlatform[]): Promise<SearchPage> {
   if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) throw createError({ statusCode: 400, message: 'Неверные параметры страницы поиска' })
+  if (platforms !== undefined && (!Array.isArray(platforms) || !platforms.length || platforms.some(platform => platform !== 'ps4' && platform !== 'ps5'))) throw createError({ statusCode: 400, message: 'Выберите PS4 или PS5 для поиска' })
   const settings = readSettings()
   if (!existsSync(settingsPath)) throw createError({ statusCode: 409, message: 'Сначала настройте разрешённый Torznab-источник' })
   const verified = validate(settings)
@@ -115,7 +127,8 @@ export async function searchPackagePage(query: string, offset = 0, limit = 50): 
   request.searchParams.set('t', 'search'); request.searchParams.set('q', query.trim())
   request.searchParams.set('extended', '1')
   request.searchParams.set('offset', String(offset)); request.searchParams.set('limit', String(limit))
-  if (verified.categories) request.searchParams.set('cat', verified.categories)
+  const categories = platforms ? (['ps4', 'ps5'] as const).filter(platform => platforms.includes(platform)).map(platform => SEARCH_PLATFORM_CATEGORIES[platform]).join(',') : verified.categories
+  if (categories) request.searchParams.set('cat', categories)
   else request.searchParams.delete('cat')
   if (verified.apiKey) request.searchParams.set('apikey', verified.apiKey)
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 60000)
@@ -128,4 +141,4 @@ export async function searchPackagePage(query: string, offset = 0, limit = 50): 
 }
 
 /** Preserve the array response for existing integrations. */
-export async function searchPackages(query: string) { return (await searchPackagePage(query)).results }
+export async function searchPackages(query: string, platforms?: SearchPlatform[]) { return (await searchPackagePage(query, 0, 50, platforms)).results }

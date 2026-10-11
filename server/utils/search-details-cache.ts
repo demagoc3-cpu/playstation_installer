@@ -6,6 +6,8 @@ import type { SearchDetails } from '../../shared/types/search'
 import { publicWebUrl } from './search-source-parser'
 
 const ttl = 24 * 60 * 60 * 1000
+// Older descriptions discarded format fields when extracting the synopsis.
+const cacheVersion = 2
 const maxEntries = 1000, maxFileBytes = 128 * 1024
 const pending = new Map<string, Promise<SearchDetails>>()
 let lastPrune = 0, writesSincePrune = 0
@@ -65,7 +67,7 @@ export async function cachedSearchDetails(source: string, load: () => Promise<Se
       const info = await stat(path)
       if (info.size > maxFileBytes) throw new Error('Invalid cache')
       const saved = JSON.parse(await readFile(path, 'utf8'))
-      if (saved.version === 1 && Number.isFinite(saved.expires) && saved.expires > Date.now() && saved.expires <= Date.now() + ttl && validDetails(saved.details)) return saved.details
+      if (saved.version === cacheVersion && Number.isFinite(saved.expires) && saved.expires > Date.now() && saved.expires <= Date.now() + ttl && validDetails(saved.details)) return saved.details
       await unlink(path).catch(() => {})
     } catch { /* Missing or invalid cache: refresh from HTTP. */ }
     const details = await load()
@@ -73,7 +75,7 @@ export async function cachedSearchDetails(source: string, load: () => Promise<Se
       const temporary = `${path}.${randomUUID()}.tmp`
       try {
         await mkdir(folder(), { recursive: true })
-        const data = JSON.stringify({ version: 1, expires: Date.now() + ttl, details })
+        const data = JSON.stringify({ version: cacheVersion, expires: Date.now() + ttl, details })
         if (Buffer.byteLength(data) > maxFileBytes) throw new Error('Cache too large')
         await writeFile(temporary, data, { mode: 0o600 })
         await rename(temporary, path)

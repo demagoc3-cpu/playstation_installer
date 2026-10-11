@@ -13,7 +13,9 @@ import { ps5OperationRequest } from './console-profiles'
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core'
 import { ps5InstallCapabilities, ps5InstallMessage } from '../../shared/ps5-install-readiness'
 import { getConsoleProfile } from './console-profiles'
-import { isPs5ImageFormat } from './ps5-image-driver'
+import { checkPs5InstalledPackage } from './installed-package-check'
+import { checkPs5SourceFirmware } from './ps5-installation-firmware'
+import { isPs5ImageFormat, createImagePlan, verifyImagePlan, runRegisteredImagePlan, cancelImagePlan, type ImagePlan } from './ps5-image-driver'
 const pause = (signal: AbortSignal) => new Promise<void>((resolve, reject) => {
   signal.throwIfAborted()
   const abort = () => { clearTimeout(timer); reject(signal.reason) }
@@ -37,8 +39,27 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
     try { return JSON.parse(readFileSync(planPath(item), 'utf8')) } catch { throw new Ps5QueueFailure('Не удалось прочитать сохранённый план Folder') }
   }
   const folderRequest: FolderRequest = (id, path, headers, body, signal) => request({ transferId: id } as Ps5Item, path as Parameters<typeof ps5OperationRequest>[1], headers, body, signal)
+  const imagePlanPath = (item: Ps5Item) => dataPath(`consoles/${consoleId}/${item.transferId}.image-plan.json`)
+  const readImagePlan = (item: Ps5Item): ImagePlan | undefined => {
+    if (!existsSync(imagePlanPath(item))) return
+    try { return JSON.parse(readFileSync(imagePlanPath(item), 'utf8')) } catch { throw new Ps5QueueFailure('Не удалось прочитать сохранённый план образа') }
+  }
+  const firmwareGate = async (source: ReturnType<typeof getPackage>, signal: AbortSignal) => {
+    const assessment = await checkPs5SourceFirmware(consoleId, source, signal)
+    if (assessment.state === 'unavailable') return { state: 'waiting' as const, detail: assessment.detail }
+    if (assessment.state !== 'compatible') throw new Ps5QueueFailure(assessment.detail)
+  }
+  const installedGate = async (item: Ps5Item, signal: AbortSignal) => {
+    if (item.overwriteApproved === true) return
+    const source = getPackage(item.packageId), profile = getConsoleProfile(consoleId)
+    const check = await checkPs5InstalledPackage(consoleId, profile.ip, source, signal)
+    if (check.state === 'unavailable') return { state: 'waiting' as const, detail: check.detail }
+    if (check.state === 'installed') return { state: 'installed' as const, confirmation: 'service-existing' as const, confirmedAt: Date.now(), alreadyPresent: true, detail: check.detail }
+    if (check.state === 'base-present') return { state: 'skipped' as const, alreadyPresent: true, detail: check.detail }
+  }
   return {
     async cancel(item) {
+      if (isPs5ImageFormat(item.format)) { await cancelImagePlan(readImagePlan(item), item, folderRequest); return }
       if (item.format === 'folder') { await cancelFolderPlan(readPlan(item), item, folderRequest); return }
       const r = await request(item, '/api/v1/transfers/cancel')
       if ([200,404].includes(r.status)) return
@@ -53,11 +74,26 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
     },
     async run(item, signal, save) {
       if (isPs5ImageFormat(item.format)) {
-        // The candidate publisher exists, but no mount/system-registration
-        // receipt for this own-service route exists yet. Historical mount tests
-        // remain valid. Never send an image to the PKG installer.
-        if (item.installDispatched) throw new Ps5QueueUncertain('Публикация образа требует отдельной сверки. Повтор не отправлен')
-        return { state: 'waiting', detail: 'Маршрут образов подготовлен. Подтверждение регистрации в новом маршруте ещё готовится' }
+        let plan = readImagePlan(item)
+        if (item.installDispatched) {
+          if (!plan || item.hash !== plan.imageHash) throw new Ps5QueueUncertain('План принятого образа недоступен. Повтор не отправлен')
+          return runRegisteredImagePlan(plan, item, signal, folderRequest, save)
+        }
+        const source = getPackage(item.packageId)
+        if (source.size !== item.size || source.contentId !== item.contentId || source.appVersion !== item.appVersion) throw new Ps5QueueFailure('Образ изменился в библиотеке')
+        const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal)
+        const capabilities = ps5InstallCapabilities(readiness.status, readiness.body, getConsoleProfile(consoleId).firmware)
+        if (!capabilities.images?.ready || !capabilities.formats.includes(item.format)) return { state: 'waiting', detail: 'Для установки образов требуется проверенный и запущенный ShadowMount+' }
+        const denied = await firmwareGate(source, signal); if (denied) return denied
+        const present = await installedGate(item, signal); if (present) return present
+        if (plan) await verifyImagePlan(plan, item, source.path)
+        else {
+          save({ state: 'verifying', progressPhase: 'source-check', bytesChecked: 0, detail: 'Проверяем исходный образ PS5' })
+          plan = await createImagePlan(source.path, item, signal, bytesChecked => save({ bytesChecked }))
+          writeDurableJson(imagePlanPath(item), plan)
+        }
+        save({ hash: plan.imageHash, sourceStamp: plan.stamp, bytesChecked: item.size })
+        return runRegisteredImagePlan(plan, item, signal, folderRequest, save)
       }
       if (item.format === 'folder') {
         let plan = readPlan(item)
@@ -70,6 +106,8 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
         const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal)
         const capabilities = ps5InstallCapabilities(readiness.status, readiness.body, getConsoleProfile(consoleId).firmware)
         if (!capabilities.formats.includes('folder')) return { state: 'waiting', detail: 'Служба ещё не подтвердила маршрут Folder' }
+        const denied = await firmwareGate(source, signal); if (denied) return denied
+        const present = await installedGate(item, signal); if (present) return present
         if (plan) await verifyFolderSource(plan, item, source.path, signal)
         else {
           save({ state: 'verifying', progressPhase: 'source-check', bytesChecked: 0, detail: 'Проверяем файлы исходной папки' })
@@ -112,6 +150,8 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       const capabilities = ps5InstallCapabilities(readiness.status, readiness.body, getConsoleProfile(consoleId).firmware)
       if (!capabilities.installation?.ready || !capabilities.formats.includes('pkg')) return { state: 'waiting', detail: ps5InstallMessage(capabilities) }
       if (!(item.platform === 'ps4' ? capabilities.installPs4 : item.platform === 'ps5' && capabilities.installPs5)) throw new Ps5QueueFailure('Этот маршрут установки не проверен для платформы пакета')
+      if (item.platform === 'ps5') { const denied = await firmwareGate(source, signal); if (denied) return denied }
+      const present = await installedGate(item, signal); if (present) return present
       const file = await open(source.path, 'r').catch(()=> { throw new Ps5QueueFailure('Не удалось открыть исходный пакет') })
       try {
         const initial = await file.stat(), identity = stamp(initial)

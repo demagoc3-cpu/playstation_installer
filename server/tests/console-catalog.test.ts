@@ -104,3 +104,47 @@ test('v2 favorites and branches keep PS4 and PS5 separate', () => {
   assert.deepEqual(buildConsoleCatalog(source, 'ru', { groupByPlatform: true, favoriteIds: ['ps5:SAME00001'] }).games.map(game => game.id), ['ps5:SAME00001'])
   assert.deepEqual(buildConsoleCatalog(source, 'ru', { groupByPlatform: true, favoriteIds: ['ps4'] }).games.map(game => game.id), ['ps4:SAME00001'])
 })
+
+test('global size ordering uses the base, before pagination, and leaves set totals intact', () => {
+  const source = Array.from({ length: 61 }, (_, i) => [
+    pkg({ id: `base-${i}`, titleId: `PPSA${String(i).padStart(5, '0')}`, title: `Game ${i}`, size: (i + 1) * 5_000_000_000 }),
+    pkg({ id: `patch-${i}`, titleId: `PPSA${String(i).padStart(5, '0')}`, type: 'Патч', installOrder: 1, size: (61 - i) * 500_000_000_000 }),
+  ]).flat().reverse()
+  const seen: string[] = []
+  for (let offset = 0; offset < 61; offset += 20) {
+    const page = buildConsoleCatalog(source, 'ru', { sort: 'size-desc', limit: 20, offset })
+    seen.push(...page.games.map(game => game.title))
+  }
+  assert.deepEqual(seen, Array.from({ length: 61 }, (_, i) => `Game ${60 - i}`))
+  const first = buildConsoleCatalog(source, 'ru', { sort: 'size-asc', limit: 10 }).games[0]!
+  assert.equal(first.baseSize, 5_000_000_000)
+  assert.equal(first.size, 5_000_000_000 + 61 * 500_000_000_000)
+  assert.equal(buildConsoleCatalog(source, 'ru', { sort: 'title-desc' }).games[0]!.title, 'Game 60')
+  assert.equal(buildConsoleCatalog(source, 'ru', { sort: 'invalid' }).games[0]!.title, 'Game 0')
+})
+
+test('base variants sort deterministically and a patch-only branch has no base size', () => {
+  const source = [pkg({ id: 'z', fileName: 'Z.pkg', size: 1 }), pkg({ id: 'a', fileName: 'A.pkg', size: 9 }),
+    pkg({ id: 'patch-only', titleId: 'CUSA00002', type: 'Патч', installOrder: 1, size: 100 })]
+  for (const items of [source, [...source].reverse()]) {
+    const games = buildConsoleCatalog(items, 'ru', { sort: 'size-asc' }).games
+    assert.equal(games[0]!.baseSize, 0)
+    assert.equal(games[0]!.size, 100)
+    assert.equal(games[1]!.baseSize, 9)
+    assert.equal(games[1]!.packages[0]!.id, 'a')
+  }
+  assert.deepEqual(source.map(item => item.id), ['z', 'a', 'patch-only'])
+})
+
+test('platform, search and favorites combine before global sorting and paging', async () => {
+  const { filterContent } = await import('../../shared/content-platform.ts')
+  const source = Array.from({ length: 45 }, (_, i) => pkg({ id: `game-${i}`, titleId: `SAME${String(i).padStart(5, '0')}`,
+    platform: i % 2 ? 'ps5' : 'ps4', title: `Wanted ${i}`, size: (i + 1) * 10_000_000_000 }))
+  const favorites = source.filter(item => Number(item.id.slice(5)) >= 10).map(item => item.id)
+  const games = buildConsoleCatalog(filterContent(source, 'ps5', 'ps5'), 'ru', {
+    groupByPlatform: true, q: 'Wanted', favoriteIds: favorites, sort: 'size-desc', limit: 10, offset: 10,
+  })
+  assert.equal(games.total, 17)
+  assert.deepEqual(games.games.map(item => item.title), ['Wanted 23', 'Wanted 21', 'Wanted 19', 'Wanted 17', 'Wanted 15', 'Wanted 13', 'Wanted 11'])
+  assert.equal(filterContent(source, 'ps5', 'ps4').length, 0)
+})

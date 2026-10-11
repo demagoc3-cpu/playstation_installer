@@ -1,6 +1,8 @@
+import { searchReleaseFormats } from './search-formats'
+
 /** These labels describe the release title; they are not verified PKG metadata. */
 export function searchTitleMetadata(title: string, categories: string[] = []) {
-  const platform = /\bPS4\b/i.test(title) ? 'PS4' : /\bPS5\b/i.test(title) ? 'PS5' : categories.includes('1180') ? 'PS4' : undefined
+  const platform = /\bPS4\b/i.test(title) ? 'PS4' : /\bPS5\b/i.test(title) ? 'PS5' : categories.includes('100546') ? 'PS5' : categories.includes('1180') ? 'PS4' : undefined
   const titleId = title.match(/\b(?:CUSA|PPSA)\d{5}\b/i)?.[0].toUpperCase()
   const region = title.match(/\b(EUR|USA|JPN|ASIA|WORLD)\b/i)?.[0].toUpperCase()
   const version = title.match(/(?:\b(?:v|ver(?:sion)?|версия)\s*[:.]?\s*)(\d{1,2}\.\d{2})(?!\d)/i)?.[1]
@@ -13,5 +15,5 @@ export function searchTitleMetadata(title: string, categories: string[] = []) {
   const firmwareSegment = title.match(/(?:backport|б[эе]кпорт|\bFW|firmware|прошивк[аи])\s*[:+\-]?\s*\[?([\d.\s/,+-]+)/i)?.[1]
   const firmwareVersions = [...new Set(firmwareSegment?.match(/\d{1,2}\.\d{2}/g) || [])]
   const displayTitle = title.replace(/\[[^\]]*\]/g, ' ').replace(/\b(?:PS4|PS5|Backport)\b|б[эе]кпорт/gi, ' ').replace(/\s*\+\s*$/g, '').replace(/\s+/g, ' ').trim() || title
-  return { displayTitle, platform, titleId, version, region, languages, firmwareVersions, backport }
+  return { displayTitle, platform, formats: searchReleaseFormats(title, '', [], platform), titleId, version, region, languages, firmwareVersions, backport }
 }

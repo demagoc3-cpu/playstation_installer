@@ -1,3 +1,5 @@
+import type { SearchReleaseFormat } from '../search-formats'
+
 export interface SearchResult {
   id?: string
   title: string
@@ -15,6 +17,7 @@ export interface SearchResult {
   cover?: string
   categories: string[]
   platform?: string
+  formats?: SearchReleaseFormat[]
   titleId?: string
   version?: string
   region?: string

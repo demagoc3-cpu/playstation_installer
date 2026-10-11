@@ -5,6 +5,8 @@ import { getMaintenance } from '../../../utils/console-maintenance'
 import { getTorrents, getQbitSettings } from '../../../utils/qbittorrent'
 import { consoleQueueTasks } from '../../../utils/console-app-data'
 import { ps4ServiceIp } from '../../../utils/ps4-service'
+import { nativeTaskControls, nativeTaskRow } from '../../../utils/native-task-contract'
+import { nativeInstallReviewCapability } from '../../../utils/native-install-review'
 export default defineEventHandler(async event => {
   setHeader(event, 'Cache-Control', 'no-store')
   const q = getQuery(event), ip = ps4ServiceIp(q.ip)
@@ -22,7 +24,8 @@ export default defineEventHandler(async event => {
     const mask = Math.max(0, Math.min(15, Number(q.mask ?? 15))), names = ['active','queued','completed','failed']
     const data = getInstallationTasks({ ip, page: q.page, view: 'table', categories: names.filter((_,i) => mask & (1 << i)).join(',') }), queue = getInstallationQueue(ip)
     const active = data.active // Active jobs remain pinned above filtered history.
-    return { tasks: [...active, ...data.items].map(task => ({ id: task.packageId, queueId: task.queueId, title: task.title, groupTitle: task.groupTitle, titleId: task.titleId, fileName: task.fileName, size: task.size, kind: ({'Игра':'game','Патч':'patch','Бэкпорт':'backport','DLC':'dlc'} as Record<string,string>)[task.type] || 'game', state: task.state, detail: task.detail, canCancel: task.canCancel, progress: task.state === 'installed' ? 100 : task.size ? Math.max(0, Math.min(99, Math.floor(task.bytesSent/task.size*100))) : 0 })),
+    return { tasks: [...new Map([...active, ...data.items].map(task => [task.id, task])).values()].map(task => nativeTaskRow(task, 'ps4')),
+      taskControls: nativeTaskControls('ps4'), installReview: nativeInstallReviewCapability(), maintenance: data.maintenance,
       currentPackageId: queue.psIp === ip && queue.status === 'running' ? active[0]?.packageId || '' : '', queueStatus: queue.psIp === ip ? queue.status : 'idle', queueId: queue.psIp === ip ? queue.id || '' : '', taskPage: data.page, taskPages: data.pages, taskTotal: data.total, counts: data.counts, message: '' }
   }
   // This also advances the existing maintenance flow after a reinstall.

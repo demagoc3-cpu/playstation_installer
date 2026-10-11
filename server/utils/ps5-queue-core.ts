@@ -7,9 +7,11 @@ export type Ps5State = 'pending' | 'sending' | 'verifying' | 'installing' | 'wai
 export interface Ps5Item {
   packageId: string; title: string; fileName: string; size: number; type: string; titleId: string
   platform: ContentPlatform; format: ContentFormat; branch: string; order: number; appVersion?: string; contentId?: string
+  alreadyPresent?: boolean; overwriteApproved?: boolean
   transferId: string; state: Ps5State; detail: string; bytesSent: number; completedAt?: number; installedAt?: number
   hash?: string; sourceStamp?: string; installDispatched?: boolean; serviceJobId?: string; cancelRequested?: boolean; hidden?: boolean
-  queueId?: string; createdAt?: number; confirmation?: 'user' | 'service-registration'; confirmedAt?: number
+  queueId?: string; createdAt?: number; confirmation?: 'user' | 'service-registration' | 'service-existing' | 'recorded-existing'; confirmedAt?: number
+  imagePublishedAt?: number
   progressPhase?: 'source-check' | 'transfer' | 'device-check'; bytesChecked?: number
 }
 export interface Ps5Queue {
@@ -90,8 +92,8 @@ export class Ps5QueueRunner {
     this.installed(item); this.wake()
     return this.snapshot()
   }
-  clear() {
-    for (const item of [...this.queue.items, ...this.queue.history.flat()]) if (terminal(item)) item.hidden = true
+  clear(selected: (item:Ps5Item)=>boolean = ()=>true) {
+    for (const item of [...this.queue.items, ...this.queue.history.flat()]) if (terminal(item)&&selected(item)) item.hidden = true
     this.save(); return this.snapshot()
   }
   wake() {
@@ -107,10 +109,10 @@ export class Ps5QueueRunner {
     while (this.queue.status === 'running') {
       const item = this.queue.items.find(entry => !terminal(entry))
       if (!item) {
-        this.queue.status = this.queue.items.every(entry => entry.state === 'cancelled') ? 'cancelled' : this.queue.items.some(entry => ['failed', 'skipped'].includes(entry.state)) ? 'failed' : 'completed'
+        this.queue.status = this.queue.items.every(entry => entry.state === 'cancelled') ? 'cancelled' : this.queue.items.some(entry => entry.state === 'failed' || entry.state === 'skipped' && !entry.alreadyPresent) ? 'failed' : 'completed'
         this.queue.message = 'Очередь PS5 завершена'; this.save(); return
       }
-      const failedBase = this.queue.items.some(entry => entry.branch === item.branch && entry.order === 0 && ['failed','cancelled','skipped'].includes(entry.state))
+      const failedBase = this.queue.items.some(entry => entry.branch === item.branch && entry.order === 0 && ['failed','cancelled','skipped'].includes(entry.state) && !entry.alreadyPresent)
       if (item.order > 0 && failedBase) { Object.assign(item, { state: 'skipped', detail: 'Базовая игра в этой очереди не установлена', completedAt: Date.now() }); this.save(); continue }
       this.activeItem = item; this.controller = new AbortController(); this.speed.reset(); this.speedUpdatedAt = 0
       const checkpoint = (patch: Partial<Ps5Item>) => {

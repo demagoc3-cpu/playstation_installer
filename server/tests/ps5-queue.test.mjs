@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createError } from 'h3'
+import { putPs5ParamPkg } from './fixtures/ps5-param-pkg.mjs'
 
 const work=mkdtempSync(join(tmpdir(),'pf-ps5-queue-')), bundle=join(work,'queue.mjs')
 await build({stdin:{contents:"export * from './server/utils/ps5-queue-core'; export * from './server/utils/ps5-queue-driver'; export * from './server/utils/ps5-installation-queue'; export * from './server/utils/ps5-app-commands'; export * from './server/utils/console-profiles';",resolveDir:resolve('.')},outfile:bundle,bundle:true,platform:'node',format:'esm',logLevel:'silent'})
@@ -85,7 +86,7 @@ test('driver reconciles lost chunk response, preserves hash and offset, and refu
     let profile=api.saveConsoleProfile({name:'own test',platform:'ps5',ip:'192.168.1.5'}).consoles.find(c=>c.platform==='ps5')
     profile=api.saveConsoleProfile({...profile,firmware:'13.60'}).consoles.find(c=>c.platform==='ps5')
     writeFileSync(join(process.env.PACKAGEFLOW_DATA_DIR,'ps5-service-keys.json'),JSON.stringify({[profile.ip]:'a'.repeat(64)}))
-    const contents=Buffer.alloc(9*1024*1024+19,39),source=join(work,'test.pkg');writeFileSync(source,contents)
+    const contents=putPs5ParamPkg(Buffer.alloc(9*1024*1024+19,39)),source=join(work,'test.pkg');writeFileSync(source,contents)
     const pkg={...input('own'),id:'own',path:source,libraryRoot:work,size:contents.length,contentType:'PS5GD',contentId:'IV0000-PPSA95001_00-PACKAGEFLOWUI001',appVersion:'01.000.001',sourceModifiedAt:1,installOrder:0,icon:{offset:0,size:0},iconSize:0,packageDigest:''}
     writeFileSync(join(process.env.PACKAGEFLOW_DATA_DIR,'package-library.json'),JSON.stringify({version:2,packages:[pkg],deliveries:{}}))
     const item={...input('own'),size:contents.length,contentId:pkg.contentId,appVersion:pkg.appVersion,transferId:'1'.repeat(32),state:'pending',detail:'',bytesSent:0}
@@ -99,6 +100,8 @@ test('driver reconciles lost chunk response, preserves hash and offset, and refu
       if(path==='/api/v1/capabilities')return response({service:'PackageFlowService-PS5',capabilities:{installPs4Pkg:true,installPs5Content:true}})
       if(path==='/api/v1/system')return response({service:'PackageFlowService-PS5',storageRead:false})
       if(path==='/api/v1/install/readiness')return response({service:'PackageFlowService-PS5',schemaVersion:1,route:'staged-pkg',ready:true,reason:'ready',formats:['pkg'],platforms:['ps4','ps5'],exactVersionReceipt:false})
+      if(path==='/api/v1/management/status')return response({protocol:'ps5-management-v1',ready:true,catalog:true})
+      if(path==='/api/v1/console/catalog')return response({revision:'a'.repeat(64),entries:[],next:0,done:true})
       if(path==='/api/v1/transfers/begin'){hash=opts.headers['X-PackageFlow-Blake3'];assert.match(hash,/^[0-9a-f]{64}$/);return response(describe())}
       if(path==='/api/v1/transfers/status')return response(describe())
       if(path==='/api/v1/transfers/chunk'){
@@ -123,7 +126,7 @@ test('driver reconciles lost chunk response, preserves hash and offset, and refu
     await assert.rejects(driver.run(item,new AbortController().signal,save),api.Ps5QueueUncertain,'transport complete is not proof of installed version')
     assert.equal(installs,1)
     const changed={...item,installDispatched:false};writeFileSync(source,Buffer.alloc(contents.length,40))
-    await assert.rejects(driver.run(changed,new AbortController().signal,patch=>Object.assign(changed,patch)),/изменился/)
+    await assert.rejects(driver.run(changed,new AbortController().signal,patch=>Object.assign(changed,patch)),/изменился|PARAM/)
     // Production capabilities stay disabled: no transfer even for a known PKG.
     let transferCalls=0
     globalThis.fetch=async(url)=>{const path=new URL(url).pathname;if(path==='/api/v1/install/readiness')return response({service:'PackageFlowService-PS5',schemaVersion:1,route:'staged-pkg',ready:false,reason:'installer_unavailable',formats:[],platforms:[],exactVersionReceipt:false});if(path==='/health')return response({apiVersion:'v1',serviceReport:{service:'PackageFlowService-PS5',platform:'ps5',consoleVerified:true}});if(path==='/api/v1/capabilities')return response({service:'PackageFlowService-PS5',capabilities:{installPs4Pkg:false,installPs5Content:false}});if(path==='/api/v1/system')return response({service:'PackageFlowService-PS5',storageRead:false,freeBytes:0,totalBytes:0});transferCalls++;assert.fail(path)}

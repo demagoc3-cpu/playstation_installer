@@ -3,7 +3,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createError } from 'h3'
 import { getConsoleProfile } from './console-profiles'
 import { getLibraryPackages } from './package-library'
-import { getPs5Queue, startPs5Queue, cancelPs5Queue, clearPs5Tasks, ps5TaskPackageId } from './ps5-installation-queue'
+import { getPs5Queue, startPs5Queue, cancelPs5Queue, clearPs5Tasks, ps5TaskPackageId, removePs5Tasks } from './ps5-installation-queue'
+import { normalizeNativeTaskControl, normalizeNativeInstallReview } from './native-task-contract'
 import { presetSelection } from './presets'
 import { inConsoleScope } from './console-scope'
 import { contentBranchKey, contentForConsole } from '../../shared/content-platform'
@@ -26,10 +27,14 @@ export function ps5AppCommand(consoleId: unknown, id: unknown) {
   if (receipt.state === 'pending' && !pending.has(`${p.id}:${id}`)) return { ...result, state:'uncertain', message:'WEB перезапустился во время команды. Обновите задания; автоматический повтор не выполнялся' }
   return result
 }
-export function submitPs5AppCommand(body: any) {
+export function submitPs5AppCommand(body: any, host = 'localhost:3000') {
+  // Snapshot scalar identity as well as normalized arrays before any await.
+  body = { ...body }
   const p = getConsoleProfile(body?.consoleId)
-  const actions = ['selected','all','patches','dlc','install-preset','install-favorites','clear-tasks','cancel-current','cancel-all','cancel-game','cancel-item','cancel-items','cancel-games','reinstall-preview','reinstall']
+  const actions = ['selected','all','patches','dlc','install-preset','install-favorites','clear-tasks','cancel-current','cancel-all','cancel-game','cancel-item','cancel-items','cancel-games','reinstall-preview','reinstall','remove-items','remove-games','install-reviewed']
   if (p.platform !== 'ps5' || !/^[0-9a-f]{32}$/.test(body?.requestId || '') || !actions.includes(body?.action)) throw createError({ statusCode:400,message:'Неверная команда PS5' })
+  const taskControl = normalizeNativeTaskControl(body, 'ps5')
+  const review = body.action === 'install-reviewed' ? normalizeNativeInstallReview(body) : undefined
   const list = (input: unknown, limit: number) => {
     if (input === undefined) return []
     if (!Array.isArray(input) || input.length > limit || input.some(id=>typeof id !== 'string' || !/^[a-zA-Z0-9_.:-]{1,128}$/.test(id))) throw createError({statusCode:400,message:'Неверный список пакетов'})
@@ -37,18 +42,26 @@ export function submitPs5AppCommand(body: any) {
   }
   const command = { action:body.action, gameId:typeof body.gameId === 'string' ? body.gameId : '', presetId:typeof body.presetId === 'string' ? body.presetId : '',
     queueId:typeof body.queueId === 'string' ? body.queueId : '', currentPackageId:typeof body.currentPackageId === 'string' ? body.currentPackageId : '',
-    packageIds:list(body.packageIds,10000), gameIds:list(body.gameIds,10000), favoriteIds:list(body.favoriteIds,512) }
+    packageIds:list(body.packageIds,10000), gameIds:list(body.gameIds,10000), favoriteIds:list(body.favoriteIds,512),
+    ...(review ? { reviewToken: review.reviewToken, overwritePackageIds: review.overwritePackageIds } : {}) }
   if ([command.gameId,command.presetId,command.queueId,command.currentPackageId].some(value=>value.length>128 || /[^a-zA-Z0-9_.:-]/.test(value))) throw createError({statusCode:400,message:'Неверный идентификатор'})
   const fingerprint = createHash('sha256').update(JSON.stringify(command)).digest('hex'), saved = receipts(p.id), old = saved[body.requestId]
   if (old) { if (old.fingerprint !== fingerprint) throw createError({statusCode:409,message:'Идентификатор команды уже использован'}); return ps5AppCommand(p.id,body.requestId) }
-  // Keep unresolved entries; don't permit their request IDs to dispatch again.
-  for (const [key,value] of Object.entries(saved).sort((a,b)=>b[1].createdAt-a[1].createdAt).slice(1024)) if (value.state !== 'pending') delete saved[key]
+  // Keep receipts: dropping old IDs would allow a delayed retry to dispatch again.
   saved[body.requestId] = { id:body.requestId,fingerprint,state:'pending',message:'Команда принята WEB',createdAt:Date.now() }
   writeDurableJson(path(p.id),saved); pending.add(`${p.id}:${body.requestId}`)
   void (async () => {
     let queueId: string | undefined, state: Receipt['state'] = 'completed', message = 'Команда выполнена'
     try {
-      if (command.action === 'clear-tasks') { clearPs5Tasks(p.id); message = 'Завершённые задания и ошибки убраны из списка' }
+      if (review) {
+        const { submitNativeInstallReview } = await import('./native-install-review')
+        const result = await submitNativeInstallReview({ ...command, consoleId: p.id, requestId: body.requestId }, 'ps5', host)
+        queueId = result.queueId; message = result.message
+        if (result.state !== 'queued') state = result.state === 'uncertain' ? 'uncertain' : 'failed'
+      } else if (taskControl) {
+        const result = removePs5Tasks(p.id, command.queueId, command.action === 'remove-items' ? command.packageIds : undefined, command.action === 'remove-games' ? command.gameIds : undefined)
+        queueId = command.queueId; message = result.message
+      } else if (command.action === 'clear-tasks') { clearPs5Tasks(p.id); message = 'Завершённые задания и ошибки убраны из списка' }
       else if (command.action.startsWith('cancel-')) {
         const queue = getPs5Queue(p.id)
         if (queue.id !== command.queueId) throw new Error('Очередь изменилась. Обновите задания')

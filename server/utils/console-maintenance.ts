@@ -74,6 +74,7 @@ export async function getMaintenance(ipValue: unknown) {
       }
     } catch { /* Keep the failure visible while the console is unreachable. */ }
   }
+  if (flow.kind === 'selected-reinstall') { const { advanceSelectedReinstall } = await import('./selected-reinstallation'); return advanceSelectedReinstall(ip, flow) }
   if (['completed', 'failed', 'restart_ready'].includes(flow.state)) return flow
   locks.add(ip)
   try {

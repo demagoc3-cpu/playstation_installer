@@ -9,15 +9,19 @@ import { getLibraryPackages, getPackage, markPackageInstalled } from './package-
 import { contentBranchKey, contentForConsole, contentFormat, contentPlatform } from '../../shared/content-platform'
 import { installationTaskCategory, TASK_CATEGORIES, type InstallationTask, type InstallationTasksPage } from '../../shared/types/tasks'
 import { Ps5QueueRunner, ps5BlankQueue, ps5CanCancel, Ps5QueueFailure, type Ps5Queue, type Ps5Item } from './ps5-queue-core'
+import { isPs5ImageFormat } from './ps5-image-driver'
 import { ps5QueueDriver } from './ps5-queue-driver'
+import { assessPs5SourceFirmware } from './ps5-installation-firmware'
 import type { LibraryInstallationSelection } from './library-installation'
 const runners = new Map<string, Ps5QueueRunner>()
 const path = (id: string) => dataPath(`consoles/${id}/ps5-installation-queue.json`)
 function validItems(value: unknown): value is Ps5Item[] {
   return Array.isArray(value) && value.length <= 10000 && value.every(item => item && typeof item.packageId === 'string' && /^[a-zA-Z0-9_.-]{1,128}$/.test(item.packageId) && /^[0-9a-f]{32}$/.test(item.transferId || '') &&
     ['pending','sending','verifying','installing','waiting','installed','failed','skipped','cancelled','unconfirmed'].includes(item.state) && ['ps4','ps5'].includes(item.platform) && ['pkg','folder','ufs2','exfat','pfs','ffpfsc','unknown'].includes(item.format) &&
+    (item.alreadyPresent === undefined || typeof item.alreadyPresent === 'boolean') && (item.overwriteApproved === undefined || typeof item.overwriteApproved === 'boolean') &&
+    (item.imagePublishedAt === undefined || Number.isSafeInteger(item.imagePublishedAt) && item.imagePublishedAt > 0) &&
     (item.progressPhase === undefined || ['source-check','transfer','device-check'].includes(item.progressPhase)) && (item.bytesChecked === undefined || Number.isSafeInteger(item.bytesChecked) && item.bytesChecked >= 0 && item.bytesChecked <= item.size) &&
-    (item.confirmation === undefined || ['user','service-registration'].includes(item.confirmation) && Number.isSafeInteger(item.confirmedAt) && item.confirmedAt > 0 && item.state === 'installed') &&
+    (item.confirmation === undefined || ['user','service-registration','service-existing','recorded-existing'].includes(item.confirmation) && Number.isSafeInteger(item.confirmedAt) && item.confirmedAt > 0 && item.state === 'installed') &&
     typeof item.branch === 'string' && typeof item.title === 'string' && typeof item.fileName === 'string' && typeof item.detail === 'string' && Number.isSafeInteger(item.size) && item.size > 0 && Number.isSafeInteger(item.bytesSent) && item.bytesSent >= 0 && item.bytesSent <= item.size && Number.isInteger(item.order) && item.order >= 0)
 }
 function runner(id: string) {
@@ -47,7 +51,7 @@ export function ps5TaskPackageId(id: string, queueId: string, taskId: string) {
   if (q.id !== queueId || !item) throw createError({statusCode:409,message:'Задание больше не существует в этой очереди'})
   return item.packageId
 }
-export async function startPs5Queue(input: { consoleId: string; packageIds?: unknown; librarySelection?: LibraryInstallationSelection; queueId?: string }) {
+export async function startPs5Queue(input: { consoleId: string; packageIds?: unknown; librarySelection?: LibraryInstallationSelection; queueId?: string; overwritePackageIds?: string[] }) {
   assertNoPs5ServiceUpdate(input.consoleId)
   const profile = getConsoleProfile(input.consoleId)
   if (profile.platform !== 'ps5') throw createError({ statusCode: 400, message: 'Выберите PS5' })
@@ -63,14 +67,20 @@ export async function startPs5Queue(input: { consoleId: string; packageIds?: unk
   }
   if (!Array.isArray(ids) || !ids.length || ids.length > 10000 || ids.some(id => typeof id !== 'string')) throw createError({ statusCode: 400, message: 'Выберите пакеты для установки' })
   const items = [...new Set(ids as string[])].map(id => getPackage(id))
+  const overwrite = input.overwritePackageIds || []
+  if (!Array.isArray(overwrite) || overwrite.some(id => typeof id !== 'string' || !items.some(item => item.id === id && contentFormat(item) === 'pkg'))) throw createError({ statusCode: 400, message: 'Повторная установка разрешается только для выбранных PKG' })
   // Validate the WHOLE batch before persisting or transferring any bytes.
   for (const item of items) {
     const platform = contentPlatform(item), format = contentFormat(item)
-    if (!contentForConsole(item,'ps5') || !snapshot.capabilities.formats.includes(format) || !['pkg','folder'].includes(format) || format === 'folder' && (platform !== 'ps5' || item.installOrder !== 0) || !(platform === 'ps4' ? snapshot.capabilities.installPs4 : snapshot.capabilities.installPs5))
+    if (!contentForConsole(item,'ps5') || !snapshot.capabilities.formats.includes(format) || !['pkg','folder','ufs2','exfat','pfs','ffpfsc'].includes(format) || (format === 'folder' || isPs5ImageFormat(format)) && (platform !== 'ps5' || item.installOrder !== 0) || !(platform === 'ps4' ? snapshot.capabilities.installPs4 : snapshot.capabilities.installPs5))
       throw createError({ statusCode: 409, message: `Сервис PS5 ещё не подтвердил установку ${platform.toUpperCase()} / ${format.toUpperCase()}. Очередь не отправлена` })
+    if (platform === 'ps5') {
+      const firmware = await assessPs5SourceFirmware(snapshot.firmware, item)
+      if (firmware.state !== 'compatible') throw createError({ statusCode: 409, message: `«${item.title}»: ${firmware.detail}. Набор не отправлен` })
+    }
   }
   try { current.enqueue(items.map(item => ({ packageId: item.id, title: item.title, fileName: item.fileName, size: item.size, type: item.type,
-    titleId: item.titleId, branch: contentBranchKey(item), order: item.installOrder, platform: contentPlatform(item), format: contentFormat(item), appVersion: item.appVersion, contentId: item.contentId })), input.queueId); return getPs5Queue(profile.id) }
+    titleId: item.titleId, branch: contentBranchKey(item), order: item.installOrder, platform: contentPlatform(item), format: contentFormat(item), appVersion: item.appVersion, contentId: item.contentId, overwriteApproved: overwrite.includes(item.id) })), input.queueId); return getPs5Queue(profile.id) }
   catch (error) { if (error instanceof Ps5QueueFailure) throw createError({ statusCode: 409, message: error.message }); throw error }
 }
 export function cancelPs5Queue(id: string, queueId: string, packageIds?: string[], branches?: string[]) {
@@ -82,9 +92,21 @@ export function confirmPs5Installation(id: string, queueId: string, packageId: s
   catch (error) { if (error instanceof Ps5QueueFailure) throw createError({statusCode:409,message:error.message}); throw error }
 }
 export function clearPs5Tasks(id: string) { runner(id).clear(); return getPs5Queue(id) }
+export function removePs5Tasks(id:string,queueId:string,packageIds?:string[],branches?:string[]){
+  const r=runner(id),q=r.queue
+  const targets=[q.items,...q.history].flatMap((items,index)=>items.filter(item=>(item.queueId || (index===0?q.id:`history-${index}`))===queueId && (packageIds?.includes(item.packageId)||branches?.includes(item.branch))))
+  if(!targets.length)throw createError({statusCode:409,message:'Выбранные задания больше не найдены'})
+  const unfinished=targets.filter(item=>!['installed','failed','skipped','cancelled'].includes(item.state))
+  if(unfinished.length){
+    if(queueId!==q.id||unfinished.some(item=>!ps5CanCancel(item)))throw createError({statusCode:409,message:'Установка уже принята PS5. Дождитесь результата; задание не скрыто.'})
+    cancelPs5Queue(id,queueId,unfinished.map(item=>item.packageId))
+  }
+  r.clear(item=>targets.includes(item))
+  return {message:targets.some(item=>!item.hidden)?'Отмена запрошена. Задание останется видно до подтверждения.':'Выбранные задания убраны из списка. Установленные игры сохранены.'}
+}
 export function getPs5TaskCounts(id:string) {
   const q=runner(id).queue, counts:InstallationTasksPage['counts']={active:0,queued:0,completed:0,failed:0}
-  const visible = latestInstallationAttempts([q.items,...q.history].flat().filter(item => !item.hidden).map(item => ({ ...item, psIp:q.psIp, createdAt:item.createdAt || q.createdAt })))
+  const visible = latestInstallationAttempts([q.items,...q.history].flat().map(item => ({ ...item, psIp:q.psIp, createdAt:item.createdAt || q.createdAt }))).filter(item => !item.hidden)
   for(const item of visible) counts[installationTaskCategory(item.state)]++
   return counts
 }
@@ -93,16 +115,18 @@ export function getPs5Tasks(id: string, query: { categories?: unknown; page?: un
   const groups = new Map<string, typeof library[number]>()
   for (const pkg of library) { const key = contentBranchKey(pkg); if (!groups.has(key) || pkg.installOrder === 0) groups.set(key,pkg) }
   const tasks: InstallationTask[] = []
+  const hiddenTasks = new Set<string>()
   for (const [index, entries] of [q.items, ...q.history].entries()) for (const item of entries) {
-    if (item.hidden) continue
+    if (item.hidden) hiddenTasks.add(item.transferId)
     const base = groups.get(item.branch)
     const { hash: _, sourceStamp: __, transferId: ___, installDispatched: ____, ...metadata } = item
     tasks.push({ ...metadata, ...r.transferTelemetry(item), id: item.transferId, queueId: item.queueId || (index === 0 ? q.id || '' : `history-${index}`), psIp: q.psIp,
       canConfirm: item.installDispatched === true && !!item.serviceJobId && item.bytesSent === item.size && ['installing','unconfirmed','failed'].includes(item.state),
+      canDismiss: ['installed','failed','skipped','cancelled'].includes(item.state),
       consolePlatform: 'ps5', category: installationTaskCategory(item.state), groupTitle: base?.title || item.title, groupIconId: base?.iconSize ? base.id : undefined,
       createdAt: item.createdAt || q.createdAt, transport: 'service', canCancel: index === 0 && q.status === 'running' && ps5CanCancel(item), cancelRequested: !!item.cancelRequested })
   }
-  const visibleTasks = latestInstallationAttempts(tasks, query.history)
+  const visibleTasks = latestInstallationAttempts(tasks, query.history).filter(task => !hiddenTasks.has(task.id))
   const counts = Object.fromEntries(TASK_CATEGORIES.map(c => [c,visibleTasks.filter(t => t.category === c).length])) as InstallationTasksPage['counts']
   const active = visibleTasks.filter(t => t.queueId === q.id && (t.category === 'active' || t.state === 'unconfirmed'))
   const categories = typeof query.categories === 'string' ? query.categories.split(',') : TASK_CATEGORIES
@@ -110,7 +134,8 @@ export function getPs5Tasks(id: string, query: { categories?: unknown; page?: un
   const branches = new Map<string, InstallationTask[]>()
   for (const task of filtered) { const key = contentBranchKey(task); const entries = branches.get(key) || []; entries.push(task); branches.set(key,entries) }
   const total = tree ? branches.size : filtered.length, pages = Math.max(1,Math.ceil(total/50)), page = Math.min(pages,Math.max(1,Math.floor(Number(query.page)||1)))
-  return { active, items: tree ? [...branches.values()].slice((page-1)*50,page*50).flat() : filtered.slice((page-1)*50,page*50), counts, page, pages, total, unit: tree ? 'games' : 'tasks' }
+  return { active, items: tree ? [...branches.values()].slice((page-1)*50,page*50).flat() : filtered.slice((page-1)*50,page*50), counts, page, pages, total, unit: tree ? 'games' : 'tasks',
+    queueId:q.id, queueStatus:q.status, canCancelAll:q.status==='running'&&q.items.some(ps5CanCancel) }
 }
 export function resumePs5Queues() {
   for (const profile of getConsoleProfiles().consoles.filter(p => p.platform === 'ps5')) {

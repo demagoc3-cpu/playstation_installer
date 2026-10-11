@@ -7,7 +7,7 @@ import { readJsonFile, writeJsonFile } from './json-store'
 import { writeDurableJson } from './durable-json'
 import { getSavedPsIp, getGoldHenStatus } from './ps4-installer'
 import { ps4ServiceIp, readPs4Service, getPs4SystemSnapshot } from './ps4-service'
-import { getServiceInstallerStatus, saveServiceKey, updatePairedServiceWebAddress } from './ps4-service-installer'
+import { getServiceInstallerStatus, serviceKeyConfigured, saveServiceKey, updatePairedServiceWebAddress } from './ps4-service-installer'
 import { ps5WebAddressHeaders, ps5WebAddressAccepted } from './ps5-web-address'
 import { ps5InstallCapabilities } from '../../shared/ps5-install-readiness'
 import type { ConsoleProfile, ConsoleProfiles, ConsoleCapabilities, ConsolePlatform } from '../../shared/types/consoles'
@@ -52,6 +52,10 @@ const operationMethods = {
   '/api/v1/folder/commit': 'POST', '/api/v1/folder/status': 'GET',
   '/api/v1/images/commit': 'POST', '/api/v1/images/status': 'GET',
   '/api/v1/web/config': 'POST',
+  '/api/v1/management/status': 'GET', '/api/v1/console/catalog': 'GET',
+  '/api/v1/saves/list': 'GET', '/api/v1/saves/manifest': 'GET',
+  '/api/v1/saves/restore': 'POST', '/api/v1/saves/restore/status': 'GET', '/api/v1/saves/rollback': 'POST', '/api/v1/saves/finalize': 'POST',
+  '/api/v1/console/games': 'GET', '/api/v1/console/info': 'GET', '/api/v1/console/command': 'POST', '/api/v1/console/command/status': 'GET', '/api/v1/console/storage': 'GET', '/api/v1/console/activity': 'GET',
   '/api/v1/status': 'GET', '/api/v1/shutdown': 'POST',
   '/api/v1/update/prepare': 'POST', '/api/v1/update/status': 'GET',
 } as const
@@ -60,15 +64,33 @@ export async function ps5OperationRequest(consoleId: string, path: keyof typeof 
   headers: Record<string, string> = {}, body?: Uint8Array, signal?: AbortSignal) {
   const profile = getConsoleProfile(consoleId), token = ps5Token(profile.ip)
   if (profile.platform !== 'ps5' || !ps4ServiceIp(profile.ip) || !token) throw createError({ statusCode: 409, message: 'Требуется сопряжение PS5' })
-  if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Offset|Installer-Job|Web-Host|Web-Port|Console-Id|Update-Id|Request-Id|UI-Title|UI-Metadata-Hash|Title|Content|Version)$/.test(key))) throw new Error('Invalid PS5 operation')
+  if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Offset|Installer-Job|Web-Host|Web-Port|Console-Id|Update-Id|Request-Id|UI-Title|UI-Metadata-Hash|Title|Content|Version|User|Save-Kind|Save-Path|File-Id|Action|Destination|Source-Identity|Confirm-Title|Expected-App-Id)$/.test(key))) throw new Error('Invalid PS5 operation')
   const response = await fetch(`http://${profile.ip}:8095${path}`, { method: operationMethods[path],
     headers: { ...headers, Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/octet-stream' } : {}) },
     body: body as BodyInit | undefined, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) })
   if (!response.body) throw new Error('Empty service response')
   const reader = response.body.getReader(); let size = 0; const chunks: Uint8Array[] = []
-  try { for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.length; if (size > 16384) throw new Error('Response too large'); chunks.push(part.value) } }
+  try { for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.length; if (size > 65536) throw new Error('Response too large'); chunks.push(part.value) } }
   finally { await reader.cancel().catch(() => {}) }
   return { status: response.status, body: JSON.parse(Buffer.concat(chunks).toString('utf8')) }
+}
+/** Bounded binary reads only inside the service's validated savedata roots. */
+export async function ps5SaveChunk(consoleId: string, headers: Record<string, string>) {
+  const profile = getConsoleProfile(consoleId), token = ps5Token(profile.ip)
+  if (profile.platform !== 'ps5' || !token) throw createError({ statusCode: 409, message: 'Требуется сопряжение PS5' })
+  if (Object.keys(headers).some(key => !/^X-PackageFlow-(User|Title|Save-Kind|Save-Path|File-Id|Offset|Size)$/.test(key))) throw Error('Invalid save headers')
+  const size = Number(headers['X-PackageFlow-Size'])
+  if (!Number.isSafeInteger(size) || size < 0 || size > 1048576) throw Error('Invalid chunk size')
+  const response = await fetch(`http://${profile.ip}:8095/api/v1/saves/read`, { headers: { ...headers, Authorization: `Bearer ${token}` }, redirect: 'error', signal: AbortSignal.timeout(15000) })
+  if (response.status !== 200 || response.headers.get('content-type') !== 'application/octet-stream' || response.headers.get('content-length') !== String(size)) {
+    await response.body?.cancel(); throw createError({ statusCode: 409, message: 'PS5 не подтвердила чтение сохранения. Закройте игру и повторите создание копии.' })
+  }
+  const reader = response.body?.getReader(); if (!reader) throw Error('Empty save response')
+  const chunks: Uint8Array[] = []; let used = 0
+  try { for (;;) { const part = await reader.read(); if (part.done) break; used += part.value.length; if (used > size) throw Error('Save chunk overflow'); chunks.push(part.value) } }
+  finally { await reader.cancel().catch(() => {}) }
+  if (used !== size) throw createError({ statusCode: 409, message: 'Чтение сохранения прервано; неполная копия не опубликована' })
+  return Buffer.concat(chunks)
 }
 function publicProfile(item: StoredProfile): ConsoleProfile {
   const snapshot = snapshots.get(item.id)
@@ -135,6 +157,11 @@ export async function probeConsoleProfile(id: unknown) {
     if (profile.platform === 'ps4' && profile.transport === 'payload') {
       online = (await getGoldHenStatus(profile.ip)).ready
       capabilities = { formats: online ? ['pkg'] : [], installPs4:online, installPs5:false, background:false }
+      if(serviceKeyConfigured(profile.ip)){
+        const status=await getServiceInstallerStatus(profile.ip),system=await getPs4SystemSnapshot(profile.ip)
+        paired=status.paired===true;firmware=system.system?.firmware || undefined
+        freeBytes=system.storage?.find(volume=>volume.available&&volume.path==='/user')?.availableBytes ?? undefined
+      }
     } else if (profile.platform === 'ps4') {
       const ping = await readPs4Service(profile.ip, '/ping')
       if (ping.status !== 200 || (ping.body as any)?.service !== 'PackegeFlowService' || (ping.body as any)?.status !== 'ok') throw new Error('Unexpected service')
@@ -228,4 +255,16 @@ export async function pairConsoleProfile(id: unknown, code: unknown, webUrl: str
     }
   }
   return probeConsoleProfile(profile.id)
+}
+
+/** Icons only from /user/appmeta/<validated title>/icon0.png; credentials stay in WEB. */
+export async function ps5ConsoleIcon(consoleId:string,titleId:string){
+  const p=getConsoleProfile(consoleId),token=ps5Token(p.ip)
+  if(p.platform!=='ps5'||!token||!/^(PPSA|CUSA)\d{5}$/.test(titleId))throw createError({statusCode:404,message:'Значок недоступен'})
+  const r=await fetch(`http://${p.ip}:8095/api/v1/console/icon`,{headers:{Authorization:`Bearer ${token}`,'X-PackageFlow-Title':titleId},redirect:'error',signal:AbortSignal.timeout(5000)})
+  const expected=Number(r.headers.get('content-length'))
+  if(r.status!==200||r.headers.get('content-type')!=='image/png'||!Number.isSafeInteger(expected)||expected<8||expected>1048576){await r.body?.cancel();throw createError({statusCode:404,message:'Значок недоступен'})}
+  const reader=r.body?.getReader();if(!reader)throw Error('Empty icon');const chunks:Uint8Array[]=[];let bytes=0
+  try{for(;;){const part=await reader.read();if(part.done)break;bytes+=part.value.length;if(bytes>expected)throw Error('Icon overflow');chunks.push(part.value)}}finally{await reader.cancel().catch(()=>{})}
+  const data=Buffer.concat(chunks);if(bytes!==expected||!data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw createError({statusCode:404,message:'Значок повреждён'});return data
 }

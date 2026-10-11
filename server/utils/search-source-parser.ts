@@ -38,7 +38,7 @@ export function parseSearchSource(html: string, pageUrl: string): SearchDetails 
     if (/captcha|cloudflare|just a moment|вход|авторизац|login|sign in/i.test($('title').text())) return { status: 'unavailable', fields: [], message: 'Источник требует входа или временно недоступен. Откройте страницу раздачи.' }
   }
   const fields: SearchDetails['fields'] = []
-  const labels = ['Год выпуска', 'Жанр', 'Разработчик', 'Издательство', 'Код диска', 'Регион', 'Версия игры', 'Минимальная версия прошивки', 'Язык интерфейса игры', 'Язык озвучки', 'Перевод', 'Мультиплеер']
+  const labels = ['Год выпуска', 'Жанр', 'Разработчик', 'Издательство', 'Код диска', 'Регион', 'Версия игры', 'Минимальная версия прошивки', 'Язык интерфейса игры', 'Язык озвучки', 'Перевод', 'Мультиплеер', 'Формат', 'Формат игры', 'Формат раздачи', 'Формат образа', 'Формат дампа', 'Формат пакета', 'Тип дампа', 'Тип раздачи', 'Тип релиза', 'Тип пакета', 'Format', 'Release format', 'Dump format', 'Package format', 'Dump type', 'Release type', 'Package type']
   for (const label of labels) {
     const match = description?.match(new RegExp(`(?:^|\n)${label}\\s*:\\s*([^\n]+)`))
     if (match) fields.push({ label, value: match[1]!.trim().slice(0, 500) })
