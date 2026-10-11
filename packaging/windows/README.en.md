@@ -73,6 +73,20 @@ The script waits for the build to finish before packaging, downloads official Wi
 
 ## Output
 
+### PS5 bundle for the upcoming release
+
+The candidate launcher has a shared discovery and pairing dialog for PS4/PS5.
+PS5 setup requires a prepared ELF, application image and `manifest.json`.
+Pass `-Ps5Bundle C:\path\bundle` on Windows or `PF_PS5_BUNDLE=/path/bundle`
+on Linux. Both hashes are verified; WEB also checks the application PARAM.
+A missing bundle preserves PS4 support and blocks PS5 delivery with a clear
+message. Native and Compose modes stage the same verified bundle in WEB data.
+
+The full contract and remaining checks are documented in
+[WINDOWS-CONSOLE-SETUP.md](../../docs/development/WINDOWS-CONSOLE-SETUP.md).
+This is upcoming-release work, not a change to the published 1.10.7 installer.
+The new complete bundle still needs a hardware test on PS5 firmware 13.60.
+
 | Path | Contents |
 | --- | --- |
 | `dist/windows/PackageFlowSetup-1.10.5-x64.exe` | Installer for users |
