@@ -48,6 +48,34 @@ test('Folder rejects source changes, unsafe paths and links before publication',
   await assert.rejects(api.createFolderPlan(other.root, other.item, signal, () => {}), /Ссылки/)
   await assert.rejects(api.createFolderPlan(root, { ...item, platform: 'ps4' }, signal, () => {}), /метаданные/)
 })
+test('published Folder reports overdue registration, keeps checking and never republishes', async () => {
+  const { root, item } = await fixture('registration-timeout')
+  const p = await api.createFolderPlan(root, item, signal, () => {})
+  Object.assign(item, { installDispatched: true, bytesSent: item.size })
+  let now = 1000000, registered = false
+  const clock = Date.now, requests = [], save = patch => Object.assign(item, patch)
+  const request = async (id, path) => {
+    requests.push(path)
+    return { status: 200, body: { id, title: p.title, proof: 'folder-registration', state: registered ? 'registered' : 'published', manifestHash: p.manifestHash, metadataHash: p.metadataHash } }
+  }
+  try {
+    Date.now = () => now
+    assert.equal((await api.runFolderPlan(p, item, signal, request, save)).state, 'installing')
+    assert.equal(item.folderPublishedAt, now)
+    now += 120000
+    assert.equal((await api.runFolderPlan(p, item, signal, request, save)).state, 'installing')
+    // The timestamp survives persistence and restarting the queue worker.
+    const restored = JSON.parse(JSON.stringify(item))
+    now++
+    await assert.rejects(api.runFolderPlan(p, restored, signal, request, patch => Object.assign(restored, patch)), /PS5 не подтвердила регистрацию за 2 минуты/)
+    assert.equal(restored.bytesSent, item.size)
+    registered = true
+    const result = await api.runFolderPlan(p, restored, signal, request, patch => Object.assign(restored, patch))
+    assert.equal(result.state, 'installed')
+    assert.equal(result.confirmation, 'service-registration')
+    assert.ok(requests.every(path => path === '/api/v1/folder/status'))
+  } finally { Date.now = clock }
+})
 test('Folder admission is independent of PKG; untested firmware and malformed receipts remain disabled', () => {
   const body = { service: 'PackageFlowService-PS5', schemaVersion: 1, route: 'staged-pkg', ready: false, reason: 'installer_unavailable', formats: [], platforms: [], exactVersionReceipt: false, folder: { schemaVersion: 1, route: 'staged-folder', ready: true, platforms: ['ps5'] } }
   const c = api.ps5InstallCapabilities(200, body, '13.60'); assert.deepEqual(c.formats, ['folder']); assert.equal(c.installPs5, true); assert.equal(c.installPs4, false); assert.equal(c.installation.ready, false)

@@ -6,7 +6,7 @@ import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache
 import { seedPs5SourceHashHistory } from './ps5-source-hash-history'
 import { ps5StreamHasher } from './ps5-stream-hash'
 import { ps5SendChunks } from './ps5-send-chunks'
-import { Ps5QueueFailure, type Ps5Item } from './ps5-queue-core'
+import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Item } from './ps5-queue-core'
 
 export type FolderRequest = (id: string, path: string, headers?: Record<string, string>, body?: Uint8Array, signal?: AbortSignal) => Promise<{ status: number; body: any }>
 type Entry = { path: string; dir: boolean; size: number; stamp: string; id?: string; hash?: string }
@@ -130,7 +130,11 @@ export async function runFolderPlan(p: FolderPlan, item: Ps5Item, signal: AbortS
     if (r.status !== 200) return
     if (r.body.id !== item.transferId || r.body.title !== p.title || r.body.proof !== 'folder-registration' || r.body.manifestHash !== p.manifestHash || r.body.metadataHash !== p.metadataHash || !['prepared', 'published', 'registered'].includes(r.body.state)) fail('Результат Folder не соответствует переданной папке')
     if (r.body.state === 'registered') return { state: 'installed', confirmation: 'service-registration', confirmedAt: Date.now(), detail: `PS5 подтвердила регистрацию Folder, версия ${p.appVersion}` }
-    if (r.body.state === 'published') return { state: 'installing', detail: 'Folder передан. Ожидаем регистрацию игры на PS5' }
+    if (r.body.state === 'published') {
+      if (!item.folderPublishedAt) save({ folderPublishedAt: Date.now() })
+      else if (Date.now() - item.folderPublishedAt > 120_000) throw new Ps5QueueUncertain('Folder передан, но PS5 не подтвердила регистрацию за 2 минуты. Проверьте ShadowMount. Проверка продолжается; повторная передача не отправлена')
+      return { state: 'installing', detail: 'Folder передан. Ожидаем подтверждение регистрации игры от PS5' }
+    }
   }
   if (item.installDispatched) {
     const r = await request(p.id, '/api/v1/folder/status', {}, undefined, signal), done = finish(r)

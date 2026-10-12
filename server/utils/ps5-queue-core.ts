@@ -12,6 +12,7 @@ export interface Ps5Item {
   hash?: string; sourceStamp?: string; installDispatched?: boolean; serviceJobId?: string; cancelRequested?: boolean; hidden?: boolean
   queueId?: string; createdAt?: number; confirmation?: 'user' | 'service-registration' | 'service-existing' | 'recorded-existing'; confirmedAt?: number
   imagePublishedAt?: number
+  folderPublishedAt?: number
   progressPhase?: 'source-check' | 'transfer' | 'device-check'; bytesChecked?: number
 }
 export interface Ps5Queue {
