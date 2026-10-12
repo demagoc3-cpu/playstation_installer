@@ -63,3 +63,20 @@ system installation or user application. Older WEB versions that do not recogniz
 - SHA256: `1213b94e4d0997db6dbfaefec99a56257c964a86935c043030803b48400bd84c`.
 - Hardware root replacement confirmed, one PackageFlow process; completed
   Astrobot registration/queue preserved. No user game reinstallation requested.
+
+## Installed state
+
+Windows installed WEB updated with backup `transfer024-backup`; queue items,
+IDs, confirmed bytes and completed status preserved. Production page HTTP 200,
+speed API ready. Source commit acb3f7a; ZIP SHA256
+`199eca916a51a96f9f29b07523c128829183ecc8b91281535c2dae5dcb094c62`;
+Nitro logic SHA256 `6e043dc760ae283080d3f5dec6f68aacabfe883d81f93898f81d9a7021b58a55`.
+Both installed console bundles and `/tmp/pf-transfer024-console-bundle` pin the
+hardware-tested ELF above, with unchanged native application hashes.
+Qualification marker recognized: ready, batchMax 134217728. One root PID 211,
+unchanged during comparison/qualification. Astrobot PPSA01325 queue installed,
+11,016,536,064 bytes, PS5 registration confirmed version 01.600.000. This does
+not claim a user launch test or another full-game transfer with 128 MiB.
+Local ELF commit d14524f; no push.
+Final authenticated readiness confirms PKG, Folder (one storage copy), and
+UFS2/exfat/PFS/FFPFSC image registration routes ready after the replacement.

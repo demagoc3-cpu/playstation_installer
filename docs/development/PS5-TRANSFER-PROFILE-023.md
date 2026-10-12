@@ -81,3 +81,12 @@ PKG, Folder v1/v2 and UFS2/exfat/PFS/FFPFSC share the negotiated 16/32 MiB route
 Rolling back to 020 can invalidate a 32 MiB hash checkpoint and require a full
 verification read; durable data remains valid. Do not replace ELF during an active
 system install or while a user application runs.
+
+## Deployment follow-through
+
+Installed Windows WEB profile API fixed in 65221f1: reads public `q.items`,
+never hidden `q.history`. Installed 023b API returned 200 with phase telemetry,
+page 200, completed Astrobot queue preserved; both console bundles pinned tested
+SSE2 ELF. Canonical SDK rebuild differed from hardware-tested ELF only in its
+16-byte generated build UUID note; bundles retained the exact tested artifact.
+Follow-up 024 comparison/deployment is recorded in PS5-BATCH-COMPARISON-024.md.
