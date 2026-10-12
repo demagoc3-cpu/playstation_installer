@@ -108,8 +108,8 @@ test('lost publication reply is read-only on recovery even when the source was r
   const result = await api.runImagePlan(p, f.item, signal, async () => ({ status: 200, body: publication(p) }), () => {})
   assert.equal(result.state, 'unconfirmed')
 })
-for (const format of ['ufs2', 'exfat', 'pfs', 'ffpfsc']) test(`${format} uses qualified batches, resumes lost ACK and preserves image registration protocol`, async () => {
-  const f = await fixture(`batch-${format}`, format)
+for (const batchMax of [16777216,33554432]) for (const format of ['ufs2', 'exfat', 'pfs', 'ffpfsc']) test(`${format} ${batchMax/1048576} MiB uses qualified batches, resumes lost ACK and preserves image registration protocol`, async () => {
+  const f = await fixture(`batch-${format}-${batchMax}`, format)
   // Retain real container metadata and add trailing space to cross batch boundaries.
   f.bytes = Buffer.concat([f.bytes, Buffer.alloc(36 * 1048576, 31)])
   await writeFile(f.path, f.bytes); f.item.size = f.bytes.length
@@ -120,10 +120,10 @@ for (const format of ['ufs2', 'exfat', 'pfs', 'ffpfsc']) test(`${format} uses qu
     let t = transfers.get(id)
     if (path.endsWith('/begin')) {
       if (t) return { status: 409, body: {} }
-      t = { id, size: +headers['X-PackageFlow-Size'], blake3: headers['X-PackageFlow-Blake3'], bytesDurable: 0, cancelled: false, verified: false, chunkMax: 4194304, batchMax: 16777216, bytes: Buffer.alloc(0) }; transfers.set(id, t)
+      t = { id, size: +headers['X-PackageFlow-Size'], blake3: headers['X-PackageFlow-Blake3'], bytesDurable: 0, cancelled: false, verified: false, chunkMax: 4194304, batchMax, bytes: Buffer.alloc(0) }; transfers.set(id, t)
     }
     if (path.endsWith('/batch')) {
-      assert.ok(bytes.length <= 16777216); assert.equal(+headers['X-PackageFlow-Offset'], t.bytesDurable)
+      assert.ok(bytes.length <= batchMax); assert.equal(+headers['X-PackageFlow-Offset'], t.bytesDurable)
       t.bytes = Buffer.concat([t.bytes, bytes]); t.bytesDurable += bytes.length
       if (id === p.imageId) offsets.push(+headers['X-PackageFlow-Offset'])
       if (!lost) { lost = true; throw Error('lost batch ACK') }
@@ -142,7 +142,7 @@ for (const format of ['ufs2', 'exfat', 'pfs', 'ffpfsc']) test(`${format} uses qu
   await assert.rejects(api.runRegisteredImagePlan(p, f.item, signal, request, save), /lost batch ACK/)
   assert.equal(publications, 0)
   await api.runRegisteredImagePlan(p, f.item, signal, request, save)
-  assert.deepEqual(offsets, [0, 16777216, 33554432])
+  assert.deepEqual(offsets, Array.from({length:Math.ceil(f.bytes.length/batchMax)},(_,i)=>i*batchMax))
   assert.equal(f.item.bytesSent, f.item.size); assert.equal(publications, 1)
 })
 test('changed sources, wrong formats, PS4, patches, links and abort are rejected before publication', async () => {

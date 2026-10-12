@@ -181,14 +181,14 @@ test('streamed route is admitted only with exact tested protocol and single-copy
   for(const patch of [{storageCopies:2},{streamingHash:false},{streamProtocol:'unknown'}]) assert.equal(api.ps5InstallCapabilities(200,{...body,folder:{...body.folder,...patch}},'13.60').folder.streamProtocol,undefined)
 })
 
-test('qualified 16 MiB batches resume a lost acknowledgement without resending and seal the same file', async () => {
-  const { root, item } = await fixture('batch-resume')
-  const data=Buffer.alloc(20*1048576+137,0x37);await writeFile(join(root,'eboot.bin'),data);item.size+=data.length-700000
+for (const batchMax of [16777216,33554432]) test(`qualified ${batchMax/1048576} MiB batches resume a lost acknowledgement without resending and seal the same file`, async () => {
+  const { root, item } = await fixture('batch-resume-'+batchMax)
+  const data=Buffer.alloc(36*1048576+137,0x37);await writeFile(join(root,'eboot.bin'),data);item.size+=data.length-700000
   const p=await api.createFolderPlan(root,item,signal,()=>{},true),transfers=new Map(),offsets=[];let lost=false,published=false
   const request=async(id,path,headers={},bytes)=>{
     let t=transfers.get(id)
-    if(path.endsWith('/begin')){if(t)return{status:409,body:t};t={id,size:+headers['X-PackageFlow-Size'],blake3:headers['X-PackageFlow-Blake3'],sourceIdentity:headers['X-PackageFlow-Blake3'],hashPending:true,bytesDurable:0,cancelled:false,verified:false,chunkMax:4194304,batchMax:16777216,data:Buffer.alloc(0)};transfers.set(id,t)}
-    if(path.endsWith('/batch')||path.endsWith('/chunk')){assert.equal(+headers['X-PackageFlow-Offset'],t.bytesDurable);assert.ok(bytes.length<=16777216);if(t.size===data.length)offsets.push(t.bytesDurable);t.data=Buffer.concat([t.data,bytes]);t.bytesDurable+=bytes.length;if(!lost&&t.size===data.length){lost=true;throw Error('lost batch ACK')}}
+    if(path.endsWith('/begin')){if(t)return{status:409,body:t};t={id,size:+headers['X-PackageFlow-Size'],blake3:headers['X-PackageFlow-Blake3'],sourceIdentity:headers['X-PackageFlow-Blake3'],hashPending:true,bytesDurable:0,cancelled:false,verified:false,chunkMax:4194304,batchMax,data:Buffer.alloc(0)};transfers.set(id,t)}
+    if(path.endsWith('/batch')||path.endsWith('/chunk')){assert.equal(+headers['X-PackageFlow-Offset'],t.bytesDurable);assert.ok(bytes.length<=batchMax);if(t.size===data.length)offsets.push(t.bytesDurable);t.data=Buffer.concat([t.data,bytes]);t.bytesDurable+=bytes.length;if(!lost&&t.size===data.length){lost=true;throw Error('lost batch ACK')}}
     if(t?.size===data.length)assert.ok(!path.endsWith('/chunk'),'qualified stream uses batches')
     if(path.endsWith('/transfers/commit')){const actual=Buffer.from(blake3(t.data)).toString('hex');assert.equal(headers['X-PackageFlow-Blake3']||t.blake3,actual);t.blake3=actual;t.hashPending=false;t.verified=true}
     if(path==='/api/v1/folder/commit'){assert.ok([...transfers.values()].every(t=>t.verified));published=true;return{status:202,body:{}}}
@@ -198,5 +198,5 @@ test('qualified 16 MiB batches resume a lost acknowledgement without resending a
   await assert.rejects(api.runFolderPlan(p,item,signal,request,save,0,()=>{}),/lost batch ACK/)
   assert.equal(published,false)
   await api.runFolderPlan(p,item,signal,request,save,0,()=>{})
-  assert.deepEqual(offsets,[0,16777216]);assert.equal(item.bytesSent,item.size);assert.equal(published,true)
+  assert.deepEqual(offsets,Array.from({length:Math.ceil(data.length/batchMax)},(_,i)=>i*batchMax));assert.equal(item.bytesSent,item.size);assert.equal(published,true)
 })

@@ -4,6 +4,7 @@ import { writeDurableJson } from './durable-json'
 import { createFolderPlan, verifyFolderSource, runFolderPlan, cancelFolderPlan, type FolderPlan, type FolderRequest } from './ps5-folder-driver'
 import { ps5BaseRegistration } from './ps5-registration'
 import { open } from 'node:fs/promises'
+import { ps5TransferProfile } from './ps5-transfer-profile'
 import { ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks'
 import { ps5SourceStamp as stamp } from './ps5-source-hash'
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache'
@@ -76,11 +77,16 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       throw new Error('Cancellation not confirmed')
     },
     async run(item, signal, save) {
+      const capture = (body: any, offset: number, bytes: number) => {
+        const profile = ps5TransferProfile(body, offset, bytes)
+        if (profile) item.transferProfile = profile
+      }
+      const profiledRequest: FolderRequest = Object.assign((...args: Parameters<FolderRequest>) => folderRequest(...args), { onTransferProfile: capture })
       if (isPs5ImageFormat(item.format)) {
         let plan = readImagePlan(item)
         if (item.installDispatched) {
           if (!plan || item.hash !== plan.imageHash) throw new Ps5QueueUncertain('План принятого образа недоступен. Повтор не отправлен')
-          return runRegisteredImagePlan(plan, item, signal, folderRequest, save)
+          return runRegisteredImagePlan(plan, item, signal, profiledRequest, save)
         }
         const source = getPackage(item.packageId)
         if (source.size !== item.size || source.contentId !== item.contentId || source.appVersion !== item.appVersion) throw new Ps5QueueFailure('Образ изменился в библиотеке')
@@ -96,13 +102,13 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
           writeDurableJson(imagePlanPath(item), plan)
         }
         save({ hash: plan.imageHash, sourceStamp: plan.stamp, bytesChecked: item.size })
-        return runRegisteredImagePlan(plan, item, signal, folderRequest, save)
+        return runRegisteredImagePlan(plan, item, signal, profiledRequest, save)
       }
       if (item.format === 'folder') {
         let plan = readPlan(item)
         if (item.installDispatched) {
           if (!plan || item.hash !== plan.manifestHash) throw new Ps5QueueFailure('План принятого Folder недоступен. Повтор не отправлен')
-          return runFolderPlan(plan, item, signal, folderRequest, save)
+          return runFolderPlan(plan, item, signal, profiledRequest, save)
         }
         const source = getPackage(item.packageId)
         if (source.size !== item.size || source.contentId !== item.contentId || source.appVersion !== item.appVersion) throw new Ps5QueueFailure('Folder изменился в библиотеке')
@@ -118,7 +124,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
           writeDurableJson(planPath(item), plan)
         }
         if (plan.manifestHash) save({ hash: plan.manifestHash, bytesChecked: item.size })
-        return runFolderPlan(plan, item, signal, folderRequest, save, capabilities.folder?.verificationWindow, p => writeDurableJson(planPath(item), p))
+        return runFolderPlan(plan, item, signal, profiledRequest, save, capabilities.folder?.verificationWindow, p => writeDurableJson(planPath(item), p))
       }
       // An intent is durably recorded BEFORE dispatch. Recovery never submits it again.
       if (item.installDispatched) {
@@ -181,6 +187,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
           send: async (position, bytes) => {
             const ack = await request(item, protocol.path, { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
             if (ack.status !== 200 || !valid(ack.body) || ack.body.bytesDurable !== position + bytes.length) throw new Error('Chunk acknowledgement lost; reconcile durable offset')
+            capture(ack.body, position, bytes.length)
           }, progress: bytesSent => save({ bytesSent }),
         })
         save({ state: 'verifying', progressPhase: 'device-check', detail: 'PS5 проверяет BLAKE3 полученного пакета' })

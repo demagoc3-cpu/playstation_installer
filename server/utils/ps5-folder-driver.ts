@@ -8,7 +8,7 @@ import { ps5StreamHasher } from './ps5-stream-hash'
 import { ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks'
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Item } from './ps5-queue-core'
 
-export type FolderRequest = (id: string, path: string, headers?: Record<string, string>, body?: Uint8Array, signal?: AbortSignal) => Promise<{ status: number; body: any }>
+export type FolderRequest = ((id: string, path: string, headers?: Record<string, string>, body?: Uint8Array, signal?: AbortSignal) => Promise<{ status: number; body: any }>) & { onTransferProfile?: (body: any, offset: number, bytes: number) => void }
 type Entry = { path: string; dir: boolean; size: number; stamp: string; id?: string; hash?: string }
 export interface FolderPlan { version: 1 | 2; planHash?: string; id: string; root: string; title: string; content: string; appVersion: string; total: number; entries: Entry[]; metadataHash: string; manifestHash: string }
 const fail = (message: string): never => { throw new Ps5QueueFailure(message) }
@@ -92,6 +92,7 @@ async function upload(id: string, size: number, hash: string, read: (buffer: Buf
     send: async (position, bytes) => {
       r = await request(id, protocol.path, { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
       if (r.status !== 200 || !valid(r.body) || r.body.bytesDurable !== position + bytes.length) throw new Error('Folder acknowledgement lost; reconcile durable offset')
+      request.onTransferProfile?.(r.body, position, bytes.length)
     }, progress: n => { stream?.acknowledge(n); progress(n) },
   })
   if (stream) hash = await stream.finish()

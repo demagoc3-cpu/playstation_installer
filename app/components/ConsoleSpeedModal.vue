@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { ConsoleProfile } from '#shared/types/consoles'
-import type { ConsoleSpeedJob, SpeedMode } from '#shared/types/console-speed'
+import type { ConsoleSpeedJob, SpeedMode, Ps5TransferProfile } from '#shared/types/console-speed'
 const props=defineProps<{profile:ConsoleProfile}>(),emit=defineEmits<{close:[]}>()
 const {t}=useAppLocale()
-const info=ref<{ready:boolean;message:string;queueStatus?:string;queueId?:string;lastJob?:ConsoleSpeedJob}>(),job=ref<ConsoleSpeedJob>(),busy=ref(false),message=ref(''),sizeMiB=ref(128),modes=ref<SpeedMode[]>(['latency','upload','download','disk'])
+const info=ref<{ready:boolean;message:string;queueStatus?:string;queueId?:string;lastJob?:ConsoleSpeedJob;lastTransferProfile?:Ps5TransferProfile}>(),job=ref<ConsoleSpeedJob>(),busy=ref(false),message=ref(''),sizeMiB=ref(128),modes=ref<SpeedMode[]>(['latency','upload','download','disk'])
 const labels:Record<SpeedMode,string>={latency:'Задержка WEB ↔ PS5',upload:'WEB → PS5 · сеть',download:'PS5 → WEB · сеть',disk:'WEB → PS5 · сеть и запись'}
+const profileRows: [keyof Ps5TransferProfile,string][] = [['receiveWaitMs','Ожидание данных'],['hashMs','Хеширование'],['writeMs','Запись'],['syncMs','Сохранение данных (fsync)'],['checkpointMs','Контрольная точка хеша'],['stateMs','Сохранение позиции']]
 const running=computed(()=>job.value?.state==='running')
 let disposed=false,timer:ReturnType<typeof setTimeout>|undefined
 const error=(e:any)=>e?.data?.message||e?.message||'Не удалось выполнить тест'
@@ -29,6 +30,12 @@ onBeforeUnmount(()=>{disposed=true;if(timer)clearTimeout(timer);if(running.value
 <div v-if="running" class="progress" role="status">{{t('Выполняется')}}: {{job?.current && t(labels[job.current])}}<span class="pulse"></span></div>
 <p v-if="job">{{t('Время замера')}}: {{new Date(job.startedAt).toLocaleString()}}</p>
 <div class="results-scroll"><table v-if="job?.results.length"><thead><tr><th>{{t('Тест')}}</th><th>{{t('Результат')}}</th><th>{{t('Объём / время')}}</th></tr></thead><tbody><tr v-for="r in job.results" :key="r.mode"><td>{{t(labels[r.mode])}}<small v-if="r.mode==='disk'">{{t(r.receivePipeline?'Приём и запись одновременно':'Последовательный приём и запись')}} · {{t('Время записи')}}: {{ms(r.writeMs)}} · fsync: {{ms(r.syncMs)}} · {{t(r.cleanup?'Временный файл удалён':'Уборка не подтверждена')}}</small></td><td>{{r.mode==='latency'?ms(r.latencyMedianMs):rate(r.bytesPerSecond)}}<small v-if="r.mode==='latency'">min {{ms(r.latencyMinMs)}} · max {{ms(r.latencyMaxMs)}}</small></td><td>{{r.mode==='latency'?'8 запросов':`${r.bytes/1048576} МиБ`}} · {{(r.elapsedMs/1000).toFixed(2)}} с</td></tr></tbody></table></div>
+<section v-if="info?.lastTransferProfile" class="transfer-profile">
+<h3>{{t('Последний блок передачи игры')}}</h3>
+<p>{{new Date(info.lastTransferProfile.measuredAt).toLocaleString()}} · {{info.lastTransferProfile.bytes/1048576}} МиБ · BLAKE3 {{info.lastTransferProfile.hashMode.toUpperCase()}} · {{ms(info.lastTransferProfile.elapsedMs)}}</p>
+<p>{{t('Замер внутри ELF. Приём идёт параллельно записи; ожидание данных не равно времени всей сети.')}}</p>
+<table><tbody><tr v-for="[key,label] in profileRows" :key="key"><td>{{t(label)}}</td><td>{{ms(info.lastTransferProfile[key] as number)}}</td></tr></tbody></table>
+</section>
 <p v-if="job && !running" role="status">{{t(job.state==='completed'?'Тесты завершены':job.state==='cancelled'?'Тест остановлен':'Тест завершился с ошибкой')}}<template v-if="job.error">: {{t(job.error)}}</template></p><p v-if="message" class="notice" role="alert">{{t(message)}}</p>
 <footer><button v-if="running" @click="cancel">{{t('Остановить тест')}}</button><button v-else class="primary" :disabled="busy||!info?.ready||info?.queueStatus==='running'||!modes.length" @click="start">{{t(busy?'Проверяем…':'Начать тесты')}}</button><button :disabled="busy||running" @click="refresh">{{t('Обновить проверку')}}</button><button :disabled="running" @click="emit('close')">{{t('Закрыть')}}</button></footer>
 </section></div></Teleport>

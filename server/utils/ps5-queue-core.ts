@@ -1,3 +1,4 @@
+import type { Ps5TransferProfile } from '../../shared/types/console-speed'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { TransferSpeed } from './transfer-speed'
 import type { ContentPlatform, ContentFormat } from '../../shared/types/consoles'
@@ -13,6 +14,7 @@ export interface Ps5Item {
   queueId?: string; createdAt?: number; confirmation?: 'user' | 'service-registration' | 'service-existing' | 'recorded-existing'; confirmedAt?: number
   imagePublishedAt?: number
   folderPublishedAt?: number
+  transferProfile?: Ps5TransferProfile
   progressPhase?: 'source-check' | 'transfer' | 'device-check'; bytesChecked?: number
 }
 export interface Ps5Queue {

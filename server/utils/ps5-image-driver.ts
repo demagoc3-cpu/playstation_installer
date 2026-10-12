@@ -68,6 +68,7 @@ async function upload(id: string, size: number, hash: string, read: (buffer: Buf
     send: async (position, bytes) => {
       const ack = await request(id, protocol.path, { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
       if (ack.status !== 200 || !valid(ack.body) || ack.body.bytesDurable !== position + bytes.length) throw new Error('Image acknowledgement lost; reconcile durable offset')
+      request.onTransferProfile?.(ack.body, position, bytes.length)
     }, progress })
   checking()
   r = await request(id, '/api/v1/transfers/commit', {}, undefined, signal)

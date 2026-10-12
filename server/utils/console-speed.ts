@@ -25,7 +25,7 @@ export function consoleSpeedJob(consoleId: string, id: string) {
 export async function consoleSpeedInfo(consoleId: string) {
   const p = getConsoleProfile(consoleId)
   if (p.platform !== 'ps5') return { ready: false, message: 'Для PS4 требуется обновление службы с поддержкой тестов скорости.' }
-  const q=getPs5Queue(consoleId), queue={queueStatus:q.status,queueId:q.id,lastJob:lastResult(consoleId)}
+  const q=getPs5Queue(consoleId), queue={queueStatus:q.status,queueId:q.id,lastJob:lastResult(consoleId),lastTransferProfile:[...q.items,...q.history.flat()].map(i=>i.transferProfile).filter(p=>p && Number.isFinite(p.measuredAt)).sort((a,b)=>b!.measuredAt-a!.measuredAt)[0]}
   try { const r = await ps5OperationRequest(consoleId, '/api/v1/benchmark/info'); return { ...queue, ready: r.status === 200 && r.body.protocol === 'speed-test-v1' && r.body.ready === true, message: r.status === 409 ? 'PS5 завершает другую операцию. Обновите проверку через несколько секунд.' : r.status === 200 ? (r.body.ready ? '' : 'Тесты ещё не проверены для этой нагрузки.') : 'Обновите ELF: он пока не поддерживает тесты скорости.' } }
   catch { return { ...queue, ready: false, message: 'Не удалось подключиться к ELF. Проверьте подключение приставки.' } }
 }
