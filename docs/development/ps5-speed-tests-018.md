@@ -103,3 +103,10 @@ SHA256 `0f21c75f9a628ef965cce1c0c332c724eca03f2c5ece7fd64df03696858445c9`.
 Windows archives must use `scripts/package-windows-web.py`, which materializes
 Nitro dependency links. The initial test archive omitted those directories;
 the corrected installed archive passed root HTTP 200 and browser checks.
+
+Final installed WEB includes measurement time and a refresh action for a busy
+console; a 409 readiness response is reported as busy rather than requesting an
+ELF update. Terminal results survived the installed WEB restart. Final browser
+check passed these controls with the preserved table. The same queue paused at
+128,015,032,995 bytes for this last update and was resumed. Local commits:
+ELF `88a82a1`, WEB `a44a3ea` and UI polish `6019f6d`; no push.
