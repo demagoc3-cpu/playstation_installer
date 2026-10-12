@@ -54,6 +54,14 @@ of remote sources remain separate work).
 - The earlier catalog/saves read marker was recovered after deletion of the
   service data directory, using prior management014/015f hardware evidence and
   a successful live catalog read. No new console-control marker was fabricated.
+- Installed Windows WEB updated from code commit `c0d791a`; HTTP 200 and
+  catalog retained (29 games, 10 on the checked page). Previous WEB and bundle
+  are preserved for rollback. The installed bootstrap bundle now carries ELF
+  016; Claude's PS5 042 and PS4 2.06 artifacts are unchanged. No app reinstalled.
+- Production WEB negotiated `folder-stream-v2` / `storageCopies=1`.
+  Read-only installation preview for Alan Wake Remastered: source 33,255,742,145
+  bytes, required 33,920,856,988 bytes, previously 66,511,484,290 bytes. No
+  installation of that user game was started during verification.
 
 ## Limits
 
