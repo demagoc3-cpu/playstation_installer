@@ -94,3 +94,13 @@ that as offline. A confirmed base registration now requires review as an
 existing base, without asserting the selected version is installed. A patch or
 DLC without sufficient evidence remains unconfirmed. No automatic overwrite
 approval was introduced.
+
+Installed Windows WEB `8576e4e` then resumed the original Avatar queue/transfer
+IDs without reinstall dispatch or ELF replacement. Live queue progressed to
+449,384,312 bytes; PS5's first-file receipt was complete, verified and sealed
+with a content hash. Preview now admits ASTRO's existing-base review and counts
+the Avatar queue as 192,358,761,090 bytes including reserve, instead of doubling
+it. ASTRO is not automatically queued or overwritten. Full Avatar completion
+is still pending; these checks confirm transfer initiation and corrected
+admission/space only. Browser tabs opened before the update must be reloaded
+to use the corrected Vue dialog.
