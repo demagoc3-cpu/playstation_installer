@@ -1577,5 +1577,8 @@
   "Сетевые тесты используют искусственные данные без записи. Тест диска включает запись и сохранение группами по 16 МиБ; временный файл удаляется. Хеширование игры измеряется отдельно от этих тестов.": "Network tests use generated data without disk writes. The disk test writes and flushes in 16 MiB groups, then deletes its temporary file. Game hashing is separate from these tests.",
   "Тесты ещё не проверены для этой нагрузки.": "Speed tests have not yet been verified for this payload.",
   "Обновите ELF: он пока не поддерживает тесты скорости.": "Update ELF: it does not support speed tests yet.",
-  "Не удалось подключиться к ELF. Проверьте подключение приставки.": "Could not connect to ELF. Check the console connection."
+  "Не удалось подключиться к ELF. Проверьте подключение приставки.": "Could not connect to ELF. Check the console connection.",
+  "PS5 завершает другую операцию. Обновите проверку через несколько секунд.": "PS5 is finishing another operation. Refresh the check in a few seconds.",
+  "Время замера": "Measurement time",
+  "Обновить проверку": "Refresh check"
 }
