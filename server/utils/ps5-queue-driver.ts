@@ -9,7 +9,7 @@ import { ps5SourceStamp as stamp } from './ps5-source-hash'
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache'
 import { seedPs5SourceHashHistory } from './ps5-source-hash-history'
 import { getPackage } from './package-library'
-import { ps5OperationRequest } from './console-profiles'
+import { ps5OperationRequest, Ps5OperationValidationError } from './console-profiles'
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core'
 import { ps5InstallCapabilities, ps5InstallMessage } from '../../shared/ps5-install-readiness'
 import { getConsoleProfile } from './console-profiles'
@@ -28,7 +28,10 @@ export function ps5TransferChunkSize(reply: { chunkMax?: unknown }) {
 }
 export function ps5QueueDriver(consoleId: string): Ps5Driver {
   const request = async (item: Ps5Item, path: Parameters<typeof ps5OperationRequest>[1], headers = {}, body?: Uint8Array, signal?: AbortSignal) => {
-    const r = await ps5OperationRequest(consoleId, path, { 'X-PackageFlow-Transfer-Id': item.transferId, ...headers }, body, signal)
+    const r = await ps5OperationRequest(consoleId, path, { 'X-PackageFlow-Transfer-Id': item.transferId, ...headers }, body, signal).catch(error => {
+      if (error instanceof Ps5OperationValidationError) throw new Ps5QueueFailure('WEB отклонил параметры команды PS5. Требуется исправление WEB; это не потеря связи с приставкой')
+      throw error
+    })
     if ([400,401,403,413,422].includes(r.status)) throw new Ps5QueueFailure(`Сервис PS5 отклонил операцию (${r.status})`)
     if (r.status >= 500) throw new Error('PS5 operation unavailable')
     return r

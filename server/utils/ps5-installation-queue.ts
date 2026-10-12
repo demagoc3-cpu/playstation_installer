@@ -14,6 +14,7 @@ import { isPs5ImageFormat } from './ps5-image-driver'
 import { ps5QueueDriver } from './ps5-queue-driver'
 import { assessPs5SourceFirmware } from './ps5-installation-firmware'
 import type { LibraryInstallationSelection } from './library-installation'
+import type { Ps5SpaceItem } from '../../shared/ps5-installation-space'
 const runners = new Map<string, Ps5QueueRunner>()
 const path = (id: string) => dataPath(`consoles/${id}/ps5-installation-queue.json`)
 function validItems(value: unknown): value is Ps5Item[] {
@@ -46,6 +47,21 @@ function runner(id: string) {
 export function getPs5Queue(id: string) {
   const { history: _, ...snapshot } = runner(id).queue, q = structuredClone(snapshot)
   return { ...q, items: q.items.map(item => { const { hash: _, sourceStamp: __, transferId: ___, ...publicItem } = item; return publicItem }) }
+}
+/** Internal preflight reads the captured queue/plan, not its redacted API view.
+ * Never expose transfer IDs simply to calculate space. Unknown/legacy plans
+ * retain the conservative estimate; progress alone is not offset credit. */
+export function getPs5PendingSpaceItems(id: string): Ps5SpaceItem[] {
+  return runner(id).queue.items.filter(item => !['installed','failed','skipped','cancelled'].includes(item.state)).map(item => {
+    let legacyFolder = true
+    if (item.format === 'folder') {
+      try {
+        const plan = JSON.parse(readFileSync(dataPath(`consoles/${id}/${item.transferId}.folder-plan.json`), 'utf8'))
+        legacyFolder = !(plan.version === 2 && plan.id === item.transferId && plan.total === item.size && plan.title === item.titleId)
+      } catch { legacyFolder = item.state !== 'pending' }
+    }
+    return { size: item.size, format: item.format, legacyFolder }
+  })
 }
 export function getPs5SetupAttempt(id: string, queueId: string, packageId: string) {
   const q = runner(id).queue

@@ -71,3 +71,26 @@ Directory enumeration still costs time for very large trees. Crash recovery
 without a valid checkpoint/verification ledger may read existing data again.
 Cleanup of cancelled legacy transfers, image-copy optimization and a complete
 AVA1 port are not included in this change.
+
+## Production integration correction
+
+The first hardware fixture used the real Folder driver with a direct request
+adapter. It did not exercise the production HTTP header allowlist. Avatar's
+real queue exposed a missing `X-PackageFlow-Stream` entry: WEB rejected its own
+request before contacting PS5 and the generic retry handler reported an outage.
+The header is now admitted; local command-validation failures are distinguished
+from transport failures. A new integration test executes the production queue
+driver through `ps5OperationRequest`, including late seal and publication.
+
+The pending-space reader also used the redacted public queue (without transfer
+IDs), so it could not read its v2 plans. It now reads the private captured queue
+and preserves redaction in API responses. The Vue dialog separately doubled
+source bytes; it now uses `requiredBytes` from the server and adds only explicitly
+approved PKG replacements. Tests cover an active v2 Folder plus a new PKG and
+the dialog's displayed calculation, while retaining legacy-plan estimates.
+
+ASTRO's live registration had no source path and version `0`; WEB classified
+that as offline. A confirmed base registration now requires review as an
+existing base, without asserting the selected version is installed. A patch or
+DLC without sufficient evidence remains unconfirmed. No automatic overwrite
+approval was introduced.

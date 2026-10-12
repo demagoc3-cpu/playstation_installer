@@ -94,7 +94,12 @@ export async function checkPs5InstalledPackage(consoleId: string, ip: string, pk
         const info = await read(consoleId, '/api/v1/console/info', { 'X-PackageFlow-Title':pkg.titleId }, undefined, signal)
         const row=info.body
         if (info.status!==200 || row?.title_id!==pkg.titleId || typeof row.installed!=='boolean' || typeof row.source_available!=='boolean' || typeof row.content_id!=='string' || typeof row.version!=='string') return unavailable()
-        if (!row.source_available) return unavailable()
+        // A built-in/system-installed game may have an app.db registration
+        // without a Folder/image source. That is live evidence of a base title,
+        // not proof of the selected package/version and not a network outage.
+        if (!row.source_available) return pkg.installOrder === 0 && row.installed
+          ? { ...basePresent(), detail: 'Игра зарегистрирована на PS5; версия выбранного пакета не подтверждена. Для замены выберите переустановку', revision: row.sourceIdentity }
+          : { ...unavailable(), detail: 'PS5 отвечает, но версия установленного пакета не подтверждена. Передача этого пакета не отправлена' }
         return {...matchPs5InstalledGame(pkg,row,false),revision:row.sourceIdentity || JSON.stringify([row.content_id,row.version,row.path])}
       }
     }

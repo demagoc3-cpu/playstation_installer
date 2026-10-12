@@ -41,6 +41,20 @@ test('live PS5 version proves a patch; Title ID alone never proves a DLC',()=>{
  assert.equal(api.matchPs5InstalledGame(dlc,row,true).state,'unavailable')
  assert.equal(api.matchPs5InstalledGame(dlc,{...row,installed:false},true).state,'absent')
 })
+test('live built-in registration without a source is a base review, never proof of selected version or a disconnected console',async()=>{
+ const signal=new AbortController().signal
+ const read=async(_id,path)=>({status:200,body:path.endsWith('/status')
+  ? {protocol:'ps5-management-v1',ready:true,catalog:true}
+  : path.endsWith('/catalog')
+  ? {revision:'d'.repeat(64),entries:[{titleId:base.titleId,contentId:base.contentId,metadata:'{}'}],next:1,done:true}
+  : {title_id:base.titleId,content_id:'IP9100-'+base.titleId+'_00-PREINMASTER00000',version:'0',installed:true,source_available:false,path:'',sourceIdentity:'e'.repeat(64)}})
+ const v=await api.checkPs5InstalledPackage('fixture','192.168.1.5',base,signal,read)
+ assert.equal(v.state,'base-present');assert.match(v.detail,/версия.*не подтверждена/);assert.equal(v.revision,'e'.repeat(64))
+ const p=await api.checkPs5InstalledPackage('fixture','192.168.1.5',patch,signal,read)
+ assert.equal(p.state,'unavailable');assert.match(p.detail,/PS5 отвечает/)
+ const failed=await api.checkPs5InstalledPackage('fixture','192.168.1.5',base,signal,async()=>({status:503,body:{}}))
+ assert.equal(failed.state,'unavailable')
+})
 test('already present base continues to new patches and the next game without falsely marking its selected version installed',async()=>{
  const q=api.ps5BlankQueue('test','192.168.1.5'),seen=[],marks=[]
  const item=(id,order=0,branch='ps5:PPSA95001')=>({packageId:id,title:id,titleId:branch.split(':')[1],fileName:`${id}.pkg`,size:100,type:order?'Патч':'Игра',platform:'ps5',format:'pkg',order,branch})

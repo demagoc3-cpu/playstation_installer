@@ -16,8 +16,11 @@ const current=computed(()=>preview.value?.devices.find(item=>item.profile.id===p
 function bytes(value?:number){if(value===undefined)return '—';if(!value)return '0 Б';const i=Math.min(4,Math.floor(Math.log(value)/Math.log(1024)));return `${(value/1024**i).toLocaleString('ru-RU',{maximumFractionDigits:1})} ${['Б','КБ','МБ','ГБ','ТБ'][i]}`}
 function required(item:DeviceInstallPreview['devices'][number]){
  const extra=item.installedPackages.filter(pkg=>overwrite.value[item.profile.id]?.includes(pkg.packageId)).reduce((sum,pkg)=>sum+pkg.size,0)
+ // The server includes queued legacy/streaming plans and their reserves.
+ // PS5 overwrite is currently admitted only for PKG, hence two copies for extra.
+ if(item.profile.platform==='ps5')return item.requiredBytes+extra*2
  const source=item.selectedBytes+item.queueBytes+extra
- return source ? item.profile.platform==='ps5'?source*2:source+Math.max(Math.ceil(source*0.05),512*1024*1024):0
+ return source ? source+Math.max(Math.ceil(source*0.05),512*1024*1024):0
 }
 function spaceEnough(item:DeviceInstallPreview['devices'][number]){return !required(item) || item.profile.freeBytes!==undefined&&item.profile.freeBytes>=required(item)}
 const ready=computed(()=>!panel.value&&!!selected.value.length&&selected.value.every(id=>{

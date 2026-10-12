@@ -13,7 +13,7 @@ test('table review is mandatory, sends only selected destinations/packages, and 
  const pkg={packageId:'base',title:'Game',titleId:'CUSA95001',type:'Игра',version:'01.00',size:100,canOverwrite:true,canReinstall:false,affected:[],reinstallReason:''}
  globalThis.pfInstallDialogFixture=async(url,options)=>{
   calls.push({url,options})
-  if(url.endsWith('install-preview'))return{selection:{packageIds:['base']},files:1,size:100,packages:[pkg],devices:['one','two'].map(id=>({profile:{id,ip:'192.168.1.5',platform:'ps5',freeBytes:1000},eligible:true,selectedBytes:0,queueBytes:0,reviewToken:id==='one'?'a'.repeat(64):'b'.repeat(64),queuedPackages:[],installedPackages:[pkg]}))}
+  if(url.endsWith('install-preview'))return{selection:{packageIds:['base']},files:1,size:100,packages:[pkg],devices:['one','two'].map(id=>({profile:{id,ip:'192.168.1.5',platform:'ps5',freeBytes:1000},eligible:true,requiredBytes:0,selectedBytes:0,queueBytes:0,reviewToken:id==='one'?'a'.repeat(64):'b'.repeat(64),queuedPackages:[],installedPackages:[pkg]}))}
   throw new Error('lost reply')
  }
  try{
@@ -24,6 +24,8 @@ test('table review is mandatory, sends only selected destinations/packages, and 
   const module=createRequire(import.meta.url)(outfile), props={selection:{packageIds:['base']}},view=module.default.setup(props,{expose(){},emit(){}})
   props.selection.packageIds.push('not-selected','LittleNightmares')
   await view.load();assert.deepEqual(calls[0].options.body,{packageIds:['base']},'selection is frozen when opening the modal')
+  const streaming={...view.preview.value.devices[0],requiredBytes:610,selectedBytes:100,queueBytes:500,installedPackages:[]}
+  assert.equal(view.required(streaming),610,'UI keeps server mixed queue estimate instead of doubling source bytes')
   view.selected.value=['one'];assert.equal(view.ready.value,false);await view.install();assert.equal(calls.filter(c=>c.url.endsWith('install-batch')).length,0)
   view.openInstalled(view.preview.value.devices[0]);view.draft.value=['base'];await view.applyPanel()
   view.overwrite.value.two=['base'];assert.equal(view.ready.value,true)
