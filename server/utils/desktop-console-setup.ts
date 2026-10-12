@@ -102,7 +102,7 @@ export async function installDesktopPs5App(id: unknown, requestId: unknown) {
   }
   assertNoPs5ServiceUpdate(p.id)
   const b = await consoleSetupBundle(), snapshot=(await probeConsoleProfile(p.id)).consoles.find(x=>x.id===p.id)!
-  if (!snapshot.online || !snapshot.paired || snapshot.firmware!==b.manifest.elf.firmware || !snapshot.capabilities.formats.includes(b.manifest.app.format)) throw createError({statusCode:409,message:'Сопрягите PS5 и запустите ShadowMount+. Установка этого формата должна быть подтверждена службой'})
+  if (!snapshot.online || !snapshot.paired || snapshot.firmware!==b.manifest.elf.firmware || !snapshot.capabilities.formats.includes(b.manifest.app.format)) throw createError({statusCode:409,message:'Подключите PS5 и запустите ShadowMount+. Установка этого формата должна быть подтверждена службой'})
   if (flow(p.id) && !['completed','failed'].includes(flow(p.id)!.state) || !idle(p.id)) throw createError({statusCode:409,message:'Дождитесь подтверждения ELF и завершения текущих заданий'})
   const lock=claimConsoleWorker('bootstrap',p.ip)
   if(!lock)throw createError({statusCode:409,message:'Другой мастер уже выполняет установку'})
@@ -114,10 +114,20 @@ export async function installDesktopPs5App(id: unknown, requestId: unknown) {
     const presence=await checkPs5InstalledPackage(p.id,p.ip,source,AbortSignal.timeout(15000))
     if(presence.state==='installed')return {consoleId:p.id,retry:'installed',queue:getPs5Queue(p.id)}
     if(presence.state==='base-present')throw createError({statusCode:409,message:'На PS5 установлена другая версия PackageFlow. Обновление приложения требуется отдельно'})
-    if(presence.state!=='absent')throw createError({statusCode:409,message:'PS5 не подтвердила наличие приложения. Установка не отправлена; восстановите связь и проверьте снова'})
-    const receipt={consoleId:p.id,ip:p.ip,requestId,packageId:item.id,sha256:b.manifest.app.sha256,queueId:randomBytes(16).toString('hex'),state:'prepared',startedAt:Date.now()}
+    let repairMissingSource=false, repairIdentity:string|undefined
+    if(presence.state==='unavailable') {
+      // Only repair this bundled application's orphan registration. An unknown
+      // catalog or a different application's identity must never become absent.
+      const {ps5ConsoleGameInfo}=await import('./ps5-console-games')
+      const current=await ps5ConsoleGameInfo(p.id,b.manifest.app.titleId)
+      repairMissingSource=current.titleId==='PPSA95001' && current.contentId===b.manifest.app.contentId &&
+        current.installed===true && current.sourceAvailable===false && /^\d{2}\.\d{3}\.\d{3}$/.test(current.version || '')
+      if(repairMissingSource)repairIdentity=current.sourceIdentity
+    }
+    if(presence.state!=='absent'&&!repairMissingSource)throw createError({statusCode:409,message:'PS5 не подтвердила наличие приложения. Установка не отправлена; восстановите связь и проверьте снова'})
+    const receipt={consoleId:p.id,ip:p.ip,requestId,packageId:item.id,sha256:b.manifest.app.sha256,queueId:randomBytes(16).toString('hex'),state:'prepared',repairMissingSource,startedAt:Date.now()}
     writeDurableJson(receiptPath,receipt)
-    try { const queue=await startPs5Queue({consoleId:p.id,packageIds:[item.id],newQueueId:receipt.queueId});receipt.state='queued';writeDurableJson(receiptPath,receipt);return {consoleId:p.id,receipt,queue} }
+    try { const queue=await startPs5Queue({consoleId:p.id,packageIds:[item.id],newQueueId:receipt.queueId,appSourceRepair:repairMissingSource?{packageId:item.id,sourceIdentity:repairIdentity!}:undefined});receipt.state='queued';writeDurableJson(receiptPath,receipt);return {consoleId:p.id,receipt,queue} }
     catch(e){receipt.state='unconfirmed';writeDurableJson(receiptPath,receipt);throw e}
   } finally {lock()}
 }

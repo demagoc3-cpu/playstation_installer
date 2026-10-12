@@ -63,10 +63,14 @@ Function .onInit
   System::Call 'kernel32::CreateMutexW(p 0, i 0, w "Local\PackageFlowSetup") p .r1 ?e'
   Pop $0
   ${If} $0 = 183
+    SetErrorLevel 2
+    IfSilent +2
     MessageBox MB_ICONEXCLAMATION "PackageFlow Setup is already running."
     Abort
   ${EndIf}
   ${IfNot} ${RunningX64}
+    SetErrorLevel 3
+    IfSilent +2
     MessageBox MB_ICONSTOP "PackageFlow requires Windows x64."
     Abort
   ${EndIf}
@@ -83,6 +87,8 @@ Section "PackageFlow" Main
   ${If} ${FileExists} "$INSTDIR\PackageFlow.exe"
     ExecWait '"$INSTDIR\PackageFlow.exe" --prepare-update' $0
     ${If} $0 != 0
+      SetErrorLevel 2
+      IfSilent +2
       MessageBox MB_ICONEXCLAMATION "$(Busy)"
       Abort
     ${EndIf}
@@ -109,6 +115,8 @@ Function un.onInit
   !insertmacro MUI_UNGETLANGUAGE
   ExecWait '"$INSTDIR\PackageFlow.exe" --prepare-update' $0
   ${If} $0 != 0
+    SetErrorLevel 2
+    IfSilent +2
     MessageBox MB_ICONEXCLAMATION "$(Busy)"
     Abort
   ${EndIf}

@@ -57,7 +57,7 @@ export function ps5TaskPackageId(id: string, queueId: string, taskId: string) {
   if (q.id !== queueId || !item) throw createError({statusCode:409,message:'Задание больше не существует в этой очереди'})
   return item.packageId
 }
-export async function startPs5Queue(input: { consoleId: string; packageIds?: unknown; librarySelection?: LibraryInstallationSelection; queueId?: string; newQueueId?: string; overwritePackageIds?: string[] }) {
+export async function startPs5Queue(input: { consoleId: string; packageIds?: unknown; librarySelection?: LibraryInstallationSelection; queueId?: string; newQueueId?: string; overwritePackageIds?: string[]; appSourceRepair?: {packageId:string;sourceIdentity:string} }) {
   assertNoPs5ServiceUpdate(input.consoleId)
   assertNoPs5Bootstrap(input.consoleId)
   const profile = getConsoleProfile(input.consoleId)
@@ -76,6 +76,15 @@ export async function startPs5Queue(input: { consoleId: string; packageIds?: unk
   const items = [...new Set(ids as string[])].map(id => getPackage(id))
   const overwrite = input.overwritePackageIds || []
   if (!Array.isArray(overwrite) || overwrite.some(id => typeof id !== 'string' || !items.some(item => item.id === id && contentFormat(item) === 'pkg'))) throw createError({ statusCode: 400, message: 'Повторная установка разрешается только для выбранных PKG' })
+  const repair=input.appSourceRepair
+  if(repair) {
+    // Internal desktop recovery, never a general image overwrite option.
+    const item=items[0]
+    if(items.length!==1||repair.packageId!==item.id||item.titleId!=='PPSA95001'||item.contentId!=='IV0000-PPSA95001_00-PACKAGEFLOWUI001'||!isPs5ImageFormat(contentFormat(item))||!/^[a-f0-9]{64}$/.test(repair.sourceIdentity))throw createError({statusCode:409,message:'Неверный источник восстановления PackageFlow'})
+    const {ps5ConsoleGameInfo}=await import('./ps5-console-games')
+    const current=await ps5ConsoleGameInfo(profile.id,item.titleId)
+    if(current.sourceIdentity!==repair.sourceIdentity||current.contentId!==item.contentId||current.installed!==true||current.sourceAvailable!==false)throw createError({statusCode:409,message:'Состояние PackageFlow изменилось. Обновите проверку приложения'})
+  }
   // Validate the WHOLE batch before persisting or transferring any bytes.
   for (const item of items) {
     const platform = contentPlatform(item), format = contentFormat(item)
@@ -87,7 +96,7 @@ export async function startPs5Queue(input: { consoleId: string; packageIds?: unk
     }
   }
   try { current.enqueue(items.map(item => ({ packageId: item.id, title: item.title, fileName: item.fileName, size: item.size, type: item.type,
-    titleId: item.titleId, branch: contentBranchKey(item), order: item.installOrder, platform: contentPlatform(item), format: contentFormat(item), appVersion: item.appVersion, contentId: item.contentId, overwriteApproved: overwrite.includes(item.id) })), input.queueId, input.newQueueId); return getPs5Queue(profile.id) }
+    titleId: item.titleId, branch: contentBranchKey(item), order: item.installOrder, platform: contentPlatform(item), format: contentFormat(item), appVersion: item.appVersion, contentId: item.contentId, overwriteApproved: overwrite.includes(item.id) || repair?.packageId===item.id })), input.queueId, input.newQueueId); return getPs5Queue(profile.id) }
   catch (error) { if (error instanceof Ps5QueueFailure) throw createError({ statusCode: 409, message: error.message }); throw error }
 }
 export function cancelPs5Queue(id: string, queueId: string, packageIds?: string[], branches?: string[]) {

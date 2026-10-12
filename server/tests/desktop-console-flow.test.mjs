@@ -32,13 +32,16 @@ const p=api.saveConsoleProfile({name:'Fixture',platform:'ps5',ip:'192.168.50.5'}
 const other=api.saveConsoleProfile({name:'PS4',platform:'ps4',ip:'192.168.50.4'}).consoles[1]
 writeFileSync(join(data,'ps5-service-keys.json'),JSON.stringify({[p.ip]:'a'.repeat(64),'192.168.50.8':'b'.repeat(64)}))
 writeFileSync(join(data,'ps4-service-keys.json'),JSON.stringify({[other.ip]:'c'.repeat(32)}))
-let mode='installed',writes=0,running=false,managed=true,contentId=manifest.app.contentId
-const game=()=>({title_id:manifest.app.titleId,title_name:'PackageFlow',platform:'ps5',source_type:'image',image_type:'exfat',version:manifest.app.version,content_id:contentId,path:'/data/homebrew/PPSA95001.exfat',installed:true,mounted:true,managed,source_available:true,can_manage_source:true,can_uninstall:true,sourceIdentity:'d'.repeat(64)})
+let pairingMode='automatic',pairCalls=0;
+let mode='installed',writes=0,running=false,managed=true,sourceAvailable=true,contentId=manifest.app.contentId
+const game=()=>({title_id:manifest.app.titleId,title_name:'PackageFlow',platform:'ps5',source_type:'image',image_type:'exfat',version:manifest.app.version,content_id:contentId,path:'/data/homebrew/PPSA95001.exfat',installed:true,mounted:true,managed,source_available:sourceAvailable,can_manage_source:true,can_uninstall:true,sourceIdentity:'d'.repeat(64)})
 globalThis.fetch=async(url,options={})=>{
  const path=new URL(url).pathname,response=(body,status=200)=>new Response(JSON.stringify(body),{status})
+ if(path==='/api/v1/pair'){pairCalls++;assert.equal(options.method,'POST');assert.equal(options.headers['X-PackageFlow-Pairing-Mode'],'automatic');assert.equal(options.headers['X-PackageFlow-Pairing-Code'],undefined);return response({apiVersion:'v1',pairingMode:'automatic',token:'a'.repeat(64)})}
+ if(path==='/api/v1/web/config')return response({service:'PackageFlowService-PS5',webConfigured:true,webHost:options.headers['X-PackageFlow-Web-Host'],webPort:Number(options.headers['X-PackageFlow-Web-Port']),webConsoleId:options.headers['X-PackageFlow-Console-Id']})
  if(path==='/api/v1/console/command') {writes++;assert.equal(options.headers['X-PackageFlow-Title'],'PPSA95001');assert.equal(options.headers['X-PackageFlow-Action'],'delete');return response({requestId:options.headers['X-PackageFlow-Request-Id'],titleId:'PPSA95001',action:'delete',state:'accepted',result:{status:0}})}
  assert.notEqual(options.method,'POST')
- if(path==='/health')return response({apiVersion:'v1',firmwareRead:true,firmwareRaw:'0x13600000',serviceReport:{service:'PackageFlowService-PS5',platform:'ps5',consoleVerified:true,version:'0.1.15-dev'}})
+ if(path==='/health')return response({apiVersion:'v1',pairingMode,firmwareRead:true,firmwareRaw:'0x13600000',serviceReport:{service:'PackageFlowService-PS5',platform:'ps5',consoleVerified:true,version:'0.1.15-dev'}})
  if(path==='/api/v1/capabilities')return response({service:'PackageFlowService-PS5',capabilities:{}})
  if(path==='/api/v1/system')return response({service:'PackageFlowService-PS5',storageRead:false})
  if(path==='/api/v1/install/readiness')return response({service:'PackageFlowService-PS5',schemaVersion:1,images:{schemaVersion:1,route:'staged-image',ready:true,reason:'ready',protocol:'image-registration-v1',backend:'ShadowMountPlus-1.7beta3',registrationReceipt:true,platforms:['ps5'],formats:['ufs2','exfat','pfs','ffpfsc']}})
@@ -48,10 +51,19 @@ globalThis.fetch=async(url,options={})=>{
  if(path==='/api/v1/console/activity')return response({complete:true,running,appId:running?10:0,titleId:running?'PPSA95001':''})
  assert.fail(path)
 }
+test('connection without a PIN validates service mode and retains credentials on repeat',async()=>{
+ pairingMode=undefined;await assert.rejects(api.pairConsoleProfile(p.id,'http://192.168.50.1:3000'),{statusCode:409});assert.equal(pairCalls,0)
+ pairingMode='automatic';await api.pairConsoleProfile(p.id,'http://192.168.50.1:3000');await api.pairConsoleProfile(p.id,'http://192.168.50.1:3000');assert.equal(pairCalls,2)
+ assert.equal(JSON.parse(readFileSync(join(data,'ps5-service-keys.json'),'utf8'))[p.ip],'a'.repeat(64))
+})
 test('first request reads the console and skips an already installed app without dispatch or receipt',async()=>{
  assert.equal((await api.installDesktopPs5App(p.id,'1'.repeat(32))).retry,'installed');assert.equal(writes,0)
  assert.throws(()=>readFileSync(join(data,'console-setup',`app-${p.id}-${'1'.repeat(32)}.json`)),{code:'ENOENT'})
  mode='unknown';await assert.rejects(api.installDesktopPs5App(p.id,'2'.repeat(32)),{statusCode:409});assert.equal(writes,0);mode='installed'
+})
+test('orphan repair cannot overwrite a foreign identity or mistake a present source for absence',async()=>{
+ sourceAvailable=false;contentId='IV0000-PPSA95001_00-OTHERAPP';await assert.rejects(api.installDesktopPs5App(p.id,'5'.repeat(32)),{statusCode:409});assert.equal(writes,0)
+ sourceAvailable=true;contentId=manifest.app.contentId
 })
 test('app removal is source deletion, bound to its exact identity; replay never dispatches again',async()=>{
  running=true;await assert.rejects(api.removeDesktopPs5App(p.id,'3'.repeat(32),true),{statusCode:409});running=false

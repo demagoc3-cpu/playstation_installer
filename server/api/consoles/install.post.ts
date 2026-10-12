@@ -11,7 +11,7 @@ export default defineEventHandler(async event => {
   assertInstallationOrigin(event, true)
   const body = await readBody<{ consoleId?: string; packageIds?: string[]; librarySelection?: LibraryInstallationSelection; transport?: unknown; queueId?: string }>(event)
   const profile = getConsoleProfile(body?.consoleId)
-  if (profile.platform === 'ps5') return startPs5Queue({ ...body, consoleId: profile.id })
+  if (profile.platform === 'ps5') return startPs5Queue({ consoleId: profile.id, packageIds:body.packageIds, librarySelection:body.librarySelection, queueId:body.queueId })
   const host = getHeader(event, 'host') || 'localhost:3000'
   let input: { packageIds: string[]; packageUrls: Record<string, string> }
   if (body.librarySelection) input = await libraryInstallationInput(body.librarySelection, profile.ip, host)
