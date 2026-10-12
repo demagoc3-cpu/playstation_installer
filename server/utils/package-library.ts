@@ -460,7 +460,14 @@ export function getPackage(id: string) {
   if (!item) throw createError({ statusCode: 404, message: 'Пакет не найден. Просканируйте папку повторно.' })
   return item
 }
-export function getPackageStream(id: string, options?: { start?: number; end?: number }) { const item = getPackage(id); return { item, stream: createReadStream(item.path, options) } }
+// Fewer source reads on SMB/GVFS while keeping each connection's buffering bounded.
+export const PACKAGE_STREAM_BUFFER_BYTES = 1024 * 1024
+export function getPackageStream(id: string, options?: { start?: number; end?: number }) {
+  const item = getPackage(id)
+  const rangeBytes = (options?.end ?? item.size - 1) - (options?.start ?? 0) + 1
+  return { item, stream: createReadStream(item.path, { ...options,
+    highWaterMark: Math.max(1, Math.min(PACKAGE_STREAM_BUFFER_BYTES, rangeBytes)) }) }
+}
 function indexedPackageCover(id: string) {
   const packages = readLibraryFile().packages, original = packages.find(item => matchesId(item, id))
   if (!original) return undefined

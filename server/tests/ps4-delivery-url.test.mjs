@@ -36,7 +36,7 @@ test('PS4 suffix URLs serve real manifest/HEAD/ranges and preserve recipient iso
     assert.equal(url, `${origin}/ps4/package/10.1.10.32/own.pkg`); assert.ok(url.endsWith('.pkg')); assert.ok(manifestUrl.endsWith('.json'))
     const head = await fetch(url, { method: 'HEAD' }); assert.equal(head.status, 200); assert.equal(head.headers.get('content-length'), String(bytes.length)); assert.equal((await head.arrayBuffer()).byteLength, 0)
     assert.equal(api.inConsoleScope('10.1.10.32', () => api.getPackageDelivery('own')).bytesSent, 0, 'HEAD does not stream or count file bytes')
-    for (const [range, start, end] of [['bytes=0-15', 0, 15], ['bytes=4000-4095', 4000, 4095], ['bytes=-16', bytes.length-16, bytes.length-1]]) {
+    for (const [range, start, end] of [['bytes=0-15', 0, 15], ['bytes=4000-4095', 4000, 4095], ['bytes=1048500-1049000',1048500,1049000], ['bytes=-16', bytes.length-16, bytes.length-1]]) {
       const res = await fetch(url, { headers: { Range: range } }); assert.equal(res.status, 206); assert.equal(res.headers.get('content-range'), `bytes ${start}-${end}/${bytes.length}`)
       assert.deepEqual(Buffer.from(await res.arrayBuffer()), bytes.subarray(start, end + 1))
     }

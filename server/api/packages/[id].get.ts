@@ -4,7 +4,7 @@ import { logEvent } from '../../utils/event-log'
 import { Transform } from 'node:stream'
 import type { ReadStream } from 'node:fs'
 import type { H3Event } from 'h3'
-import { getPackage, getPackageDelivery, getPackageIconStream, getPackageStream, isDeliveryBlocked, recordPackageDelivery, recordPackageRequest, registerActiveTransfer } from '../../utils/package-library'
+import { PACKAGE_STREAM_BUFFER_BYTES, getPackage, getPackageDelivery, getPackageIconStream, getPackageStream, isDeliveryBlocked, recordPackageDelivery, recordPackageRequest, registerActiveTransfer } from '../../utils/package-library'
 
 const debug = Boolean(process.env.PACKAGEFLOW_DEBUG)
 const PROGRESS_INTERVAL_MS = 500
@@ -18,7 +18,7 @@ const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(2)} МБ`
  * drops the connection, it is logged with the byte count. Bookkeeping errors
  * never break the transfer.
  */
-function streamRange(event: H3Event, file: ReadStream, id: string, fileName: string, start: number, end: number, completed: boolean) {
+function streamRange(event: H3Event, file: ReadStream, id: string, fileName: string, start: number, end: number, completed: boolean, requestedAt: number) {
   const owner = currentConsoleIp()
   const record = (last: number, done: boolean) => inConsoleScope(owner, () => {
     if (last < start) return
@@ -28,7 +28,9 @@ function streamRange(event: H3Event, file: ReadStream, id: string, fileName: str
   let sent = 0
   let reportedAt = 0
   const counter = new Transform({
+    highWaterMark: Math.max(1, Math.min(PACKAGE_STREAM_BUFFER_BYTES, expected)),
     transform(chunk: Buffer, _encoding, callback) {
+      if (!sent) logEvent('info', `Первый блок PKG «${fileName}» прочитан WEB за ${(performance.now() - requestedAt).toFixed(1)} мс после запроса PS4`)
       sent += chunk.length
       const now = Date.now()
       if (now - reportedAt >= PROGRESS_INTERVAL_MS) { reportedAt = now; record(start + sent - 1, false) }
@@ -59,10 +61,12 @@ export default defineEventHandler((event) => inConsoleScope(currentConsoleIp() |
     return sendStream(event, getPackageIconStream(id))
   }
 
+  const requestedAt = performance.now()
+  const range = getHeader(event, 'range')
+  logEvent('info', `Запрос данных PKG получен WEB: ${id}, ${range || 'целиком'}`)
   const item = getPackage(id)
   if (contentFormat(item) === 'folder') throw createError({ statusCode: 409, message: 'Папка передаётся через протокол файлов PS5' })
   if (isDeliveryBlocked(id)) throw createError({ statusCode: 410, message: 'Installation cancelled' })
-  const range = getHeader(event, 'range')
   recordPackageRequest(id)
   if (debug) logEvent('info', `PS4 запрашивает «${item.fileName}» ${range || 'целиком'}`)
   setHeader(event, 'Content-Type', 'application/octet-stream')
@@ -72,7 +76,7 @@ export default defineEventHandler((event) => inConsoleScope(currentConsoleIp() |
   if (!range) {
     setHeader(event, 'Content-Length', item.size)
     if (event.method === 'HEAD') return ''
-    return streamRange(event, getPackageStream(id).stream, id, item.fileName, 0, item.size - 1, true)
+    return streamRange(event, getPackageStream(id).stream, id, item.fileName, 0, item.size - 1, true, requestedAt)
   }
 
   const match = /^bytes=(\d*)-(\d*)$/i.exec(range.trim())
@@ -90,5 +94,5 @@ export default defineEventHandler((event) => inConsoleScope(currentConsoleIp() |
   setHeader(event, 'Content-Range', `bytes ${start}-${end}/${item.size}`)
   setHeader(event, 'Content-Length', end - start + 1)
   if (event.method === 'HEAD') return ''
-  return streamRange(event, getPackageStream(id, { start, end }).stream, id, item.fileName, start, end, start === 0 && end === item.size - 1)
+  return streamRange(event, getPackageStream(id, { start, end }).stream, id, item.fileName, start, end, start === 0 && end === item.size - 1, requestedAt)
 }))

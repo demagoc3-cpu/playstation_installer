@@ -1,0 +1,6380 @@
+{
+  "nativeCommit": "f93ee3e",
+  "pkg": "2.10",
+  "network": {
+    "at": "2026-10-12T13:38:56.639Z",
+    "ip": "10.1.10.32",
+    "size": 268435456,
+    "pkg": "2.10",
+    "transport": "service:12801",
+    "completed": true,
+    "runs": [
+      {
+        "mode": "upload",
+        "profile": "baseline",
+        "repeat": 1,
+        "elapsedMs": 6150.235192,
+        "mibPerSecond": 41.62442443388106,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 6133.008,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 4123,
+              "io": 6185,
+              "wouldBlock": 4122,
+              "bytesPerCallAvg": 130118,
+              "bytesPerCallMax": 131024,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 2061,
+              "actualUsTotal": 5781923,
+              "actualUsMax": 3454
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 6133.04,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 4123,
+              "io": 6185,
+              "wouldBlock": 4122,
+              "bytesPerCallAvg": 130118,
+              "bytesPerCallMax": 131024,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 2061,
+              "actualUsTotal": 5781923,
+              "actualUsMax": 3454
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "baseline",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 66608,
+            "originalBytes": 66608,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 4123,
+            "io": 6185,
+            "wouldBlock": 4122,
+            "bytesPerCallAvg": 130118,
+            "bytesPerCallMax": 131024,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 2061,
+            "actualUsTotal": 5781923,
+            "actualUsMax": 3454
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "baseline",
+        "repeat": 1,
+        "elapsedMs": 6241.7899990000005,
+        "mibPerSecond": 41.01387583385757,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 6223.962,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 33304,
+              "originalBytes": 33304,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 4183,
+              "io": 6273,
+              "wouldBlock": 4182,
+              "bytesPerCallAvg": 128376,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 2092,
+              "actualUsTotal": 5868542,
+              "actualUsMax": 3487
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "baseline",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 33304,
+            "originalBytes": 33304,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 4183,
+            "io": 6273,
+            "wouldBlock": 4182,
+            "bytesPerCallAvg": 128376,
+            "bytesPerCallMax": 131072,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 2092,
+            "actualUsTotal": 5868542,
+            "actualUsMax": 3487
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "sockbuf512k",
+        "repeat": 1,
+        "elapsedMs": 2316.268186000001,
+        "mibPerSecond": 110.52260767872924,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 2299.078,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2104,
+              "io": 4964,
+              "wouldBlock": 2103,
+              "bytesPerCallAvg": 93825,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 757,
+              "actualUsTotal": 1968373,
+              "actualUsMax": 4169
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2299.111,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2104,
+              "io": 4964,
+              "wouldBlock": 2103,
+              "bytesPerCallAvg": 93825,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 757,
+              "actualUsTotal": 1968373,
+              "actualUsMax": 4169
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2104,
+            "io": 4964,
+            "wouldBlock": 2103,
+            "bytesPerCallAvg": 93825,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 757,
+            "actualUsTotal": 1968373,
+            "actualUsMax": 4169
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "sockbuf512k",
+        "repeat": 1,
+        "elapsedMs": 2324.213224000001,
+        "mibPerSecond": 110.14479969243988,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2304.942,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 33304,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1558,
+              "io": 3087,
+              "wouldBlock": 1557,
+              "bytesPerCallAvg": 175448,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 770,
+              "actualUsTotal": 2094268,
+              "actualUsMax": 3799
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1558,
+            "io": 3087,
+            "wouldBlock": 1557,
+            "bytesPerCallAvg": 175448,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 770,
+            "actualUsTotal": 2094268,
+            "actualUsMax": 3799
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "default",
+        "repeat": 1,
+        "elapsedMs": 2312.909868999999,
+        "mibPerSecond": 110.68308516089441,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 2294.952,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2060,
+              "io": 4857,
+              "wouldBlock": 2059,
+              "bytesPerCallAvg": 95938,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 754,
+              "actualUsTotal": 1959302,
+              "actualUsMax": 3387
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2294.984,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2060,
+              "io": 4857,
+              "wouldBlock": 2059,
+              "bytesPerCallAvg": 95938,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 754,
+              "actualUsTotal": 1959302,
+              "actualUsMax": 3387
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2060,
+            "io": 4857,
+            "wouldBlock": 2059,
+            "bytesPerCallAvg": 95938,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 754,
+            "actualUsTotal": 1959302,
+            "actualUsMax": 3387
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "default",
+        "repeat": 1,
+        "elapsedMs": 2557.759527000002,
+        "mibPerSecond": 100.08759513849317,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2539.927,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 33304,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1722,
+              "io": 3221,
+              "wouldBlock": 1721,
+              "bytesPerCallAvg": 178956,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 852,
+              "actualUsTotal": 2351997,
+              "actualUsMax": 3645
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1722,
+            "io": 3221,
+            "wouldBlock": 1721,
+            "bytesPerCallAvg": 178956,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 852,
+            "actualUsTotal": 2351997,
+            "actualUsMax": 3645
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "sockbuf512k-sleep500",
+        "repeat": 1,
+        "elapsedMs": 2311.4476490000015,
+        "mibPerSecond": 110.75310319520017,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 2293.913,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k-sleep500",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 5980,
+              "io": 12946,
+              "wouldBlock": 5979,
+              "bytesPerCallAvg": 38529,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 500,
+              "count": 2163,
+              "actualUsTotal": 1888917,
+              "actualUsMax": 2244
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2293.945,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k-sleep500",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 5980,
+              "io": 12946,
+              "wouldBlock": 5979,
+              "bytesPerCallAvg": 38529,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 500,
+              "count": 2163,
+              "actualUsTotal": 1888917,
+              "actualUsMax": 2244
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k-sleep500",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 5980,
+            "io": 12946,
+            "wouldBlock": 5979,
+            "bytesPerCallAvg": 38529,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 500,
+            "count": 2163,
+            "actualUsTotal": 1888917,
+            "actualUsMax": 2244
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "sockbuf512k-sleep500",
+        "repeat": 1,
+        "elapsedMs": 2630.085350000001,
+        "mibPerSecond": 97.33524427258601,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2609.866,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k-sleep500",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 33304,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 5061,
+              "io": 7559,
+              "wouldBlock": 5060,
+              "bytesPerCallAvg": 107417,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 500,
+              "count": 2578,
+              "actualUsTotal": 2399568,
+              "actualUsMax": 2160
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k-sleep500",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 5061,
+            "io": 7559,
+            "wouldBlock": 5060,
+            "bytesPerCallAvg": 107417,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 500,
+            "count": 2578,
+            "actualUsTotal": 2399568,
+            "actualUsMax": 2160
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "baseline",
+        "repeat": 2,
+        "elapsedMs": 6168.9158370000005,
+        "mibPerSecond": 41.49837779672078,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 6150.991,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 4123,
+              "io": 6184,
+              "wouldBlock": 4122,
+              "bytesPerCallAvg": 130182,
+              "bytesPerCallMax": 131056,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 2061,
+              "actualUsTotal": 5800063,
+              "actualUsMax": 3568
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 6151.023,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 4123,
+              "io": 6184,
+              "wouldBlock": 4122,
+              "bytesPerCallAvg": 130182,
+              "bytesPerCallMax": 131056,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 2061,
+              "actualUsTotal": 5800063,
+              "actualUsMax": 3568
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "baseline",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 66608,
+            "originalBytes": 66608,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 4123,
+            "io": 6184,
+            "wouldBlock": 4122,
+            "bytesPerCallAvg": 130182,
+            "bytesPerCallMax": 131056,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 2061,
+            "actualUsTotal": 5800063,
+            "actualUsMax": 3568
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "baseline",
+        "repeat": 2,
+        "elapsedMs": 6246.457714999997,
+        "mibPerSecond": 40.98322788374149,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 6227.988,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 33304,
+              "originalBytes": 33304,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 4192,
+              "io": 6289,
+              "wouldBlock": 4191,
+              "bytesPerCallAvg": 127948,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 2096,
+              "actualUsTotal": 5874354,
+              "actualUsMax": 4078
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "baseline",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 33304,
+            "originalBytes": 33304,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 4192,
+            "io": 6289,
+            "wouldBlock": 4191,
+            "bytesPerCallAvg": 127948,
+            "bytesPerCallMax": 131072,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 2096,
+            "actualUsTotal": 5874354,
+            "actualUsMax": 4078
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "sockbuf512k-sleep500",
+        "repeat": 2,
+        "elapsedMs": 2324.030783999995,
+        "mibPerSecond": 110.15344622904983,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 2305.956,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k-sleep500",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 5683,
+              "io": 11816,
+              "wouldBlock": 5682,
+              "bytesPerCallAvg": 43761,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 500,
+              "count": 2167,
+              "actualUsTotal": 1927216,
+              "actualUsMax": 1658
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2305.988,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k-sleep500",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 5683,
+              "io": 11816,
+              "wouldBlock": 5682,
+              "bytesPerCallAvg": 43761,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 500,
+              "count": 2167,
+              "actualUsTotal": 1927216,
+              "actualUsMax": 1658
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k-sleep500",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 5683,
+            "io": 11816,
+            "wouldBlock": 5682,
+            "bytesPerCallAvg": 43761,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 500,
+            "count": 2167,
+            "actualUsTotal": 1927216,
+            "actualUsMax": 1658
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "sockbuf512k-sleep500",
+        "repeat": 2,
+        "elapsedMs": 2480.9189650000044,
+        "mibPerSecond": 103.18757025584652,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2460.904,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k-sleep500",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 33304,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 4754,
+              "io": 7099,
+              "wouldBlock": 4753,
+              "bytesPerCallAvg": 114422,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 500,
+              "count": 2433,
+              "actualUsTotal": 2252720,
+              "actualUsMax": 1805
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k-sleep500",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 4754,
+            "io": 7099,
+            "wouldBlock": 4753,
+            "bytesPerCallAvg": 114422,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 500,
+            "count": 2433,
+            "actualUsTotal": 2252720,
+            "actualUsMax": 1805
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "default",
+        "repeat": 2,
+        "elapsedMs": 2315.582961,
+        "mibPerSecond": 110.55531341854609,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 2298.295,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2033,
+              "io": 4767,
+              "wouldBlock": 2032,
+              "bytesPerCallAvg": 98148,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 756,
+              "actualUsTotal": 1959462,
+              "actualUsMax": 3562
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2298.329,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2033,
+              "io": 4767,
+              "wouldBlock": 2032,
+              "bytesPerCallAvg": 98148,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 756,
+              "actualUsTotal": 1959462,
+              "actualUsMax": 3562
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2033,
+            "io": 4767,
+            "wouldBlock": 2032,
+            "bytesPerCallAvg": 98148,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 756,
+            "actualUsTotal": 1959462,
+            "actualUsMax": 3562
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "default",
+        "repeat": 2,
+        "elapsedMs": 2445.2902190000023,
+        "mibPerSecond": 104.6910497620568,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2426.93,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 33304,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1641,
+              "io": 3170,
+              "wouldBlock": 1640,
+              "bytesPerCallAvg": 175448,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 813,
+              "actualUsTotal": 2210193,
+              "actualUsMax": 3566
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1641,
+            "io": 3170,
+            "wouldBlock": 1640,
+            "bytesPerCallAvg": 175448,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 813,
+            "actualUsTotal": 2210193,
+            "actualUsMax": 3566
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "sockbuf512k",
+        "repeat": 2,
+        "elapsedMs": 2314.502066999994,
+        "mibPerSecond": 110.60694377854736,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 2296.962,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2094,
+              "io": 4934,
+              "wouldBlock": 2093,
+              "bytesPerCallAvg": 94486,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 758,
+              "actualUsTotal": 1962630,
+              "actualUsMax": 3594
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2297.011,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2094,
+              "io": 4934,
+              "wouldBlock": 2093,
+              "bytesPerCallAvg": 94486,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 758,
+              "actualUsTotal": 1962630,
+              "actualUsMax": 3594
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2094,
+            "io": 4934,
+            "wouldBlock": 2093,
+            "bytesPerCallAvg": 94486,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 758,
+            "actualUsTotal": 1962630,
+            "actualUsMax": 3594
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "sockbuf512k",
+        "repeat": 2,
+        "elapsedMs": 2654.1617509999996,
+        "mibPerSecond": 96.45229794436896,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2632.97,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 33304,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1785,
+              "io": 3306,
+              "wouldBlock": 1784,
+              "bytesPerCallAvg": 176370,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 887,
+              "actualUsTotal": 2440527,
+              "actualUsMax": 3513
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1785,
+            "io": 3306,
+            "wouldBlock": 1784,
+            "bytesPerCallAvg": 176370,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 887,
+            "actualUsTotal": 2440527,
+            "actualUsMax": 3513
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "baseline",
+        "repeat": 3,
+        "elapsedMs": 6138.3805770000035,
+        "mibPerSecond": 41.7048107051574,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 6120.966,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 4121,
+              "io": 6183,
+              "wouldBlock": 4120,
+              "bytesPerCallAvg": 130118,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 2060,
+              "actualUsTotal": 5773267,
+              "actualUsMax": 4587
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 6120.998,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 4121,
+              "io": 6183,
+              "wouldBlock": 4120,
+              "bytesPerCallAvg": 130118,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 2060,
+              "actualUsTotal": 5773267,
+              "actualUsMax": 4587
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "baseline",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 66608,
+            "originalBytes": 66608,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 4121,
+            "io": 6183,
+            "wouldBlock": 4120,
+            "bytesPerCallAvg": 130118,
+            "bytesPerCallMax": 131072,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 2060,
+            "actualUsTotal": 5773267,
+            "actualUsMax": 4587
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "baseline",
+        "repeat": 3,
+        "elapsedMs": 6368.623112999994,
+        "mibPerSecond": 40.19707171514645,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 6350.868,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 33304,
+              "originalBytes": 33304,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 4276,
+              "io": 6413,
+              "wouldBlock": 4275,
+              "bytesPerCallAvg": 125554,
+              "bytesPerCallMax": 180304,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 2138,
+              "actualUsTotal": 5996997,
+              "actualUsMax": 3264
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "baseline",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 33304,
+            "originalBytes": 33304,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 4276,
+            "io": 6413,
+            "wouldBlock": 4275,
+            "bytesPerCallAvg": 125554,
+            "bytesPerCallMax": 180304,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 2138,
+            "actualUsTotal": 5996997,
+            "actualUsMax": 3264
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "sockbuf512k",
+        "repeat": 3,
+        "elapsedMs": 2313.2237869999954,
+        "mibPerSecond": 110.6680648187544,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 2296.351,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2068,
+              "io": 4888,
+              "wouldBlock": 2067,
+              "bytesPerCallAvg": 95156,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 754,
+              "actualUsTotal": 1956799,
+              "actualUsMax": 3271
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2296.385,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2068,
+              "io": 4888,
+              "wouldBlock": 2067,
+              "bytesPerCallAvg": 95156,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 754,
+              "actualUsTotal": 1956799,
+              "actualUsMax": 3271
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2068,
+            "io": 4888,
+            "wouldBlock": 2067,
+            "bytesPerCallAvg": 95156,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 754,
+            "actualUsTotal": 1956799,
+            "actualUsMax": 3271
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "sockbuf512k",
+        "repeat": 3,
+        "elapsedMs": 2321.699919000006,
+        "mibPerSecond": 110.26403451410008,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2301.196,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 33304,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1551,
+              "io": 3057,
+              "wouldBlock": 1550,
+              "bytesPerCallAvg": 178125,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 770,
+              "actualUsTotal": 2095981,
+              "actualUsMax": 3363
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1551,
+            "io": 3057,
+            "wouldBlock": 1550,
+            "bytesPerCallAvg": 178125,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 770,
+            "actualUsTotal": 2095981,
+            "actualUsMax": 3363
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "default",
+        "repeat": 3,
+        "elapsedMs": 2321.369854999997,
+        "mibPerSecond": 110.27971240713829,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 2303.937,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1995,
+              "io": 4736,
+              "wouldBlock": 1994,
+              "bytesPerCallAvg": 97897,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 757,
+              "actualUsTotal": 1965783,
+              "actualUsMax": 3343
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2303.971,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1995,
+              "io": 4736,
+              "wouldBlock": 1994,
+              "bytesPerCallAvg": 97897,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 757,
+              "actualUsTotal": 1965783,
+              "actualUsMax": 3343
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1995,
+            "io": 4736,
+            "wouldBlock": 1994,
+            "bytesPerCallAvg": 97897,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 757,
+            "actualUsTotal": 1965783,
+            "actualUsMax": 3343
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "default",
+        "repeat": 3,
+        "elapsedMs": 2799.839539000008,
+        "mibPerSecond": 91.43381127171062,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2779.683,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 33304,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1876,
+              "io": 3398,
+              "wouldBlock": 1875,
+              "bytesPerCallAvg": 176254,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 934,
+              "actualUsTotal": 2589990,
+              "actualUsMax": 3350
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1876,
+            "io": 3398,
+            "wouldBlock": 1875,
+            "bytesPerCallAvg": 176254,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 934,
+            "actualUsTotal": 2589990,
+            "actualUsMax": 3350
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "sockbuf512k-sleep500",
+        "repeat": 3,
+        "elapsedMs": 2317.584713000004,
+        "mibPerSecond": 110.45982421441677,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 2299.765,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k-sleep500",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 5705,
+              "io": 12482,
+              "wouldBlock": 5704,
+              "bytesPerCallAvg": 39603,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 500,
+              "count": 2129,
+              "actualUsTotal": 1911106,
+              "actualUsMax": 1780
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2299.799,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k-sleep500",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 5705,
+              "io": 12482,
+              "wouldBlock": 5704,
+              "bytesPerCallAvg": 39603,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 500,
+              "count": 2129,
+              "actualUsTotal": 1911106,
+              "actualUsMax": 1780
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k-sleep500",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 5705,
+            "io": 12482,
+            "wouldBlock": 5704,
+            "bytesPerCallAvg": 39603,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 500,
+            "count": 2129,
+            "actualUsTotal": 1911106,
+            "actualUsMax": 1780
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "sockbuf512k-sleep500",
+        "repeat": 3,
+        "elapsedMs": 2370.275225000005,
+        "mibPerSecond": 108.00433523495124,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2349.911,
+          "diagnostics": {
+            "version": 1,
+            "profile": "sockbuf512k-sleep500",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 33304,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 4534,
+              "io": 6791,
+              "wouldBlock": 4533,
+              "bytesPerCallAvg": 118881,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 500,
+              "count": 2310,
+              "actualUsTotal": 2144605,
+              "actualUsMax": 1748
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k-sleep500",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 4534,
+            "io": 6791,
+            "wouldBlock": 4533,
+            "bytesPerCallAvg": 118881,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 500,
+            "count": 2310,
+            "actualUsTotal": 2144605,
+            "actualUsMax": 1748
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "upload",
+        "profile": "default",
+        "repeat": 4,
+        "elapsedMs": 2311.9468570000026,
+        "mibPerSecond": 110.72918878948076,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "upload",
+          "bytes": 268435456,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 2295.136,
+          "writeMs": 0,
+          "syncMs": 0,
+          "receivePipeline": false,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2010,
+              "io": 4756,
+              "wouldBlock": 2009,
+              "bytesPerCallAvg": 97719,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 752,
+              "actualUsTotal": 1962169,
+              "actualUsMax": 3422
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "upload",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2295.169,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2010,
+              "io": 4756,
+              "wouldBlock": 2009,
+              "bytesPerCallAvg": 97719,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 752,
+              "actualUsTotal": 1962169,
+              "actualUsMax": 3422
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2010,
+            "io": 4756,
+            "wouldBlock": 2009,
+            "bytesPerCallAvg": 97719,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 752,
+            "actualUsTotal": 1962169,
+            "actualUsMax": 3422
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "download",
+        "profile": "default",
+        "repeat": 4,
+        "elapsedMs": 2535.879562999995,
+        "mibPerSecond": 100.95116650459022,
+        "lastTest": {
+          "mode": "download",
+          "bytes": 268435456,
+          "size": 268435456,
+          "status": 200,
+          "elapsedMs": 2516.921,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_SNDBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 33304,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1691,
+              "io": 3201,
+              "wouldBlock": 1690,
+              "bytesPerCallAvg": 177654,
+              "bytesPerCallMax": 262144,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 841,
+              "actualUsTotal": 2313109,
+              "actualUsMax": 3996
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 0,
+              "blocks": 0,
+              "writeChunkBytes": 0
+            },
+            "netPoolBytes": 262144,
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1691,
+            "io": 3201,
+            "wouldBlock": 1690,
+            "bytesPerCallAvg": 177654,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 841,
+            "actualUsTotal": 2313109,
+            "actualUsMax": 3996
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    ],
+    "system": {
+      "service": "PackegeFlowService",
+      "version": "0.10.2",
+      "environment": "ps4",
+      "pkgVersion": "2.10",
+      "firmware": {
+        "version": "12.50",
+        "rawVersion": 307265537,
+        "error": 0
+      },
+      "model": {
+        "name": null,
+        "family": "PS4 Pro",
+        "source": null,
+        "error": 0,
+        "reason": "console_model_unavailable"
+      },
+      "hen": {
+        "name": null,
+        "version": null,
+        "sdkVersion": null,
+        "reason": "release_version_api_unavailable"
+      },
+      "filesystemAccess": {
+        "enabled": true,
+        "error": 0,
+        "errorHex": "0x00000000",
+        "stage": "ready",
+        "sdkProbed": true,
+        "sdkResult": -256,
+        "sdkResultHex": "0xFFFFFF00",
+        "sdkErrno": 256,
+        "sdkRawRaxHex": "0x0000000000000100",
+        "sdkCarry": true,
+        "sandboxBefore": 1,
+        "sandboxAfter": 0,
+        "jailbreakAttempted": true,
+        "jailbreakResult": 0,
+        "jailbreakErrno": 0,
+        "jailbreakRawRaxHex": "0x0000000000000000",
+        "jailbreakCarry": false
+      }
+    },
+    "before": {
+      "service": "PackegeFlowService",
+      "protocol": "speed-test-v1",
+      "benchmarkApi": 1,
+      "ready": true,
+      "busy": false,
+      "maxBytes": 268435456,
+      "modes": [
+        "latency",
+        "upload",
+        "download",
+        "disk"
+      ],
+      "diagnosticsVersion": 1,
+      "profiles": [
+        "baseline",
+        "sleep500",
+        "polls16",
+        "sockbuf256k",
+        "sockbuf1m",
+        "sockbuf2m",
+        "ring2m",
+        "ring4m",
+        "sockbuf512k",
+        "sockbuf512k-sleep500",
+        "write256k",
+        "ring4m-write256k",
+        "default"
+      ],
+      "loop": {
+        "idleSleepRequestedUs": 16000,
+        "idleSleepActualUs": 16886,
+        "testSleepUs": 2000,
+        "testPollsPerLoop": 4
+      },
+      "netPool": {
+        "bytes": 262144,
+        "requestedBytes": 262144
+      },
+      "busyReason": null,
+      "serviceSockets": {
+        "requestedBytes": 524288,
+        "tuned": 0,
+        "applied": 0,
+        "getErrors": 0,
+        "setErrors": 0,
+        "lastBytes": -1,
+        "lastError": 0
+      },
+      "lastTest": {
+        "mode": "disk",
+        "bytes": 268435456,
+        "size": 268435456,
+        "status": 200,
+        "elapsedMs": 2838.887,
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2134,
+            "io": 4180,
+            "wouldBlock": 1919,
+            "bytesPerCallAvg": 118724,
+            "bytesPerCallMax": 611096,
+            "ringFull": 154
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 912,
+            "actualUsTotal": 2414877,
+            "actualUsMax": 4629
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 1048576
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 256,
+            "writeUsMax": 153612,
+            "slowWrites": 6,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 437437,
+            "freeBytesBefore": 60783771648,
+            "freeBytesAfter": 60783771648,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    },
+    "busyInfo": {
+      "service": "PackegeFlowService",
+      "protocol": "speed-test-v1",
+      "benchmarkApi": 1,
+      "ready": true,
+      "busy": true,
+      "maxBytes": 268435456,
+      "modes": [
+        "latency",
+        "upload",
+        "download",
+        "disk"
+      ],
+      "diagnosticsVersion": 1,
+      "profiles": [
+        "baseline",
+        "sleep500",
+        "polls16",
+        "sockbuf256k",
+        "sockbuf1m",
+        "sockbuf2m",
+        "ring2m",
+        "ring4m",
+        "sockbuf512k",
+        "sockbuf512k-sleep500",
+        "write256k",
+        "ring4m-write256k",
+        "default"
+      ],
+      "loop": {
+        "idleSleepRequestedUs": 16000,
+        "idleSleepActualUs": 16746,
+        "testSleepUs": 2000,
+        "testPollsPerLoop": 4
+      },
+      "netPool": {
+        "bytes": 262144,
+        "requestedBytes": 262144
+      },
+      "busyReason": "benchmark",
+      "serviceSockets": {
+        "requestedBytes": 524288,
+        "tuned": 0,
+        "applied": 0,
+        "getErrors": 0,
+        "setErrors": 0,
+        "lastBytes": -1,
+        "lastError": 0
+      },
+      "lastTest": {
+        "mode": "download",
+        "bytes": 268435456,
+        "size": 268435456,
+        "status": 200,
+        "elapsedMs": 2349.911,
+        "diagnostics": {
+          "version": 1,
+          "profile": "sockbuf512k-sleep500",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 4534,
+            "io": 6791,
+            "wouldBlock": 4533,
+            "bytesPerCallAvg": 118881,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 500,
+            "count": 2310,
+            "actualUsTotal": 2144605,
+            "actualUsMax": 1748
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    },
+    "concurrentInfoMs": 3.605580999996164,
+    "reverseAdmission": [
+      {
+        "path": "/install/jobs",
+        "status": 409,
+        "body": {
+          "error": "speed_test_active"
+        }
+      },
+      {
+        "path": "/install/local",
+        "status": 409,
+        "body": {
+          "error": "speed_test_active"
+        }
+      },
+      {
+        "path": "/files/mkdir",
+        "status": 409,
+        "body": {
+          "error": "speed_test_active"
+        }
+      },
+      {
+        "path": "/apps/remove",
+        "status": 409,
+        "body": {
+          "error": "speed_test_active"
+        }
+      }
+    ],
+    "cancelResult": "cancelled",
+    "afterCancel": {
+      "service": "PackegeFlowService",
+      "protocol": "speed-test-v1",
+      "benchmarkApi": 1,
+      "ready": true,
+      "busy": false,
+      "maxBytes": 268435456,
+      "modes": [
+        "latency",
+        "upload",
+        "download",
+        "disk"
+      ],
+      "diagnosticsVersion": 1,
+      "profiles": [
+        "baseline",
+        "sleep500",
+        "polls16",
+        "sockbuf256k",
+        "sockbuf1m",
+        "sockbuf2m",
+        "ring2m",
+        "ring4m",
+        "sockbuf512k",
+        "sockbuf512k-sleep500",
+        "write256k",
+        "ring4m-write256k",
+        "default"
+      ],
+      "loop": {
+        "idleSleepRequestedUs": 16000,
+        "idleSleepActualUs": 16903,
+        "testSleepUs": 2000,
+        "testPollsPerLoop": 4
+      },
+      "netPool": {
+        "bytes": 262144,
+        "requestedBytes": 262144
+      },
+      "busyReason": null,
+      "serviceSockets": {
+        "requestedBytes": 524288,
+        "tuned": 0,
+        "applied": 0,
+        "getErrors": 0,
+        "setErrors": 0,
+        "lastBytes": -1,
+        "lastError": 0
+      },
+      "lastTest": {
+        "mode": "disk",
+        "bytes": 1048576,
+        "size": 268435456,
+        "status": 0,
+        "elapsedMs": 113.8,
+        "diagnostics": {
+          "version": 1,
+          "profile": "baseline",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 66608,
+            "originalBytes": 66608,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 50,
+            "io": 58,
+            "wouldBlock": 47,
+            "bytesPerCallAvg": 95325,
+            "bytesPerCallMax": 131056,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 39,
+            "actualUsTotal": 109212,
+            "actualUsMax": 3213
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 1048576
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 1,
+            "writeUsMax": 5236,
+            "slowWrites": 0,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 100072,
+            "freeBytesBefore": 60783726592,
+            "freeBytesAfter": 60783726592,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    },
+    "cleanup": {
+      "entries": [],
+      "nextOffset": 0,
+      "hasMore": false,
+      "restricted": false
+    },
+    "after": {
+      "service": "PackegeFlowService",
+      "protocol": "speed-test-v1",
+      "benchmarkApi": 1,
+      "ready": true,
+      "busy": false,
+      "maxBytes": 268435456,
+      "modes": [
+        "latency",
+        "upload",
+        "download",
+        "disk"
+      ],
+      "diagnosticsVersion": 1,
+      "profiles": [
+        "baseline",
+        "sleep500",
+        "polls16",
+        "sockbuf256k",
+        "sockbuf1m",
+        "sockbuf2m",
+        "ring2m",
+        "ring4m",
+        "sockbuf512k",
+        "sockbuf512k-sleep500",
+        "write256k",
+        "ring4m-write256k",
+        "default"
+      ],
+      "loop": {
+        "idleSleepRequestedUs": 16000,
+        "idleSleepActualUs": 16676,
+        "testSleepUs": 2000,
+        "testPollsPerLoop": 4
+      },
+      "netPool": {
+        "bytes": 262144,
+        "requestedBytes": 262144
+      },
+      "busyReason": null,
+      "serviceSockets": {
+        "requestedBytes": 524288,
+        "tuned": 0,
+        "applied": 0,
+        "getErrors": 0,
+        "setErrors": 0,
+        "lastBytes": -1,
+        "lastError": 0
+      },
+      "lastTest": {
+        "mode": "download",
+        "bytes": 268435456,
+        "size": 268435456,
+        "status": 200,
+        "elapsedMs": 2516.921,
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1691,
+            "io": 3201,
+            "wouldBlock": 1690,
+            "bytesPerCallAvg": 177654,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 841,
+            "actualUsTotal": 2313109,
+            "actualUsMax": 3996
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    }
+  },
+  "disk": {
+    "at": "2026-10-12T13:42:05.534Z",
+    "ip": "10.1.10.32",
+    "size": 134217728,
+    "pkg": "2.10",
+    "transport": "service:12801",
+    "completed": true,
+    "runs": [
+      {
+        "mode": "disk",
+        "profile": "baseline",
+        "repeat": 1,
+        "elapsedMs": 3094.5686180000002,
+        "mibPerSecond": 41.36279262171461,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "disk",
+          "bytes": 134217728,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 3074.1,
+          "writeMs": 871.985,
+          "syncMs": 13.882,
+          "receivePipeline": true,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2074,
+              "io": 3222,
+              "wouldBlock": 2062,
+              "bytesPerCallAvg": 115704,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1041,
+              "actualUsTotal": 2877078,
+              "actualUsMax": 3616
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 1048576
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 128,
+              "writeUsMax": 90609,
+              "slowWrites": 4,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2173947,
+              "freeBytesBefore": 60783734784,
+              "freeBytesAfter": 60826152960,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "disk",
+          "bytes": 134217728,
+          "size": 134217728,
+          "status": 200,
+          "elapsedMs": 3076.829,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2074,
+              "io": 3222,
+              "wouldBlock": 2062,
+              "bytesPerCallAvg": 115704,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1041,
+              "actualUsTotal": 2877078,
+              "actualUsMax": 3616
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 1048576
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 128,
+              "writeUsMax": 90609,
+              "slowWrites": 4,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2173947,
+              "freeBytesBefore": 60783734784,
+              "freeBytesAfter": 60829036544,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "baseline",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 66608,
+            "originalBytes": 66608,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2074,
+            "io": 3222,
+            "wouldBlock": 2062,
+            "bytesPerCallAvg": 115704,
+            "bytesPerCallMax": 131072,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 1041,
+            "actualUsTotal": 2877078,
+            "actualUsMax": 3616
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 1048576
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 128,
+            "writeUsMax": 90609,
+            "slowWrites": 4,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 2173947,
+            "freeBytesBefore": 60783734784,
+            "freeBytesAfter": 60826152960,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "disk",
+        "profile": "default",
+        "repeat": 1,
+        "elapsedMs": 1631.5716840000005,
+        "mibPerSecond": 78.45196215111561,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "disk",
+          "bytes": 134217728,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 1613.815,
+          "writeMs": 1416.458,
+          "syncMs": 11.711,
+          "receivePipeline": true,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1132,
+              "io": 2033,
+              "wouldBlock": 955,
+              "bytesPerCallAvg": 124506,
+              "bytesPerCallMax": 611080,
+              "ringFull": 137
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 523,
+              "actualUsTotal": 1406321,
+              "actualUsMax": 4822
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 1048576
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 128,
+              "writeUsMax": 166930,
+              "slowWrites": 5,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 175472,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60783718400,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "disk",
+          "bytes": 134217728,
+          "size": 134217728,
+          "status": 200,
+          "elapsedMs": 1613.913,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1132,
+              "io": 2033,
+              "wouldBlock": 955,
+              "bytesPerCallAvg": 124506,
+              "bytesPerCallMax": 611080,
+              "ringFull": 137
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 523,
+              "actualUsTotal": 1406321,
+              "actualUsMax": 4822
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 1048576
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 128,
+              "writeUsMax": 166930,
+              "slowWrites": 5,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 175472,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60783718400,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1132,
+            "io": 2033,
+            "wouldBlock": 955,
+            "bytesPerCallAvg": 124506,
+            "bytesPerCallMax": 611080,
+            "ringFull": 137
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 523,
+            "actualUsTotal": 1406321,
+            "actualUsMax": 4822
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 1048576
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 128,
+            "writeUsMax": 166930,
+            "slowWrites": 5,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 175472,
+            "freeBytesBefore": 60783718400,
+            "freeBytesAfter": 60783718400,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "disk",
+        "profile": "write256k",
+        "repeat": 1,
+        "elapsedMs": 3097.2772910000003,
+        "mibPerSecond": 41.32661947057164,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "disk",
+          "bytes": 134217728,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 3078.68,
+          "writeMs": 993.359,
+          "syncMs": 13.669,
+          "receivePipeline": true,
+          "diagnostics": {
+            "version": 1,
+            "profile": "write256k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2071,
+              "io": 3218,
+              "wouldBlock": 2060,
+              "bytesPerCallAvg": 115904,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1039,
+              "actualUsTotal": 2882668,
+              "actualUsMax": 3494
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 262144
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 512,
+              "writeUsMax": 86385,
+              "slowWrites": 6,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2059731,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60826349568,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "disk",
+          "bytes": 134217728,
+          "size": 134217728,
+          "status": 200,
+          "elapsedMs": 3080.91,
+          "diagnostics": {
+            "version": 1,
+            "profile": "write256k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2071,
+              "io": 3218,
+              "wouldBlock": 2060,
+              "bytesPerCallAvg": 115904,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1039,
+              "actualUsTotal": 2882668,
+              "actualUsMax": 3494
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 262144
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 512,
+              "writeUsMax": 86385,
+              "slowWrites": 6,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2059731,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60829134848,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "write256k",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 66608,
+            "originalBytes": 66608,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2071,
+            "io": 3218,
+            "wouldBlock": 2060,
+            "bytesPerCallAvg": 115904,
+            "bytesPerCallMax": 131072,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 1039,
+            "actualUsTotal": 2882668,
+            "actualUsMax": 3494
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 262144
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 512,
+            "writeUsMax": 86385,
+            "slowWrites": 6,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 2059731,
+            "freeBytesBefore": 60783718400,
+            "freeBytesAfter": 60826349568,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "disk",
+        "profile": "ring4m-write256k",
+        "repeat": 1,
+        "elapsedMs": 3182.099144,
+        "mibPerSecond": 40.22501946281282,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "disk",
+          "bytes": 134217728,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 3161.375,
+          "writeMs": 1079.768,
+          "syncMs": 13.348,
+          "receivePipeline": true,
+          "diagnostics": {
+            "version": 1,
+            "profile": "ring4m-write256k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2097,
+              "io": 3131,
+              "wouldBlock": 2066,
+              "bytesPerCallAvg": 126026,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1062,
+              "actualUsTotal": 2960930,
+              "actualUsMax": 3830
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 4194304,
+              "blocks": 4,
+              "writeChunkBytes": 262144
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 512,
+              "writeUsMax": 82394,
+              "slowWrites": 5,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2055736,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60838932480,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "disk",
+          "bytes": 134217728,
+          "size": 134217728,
+          "status": 200,
+          "elapsedMs": 3164.531,
+          "diagnostics": {
+            "version": 1,
+            "profile": "ring4m-write256k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2097,
+              "io": 3131,
+              "wouldBlock": 2066,
+              "bytesPerCallAvg": 126026,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1062,
+              "actualUsTotal": 2960930,
+              "actualUsMax": 3830
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 4194304,
+              "blocks": 4,
+              "writeChunkBytes": 262144
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 512,
+              "writeUsMax": 82394,
+              "slowWrites": 5,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2055736,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60842373120,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "ring4m-write256k",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 66608,
+            "originalBytes": 66608,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2097,
+            "io": 3131,
+            "wouldBlock": 2066,
+            "bytesPerCallAvg": 126026,
+            "bytesPerCallMax": 131072,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 1062,
+            "actualUsTotal": 2960930,
+            "actualUsMax": 3830
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 4194304,
+            "blocks": 4,
+            "writeChunkBytes": 262144
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 512,
+            "writeUsMax": 82394,
+            "slowWrites": 5,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 2055736,
+            "freeBytesBefore": 60783718400,
+            "freeBytesAfter": 60838932480,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "disk",
+        "profile": "ring4m-write256k",
+        "repeat": 2,
+        "elapsedMs": 3182.9651319999994,
+        "mibPerSecond": 40.21407545849297,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "disk",
+          "bytes": 134217728,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 3163.906,
+          "writeMs": 864.275,
+          "syncMs": 12.393,
+          "receivePipeline": true,
+          "diagnostics": {
+            "version": 1,
+            "profile": "ring4m-write256k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2095,
+              "io": 3122,
+              "wouldBlock": 2060,
+              "bytesPerCallAvg": 126382,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1063,
+              "actualUsTotal": 2962338,
+              "actualUsMax": 3474
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 4194304,
+              "blocks": 4,
+              "writeChunkBytes": 262144
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 512,
+              "writeUsMax": 53501,
+              "slowWrites": 1,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2273316,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60801708032,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "disk",
+          "bytes": 134217728,
+          "size": 134217728,
+          "status": 200,
+          "elapsedMs": 3165.926,
+          "diagnostics": {
+            "version": 1,
+            "profile": "ring4m-write256k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2095,
+              "io": 3122,
+              "wouldBlock": 2060,
+              "bytesPerCallAvg": 126382,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1063,
+              "actualUsTotal": 2962338,
+              "actualUsMax": 3474
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 4194304,
+              "blocks": 4,
+              "writeChunkBytes": 262144
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 512,
+              "writeUsMax": 53501,
+              "slowWrites": 1,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2273316,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60804493312,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "ring4m-write256k",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 66608,
+            "originalBytes": 66608,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2095,
+            "io": 3122,
+            "wouldBlock": 2060,
+            "bytesPerCallAvg": 126382,
+            "bytesPerCallMax": 131072,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 1063,
+            "actualUsTotal": 2962338,
+            "actualUsMax": 3474
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 4194304,
+            "blocks": 4,
+            "writeChunkBytes": 262144
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 512,
+            "writeUsMax": 53501,
+            "slowWrites": 1,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 2273316,
+            "freeBytesBefore": 60783718400,
+            "freeBytesAfter": 60801708032,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "disk",
+        "profile": "write256k",
+        "repeat": 2,
+        "elapsedMs": 3112.5244299999977,
+        "mibPerSecond": 41.12417520848185,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "disk",
+          "bytes": 134217728,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 3090.871,
+          "writeMs": 938.986,
+          "syncMs": 13.373,
+          "receivePipeline": true,
+          "diagnostics": {
+            "version": 1,
+            "profile": "write256k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2071,
+              "io": 3218,
+              "wouldBlock": 2060,
+              "bytesPerCallAvg": 115904,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1039,
+              "actualUsTotal": 2895781,
+              "actualUsMax": 4065
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 262144
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 512,
+              "writeUsMax": 96453,
+              "slowWrites": 5,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2126500,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60851449856,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "disk",
+          "bytes": 134217728,
+          "size": 134217728,
+          "status": 200,
+          "elapsedMs": 3095.054,
+          "diagnostics": {
+            "version": 1,
+            "profile": "write256k",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2071,
+              "io": 3218,
+              "wouldBlock": 2060,
+              "bytesPerCallAvg": 115904,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1039,
+              "actualUsTotal": 2895781,
+              "actualUsMax": 4065
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 262144
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 512,
+              "writeUsMax": 96453,
+              "slowWrites": 5,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2126500,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60854398976,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "write256k",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 66608,
+            "originalBytes": 66608,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2071,
+            "io": 3218,
+            "wouldBlock": 2060,
+            "bytesPerCallAvg": 115904,
+            "bytesPerCallMax": 131072,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 1039,
+            "actualUsTotal": 2895781,
+            "actualUsMax": 4065
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 262144
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 512,
+            "writeUsMax": 96453,
+            "slowWrites": 5,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 2126500,
+            "freeBytesBefore": 60783718400,
+            "freeBytesAfter": 60851449856,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "disk",
+        "profile": "default",
+        "repeat": 2,
+        "elapsedMs": 1597.4273869999997,
+        "mibPerSecond": 80.12883780613436,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "disk",
+          "bytes": 134217728,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 1578.661,
+          "writeMs": 1366.232,
+          "syncMs": 12.972,
+          "receivePipeline": true,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1103,
+              "io": 1994,
+              "wouldBlock": 945,
+              "bytesPerCallAvg": 127948,
+              "bytesPerCallMax": 718288,
+              "ringFull": 148
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 509,
+              "actualUsTotal": 1365130,
+              "actualUsMax": 4632
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 1048576
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 128,
+              "writeUsMax": 300248,
+              "slowWrites": 3,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 190310,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60800856064,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "disk",
+          "bytes": 134217728,
+          "size": 134217728,
+          "status": 200,
+          "elapsedMs": 1579.913,
+          "diagnostics": {
+            "version": 1,
+            "profile": "default",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 524288,
+              "originalBytes": 66608,
+              "requestedBytes": 524288,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 1103,
+              "io": 1994,
+              "wouldBlock": 945,
+              "bytesPerCallAvg": 127948,
+              "bytesPerCallMax": 718288,
+              "ringFull": 148
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 509,
+              "actualUsTotal": 1365130,
+              "actualUsMax": 4632
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 1048576
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 128,
+              "writeUsMax": 300248,
+              "slowWrites": 3,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 190310,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60803608576,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1103,
+            "io": 1994,
+            "wouldBlock": 945,
+            "bytesPerCallAvg": 127948,
+            "bytesPerCallMax": 718288,
+            "ringFull": 148
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 509,
+            "actualUsTotal": 1365130,
+            "actualUsMax": 4632
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 1048576
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 128,
+            "writeUsMax": 300248,
+            "slowWrites": 3,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 190310,
+            "freeBytesBefore": 60783718400,
+            "freeBytesAfter": 60800856064,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      },
+      {
+        "mode": "disk",
+        "profile": "baseline",
+        "repeat": 2,
+        "elapsedMs": 3112.6375329999973,
+        "mibPerSecond": 41.12268089135071,
+        "response": {
+          "protocol": "speed-test-v1",
+          "mode": "disk",
+          "bytes": 134217728,
+          "complete": true,
+          "cleanup": true,
+          "elapsedMs": 3092.915,
+          "writeMs": 956.612,
+          "syncMs": 13.237,
+          "receivePipeline": true,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2071,
+              "io": 3218,
+              "wouldBlock": 2060,
+              "bytesPerCallAvg": 115904,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1039,
+              "actualUsTotal": 2897995,
+              "actualUsMax": 3417
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 1048576
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 128,
+              "writeUsMax": 100849,
+              "slowWrites": 5,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2108940,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60783714304,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "lastTest": {
+          "mode": "disk",
+          "bytes": 134217728,
+          "size": 134217728,
+          "status": 200,
+          "elapsedMs": 3094.941,
+          "diagnostics": {
+            "version": 1,
+            "profile": "baseline",
+            "profileApplied": true,
+            "socket": {
+              "option": "SO_RCVBUF",
+              "bufferBytes": 66608,
+              "originalBytes": 66608,
+              "requestedBytes": null,
+              "getError": 0,
+              "setError": 0
+            },
+            "calls": {
+              "poll": 2071,
+              "io": 3218,
+              "wouldBlock": 2060,
+              "bytesPerCallAvg": 115904,
+              "bytesPerCallMax": 131072,
+              "ringFull": 0
+            },
+            "sleep": {
+              "requestedUs": 2000,
+              "count": 1039,
+              "actualUsTotal": 2897995,
+              "actualUsMax": 3417
+            },
+            "pollsPerLoop": 4,
+            "ring": {
+              "blockBytes": 1048576,
+              "blocks": 8,
+              "writeChunkBytes": 1048576
+            },
+            "netPoolBytes": 262144,
+            "disk": {
+              "writes": 128,
+              "writeUsMax": 100849,
+              "slowWrites": 5,
+              "slowWriteUs": 50000,
+              "writerWaitUs": 2108940,
+              "freeBytesBefore": 60783718400,
+              "freeBytesAfter": 60783714304,
+              "freeError": 0
+            },
+            "link": {
+              "deviceRaw": 0,
+              "linkRaw": 1,
+              "mtu": 1500,
+              "speedMbps": null,
+              "error": 0
+            }
+          }
+        },
+        "diagnostics": {
+          "version": 1,
+          "profile": "baseline",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 66608,
+            "originalBytes": 66608,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2071,
+            "io": 3218,
+            "wouldBlock": 2060,
+            "bytesPerCallAvg": 115904,
+            "bytesPerCallMax": 131072,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 1039,
+            "actualUsTotal": 2897995,
+            "actualUsMax": 3417
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 1048576
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 128,
+            "writeUsMax": 100849,
+            "slowWrites": 5,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 2108940,
+            "freeBytesBefore": 60783718400,
+            "freeBytesAfter": 60783714304,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    ],
+    "system": {
+      "service": "PackegeFlowService",
+      "version": "0.10.2",
+      "environment": "ps4",
+      "pkgVersion": "2.10",
+      "firmware": {
+        "version": "12.50",
+        "rawVersion": 307265537,
+        "error": 0
+      },
+      "model": {
+        "name": null,
+        "family": "PS4 Pro",
+        "source": null,
+        "error": 0,
+        "reason": "console_model_unavailable"
+      },
+      "hen": {
+        "name": null,
+        "version": null,
+        "sdkVersion": null,
+        "reason": "release_version_api_unavailable"
+      },
+      "filesystemAccess": {
+        "enabled": true,
+        "error": 0,
+        "errorHex": "0x00000000",
+        "stage": "ready",
+        "sdkProbed": true,
+        "sdkResult": -256,
+        "sdkResultHex": "0xFFFFFF00",
+        "sdkErrno": 256,
+        "sdkRawRaxHex": "0x0000000000000100",
+        "sdkCarry": true,
+        "sandboxBefore": 1,
+        "sandboxAfter": 0,
+        "jailbreakAttempted": true,
+        "jailbreakResult": 0,
+        "jailbreakErrno": 0,
+        "jailbreakRawRaxHex": "0x0000000000000000",
+        "jailbreakCarry": false
+      }
+    },
+    "before": {
+      "service": "PackegeFlowService",
+      "protocol": "speed-test-v1",
+      "benchmarkApi": 1,
+      "ready": true,
+      "busy": false,
+      "maxBytes": 268435456,
+      "modes": [
+        "latency",
+        "upload",
+        "download",
+        "disk"
+      ],
+      "diagnosticsVersion": 1,
+      "profiles": [
+        "baseline",
+        "sleep500",
+        "polls16",
+        "sockbuf256k",
+        "sockbuf1m",
+        "sockbuf2m",
+        "ring2m",
+        "ring4m",
+        "sockbuf512k",
+        "sockbuf512k-sleep500",
+        "write256k",
+        "ring4m-write256k",
+        "default"
+      ],
+      "loop": {
+        "idleSleepRequestedUs": 16000,
+        "idleSleepActualUs": 16583,
+        "testSleepUs": 2000,
+        "testPollsPerLoop": 4
+      },
+      "netPool": {
+        "bytes": 262144,
+        "requestedBytes": 262144
+      },
+      "busyReason": null,
+      "serviceSockets": {
+        "requestedBytes": 524288,
+        "tuned": 136,
+        "applied": 136,
+        "getErrors": 0,
+        "setErrors": 0,
+        "lastBytes": 524288,
+        "lastError": 0
+      },
+      "lastTest": {
+        "mode": "download",
+        "bytes": 268435456,
+        "size": 268435456,
+        "status": 200,
+        "elapsedMs": 2516.921,
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1691,
+            "io": 3201,
+            "wouldBlock": 1690,
+            "bytesPerCallAvg": 177654,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 841,
+            "actualUsTotal": 2313109,
+            "actualUsMax": 3996
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    },
+    "after": {
+      "service": "PackegeFlowService",
+      "protocol": "speed-test-v1",
+      "benchmarkApi": 1,
+      "ready": true,
+      "busy": false,
+      "maxBytes": 268435456,
+      "modes": [
+        "latency",
+        "upload",
+        "download",
+        "disk"
+      ],
+      "diagnosticsVersion": 1,
+      "profiles": [
+        "baseline",
+        "sleep500",
+        "polls16",
+        "sockbuf256k",
+        "sockbuf1m",
+        "sockbuf2m",
+        "ring2m",
+        "ring4m",
+        "sockbuf512k",
+        "sockbuf512k-sleep500",
+        "write256k",
+        "ring4m-write256k",
+        "default"
+      ],
+      "loop": {
+        "idleSleepRequestedUs": 16000,
+        "idleSleepActualUs": 16977,
+        "testSleepUs": 2000,
+        "testPollsPerLoop": 4
+      },
+      "netPool": {
+        "bytes": 262144,
+        "requestedBytes": 262144
+      },
+      "busyReason": null,
+      "serviceSockets": {
+        "requestedBytes": 524288,
+        "tuned": 136,
+        "applied": 136,
+        "getErrors": 0,
+        "setErrors": 0,
+        "lastBytes": 524288,
+        "lastError": 0
+      },
+      "lastTest": {
+        "mode": "disk",
+        "bytes": 134217728,
+        "size": 134217728,
+        "status": 200,
+        "elapsedMs": 3094.941,
+        "diagnostics": {
+          "version": 1,
+          "profile": "baseline",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 66608,
+            "originalBytes": 66608,
+            "requestedBytes": null,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2071,
+            "io": 3218,
+            "wouldBlock": 2060,
+            "bytesPerCallAvg": 115904,
+            "bytesPerCallMax": 131072,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 1039,
+            "actualUsTotal": 2897995,
+            "actualUsMax": 3417
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 1048576
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 128,
+            "writeUsMax": 100849,
+            "slowWrites": 5,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 2108940,
+            "freeBytesBefore": 60783718400,
+            "freeBytesAfter": 60783714304,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    }
+  },
+  "files": {
+    "at": "2026-10-12T13:41:15.688Z",
+    "ip": "10.1.10.32",
+    "pkg": "2.10",
+    "id": "d3d35fc5-f73e-4fc1-a711-30acde0cbad3",
+    "path": "/data/packageflow-speed-d3d35fc5-f73e-4fc1-a711-30acde0cbad3/fixture.bin",
+    "size": 33554432,
+    "completed": true,
+    "before": {
+      "service": "PackegeFlowService",
+      "protocol": "speed-test-v1",
+      "benchmarkApi": 1,
+      "ready": true,
+      "busy": false,
+      "maxBytes": 268435456,
+      "modes": [
+        "latency",
+        "upload",
+        "download",
+        "disk"
+      ],
+      "diagnosticsVersion": 1,
+      "profiles": [
+        "baseline",
+        "sleep500",
+        "polls16",
+        "sockbuf256k",
+        "sockbuf1m",
+        "sockbuf2m",
+        "ring2m",
+        "ring4m",
+        "sockbuf512k",
+        "sockbuf512k-sleep500",
+        "write256k",
+        "ring4m-write256k",
+        "default"
+      ],
+      "loop": {
+        "idleSleepRequestedUs": 16000,
+        "idleSleepActualUs": 16928,
+        "testSleepUs": 2000,
+        "testPollsPerLoop": 4
+      },
+      "netPool": {
+        "bytes": 262144,
+        "requestedBytes": 262144
+      },
+      "busyReason": null,
+      "serviceSockets": {
+        "requestedBytes": 524288,
+        "tuned": 0,
+        "applied": 0,
+        "getErrors": 0,
+        "setErrors": 0,
+        "lastBytes": -1,
+        "lastError": 0
+      },
+      "lastTest": {
+        "mode": "download",
+        "bytes": 268435456,
+        "size": 268435456,
+        "status": 200,
+        "elapsedMs": 2516.921,
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1691,
+            "io": 3201,
+            "wouldBlock": 1690,
+            "bytesPerCallAvg": 177654,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 841,
+            "actualUsTotal": 2313109,
+            "actualUsMax": 3996
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    },
+    "uploadStart": {
+      "id": "d3d35fc5-f73e-4fc1-a711-30acde0cbad3",
+      "offset": 0,
+      "size": 33554432,
+      "chunkSize": 4194304
+    },
+    "chunks": [
+      {
+        "offset": 0,
+        "elapsedMs": 78.47080000000003
+      },
+      {
+        "offset": 4194304,
+        "elapsedMs": 89.89227899999997
+      },
+      {
+        "offset": 8388608,
+        "elapsedMs": 72.68692900000002
+      },
+      {
+        "offset": 12582912,
+        "elapsedMs": 84.81735900000001
+      },
+      {
+        "offset": 16777216,
+        "elapsedMs": 159.7322479999999
+      },
+      {
+        "offset": 20971520,
+        "elapsedMs": 76.648683
+      },
+      {
+        "offset": 25165824,
+        "elapsedMs": 76.03143899999998
+      },
+      {
+        "offset": 29360128,
+        "elapsedMs": 70.93213100000003
+      }
+    ],
+    "putElapsedMs": 709.25701,
+    "putMiBPerSecond": 45.11763655321503,
+    "finish": {
+      "id": "d3d35fc5-f73e-4fc1-a711-30acde0cbad3",
+      "completed": true,
+      "size": 33554432
+    },
+    "finishMs": 15.181056000000012,
+    "durableMiBPerSecond": 44.17216805942939,
+    "stat": {
+      "type": "file",
+      "size": 33554432,
+      "mtime": 1791812476,
+      "revision": "c91845c8a26b8c0f",
+      "identity": "a8b46ecfcbcad5ea",
+      "writable": true
+    },
+    "readChunks": [
+      {
+        "offset": 0,
+        "elapsedMs": 27.43083999999999
+      },
+      {
+        "offset": 262144,
+        "elapsedMs": 19.276051999999936
+      },
+      {
+        "offset": 524288,
+        "elapsedMs": 17.48199199999999
+      },
+      {
+        "offset": 786432,
+        "elapsedMs": 22.600708999999938
+      },
+      {
+        "offset": 1048576,
+        "elapsedMs": 19.852002999999968
+      },
+      {
+        "offset": 1310720,
+        "elapsedMs": 19.724197999999888
+      },
+      {
+        "offset": 1572864,
+        "elapsedMs": 17.46926899999994
+      },
+      {
+        "offset": 1835008,
+        "elapsedMs": 23.782065000000102
+      },
+      {
+        "offset": 2097152,
+        "elapsedMs": 21.803616000000147
+      },
+      {
+        "offset": 2359296,
+        "elapsedMs": 17.976544999999987
+      },
+      {
+        "offset": 2621440,
+        "elapsedMs": 20.086005999999998
+      },
+      {
+        "offset": 2883584,
+        "elapsedMs": 19.45010000000002
+      },
+      {
+        "offset": 3145728,
+        "elapsedMs": 18.054673999999977
+      },
+      {
+        "offset": 3407872,
+        "elapsedMs": 23.289064000000053
+      },
+      {
+        "offset": 3670016,
+        "elapsedMs": 18.55709999999999
+      },
+      {
+        "offset": 3932160,
+        "elapsedMs": 19.819662000000108
+      },
+      {
+        "offset": 4194304,
+        "elapsedMs": 19.966964999999846
+      },
+      {
+        "offset": 4456448,
+        "elapsedMs": 21.17865699999993
+      },
+      {
+        "offset": 4718592,
+        "elapsedMs": 20.377386000000115
+      },
+      {
+        "offset": 4980736,
+        "elapsedMs": 19.88517200000001
+      },
+      {
+        "offset": 5242880,
+        "elapsedMs": 17.721951999999874
+      },
+      {
+        "offset": 5505024,
+        "elapsedMs": 23.838375000000042
+      },
+      {
+        "offset": 5767168,
+        "elapsedMs": 19.2780580000001
+      },
+      {
+        "offset": 6029312,
+        "elapsedMs": 19.501218999999992
+      },
+      {
+        "offset": 6291456,
+        "elapsedMs": 20.00897800000007
+      },
+      {
+        "offset": 6553600,
+        "elapsedMs": 19.088088000000198
+      },
+      {
+        "offset": 6815744,
+        "elapsedMs": 20.667259000000058
+      },
+      {
+        "offset": 7077888,
+        "elapsedMs": 17.818040999999994
+      },
+      {
+        "offset": 7340032,
+        "elapsedMs": 21.616195999999945
+      },
+      {
+        "offset": 7602176,
+        "elapsedMs": 21.488841999999977
+      },
+      {
+        "offset": 7864320,
+        "elapsedMs": 20.478704000000107
+      },
+      {
+        "offset": 8126464,
+        "elapsedMs": 18.449163
+      },
+      {
+        "offset": 8388608,
+        "elapsedMs": 19.581515999999965
+      },
+      {
+        "offset": 8650752,
+        "elapsedMs": 21.047254000000066
+      },
+      {
+        "offset": 8912896,
+        "elapsedMs": 18.383223000000044
+      },
+      {
+        "offset": 9175040,
+        "elapsedMs": 21.7380619999999
+      },
+      {
+        "offset": 9437184,
+        "elapsedMs": 17.800796999999875
+      },
+      {
+        "offset": 9699328,
+        "elapsedMs": 19.31436800000006
+      },
+      {
+        "offset": 9961472,
+        "elapsedMs": 23.773228000000017
+      },
+      {
+        "offset": 10223616,
+        "elapsedMs": 18.8369560000001
+      },
+      {
+        "offset": 10485760,
+        "elapsedMs": 18.814339000000018
+      },
+      {
+        "offset": 10747904,
+        "elapsedMs": 22.967805
+      },
+      {
+        "offset": 11010048,
+        "elapsedMs": 19.231446000000005
+      },
+      {
+        "offset": 11272192,
+        "elapsedMs": 21.96546199999989
+      },
+      {
+        "offset": 11534336,
+        "elapsedMs": 17.05608700000016
+      },
+      {
+        "offset": 11796480,
+        "elapsedMs": 19.30934000000002
+      },
+      {
+        "offset": 12058624,
+        "elapsedMs": 20.817829999999958
+      },
+      {
+        "offset": 12320768,
+        "elapsedMs": 19.060911000000033
+      },
+      {
+        "offset": 12582912,
+        "elapsedMs": 20.932313000000022
+      },
+      {
+        "offset": 12845056,
+        "elapsedMs": 17.43724999999995
+      },
+      {
+        "offset": 13107200,
+        "elapsedMs": 21.911325000000033
+      },
+      {
+        "offset": 13369344,
+        "elapsedMs": 19.668723
+      },
+      {
+        "offset": 13631488,
+        "elapsedMs": 18.685094000000163
+      },
+      {
+        "offset": 13893632,
+        "elapsedMs": 23.298340000000053
+      },
+      {
+        "offset": 14155776,
+        "elapsedMs": 19.730048000000124
+      },
+      {
+        "offset": 14417920,
+        "elapsedMs": 19.566539999999804
+      },
+      {
+        "offset": 14680064,
+        "elapsedMs": 19.847325000000183
+      },
+      {
+        "offset": 14942208,
+        "elapsedMs": 17.738468999999895
+      },
+      {
+        "offset": 15204352,
+        "elapsedMs": 21.843489000000318
+      },
+      {
+        "offset": 15466496,
+        "elapsedMs": 21.68951100000004
+      },
+      {
+        "offset": 15728640,
+        "elapsedMs": 20.20817599999964
+      },
+      {
+        "offset": 15990784,
+        "elapsedMs": 17.42410400000017
+      },
+      {
+        "offset": 16252928,
+        "elapsedMs": 22.894958999999744
+      },
+      {
+        "offset": 16515072,
+        "elapsedMs": 17.343909999999596
+      },
+      {
+        "offset": 16777216,
+        "elapsedMs": 20.283788000000186
+      },
+      {
+        "offset": 17039360,
+        "elapsedMs": 20.986389000000145
+      },
+      {
+        "offset": 17301504,
+        "elapsedMs": 19.22288299999991
+      },
+      {
+        "offset": 17563648,
+        "elapsedMs": 22.23395100000016
+      },
+      {
+        "offset": 17825792,
+        "elapsedMs": 19.885697999999593
+      },
+      {
+        "offset": 18087936,
+        "elapsedMs": 18.749801999999818
+      },
+      {
+        "offset": 18350080,
+        "elapsedMs": 17.482636000000184
+      },
+      {
+        "offset": 18612224,
+        "elapsedMs": 23.08785399999988
+      },
+      {
+        "offset": 18874368,
+        "elapsedMs": 20.792367000000013
+      },
+      {
+        "offset": 19136512,
+        "elapsedMs": 16.663762999999562
+      },
+      {
+        "offset": 19398656,
+        "elapsedMs": 21.90152100000023
+      },
+      {
+        "offset": 19660800,
+        "elapsedMs": 19.403981999999814
+      },
+      {
+        "offset": 19922944,
+        "elapsedMs": 20.330743999999868
+      },
+      {
+        "offset": 20185088,
+        "elapsedMs": 19.00093599999991
+      },
+      {
+        "offset": 20447232,
+        "elapsedMs": 20.363687000000027
+      },
+      {
+        "offset": 20709376,
+        "elapsedMs": 20.946617999999944
+      },
+      {
+        "offset": 20971520,
+        "elapsedMs": 22.452131999999892
+      },
+      {
+        "offset": 21233664,
+        "elapsedMs": 19.88002800000004
+      },
+      {
+        "offset": 21495808,
+        "elapsedMs": 19.10526000000027
+      },
+      {
+        "offset": 21757952,
+        "elapsedMs": 20.74468300000035
+      },
+      {
+        "offset": 22020096,
+        "elapsedMs": 18.8239480000002
+      },
+      {
+        "offset": 22282240,
+        "elapsedMs": 16.92607399999997
+      },
+      {
+        "offset": 22544384,
+        "elapsedMs": 23.2929009999998
+      },
+      {
+        "offset": 22806528,
+        "elapsedMs": 19.381580000000213
+      },
+      {
+        "offset": 23068672,
+        "elapsedMs": 19.857727000000068
+      },
+      {
+        "offset": 23330816,
+        "elapsedMs": 20.430879000000004
+      },
+      {
+        "offset": 23592960,
+        "elapsedMs": 21.90881300000001
+      },
+      {
+        "offset": 23855104,
+        "elapsedMs": 17.666364000000158
+      },
+      {
+        "offset": 24117248,
+        "elapsedMs": 21.991651999999704
+      },
+      {
+        "offset": 24379392,
+        "elapsedMs": 19.84369199999992
+      },
+      {
+        "offset": 24641536,
+        "elapsedMs": 18.205601000000115
+      },
+      {
+        "offset": 24903680,
+        "elapsedMs": 17.632214000000204
+      },
+      {
+        "offset": 25165824,
+        "elapsedMs": 24.204099000000042
+      },
+      {
+        "offset": 25427968,
+        "elapsedMs": 18.489908000000014
+      },
+      {
+        "offset": 25690112,
+        "elapsedMs": 20.401221000000078
+      },
+      {
+        "offset": 25952256,
+        "elapsedMs": 16.258448000000044
+      },
+      {
+        "offset": 26214400,
+        "elapsedMs": 24.775476000000253
+      },
+      {
+        "offset": 26476544,
+        "elapsedMs": 17.842659999999796
+      },
+      {
+        "offset": 26738688,
+        "elapsedMs": 19.40411499999982
+      },
+      {
+        "offset": 27000832,
+        "elapsedMs": 19.589948000000277
+      },
+      {
+        "offset": 27262976,
+        "elapsedMs": 17.87755100000004
+      },
+      {
+        "offset": 27525120,
+        "elapsedMs": 25.351548999999977
+      },
+      {
+        "offset": 27787264,
+        "elapsedMs": 18.32596300000023
+      },
+      {
+        "offset": 28049408,
+        "elapsedMs": 20.169318999999632
+      },
+      {
+        "offset": 28311552,
+        "elapsedMs": 20.85469400000011
+      },
+      {
+        "offset": 28573696,
+        "elapsedMs": 19.16708800000015
+      },
+      {
+        "offset": 28835840,
+        "elapsedMs": 19.168189999999868
+      },
+      {
+        "offset": 29097984,
+        "elapsedMs": 21.47061100000019
+      },
+      {
+        "offset": 29360128,
+        "elapsedMs": 18.320518999999877
+      },
+      {
+        "offset": 29622272,
+        "elapsedMs": 21.425960999999916
+      },
+      {
+        "offset": 29884416,
+        "elapsedMs": 20.479413999999906
+      },
+      {
+        "offset": 30146560,
+        "elapsedMs": 18.958924000000025
+      },
+      {
+        "offset": 30408704,
+        "elapsedMs": 19.604115999999976
+      },
+      {
+        "offset": 30670848,
+        "elapsedMs": 20.53738999999996
+      },
+      {
+        "offset": 30932992,
+        "elapsedMs": 18.67049700000007
+      },
+      {
+        "offset": 31195136,
+        "elapsedMs": 21.304715000000215
+      },
+      {
+        "offset": 31457280,
+        "elapsedMs": 20.80702799999972
+      },
+      {
+        "offset": 31719424,
+        "elapsedMs": 19.220946999999796
+      },
+      {
+        "offset": 31981568,
+        "elapsedMs": 19.23218900000029
+      },
+      {
+        "offset": 32243712,
+        "elapsedMs": 17.697451999999885
+      },
+      {
+        "offset": 32505856,
+        "elapsedMs": 22.55866100000003
+      },
+      {
+        "offset": 32768000,
+        "elapsedMs": 19.09502199999997
+      },
+      {
+        "offset": 33030144,
+        "elapsedMs": 20.116563000000042
+      },
+      {
+        "offset": 33292288,
+        "elapsedMs": 21.00104599999986
+      }
+    ],
+    "readElapsedMs": 2570.326642,
+    "readMiBPerSecond": 12.44977952494802,
+    "sha256": "9e3c05e48eaa644f910b3e972f5e46a36431afb898c8c4460d7890b24d5b898b",
+    "after": {
+      "service": "PackegeFlowService",
+      "protocol": "speed-test-v1",
+      "benchmarkApi": 1,
+      "ready": true,
+      "busy": false,
+      "maxBytes": 268435456,
+      "modes": [
+        "latency",
+        "upload",
+        "download",
+        "disk"
+      ],
+      "diagnosticsVersion": 1,
+      "profiles": [
+        "baseline",
+        "sleep500",
+        "polls16",
+        "sockbuf256k",
+        "sockbuf1m",
+        "sockbuf2m",
+        "ring2m",
+        "ring4m",
+        "sockbuf512k",
+        "sockbuf512k-sleep500",
+        "write256k",
+        "ring4m-write256k",
+        "default"
+      ],
+      "loop": {
+        "idleSleepRequestedUs": 16000,
+        "idleSleepActualUs": 16842,
+        "testSleepUs": 2000,
+        "testPollsPerLoop": 4
+      },
+      "netPool": {
+        "bytes": 262144,
+        "requestedBytes": 262144
+      },
+      "busyReason": null,
+      "serviceSockets": {
+        "requestedBytes": 524288,
+        "tuned": 136,
+        "applied": 136,
+        "getErrors": 0,
+        "setErrors": 0,
+        "lastBytes": 524288,
+        "lastError": 0
+      },
+      "lastTest": {
+        "mode": "download",
+        "bytes": 268435456,
+        "size": 268435456,
+        "status": 200,
+        "elapsedMs": 2516.921,
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_SNDBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 33304,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1691,
+            "io": 3201,
+            "wouldBlock": 1690,
+            "bytesPerCallAvg": 177654,
+            "bytesPerCallMax": 262144,
+            "ringFull": 0
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 841,
+            "actualUsTotal": 2313109,
+            "actualUsMax": 3996
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 0,
+            "blocks": 0,
+            "writeChunkBytes": 0
+          },
+          "netPoolBytes": 262144,
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    },
+    "fileDeleted": true,
+    "directoryDeleted": true,
+    "cleanup": true
+  },
+  "web": {
+    "at": "2026-10-12T13:43:01.576Z",
+    "consoleId": "f841d80b-c74c-4dc4-9651-454943fa8b7e",
+    "ip": "10.1.10.32",
+    "webCommit": "1b7c106 (hardware scripts; WEB speed source75e765a)",
+    "pkg": "2.10",
+    "completed": true,
+    "firmware": "12.50",
+    "model": "PS4 Pro",
+    "before": {
+      "queueStatus": "cancelled",
+      "queueId": "98b04f6e-565f-4329-83bb-94193fca0f04",
+      "lastJob": {
+        "id": "e5301b7b-3d93-4b8a-94c7-766000d5f9f0",
+        "consoleId": "f841d80b-c74c-4dc4-9651-454943fa8b7e",
+        "ip": "10.1.10.32",
+        "state": "completed",
+        "size": 268435456,
+        "startedAt": 1791812288445,
+        "results": [
+          {
+            "mode": "latency",
+            "bytes": 0,
+            "elapsedMs": 135.89624100923538,
+            "latencyMinMs": 16.266915008425713,
+            "latencyMedianMs": 17.014202997088432,
+            "latencyMaxMs": 17.651603013277054
+          },
+          {
+            "mode": "upload",
+            "bytes": 268435456,
+            "elapsedMs": 2323.41400000453,
+            "bytesPerSecond": 115534922.31667565,
+            "writeMs": 0,
+            "syncMs": 0,
+            "cleanup": true,
+            "receivePipeline": false
+          },
+          {
+            "mode": "download",
+            "bytes": 268435456,
+            "elapsedMs": 2512.364887997508,
+            "bytesPerSecond": 106845728.21504351
+          },
+          {
+            "mode": "disk",
+            "bytes": 268435456,
+            "elapsedMs": 2856.584207996726,
+            "bytesPerSecond": 93970783.44427635,
+            "writeMs": 2365.879,
+            "syncMs": 20.659,
+            "cleanup": true,
+            "receivePipeline": true
+          }
+        ],
+        "finishedAt": 1791812296290
+      },
+      "ready": true,
+      "message": ""
+    },
+    "job": {
+      "id": "fd8d0718-81fd-4271-86c4-7a76c9952679",
+      "consoleId": "f841d80b-c74c-4dc4-9651-454943fa8b7e",
+      "ip": "10.1.10.32",
+      "state": "completed",
+      "size": 268435456,
+      "startedAt": 1791812581686,
+      "results": [
+        {
+          "mode": "latency",
+          "bytes": 0,
+          "elapsedMs": 135.98234002292156,
+          "latencyMinMs": 16.4169400036335,
+          "latencyMedianMs": 17.050657503306866,
+          "latencyMaxMs": 17.354391008615494
+        },
+        {
+          "mode": "upload",
+          "bytes": 268435456,
+          "elapsedMs": 2488.4016489982605,
+          "bytesPerSecond": 107874649.62019387,
+          "writeMs": 0,
+          "syncMs": 0,
+          "cleanup": true,
+          "receivePipeline": false
+        },
+        {
+          "mode": "download",
+          "bytes": 268435456,
+          "elapsedMs": 2390.493907004595,
+          "bytesPerSecond": 112292884.41749793
+        },
+        {
+          "mode": "disk",
+          "bytes": 268435456,
+          "elapsedMs": 3463.802534997463,
+          "bytesPerSecond": 77497332.27797773,
+          "writeMs": 3161.545,
+          "syncMs": 34.937,
+          "cleanup": true,
+          "receivePipeline": true
+        }
+      ],
+      "finishedAt": 1791812590181
+    }
+  },
+  "sourceRead": {
+    "at": "2026-10-12T13:55:18.601Z",
+    "bytes": 268435456,
+    "runs": [
+      {
+        "repeat": 1,
+        "highWaterMark": 65536,
+        "bytes": 268435456,
+        "calls": 4096,
+        "elapsedMs": 4333.759989,
+        "mibPerSecond": 59.07110699479948
+      },
+      {
+        "repeat": 1,
+        "highWaterMark": 262144,
+        "bytes": 268435456,
+        "calls": 1024,
+        "elapsedMs": 2256.269324,
+        "mibPerSecond": 113.46163211852453
+      },
+      {
+        "repeat": 1,
+        "highWaterMark": 1048576,
+        "bytes": 268435456,
+        "calls": 256,
+        "elapsedMs": 1524.9806710000003,
+        "mibPerSecond": 167.87098018241042
+      },
+      {
+        "repeat": 1,
+        "highWaterMark": 4194304,
+        "bytes": 268435456,
+        "calls": 64,
+        "elapsedMs": 1678.7141960000008,
+        "mibPerSecond": 152.49766792345628
+      },
+      {
+        "repeat": 2,
+        "highWaterMark": 4194304,
+        "bytes": 268435456,
+        "calls": 64,
+        "elapsedMs": 1703.5330450000001,
+        "mibPerSecond": 150.27592259004285
+      },
+      {
+        "repeat": 2,
+        "highWaterMark": 1048576,
+        "bytes": 268435456,
+        "calls": 256,
+        "elapsedMs": 1755.4851319999998,
+        "mibPerSecond": 145.82863467965848
+      },
+      {
+        "repeat": 2,
+        "highWaterMark": 262144,
+        "bytes": 268435456,
+        "calls": 1024,
+        "elapsedMs": 1474.2359080000006,
+        "mibPerSecond": 173.64927730413137
+      },
+      {
+        "repeat": 2,
+        "highWaterMark": 65536,
+        "bytes": 268435456,
+        "calls": 4096,
+        "elapsedMs": 1649.3101509999979,
+        "mibPerSecond": 155.2164096272517
+      }
+    ],
+    "completed": true,
+    "sha256": "6ccdac73def330af1ec0fbad0ef6966607aaa9a81f0cbad3f90a2bc66f6efaaa"
+  },
+  "userBgftObservation": {
+    "ip": "10.1.10.32",
+    "queueId": "a17ce49f-fcb5-4951-b71f-bf68b16bec23",
+    "status": "completed",
+    "transport": "service",
+    "jobs": [
+      {
+        "packageId": "ae4c2e0fd0a60840f0ec8cb78792ffdf",
+        "title": "Broforce",
+        "size": 453181440,
+        "state": "installed",
+        "requestId": "657789a2-5d97-4610-9722-239b7f210779",
+        "serviceStatus": 200,
+        "serviceState": "installed",
+        "downloadedBytes": 453181440,
+        "timing": {
+          "observedFromSubmit": true,
+          "submitToFirstByteMs": 31539,
+          "downloadMs": 8085,
+          "downloadBytesPerSecond": 55137659,
+          "lastBytesPerSecond": 0,
+          "installMs": 4031,
+          "pollIntervalMs": 1000
+        }
+      },
+      {
+        "packageId": "2484f97aba92865fead1b86d0da1cd38",
+        "title": "Broforce",
+        "size": 73728000,
+        "state": "installed",
+        "requestId": "a4746751-4581-4f58-befa-ec88e1c0c373",
+        "serviceStatus": 200,
+        "serviceState": "installed",
+        "downloadedBytes": 73203712,
+        "timing": {
+          "observedFromSubmit": true,
+          "submitToFirstByteMs": 1038,
+          "downloadMs": 3032,
+          "downloadBytesPerSecond": 23990937,
+          "lastBytesPerSecond": 0,
+          "installMs": 6042,
+          "pollIntervalMs": 1000
+        }
+      },
+      {
+        "packageId": "399cda4dbbd894de930a46d748a5adb6",
+        "title": "Broforce",
+        "size": 161153024,
+        "state": "skipped"
+      },
+      {
+        "packageId": "86775a577531f51c021f9f1ff9085bbe",
+        "title": "Broforce",
+        "size": 91815936,
+        "state": "skipped"
+      }
+    ]
+  }
+}
