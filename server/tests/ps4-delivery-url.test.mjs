@@ -40,6 +40,14 @@ test('PS4 suffix URLs serve real manifest/HEAD/ranges and preserve recipient iso
       const res = await fetch(url, { headers: { Range: range } }); assert.equal(res.status, 206); assert.equal(res.headers.get('content-range'), `bytes ${start}-${end}/${bytes.length}`)
       assert.deepEqual(Buffer.from(await res.arrayBuffer()), bytes.subarray(start, end + 1))
     }
+    const startup = api.inConsoleScope('10.1.10.32', () => api.getPackageDelivery('own')).startup
+    assert.equal(startup.capturedFromStart, true)
+    assert.ok(startup.manifestRequestedAt <= startup.dataRequestedAt)
+    assert.ok(startup.dataRequestedAt <= startup.firstBlockReadAt)
+    assert.ok(startup.manifestPreparedMs >= 0 && startup.firstBlockReadMs >= 0)
+    assert.equal(api.inConsoleScope('192.168.0.127', () => api.getPackageDelivery('own')).startup, undefined)
+    const repeated = await fetch(url, { headers: { Range: 'bytes=16-31' } }); await repeated.arrayBuffer()
+    assert.deepEqual(api.inConsoleScope('10.1.10.32', () => api.getPackageDelivery('own')).startup, startup, 'Later ranges preserve the first request times')
     assert.equal(api.inConsoleScope('192.168.0.127', () => api.getPackageDelivery('own')).bytesSent, 0, 'active PS5 receives no PS4 progress')
     const invalid = await fetch(url, { headers: { Range: 'bytes=3000000-' } }); assert.equal(invalid.status, 416); assert.equal(invalid.headers.get('content-range'), `bytes */${bytes.length}`)
     api.inConsoleScope('10.1.10.32', () => api.blockPackageDelivery('own'))

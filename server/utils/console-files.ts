@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync, renameSync, openSync, fsyncSync, closeSync } from 'node:fs'
 import { dirname, resolve, posix } from 'node:path'
 import { createError } from 'h3'
-import { consoleFilePath, consoleFileRead, consoleFileRequest, consoleFileWrite } from './ps4-service-installer'
+import { consoleFilePath, consoleFileRead, consoleFileReadLimit, consoleFileRequest, consoleFileWrite } from './ps4-service-installer'
 import { ps4ServiceIp } from './ps4-service'
 import { logEvent } from './event-log'
 import type { ConsoleFileJob, ConsoleFileStat, ConsoleTrashItem, FileAction } from '../../shared/types/console-files'
@@ -235,9 +235,10 @@ async function execute(job: StoredJob, ledger: ReturnType<typeof readLedger>) {
               const session = await consoleFileRequest(job.ip, 'upload/start', { path: staging, id: s.uploadId, size: s.size }) as { offset: number }
               if (!Number.isSafeInteger(session.offset) || session.offset < 0 || session.offset > s.size!) fail('Неверная позиция копирования', 502)
               let offset = session.offset
+              const readBytes = await consoleFileReadLimit(job.ip)
               while (offset < s.size!) {
                 checkPause()
-                const chunk = await consoleFileRead(job.ip, s.path!, offset, Math.min(256 * 1024, s.size! - offset))
+                const chunk = await consoleFileRead(job.ip, s.path!, offset, Math.min(readBytes, s.size! - offset))
                 if (!chunk.length) fail('Исходный файл изменился', 409)
                 await consoleFileWrite(job.ip, s.uploadId, offset, chunk); offset += chunk.length
                 job.bytes = job.steps.filter(x => x.done && ['copy', 'replace'].includes(x.kind)).reduce((n, x) => n + (x.size || 0), 0) + offset

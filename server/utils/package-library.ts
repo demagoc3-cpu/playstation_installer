@@ -51,7 +51,8 @@ export interface LocalPackage {
 
 interface PackageIcon { offset: number; size: number }
 interface StoredPackage extends LocalPackage { path: string; sourceModifiedAt: number; coverPath?: string; icon: PackageIcon; sourceRoots?: string[]; aliasIds?: string[] }
-interface DeliveryStatus { requests: number; bytesSent: number; ranges: Array<{ start: number; end: number }>; startedAt?: number; completedAt?: number; lastActivityAt?: number; partial?: boolean }
+interface DeliveryStartup { capturedFromStart: boolean; manifestRequestedAt?: number; manifestPreparedMs?: number; dataRequestedAt?: number; firstBlockReadAt?: number; firstBlockReadMs?: number }
+interface DeliveryStatus { startup?: DeliveryStartup; requests: number; bytesSent: number; ranges: Array<{ start: number; end: number }>; startedAt?: number; completedAt?: number; lastActivityAt?: number; partial?: boolean }
 interface FolderCacheEntry { size: number; modifiedAt: number; item: StoredPackage }
 interface FolderCache { version: 4; packages: Record<string, FolderCacheEntry> }
 interface SiteLibrary { version: 2; packages: StoredPackage[]; deliveries: Record<string, DeliveryStatus>; installations?: Record<string, Record<string, number>> }
@@ -587,6 +588,19 @@ export function removePackageBranch(titleId: string, platform?: string) {
   removed.forEach((item) => delete library.deliveries[item.id])
   writeLibrary(library)
   return { removed: removed.length }
+}
+
+/** Capture startup once per recipient/attempt, without flooding the rolling event log. */
+export function recordPackageStartup(id: string, phase: 'manifest' | 'data' | 'firstBlock', at: number, elapsedMs?: number): boolean {
+  const delivery = deliveries()[consoleDeliveryKey(id)] ||= { requests: 0, bytesSent: 0, ranges: [] }
+  const startup = delivery.startup ||= { capturedFromStart: delivery.requests === 0 }
+  const field = phase === 'manifest' ? 'manifestRequestedAt' : phase === 'data' ? 'dataRequestedAt' : 'firstBlockReadAt'
+  if (startup[field] !== undefined) return false
+  startup[field] = at
+  if (phase === 'manifest') startup.manifestPreparedMs = elapsedMs
+  if (phase === 'firstBlock') startup.firstBlockReadMs = elapsedMs
+  scheduleDeliveryFlush()
+  return true
 }
 
 /** Any request from the console (manifest or data) proves it accepted the job. */

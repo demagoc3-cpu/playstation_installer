@@ -4,7 +4,7 @@ import { logEvent } from '../../utils/event-log'
 import { Transform } from 'node:stream'
 import type { ReadStream } from 'node:fs'
 import type { H3Event } from 'h3'
-import { PACKAGE_STREAM_BUFFER_BYTES, getPackage, getPackageDelivery, getPackageIconStream, getPackageStream, isDeliveryBlocked, recordPackageDelivery, recordPackageRequest, registerActiveTransfer } from '../../utils/package-library'
+import { PACKAGE_STREAM_BUFFER_BYTES, getPackage, getPackageDelivery, getPackageIconStream, getPackageStream, isDeliveryBlocked, recordPackageDelivery, recordPackageRequest, recordPackageStartup, registerActiveTransfer } from '../../utils/package-library'
 
 const debug = Boolean(process.env.PACKAGEFLOW_DEBUG)
 const PROGRESS_INTERVAL_MS = 500
@@ -30,7 +30,7 @@ function streamRange(event: H3Event, file: ReadStream, id: string, fileName: str
   const counter = new Transform({
     highWaterMark: Math.max(1, Math.min(PACKAGE_STREAM_BUFFER_BYTES, expected)),
     transform(chunk: Buffer, _encoding, callback) {
-      if (!sent) logEvent('info', `Первый блок PKG «${fileName}» прочитан WEB за ${(performance.now() - requestedAt).toFixed(1)} мс после запроса PS4`)
+      if (!sent && inConsoleScope(owner, () => recordPackageStartup(id, 'firstBlock', Date.now(), performance.now() - requestedAt))) logEvent('info', `Первый блок PKG «${fileName}» прочитан WEB за ${(performance.now() - requestedAt).toFixed(1)} мс после запроса PS4`)
       sent += chunk.length
       const now = Date.now()
       if (now - reportedAt >= PROGRESS_INTERVAL_MS) { reportedAt = now; record(start + sent - 1, false) }
@@ -61,12 +61,12 @@ export default defineEventHandler((event) => inConsoleScope(currentConsoleIp() |
     return sendStream(event, getPackageIconStream(id))
   }
 
-  const requestedAt = performance.now()
+  const requestedAt = performance.now(), requestedWallAt = Date.now()
   const range = getHeader(event, 'range')
-  logEvent('info', `Запрос данных PKG получен WEB: ${id}, ${range || 'целиком'}`)
   const item = getPackage(id)
   if (contentFormat(item) === 'folder') throw createError({ statusCode: 409, message: 'Папка передаётся через протокол файлов PS5' })
   if (isDeliveryBlocked(id)) throw createError({ statusCode: 410, message: 'Installation cancelled' })
+  if (event.method !== 'HEAD' && recordPackageStartup(id, 'data', requestedWallAt)) logEvent('info', `Первый запрос данных PKG получен WEB: ${id}, ${range || 'целиком'}`)
   recordPackageRequest(id)
   if (debug) logEvent('info', `PS4 запрашивает «${item.fileName}» ${range || 'целиком'}`)
   setHeader(event, 'Content-Type', 'application/octet-stream')

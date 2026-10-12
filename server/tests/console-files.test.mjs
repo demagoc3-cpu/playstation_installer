@@ -61,7 +61,7 @@ test('real file API: folders, copy resume, trash/restore, replacement and editor
     assert.equal(f.fileJobs(ip).jobs.filter(j => j.id === requestId).length, 1)
     const text = 'Hello — Привет\r\n'; writeFileSync(resolve(disk, 'source/settings.json'), JSON.stringify({ text }))
     mkdirSync(resolve(disk, 'source/empty'))
-    const data = Buffer.alloc(600000, 37); writeFileSync(resolve(disk, 'source/big.bin'), data)
+    const data = Buffer.alloc(5 * 1024 * 1024, 37); writeFileSync(resolve(disk, 'source/big.bin'), data)
     await run({ action: 'mkdir', paths: ['/data'], name: 'destination' })
     failChunk = true
     let j = await run({ action: 'copy', paths: ['/data/source'], destination: '/data/destination' }, 'paused')

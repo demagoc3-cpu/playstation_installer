@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream'
-import { consoleFilePath, consoleFileRead, consoleFileRequest } from '../../../utils/ps4-service-installer'
+import { consoleFilePath, consoleFileRead, consoleFileReadLimit, consoleFileRequest } from '../../../utils/ps4-service-installer'
 
 interface FileStat { type: string; size: number; mtime: number }
 export default defineEventHandler(async event => {
@@ -26,9 +26,10 @@ export default defineEventHandler(async event => {
   setHeader(event, 'Cache-Control', 'no-store')
   setHeader(event, 'Content-Length', Math.max(0, end - start + 1))
   setHeader(event, 'Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(path.split('/').at(-1) || 'console-file')}`)
+  const readBytes = stat.size ? await consoleFileReadLimit(ip) : 256 * 1024
   const stream = Readable.from((async function* () {
     for (let offset = start; offset <= end; ) {
-      const expected = Math.min(256 * 1024, end - offset + 1)
+      const expected = Math.min(readBytes, end - offset + 1)
       const chunk = await consoleFileRead(ip, path, offset, expected)
       if (chunk.length !== expected) throw new Error('PS4 изменила файл во время передачи')
       yield chunk

@@ -85,20 +85,66 @@ export async function consoleFileRequest(ip: string, route: 'roots' | 'list' | '
   if ('destination' in body) consoleFilePath(body.destination)
   return request(ip, `/files/${route}`, 'POST', token(consoleIp(ip)), body)
 }
+const LEGACY_FILE_READ_BYTES = 256 * 1024
+const MAX_FILE_READ_BYTES = 4 * 1024 * 1024
+const fileReadLimits = new Map<string, { key: string; expires: number; pending: Promise<number> }>()
+/** Negotiate per console; older services retain their 256 KiB limit. */
+export async function consoleFileReadLimit(ip: string): Promise<number> {
+  ip = consoleIp(ip)
+  const key = token(ip), cached = fileReadLimits.get(ip)
+  if (cached?.key === key && cached.expires > Date.now()) return cached.pending
+  const pending = consoleFileRequest(ip, 'capabilities', {}).then(body => {
+    const limit = (body as { maxReadBytes?: number }).maxReadBytes
+    return Number.isSafeInteger(limit) && limit! > 0 ? Math.min(limit!, MAX_FILE_READ_BYTES) : LEGACY_FILE_READ_BYTES
+  }).catch(cause => {
+    if (cause.statusCode === 404) return LEGACY_FILE_READ_BYTES
+    throw cause
+  })
+  if (fileReadLimits.size >= 64) fileReadLimits.delete(fileReadLimits.keys().next().value!)
+  const entry = { key, expires: Date.now() + 5000, pending }
+  fileReadLimits.set(ip, entry)
+  try { return await pending } catch (cause) { if (fileReadLimits.get(ip) === entry) fileReadLimits.delete(ip); throw cause }
+}
 export async function consoleFileRead(ip: string, path: string, offset: number, length: number): Promise<Buffer> {
   consoleFilePath(path)
-  if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(length) || length < 1 || length > 256 * 1024)
+  if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(length) || length < 1 || length > MAX_FILE_READ_BYTES || !Number.isSafeInteger(offset + length))
     throw createError({ statusCode: 400, message: 'Недопустимый диапазон файла' })
-  const response = await fetch(`http://${consoleIp(ip)}:12801/files/read`, {
-    method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
-    headers: { Authorization: `Bearer ${token(consoleIp(ip))}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ path, offset, length }),
-  })
-  if (!response.ok || !/^application\/octet-stream(?:;|$)/i.test(response.headers.get('content-type') || ''))
-    throw createError({ statusCode: response.status || 502, message: 'PS4 не смогла прочитать файл' })
-  const data = Buffer.from(await response.arrayBuffer())
-  if (data.length > length) throw createError({ statusCode: 502, message: 'PS4 вернула слишком много данных' })
-  return data
+  const limit = length > LEGACY_FILE_READ_BYTES ? await consoleFileReadLimit(ip) : LEGACY_FILE_READ_BYTES
+  const chunks: Buffer[] = []
+  let received = 0
+  while (received < length) {
+    const expected = Math.min(limit, length - received)
+    let response!: Response
+    for (let attempt = 0; ; attempt++) {
+      response = await fetch(`http://${consoleIp(ip)}:12801/files/read`, {
+        method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
+        headers: { Authorization: `Bearer ${token(consoleIp(ip))}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path, offset: offset + received, length: expected }),
+      })
+      // Only a rejected read is retried, with the same offset. Mutations never repeat.
+      if (response.status !== 503 || attempt >= 2) break
+      await response.body?.cancel()
+      await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 100 : 250))
+    }
+    if (!response.ok || !/^application\/octet-stream(?:;|$)/i.test(response.headers.get('content-type') || '')) {
+      await response.body?.cancel()
+      throw createError({ statusCode: response.ok ? 502 : response.status, message: 'PS4 не смогла прочитать файл' })
+    }
+    const reader = response.body?.getReader(), parts: Uint8Array[] = []
+    let size = 0
+    if (reader) try {
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        size += value.byteLength
+        if (size > expected) throw createError({ statusCode: 502, message: 'PS4 вернула слишком много данных' })
+        parts.push(value)
+      }
+    } finally { await reader.cancel().catch(() => {}) }
+    chunks.push(Buffer.concat(parts, size)); received += size
+    if (size < expected) break // EOF remains visible to callers checking exact size.
+  }
+  return chunks.length === 1 ? chunks[0]! : Buffer.concat(chunks, received)
 }
 export async function consoleFileWrite(ip: string, id: string, offset: number, data: Buffer) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ||
