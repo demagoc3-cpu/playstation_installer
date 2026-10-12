@@ -1,5 +1,14 @@
 import { Ps5QueueFailure } from './ps5-queue-core'
 
+/** Only the exact, hardware-qualified batch limit enables the pipelined route.
+ * Older services keep their bounded chunk protocol. */
+export function ps5TransferProtocol(reply: { chunkMax?: unknown; batchMax?: unknown }) {
+  if (reply.batchMax === 16 * 1024 * 1024) return { path: '/api/v1/transfers/batch' as const, size: 16 * 1024 * 1024 }
+  const max = reply.chunkMax
+  const size = typeof max === 'number' && Number.isInteger(max) && max >= 262144 && max <= 4194304 && (max & (max - 1)) === 0 ? max : 262144
+  return { path: '/api/v1/transfers/chunk' as const, size }
+}
+
 /** Read one chunk ahead while PS5 receives/fsyncs the current chunk. The next
  * POST still waits for its predecessor's durable ACK; buffers never overlap. */
 export async function ps5SendChunks(input: {

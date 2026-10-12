@@ -96,19 +96,20 @@ test('durable write failure prevents dispatch and does not crash the WEB worker'
   assert.match(q.message,/приостановлена/);assert.equal(q.status,'running','unknown work cannot be replaced by a new queue')
 })
 
-test('driver reconciles lost chunk response, preserves hash and offset, and refuses a changed source',async()=>{
+for (const batched of [false, true]) test(`driver reconciles lost ${batched ? 'batch' : 'chunk'} response, preserves hash and offset, and refuses a changed source`,async()=>{
   const oldEnv=process.env.PACKAGEFLOW_DATA_DIR,oldFetch=globalThis.fetch,oldError=globalThis.createError
   globalThis.createError=createError
   try{
-    let profile=api.saveConsoleProfile({name:'own test',platform:'ps5',ip:'192.168.1.5'}).consoles.find(c=>c.platform==='ps5')
-    profile=api.saveConsoleProfile({...profile,firmware:'13.60'}).consoles.find(c=>c.platform==='ps5')
+    const ip=batched?'192.168.1.9':'192.168.1.5'
+    let profile=api.saveConsoleProfile({name:'own test',platform:'ps5',ip}).consoles.find(c=>c.ip===ip)
+    profile=api.saveConsoleProfile({...profile,firmware:'13.60'}).consoles.find(c=>c.ip===ip)
     writeFileSync(join(process.env.PACKAGEFLOW_DATA_DIR,'ps5-service-keys.json'),JSON.stringify({[profile.ip]:'a'.repeat(64)}))
-    const contents=putPs5ParamPkg(Buffer.alloc(9*1024*1024+19,39)),source=join(work,'test.pkg');writeFileSync(source,contents)
+    const contents=putPs5ParamPkg(Buffer.alloc((batched ? 37 : 9)*1024*1024+19,39)),source=join(work,'test.pkg');writeFileSync(source,contents)
     const pkg={...input('own'),id:'own',path:source,libraryRoot:work,size:contents.length,contentType:'PS5GD',contentId:'IV0000-PPSA95001_00-PACKAGEFLOWUI001',appVersion:'01.000.001',sourceModifiedAt:1,installOrder:0,icon:{offset:0,size:0},iconSize:0,packageDigest:''}
     writeFileSync(join(process.env.PACKAGEFLOW_DATA_DIR,'package-library.json'),JSON.stringify({version:2,packages:[pkg],deliveries:{}}))
     const item={...input('own'),size:contents.length,contentId:pkg.contentId,appVersion:pkg.appVersion,transferId:'1'.repeat(32),state:'pending',detail:'',bytesSent:0}
     let offset=0,hash='',lost=false,verified=false,installs=0,chunkMax; const chunkOffsets=[]
-    const describe=()=>({id:item.transferId,bytesDurable:offset,size:item.size,blake3:hash,verified,cancelled:false,chunkMax})
+    const describe=()=>({id:item.transferId,bytesDurable:offset,size:item.size,blake3:hash,verified,cancelled:false,chunkMax,batchMax:batched?16777216:33554432})
     const response=body=>new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}})
     globalThis.fetch=async(url,opts)=>{
       assert.equal(new URL(url).hostname,profile.ip);if(new URL(url).pathname!=='/health')assert.equal(opts.headers.Authorization,`Bearer ${'a'.repeat(64)}`)
@@ -121,7 +122,9 @@ test('driver reconciles lost chunk response, preserves hash and offset, and refu
       if(path==='/api/v1/console/catalog')return response({revision:'a'.repeat(64),entries:[],next:0,done:true})
       if(path==='/api/v1/transfers/begin'){hash=opts.headers['X-PackageFlow-Blake3'];assert.match(hash,/^[0-9a-f]{64}$/);return response(describe())}
       if(path==='/api/v1/transfers/status')return response(describe())
-      if(path==='/api/v1/transfers/chunk'){
+      if(path==='/api/v1/transfers/chunk'||path==='/api/v1/transfers/batch'){
+        assert.equal(path,batched?'/api/v1/transfers/batch':'/api/v1/transfers/chunk')
+        assert.ok(opts.body.length<=(batched?16777216:chunkMax||262144))
         const start=Number(opts.headers['X-PackageFlow-Offset']);chunkOffsets.push(start);assert.equal(start,offset)
         assert.deepEqual(Buffer.from(opts.body),contents.subarray(start,start+opts.body.length));offset+=opts.body.length
         if(!lost){lost=true;throw new Error('reply lost after durable write')}
@@ -136,10 +139,10 @@ test('driver reconciles lost chunk response, preserves hash and offset, and refu
     await api.probeConsoleProfile(profile.id)
     const driver=api.ps5QueueDriver(profile.id),save=patch=>Object.assign(item,patch)
     await assert.rejects(driver.run(item,new AbortController().signal,save),/reply lost/)
-    assert.equal(item.bytesSent,0);assert.equal(offset,262144)
+    assert.equal(item.bytesSent,0);assert.equal(offset,batched?16777216:262144)
     chunkMax=4194304
     await driver.run(item,new AbortController().signal,save)
-    assert.deepEqual(chunkOffsets,[0,262144,4456448,8650752]);assert.equal(installs,1);assert.equal(item.bytesSent,contents.length)
+    assert.deepEqual(chunkOffsets,batched?[0,16777216,33554432]:[0,262144,4456448,8650752]);assert.equal(installs,1);assert.equal(item.bytesSent,contents.length)
     await assert.rejects(driver.run(item,new AbortController().signal,save),api.Ps5QueueUncertain,'transport complete is not proof of installed version')
     assert.equal(installs,1)
     const changed={...item,installDispatched:false};writeFileSync(source,Buffer.alloc(contents.length,40))
@@ -154,7 +157,8 @@ test('driver reconciles lost chunk response, preserves hash and offset, and refu
     assert.equal(api.submitPs5AppCommand(command).state,'failed');assert.throws(()=>api.submitPs5AppCommand({...command,action:'dlc'}),/уже использован/)
     assert.equal(transferCalls,0)
     const queueFile=join(process.env.PACKAGEFLOW_DATA_DIR,'consoles',profile.id,'ps5-installation-queue.json');mkdirSync(join(process.env.PACKAGEFLOW_DATA_DIR,'consoles',profile.id),{recursive:true})
-    const another=api.saveConsoleProfile({name:'corrupt',platform:'ps5',ip:'192.168.1.6'}).consoles.find(c=>c.ip==='192.168.1.6')
+    const otherIp=batched?'192.168.1.10':'192.168.1.6'
+    const another=api.saveConsoleProfile({name:'corrupt',platform:'ps5',ip:otherIp}).consoles.find(c=>c.ip===otherIp)
     const bad=join(process.env.PACKAGEFLOW_DATA_DIR,'consoles',another.id);mkdirSync(bad,{recursive:true});writeFileSync(join(bad,'ps5-installation-queue.json'),'broken')
     assert.throws(()=>api.getPs5Queue(another.id),/Сохранённый файл/);assert.equal(readFileSync(join(bad,'ps5-installation-queue.json'),'utf8'),'broken')
   }finally{globalThis.fetch=oldFetch;globalThis.createError=oldError;if(oldEnv===undefined)delete process.env.PACKAGEFLOW_DATA_DIR;else process.env.PACKAGEFLOW_DATA_DIR=oldEnv}

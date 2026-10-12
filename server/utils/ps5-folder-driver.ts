@@ -5,7 +5,7 @@ import { ps5SourceStamp } from './ps5-source-hash'
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache'
 import { seedPs5SourceHashHistory } from './ps5-source-hash-history'
 import { ps5StreamHasher } from './ps5-stream-hash'
-import { ps5SendChunks } from './ps5-send-chunks'
+import { ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks'
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Item } from './ps5-queue-core'
 
 export type FolderRequest = (id: string, path: string, headers?: Record<string, string>, body?: Uint8Array, signal?: AbortSignal) => Promise<{ status: number; body: any }>
@@ -84,14 +84,13 @@ async function upload(id: string, size: number, hash: string, read: (buffer: Buf
   if (r.status === 409) r = await request(id, '/api/v1/transfers/status', {}, undefined, signal)
   const valid = (r: any) => r?.id === id && r.size === size && (stream ? r.sourceIdentity === stream.identity && typeof r.hashPending === 'boolean' && (r.hashPending ? !r.verified && r.blake3 === stream.identity : /^[0-9a-f]{64}$/.test(r.blake3 || '') && (!hash || r.blake3 === hash)) : r.blake3 === hash) && r.cancelled === false && Number.isSafeInteger(r.bytesDurable) && r.bytesDurable >= 0 && r.bytesDurable <= size
   if (r.status !== 200 || !valid(r.body)) fail('PS5 не подтвердила файл Folder')
-  const max = r.body.chunkMax, chunk = typeof max === 'number' && max >= 262144 && max <= 4194304 && (max & (max - 1)) === 0 ? max : 262144
-  const batch = stream && r.body.batchMax === 16777216 ? r.body.batchMax : 0
+  const protocol = ps5TransferProtocol(r.body)
   const offset = r.body.bytesDurable; progress(offset)
   if (stream && r.body.verified === true && hash && r.body.blake3 === hash && offset === size) return
   if (stream) await stream.prepare(offset)
-  await ps5SendChunks({ read, size, offset, chunkSize: batch || chunk, signal, validateSource: async () => true,
+  await ps5SendChunks({ read, size, offset, chunkSize: protocol.size, signal, validateSource: async () => true,
     send: async (position, bytes) => {
-      r = await request(id, batch ? '/api/v1/transfers/batch' : '/api/v1/transfers/chunk', { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
+      r = await request(id, protocol.path, { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
       if (r.status !== 200 || !valid(r.body) || r.body.bytesDurable !== position + bytes.length) throw new Error('Folder acknowledgement lost; reconcile durable offset')
     }, progress: n => { stream?.acknowledge(n); progress(n) },
   })

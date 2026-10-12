@@ -3,7 +3,7 @@ import { createBLAKE3 } from 'hash-wasm'
 import { readPs5ImageMetadata } from './ps5-content-metadata'
 import { ps5SourceStamp } from './ps5-source-hash'
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache'
-import { ps5SendChunks } from './ps5-send-chunks'
+import { ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks'
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Item } from './ps5-queue-core'
 import type { FolderRequest } from './ps5-folder-driver'
 
@@ -62,12 +62,11 @@ async function upload(id: string, size: number, hash: string, read: (buffer: Buf
   let r = await request(id, '/api/v1/transfers/begin', { 'X-PackageFlow-Size': String(size), 'X-PackageFlow-Blake3': hash }, undefined, signal)
   if (r.status === 409) r = await request(id, '/api/v1/transfers/status', {}, undefined, signal)
   if (r.status !== 200 || !valid(r.body)) fail('PS5 не подтвердила состояние передачи образа')
-  const max = r.body.chunkMax
-  const chunkSize = typeof max === 'number' && Number.isInteger(max) && max >= 262144 && max <= 4194304 && (max & (max - 1)) === 0 ? max : 262144
+  const protocol = ps5TransferProtocol(r.body)
   progress(r.body.bytesDurable)
-  await ps5SendChunks({ read, validateSource, size, offset: r.body.bytesDurable, chunkSize, signal,
+  await ps5SendChunks({ read, validateSource, size, offset: r.body.bytesDurable, chunkSize: protocol.size, signal,
     send: async (position, bytes) => {
-      const ack = await request(id, '/api/v1/transfers/chunk', { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
+      const ack = await request(id, protocol.path, { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
       if (ack.status !== 200 || !valid(ack.body) || ack.body.bytesDurable !== position + bytes.length) throw new Error('Image acknowledgement lost; reconcile durable offset')
     }, progress })
   checking()

@@ -4,7 +4,7 @@ import { writeDurableJson } from './durable-json'
 import { createFolderPlan, verifyFolderSource, runFolderPlan, cancelFolderPlan, type FolderPlan, type FolderRequest } from './ps5-folder-driver'
 import { ps5BaseRegistration } from './ps5-registration'
 import { open } from 'node:fs/promises'
-import { ps5SendChunks } from './ps5-send-chunks'
+import { ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks'
 import { ps5SourceStamp as stamp } from './ps5-source-hash'
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache'
 import { seedPs5SourceHashHistory } from './ps5-source-hash-history'
@@ -174,11 +174,12 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
         const valid = (body: any) => body?.id === item.transferId && body.size === item.size && body.blake3 === item.hash && Number.isSafeInteger(body.bytesDurable) && body.bytesDurable >= 0 && body.bytesDurable <= item.size && body.cancelled === false
         if (response.status !== 200 || !valid(response.body)) throw new Ps5QueueFailure('PS5 не подтвердила состояние передачи')
         const offset = response.body.bytesDurable
+        const protocol = ps5TransferProtocol(response.body)
         save({ state: 'sending', progressPhase: 'transfer', bytesSent: offset, detail: 'Передаём пакет на PS5 с докачкой' })
-        await ps5SendChunks({ read: async (buffer, position) => (await file.read(buffer, 0, buffer.length, position)).bytesRead, size: item.size, offset, chunkSize: ps5TransferChunkSize(response.body), signal,
+        await ps5SendChunks({ read: async (buffer, position) => (await file.read(buffer, 0, buffer.length, position)).bytesRead, size: item.size, offset, chunkSize: protocol.size, signal,
           validateSource: async () => stamp(await file.stat()) === identity,
           send: async (position, bytes) => {
-            const ack = await request(item, '/api/v1/transfers/chunk', { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
+            const ack = await request(item, protocol.path, { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
             if (ack.status !== 200 || !valid(ack.body) || ack.body.bytesDurable !== position + bytes.length) throw new Error('Chunk acknowledgement lost; reconcile durable offset')
           }, progress: bytesSent => save({ bytesSent }),
         })
