@@ -9,7 +9,7 @@ const running=computed(()=>job.value?.state==='running')
 let disposed=false,timer:ReturnType<typeof setTimeout>|undefined
 const error=(e:any)=>e?.data?.message||e?.message||'Не удалось выполнить тест'
 async function refresh(){try{info.value=await $fetch('/api/consoles/speed',{query:{consoleId:props.profile.id}});if(!job.value&&info.value?.lastJob){job.value=info.value.lastJob;if(running.value)void poll()}}catch(e){message.value=error(e)}}
-async function poll(){if(disposed||!job.value)return;try{job.value=await $fetch<ConsoleSpeedJob>('/api/consoles/speed',{query:{consoleId:props.profile.id,id:job.value.id}})}catch(e){message.value=error(e);return}if(running.value)timer=setTimeout(poll,500)}
+async function poll(){if(disposed||!job.value)return;try{job.value=await $fetch<ConsoleSpeedJob>('/api/consoles/speed',{query:{consoleId:props.profile.id,id:job.value.id}})}catch(e){message.value=error(e);return}if(running.value)timer=setTimeout(poll,500);else await refresh()}
 async function start(){if(busy.value||running.value)return;busy.value=true;message.value='';try{job.value=await $fetch<ConsoleSpeedJob>('/api/consoles/speed',{method:'POST',body:{consoleId:props.profile.id,action:'start',sizeMiB:sizeMiB.value,modes:modes.value}});void poll()}catch(e){message.value=error(e)}finally{busy.value=false}}
 async function cancel(){if(!job.value)return;try{await $fetch('/api/consoles/speed',{method:'POST',body:{consoleId:props.profile.id,action:'cancel',id:job.value.id}})}catch(e){message.value=error(e)}}
 async function queue(action:'pause'|'resume'){busy.value=true;try{await $fetch('/api/consoles/tasks',{method:'POST',body:{consoleId:props.profile.id,queueId:info.value?.queueId,action}});await refresh()}catch(e){message.value=error(e)}finally{busy.value=false}}
