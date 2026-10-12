@@ -20,6 +20,7 @@ import { dataPath } from './data-path'
 import { writeDurableJson } from './durable-json'
 import { requiredPs5InstallSpace } from '../../shared/ps5-installation-space'
 import { requiredInstallSpace } from './installation-space'
+import { ps4TransportConflict, PS4_PARALLEL_SERVICE_REQUIRED } from './ps4-transport-admission'
 
 export function resolveDeviceSelection(selection: DeviceSelection): string[] {
   if (!selection || typeof selection !== 'object' || [selection.packageIds, selection.librarySelection, selection.preset].filter(value => value !== undefined).length !== 1)
@@ -122,11 +123,12 @@ export async function previewDeviceInstall(selection: DeviceSelection, destinati
     // Folder v2 publishes the received inodes; legacy routes still need two copies.
     const sourceBytes=additional+pendingBytes
     const requiredBytes = sourceBytes ? profile.platform === 'ps5' ? requiredPs5InstallSpace(ps5SpaceItems(profile.id,items.filter(item=>!existing.has(item.id)&&!installedIds.has(item.id)),running),profile.capabilities) : requiredInstallSpace(sourceBytes) : 0
-    const payloadBusy = profile.transport === 'payload' && getConsoleProfiles().consoles.some(other => other.id !== profile.id && other.platform === 'ps4' && peekInstallationQueue(other.ip).transport === 'payload' && ['running','cancelling'].includes(peekInstallationQueue(other.ip).status))
-    const multiplePayload = profile.transport === 'payload' && !!destinations && getConsoleProfiles().consoles.filter(other => destinations.includes(other.id) && other.transport === 'payload').length > 1
+    const transportConflict = profile.platform === 'ps4' ? ps4TransportConflict(profile.ip, profile.transport || 'service') : ''
+    const selectedPs4 = destinations ? getConsoleProfiles().consoles.filter(other => destinations.includes(other.id) && other.platform === 'ps4') : []
+    const mixedPayload = profile.platform === 'ps4' && selectedPs4.length > 1 && selectedPs4.some(other => other.transport === 'payload')
     const finishedRetry=running && items.some(item=>!installedIds.has(item.id)&&queue.items.some(old=>old.packageId===item.id&&!activeStates.includes(old.state)))
     const maintenance=readMaintenance()[profile.ip]
-    const reason = maintenance&&!['completed','failed'].includes(maintenance.state) ? 'Дождитесь завершения переустановки или обновления службы' : deviceInstallReason(profile,items,requiredBytes) || (sourceBytes && profile.freeBytes===undefined ? 'Не удалось прочитать свободное место с приставки' : '') || checks.find(({check})=>check.state === 'unavailable')?.check.detail || (payloadBusy || multiplePayload ? 'Для параллельной установки используйте PackageFlowService. PyLoader обслуживает одну приставку' : '') || (finishedRetry ? 'Выбранный пакет есть в истории текущей очереди. Дождитесь её завершения перед новым заданием' : '') || (queue.status === 'cancelling' ? 'Дождитесь завершения отмены очереди' : '') ||
+    const reason = maintenance&&!['completed','failed'].includes(maintenance.state) ? 'Дождитесь завершения переустановки или обновления службы' : deviceInstallReason(profile,items,requiredBytes) || (sourceBytes && profile.freeBytes===undefined ? 'Не удалось прочитать свободное место с приставки' : '') || checks.find(({check})=>check.state === 'unavailable')?.check.detail || transportConflict || (mixedPayload ? PS4_PARALLEL_SERVICE_REQUIRED : '') || (finishedRetry ? 'Выбранный пакет есть в истории текущей очереди. Дождитесь её завершения перед новым заданием' : '') || (queue.status === 'cancelling' ? 'Дождитесь завершения отмены очереди' : '') ||
       (running && profile.platform === 'ps4' && queue.transport !== (profile.transport || 'service') ? 'Очередь использует другой способ установки' : '')
     const queuedPackages = running ? queue.items.filter(item=>activeStates.includes(item.state)).map(item=>({packageId:item.packageId,title:item.title || item.packageId,titleId:item.titleId || '',type:item.type || '',version:'',size:item.size || 0})) : []
     const reviewToken=createHash('sha256').update(JSON.stringify({ids:[...ids].sort(),checks:checks.map(({item,check})=>[item.id,check.state,check.revision || '',(check.components || []).map(c=>[c.id,c.kind,c.contentId,c.version,c.canRemove]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),queue:running?{id:queue.id,items:queuedPackages.map(item=>item.packageId)}:null})).digest('hex')

@@ -4,7 +4,9 @@ import type { ConsoleSpeedJob, SpeedMode, Ps5TransferProfile } from '#shared/typ
 const props=defineProps<{profile:ConsoleProfile}>(),emit=defineEmits<{close:[]}>()
 const {t}=useAppLocale()
 const info=ref<{ready:boolean;message:string;queueStatus?:string;queueId?:string;lastJob?:ConsoleSpeedJob;lastTransferProfile?:Ps5TransferProfile}>(),job=ref<ConsoleSpeedJob>(),busy=ref(false),message=ref(''),sizeMiB=ref(128),modes=ref<SpeedMode[]>(['latency','upload','download','disk'])
-const labels:Record<SpeedMode,string>={latency:'Задержка WEB ↔ PS5',upload:'WEB → PS5 · сеть',download:'PS5 → WEB · сеть',disk:'WEB → PS5 · сеть и запись'}
+const labels=computed<Record<SpeedMode,string>>(()=>props.profile.platform==='ps4'
+  ? {latency:'Задержка WEB ↔ PS4',upload:'WEB → PS4 · сеть',download:'PS4 → WEB · сеть',disk:'WEB → PS4 · сеть и запись'}
+  : {latency:'Задержка WEB ↔ PS5',upload:'WEB → PS5 · сеть',download:'PS5 → WEB · сеть',disk:'WEB → PS5 · сеть и запись'})
 const profileRows: [keyof Ps5TransferProfile,string][] = [['receiveWaitMs','Ожидание данных'],['hashMs','Хеширование'],['writeMs','Запись'],['syncMs','Сохранение данных (fsync)'],['checkpointMs','Контрольная точка хеша'],['stateMs','Сохранение позиции']]
 const running=computed(()=>job.value?.state==='running')
 let disposed=false,timer:ReturnType<typeof setTimeout>|undefined
@@ -24,20 +26,21 @@ onBeforeUnmount(()=>{disposed=true;if(timer)clearTimeout(timer);if(running.value
 <header><div><h2>{{t('Тесты скорости')}} · {{profile.name}}</h2><p>WEB ↔ {{profile.ip}} · {{profile.platform.toUpperCase()}}</p></div><button :disabled="running" @click="emit('close')">×</button></header>
 <p>{{t('Тест выполняется компьютером с WEB напрямую до выбранной приставки. Скорость вашего браузера и NAS в этот замер не входит.')}}</p>
 <p v-if="info && !info.ready" class="notice">{{t(info.message)}}</p>
-<div v-if="info?.queueStatus==='running' || info?.queueStatus==='paused'" class="queue-notice"><p>{{t(info.queueStatus==='paused'?'Очередь приостановлена. Данные докачки сохранены.':'Перед тестом приостановите передачу, чтобы она не влияла на результат.')}}</p><button :disabled="busy||running" @click="queue(info.queueStatus==='paused'?'resume':'pause')">{{t(info.queueStatus==='paused'?'Продолжить передачу':'Приостановить передачу')}}</button></div>
+<div v-if="profile.platform==='ps4' && ['running','cancelling'].includes(info?.queueStatus || '')" class="queue-notice"><p>{{t('Дождитесь завершения установки на PS4 или отмените её в разделе «Задания».')}}</p></div>
+<div v-else-if="profile.platform==='ps5' && (info?.queueStatus==='running' || info?.queueStatus==='paused')" class="queue-notice"><p>{{t(info.queueStatus==='paused'?'Очередь приостановлена. Данные докачки сохранены.':'Перед тестом приостановите передачу, чтобы она не влияла на результат.')}}</p><button :disabled="busy||running" @click="queue(info.queueStatus==='paused'?'resume':'pause')">{{t(info.queueStatus==='paused'?'Продолжить передачу':'Приостановить передачу')}}</button></div>
 <fieldset :disabled="busy||running"><legend>{{t('Проверки')}}</legend><label v-for="(label,mode) in labels" :key="mode"><input v-model="modes" type="checkbox" :value="mode">{{t(label)}}</label><label>{{t('Объём для каждого теста')}}<select v-model.number="sizeMiB"><option :value="64">64 МиБ</option><option :value="128">128 МиБ</option><option :value="256">256 МиБ</option></select></label></fieldset>
-<p>{{t('Сетевые тесты используют искусственные данные без записи. Тест с записью измеряет сеть и файловый ввод-вывод вместе, а не отдельную скорость SSD. Данные сохраняются группами по 16 МиБ; временный файл удаляется. Хеширование игры измеряется отдельно от этих тестов.')}}</p>
+<p>{{t(profile.platform==='ps4'?'Сетевые тесты используют искусственные данные без записи. Тест с записью измеряет сеть и файловый ввод-вывод вместе; временный файл удаляется. Скорость установки PKG измеряется отдельно.':'Сетевые тесты используют искусственные данные без записи. Тест с записью измеряет сеть и файловый ввод-вывод вместе, а не отдельную скорость SSD. Данные сохраняются группами по 16 МиБ; временный файл удаляется. Хеширование игры измеряется отдельно от этих тестов.')}}</p>
 <div v-if="running" class="progress" role="status">{{t('Выполняется')}}: {{job?.current && t(labels[job.current])}}<span class="pulse"></span></div>
 <p v-if="job">{{t('Время замера')}}: {{new Date(job.startedAt).toLocaleString()}}</p>
 <div class="results-scroll"><table v-if="job?.results.length"><thead><tr><th>{{t('Тест')}}</th><th>{{t('Результат')}}</th><th>{{t('Объём / время')}}</th></tr></thead><tbody><tr v-for="r in job.results" :key="r.mode"><td>{{t(labels[r.mode])}}<small v-if="r.mode==='disk'">{{t(r.receivePipeline?'Приём и запись одновременно':'Последовательный приём и запись')}} · {{t('Время записи')}}: {{ms(r.writeMs)}} · fsync: {{ms(r.syncMs)}} · {{t(r.cleanup?'Временный файл удалён':'Уборка не подтверждена')}}</small></td><td>{{r.mode==='latency'?ms(r.latencyMedianMs):rate(r.bytesPerSecond)}}<small v-if="r.mode==='latency'">min {{ms(r.latencyMinMs)}} · max {{ms(r.latencyMaxMs)}}</small></td><td>{{r.mode==='latency'?'8 запросов':`${r.bytes/1048576} МиБ`}} · {{(r.elapsedMs/1000).toFixed(2)}} с</td></tr></tbody></table></div>
-<section v-if="info?.lastTransferProfile" class="transfer-profile">
+<section v-if="profile.platform==='ps5' && info?.lastTransferProfile" class="transfer-profile">
 <h3>{{t('Последний блок передачи игры')}}</h3>
 <p>{{new Date(info.lastTransferProfile.measuredAt).toLocaleString()}} · {{info.lastTransferProfile.bytes/1048576}} МиБ · BLAKE3 {{info.lastTransferProfile.hashMode.toUpperCase()}} · {{ms(info.lastTransferProfile.elapsedMs)}}</p>
 <p>{{t('Замер внутри ELF. Приём идёт параллельно записи; ожидание данных не равно времени всей сети.')}}</p>
 <table><tbody><tr v-for="[key,label] in profileRows" :key="key"><td>{{t(label)}}</td><td>{{ms(info.lastTransferProfile[key] as number)}}</td></tr></tbody></table>
 </section>
 <p v-if="job && !running" role="status">{{t(job.state==='completed'?'Тесты завершены':job.state==='cancelled'?'Тест остановлен':'Тест завершился с ошибкой')}}<template v-if="job.error">: {{t(job.error)}}</template></p><p v-if="message" class="notice" role="alert">{{t(message)}}</p>
-<footer><button v-if="running" @click="cancel">{{t('Остановить тест')}}</button><button v-else class="primary" :disabled="busy||!info?.ready||info?.queueStatus==='running'||!modes.length" @click="start">{{t(busy?'Проверяем…':'Начать тесты')}}</button><button :disabled="busy||running" @click="refresh">{{t('Обновить проверку')}}</button><button :disabled="running" @click="emit('close')">{{t('Закрыть')}}</button></footer>
+<footer><button v-if="running" @click="cancel">{{t('Остановить тест')}}</button><button v-else class="primary" :disabled="busy||!info?.ready||['running','cancelling'].includes(info?.queueStatus || '')||!modes.length" @click="start">{{t(busy?'Проверяем…':'Начать тесты')}}</button><button :disabled="busy||running" @click="refresh">{{t('Обновить проверку')}}</button><button :disabled="running" @click="emit('close')">{{t('Закрыть')}}</button></footer>
 </section></div></Teleport>
 </template>
 <style scoped>

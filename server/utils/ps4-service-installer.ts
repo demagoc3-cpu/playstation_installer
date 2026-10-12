@@ -1,5 +1,8 @@
 import { dataPath } from './data-path'
 import { syncServiceWebAddress } from './service-web-address'
+import { assertPs4TransportAdmission } from './ps4-transport-admission'
+import { randomUUID } from 'node:crypto'
+import { createError } from 'h3'
 import { chmodSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { ps4ManagementIp } from './console-management-target'
@@ -66,7 +69,7 @@ const explanations: Record<string, string> = {
 }
 /** Only internal callers construct routes. Credentials stay on the WEB server. */
 export async function authenticatedServiceRequest(ip: string, path: string, method: 'GET' | 'POST', body?: unknown) {
-  if (!/^\/apps\/(?:list(?:\?|$)|title\/|operations\/|remove$|control(?:\/|$)|runtime\/)/.test(path) &&
+  if (!(method === 'GET' && path === '/benchmark/info') && !/^\/apps\/(?:list(?:\?|$)|title\/|operations\/|remove$|control(?:\/|$)|runtime\/)/.test(path) &&
       !(method === 'POST' && ['/saves/export', '/saves/cleanup', '/saves/restore/prepare', '/saves/restore/commit', '/saves/restore/rollback', '/saves/restore/finalize'].includes(path))) throw new Error('Unexpected console route')
   return request(ip, path, method, token(consoleIp(ip)), body)
 }
@@ -247,17 +250,45 @@ function jobPath(id: string) {
   return `/install/jobs/${id}`
 }
 export async function submitServicePackage(ip: string, input: ServiceInstallInput) {
+  assertPs4TransportAdmission(ip, 'service')
   jobPath(input.requestId)
   return job(await request(ip, '/install/jobs', 'POST', token(consoleIp(ip)), input), input.requestId)
 }
 export async function submitServiceLocalPackage(ip: string, input: ServiceInstallInput & { revision: string }) {
+  assertPs4TransportAdmission(ip, 'service')
   jobPath(input.requestId); consoleFilePath(input.url)
   return job(await request(ip, '/install/local', 'POST', token(consoleIp(ip)), input), input.requestId)
 }
 export async function submitServiceUpdate(ip: string, input: ServiceInstallInput) {
+  assertPs4TransportAdmission(ip, 'service')
   jobPath(input.requestId)
   if (input.titleId !== 'PFLS00001' || input.contentId !== 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00') throw new Error('Unexpected update package')
   return job(await request(ip, '/install/service-update', 'POST', token(consoleIp(ip)), input), input.requestId)
+}
+
+/** Dedicated service benchmark; never falls back to the PyLoader installer. */
+export async function ps4SpeedRequest(ip: string, mode: 'upload' | 'download' | 'disk', size: number, signal: AbortSignal) {
+  ip = consoleIp(ip)
+  if (!['upload','download','disk'].includes(mode) || !Number.isSafeInteger(size) || size < 1048576 || size > 268435456)
+    throw createError({ statusCode:400, message:'Выберите поддерживаемые тесты и размер.' })
+  const { Readable } = await import('node:stream')
+  const block = Buffer.alloc(1048576, 0x5a), requestId = randomUUID()
+  async function *bytes() {
+    for (let offset = 0; offset < size; offset += block.length) {
+      signal.throwIfAborted(); yield block.subarray(0, Math.min(block.length, size - offset))
+    }
+  }
+  const response = await fetch(`http://${ip}:12801/benchmark/${mode}`, {
+    method: mode === 'download' ? 'GET' : 'POST', redirect:'error',
+    headers:{ Authorization:`Bearer ${token(ip)}`, 'X-PackageFlow-Size':String(size), 'X-PackageFlow-Request-Id':requestId, Connection:'close',
+      ...(mode === 'download' ? {} : { 'Content-Type':'application/octet-stream', 'Content-Length':String(size) }) },
+    ...(mode === 'download' ? {} : { body:Readable.from(bytes()) as any, duplex:'half' as any }),
+    signal:AbortSignal.any([signal, AbortSignal.timeout(120000)]),
+  })
+  if (response.ok && response.headers.get('x-packageflow-request-id') !== requestId) {
+    await response.body?.cancel(); throw new Error('Служба PS4 не подтвердила идентификатор теста')
+  }
+  return response
 }
 export async function getServiceInstallJob(ip: string, id: string) {
   return job(await request(ip, jobPath(id), 'GET', token(consoleIp(ip))), id)

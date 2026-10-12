@@ -24,6 +24,7 @@ import { assessPackageFirmware, checkPs4Firmware } from './installation-firmware
 import { cancelServiceInstallJob, getActiveServiceInstallJob, getServiceInstallJob, getServiceInstallerStatus, releaseServiceInstallJob, serviceKeyConfigured, submitServicePackage, uploadServiceInstallIcon } from './ps4-service-installer'
 import type { InstallationTransport, ServiceInstallJob } from '../../shared/types/installation'
 import { Ps4TransferSpeed } from './ps4-transfer-speed'
+import { assertPs4TransportAdmission, ps4TransportConflict } from './ps4-transport-admission'
 
 export type InstallationItemState = 'pending' | 'sending' | 'waiting' | 'receiving' | 'installing' | 'verifying' | 'delivered' | 'installed' | 'unconfirmed' | 'skipped' | 'failed' | 'cancelled'
 
@@ -601,6 +602,13 @@ async function runQueue(releaseWorker: () => void) {
 function ensureInstallationQueueRunningScoped() {
   const queue = readQueue()
   if ((queue.status === 'running' || queue.status === 'cancelling' || busyRejectedQueue(queue)) && queue.psIp && !runners.has(runnerKey())) {
+    // Persisted legacy queues must obey the same rule after WEB restarts.
+    // Keep receipts intact; the user can cancel the conflicting queue.
+    const conflict = ps4TransportConflict(queue.psIp, queue.transport || 'payload')
+    if (conflict && queue.status !== 'cancelling') {
+      if (queue.message !== conflict) { queue.message = conflict; writeQueue(queue) }
+      return publicQueue(queue)
+    }
     const release = claimConsoleWorker('installation', queue.psIp)
     if (release) { const key = runnerKey(); const running = Promise.resolve().then(() => runQueue(release)); runners.set(key, running) }
   }
@@ -642,7 +650,7 @@ function startInstallationQueueScoped(input: { psIp: string; packageIds: string[
   let transport: InstallationTransport
   try { transport = input.transport === undefined ? getInstallationPreference() : installationTransport(input.transport) }
   catch { throw createError({ statusCode: 400, message: 'Неизвестный способ установки' }) }
-  if (transport === 'payload' && persistedConsoleIps().some(ip => ip !== input.psIp && inConsoleScope(ip, () => { const q = readQueue(); return q.transport === 'payload' && ['running', 'cancelling'].includes(q.status) }))) throw createError({ statusCode: 409, message: 'PyLoader уже используется другой приставкой. Дождитесь завершения её очереди.' })
+  assertPs4TransportAdmission(input.psIp, transport)
   if (transport === 'service' && !serviceKeyConfigured(input.psIp)) throw createError({ statusCode: 409, message: 'Сначала подключите PS4 в разделе «Устройства»' })
   const packageIds = [...new Set(input.packageIds)]
   if (!packageIds.length) throw createError({ statusCode: 400, message: 'Нет пакетов для установки' })

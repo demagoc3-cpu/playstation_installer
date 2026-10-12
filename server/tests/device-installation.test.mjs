@@ -29,6 +29,7 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
     const response=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}})
     globalThis.fetch=async(url,options={})=>{
       const address=new URL(url),ip=address.hostname,path=address.pathname
+      if(address.port==='9090'&&path==='/status')return response({status:'ready'})
       if(ip===two.ip&&offline)throw new Error('offline')
       if(ip===five.ip){if(path==='/health')return response({apiVersion:'v1',firmwareRead:true,firmwareRaw:'0x13600007',serviceReport:{service:'PackageFlowService-PS5',version:'0.1.3',consoleVerified:true}});assert.equal(options.headers.Authorization,`Bearer ${'c'.repeat(64)}`);if(path==='/api/v1/system')return response({service:'PackageFlowService-PS5',storageRead:true,freeBytes:500000000,totalBytes:1000000000});return response({service:'PackageFlowService-PS5',capabilities:{installPs4Pkg:false,installPs5Content:false,backgroundService:false}})}
       assert.ok([one.ip,two.ip].includes(ip),'captured recipients only')
@@ -57,6 +58,17 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
     const mixed=await api.previewDeviceInstall({librarySelection:{scope:'all',platform:'all'}})
     assert.equal(mixed.files,3);assert.equal(mixed.devices.some(item=>item.eligible),false,'whole selection, no silent platform filtering')
     assert.match(api.deviceInstallReason({...preview.devices[0].profile,freeBytes:1},[base],base.size),/места/)
+    api.saveConsoleProfile({...one,transport:'payload'})
+    const mixedTransport=await api.previewDeviceInstall({packageIds:['z-base']},[one.id,two.id])
+    assert.equal(mixedTransport.devices.every(device=>!device.eligible),true,'mixed PyLoader/service batch must be refused for every selected PS4')
+    assert.ok(mixedTransport.devices.every(device=>/параллельной установки/.test(device.reason)))
+    const denied=await api.installDeviceBatch('4'.repeat(32),{packageIds:['z-base']},[one.id,two.id],'localhost:3000')
+    assert.equal(denied.results.every(result=>result.state==='failed'),true)
+    assert.equal(posts.length,0,'mixed transports cannot start one console before rejecting another')
+    api.saveConsoleProfile({...two,transport:'payload'})
+    const twoPayloads=await api.previewDeviceInstall({packageIds:['z-base']},[one.id,two.id])
+    assert.equal(twoPayloads.devices.every(device=>!device.eligible),true)
+    api.saveConsoleProfile({...one,transport:'service'});api.saveConsoleProfile({...two,transport:'service'})
     offline=true
     const rejected=await api.installDeviceBatch('1'.repeat(32),{packageIds:['z-base']},[one.id,two.id],'localhost:3000')
     assert.equal(rejected.results.every(result=>result.state==='failed'),true);assert.equal(posts.length,0,'preflight sends nothing if a selected recipient is offline')

@@ -1570,7 +1570,7 @@
   "Временный файл удалён": "Temporary file removed",
   "Уборка не подтверждена": "Cleanup unconfirmed",
   "WEB и ELF сейчас не поддерживают тесты для PS4.": "WEB and ELF do not currently support PS4 speed tests.",
-  "Для PS4 требуется обновление службы с поддержкой тестов скорости.": "PS4 requires a service update supporting speed tests.",
+  "Для PS4 требуется обновление службы с поддержкой тестов скорости.": "Update the PS4 service to enable speed tests.",
   "Тест выполняется компьютером с WEB напрямую до выбранной приставки. Скорость вашего браузера и NAS в этот замер не входит.": "The computer running WEB tests its direct connection to the selected console. Browser and NAS speeds are not included.",
   "Перед тестом приостановите передачу, чтобы она не влияла на результат.": "Pause the transfer before testing so it does not affect the result.",
   "Очередь приостановлена. Данные докачки сохранены.": "Queue paused. Resume data preserved.",
@@ -1587,5 +1587,15 @@
   "Сохранение данных (fsync)": "Data durability (fsync)",
   "Контрольная точка хеша": "Hash checkpoint",
   "Сохранение позиции": "Saving the durable offset",
-  "Замер внутри ELF. Приём идёт параллельно записи; ожидание данных не равно времени всей сети.": "Measured inside ELF. Receive overlaps with writes; waiting for data is not the entire network duration."
+  "Замер внутри ELF. Приём идёт параллельно записи; ожидание данных не равно времени всей сети.": "Measured inside ELF. Receive overlaps with writes; waiting for data is not the entire network duration.",
+  "Задержка WEB ↔ PS4": "Latency WEB ↔ PS4",
+  "WEB → PS4 · сеть": "WEB → PS4 · network",
+  "PS4 → WEB · сеть": "PS4 → WEB · network",
+  "WEB → PS4 · сеть и запись": "WEB → PS4 · network and writes",
+  "Дождитесь завершения установки на PS4 или отмените её в разделе «Задания».": "Wait for the PS4 installation to finish or cancel it under Tasks.",
+  "Сетевые тесты используют искусственные данные без записи. Тест с записью измеряет сеть и файловый ввод-вывод вместе; временный файл удаляется. Скорость установки PKG измеряется отдельно.": "Network tests use generated data without writes. The write test measures network and file I/O together; the temporary file is deleted. PKG installation speed is measured separately.",
+  "PS4 выполняет другую операцию. Дождитесь её завершения.": "PS4 is performing another operation. Wait for it to finish.",
+  "Тесты скорости ещё не проверены для этой службы PS4.": "Speed tests have not been verified for this PS4 service yet.",
+  "Не удалось подключиться к службе PS4. Проверьте подключение и сопряжение.": "Could not connect to the PS4 service. Check the connection and pairing.",
+  "Для параллельной установки используйте PackageFlowService. PyLoader обслуживает одну приставку": "Use PackageFlowService for parallel installation. PyLoader supports one console at a time"
 }

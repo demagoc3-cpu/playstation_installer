@@ -2,6 +2,7 @@ import { dataPath } from './data-path'
 import { createError } from 'h3'
 import { logEvent } from './event-log'
 import { assertNoRemoval } from './console-operation-store'
+import { assertPs4TransportAdmission } from './ps4-transport-admission'
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { readJsonFile, writeJsonFile } from './json-store'
@@ -110,6 +111,7 @@ async function sendPayload(psIp: string, payload: Buffer) {
 }
 
 export async function startInstaller(psIp: string) {
+  assertPs4TransportAdmission(psIp, 'payload')
   const status = await getGoldHenStatus(psIp)
   if (!status.ready) throw createError({ statusCode: 502, message: 'PyLoader/GoldHEN не готов на порту 9090' })
   if (session?.psIp === psIp && session.client && !session.client.destroyed) return { pcIp: session.pcIp, port: session.port, alreadyRunning: true }
