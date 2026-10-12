@@ -31,7 +31,7 @@ export function ps5InstallCapabilities(status: number, body: any, firmware?: str
     body.images.protocol === 'image-registration-v1' && body.images.backend === 'ShadowMountPlus-1.7beta3' && body.images.registrationReceipt === true &&
     JSON.stringify(body.images.platforms) === '["ps5"]' && JSON.stringify(body.images.formats) === '["ufs2","exfat","pfs","ffpfsc"]'
   return { formats: [...(ready ? ['pkg' as const] : []), ...(folder ? ['folder' as const] : []), ...(images ? ['ufs2' as const, 'exfat' as const, 'pfs' as const, 'ffpfsc' as const] : [])], installPs4: platforms.includes('ps4'), installPs5: platforms.includes('ps5') || folder || images, background: false,
-    ...(folder ? { folder: { route: 'staged-folder' as const, ready: true as const, ...(body.folder.verificationWindow === 2 ? { verificationWindow: 2 as const } : {}) } } : {}),
+    ...(folder ? { folder: { route: 'staged-folder' as const, ready: true as const, ...(body.folder.streamProtocol === 'folder-stream-v2' && body.folder.storageCopies === 1 && body.folder.streamingHash === true ? { streamProtocol: 'folder-stream-v2' as const, storageCopies: 1 as const } : {}), ...(body.folder.verificationWindow === 2 ? { verificationWindow: 2 as const } : {}) } } : {}),
     ...(images ? { images: { route: 'staged-image' as const, ready: true as const, protocol: 'image-registration-v1' as const, backend: 'ShadowMountPlus-1.7beta3' as const, registrationReceipt: true as const } } : {}),
     installation: { route: 'staged-pkg', ready, reason, exactVersionReceipt: false } }
 }

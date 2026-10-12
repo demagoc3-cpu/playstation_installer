@@ -4,12 +4,13 @@ import { createBLAKE3 } from 'hash-wasm'
 import { ps5SourceStamp } from './ps5-source-hash'
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache'
 import { seedPs5SourceHashHistory } from './ps5-source-hash-history'
+import { ps5StreamHasher } from './ps5-stream-hash'
 import { ps5SendChunks } from './ps5-send-chunks'
 import { Ps5QueueFailure, type Ps5Item } from './ps5-queue-core'
 
 export type FolderRequest = (id: string, path: string, headers?: Record<string, string>, body?: Uint8Array, signal?: AbortSignal) => Promise<{ status: number; body: any }>
 type Entry = { path: string; dir: boolean; size: number; stamp: string; id?: string; hash?: string }
-export interface FolderPlan { version: 1; id: string; root: string; title: string; content: string; appVersion: string; total: number; entries: Entry[]; metadataHash: string; manifestHash: string }
+export interface FolderPlan { version: 1 | 2; planHash?: string; id: string; root: string; title: string; content: string; appVersion: string; total: number; entries: Entry[]; metadataHash: string; manifestHash: string }
 const fail = (message: string): never => { throw new Ps5QueueFailure(message) }
 const digest = async (bytes: Uint8Array | string) => { const h = await createBLAKE3(256); h.update(bytes); return h.digest('hex') }
 const sleep = (signal: AbortSignal, milliseconds = 1000) => new Promise<void>((resolve, reject) => {
@@ -37,17 +38,21 @@ async function entries(root: string, signal: AbortSignal) {
   await visit(''); return result.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0)
 }
 export function folderManifest(p: FolderPlan) {
-  return `PF_FOLDER1 ${p.title} ${p.content} ${p.appVersion} ${p.total} ${p.entries.length}\n` + p.entries.map(e => e.dir ? `D ${Buffer.from(e.path).toString('hex')}\n` : `F ${e.id} ${e.hash} ${e.size} ${Buffer.from(e.path).toString('hex')}\n`).join('')
+  return `PF_FOLDER${p.version} ${p.title} ${p.content} ${p.appVersion} ${p.total} ${p.entries.length}\n` + p.entries.map(e => e.dir ? `D ${Buffer.from(e.path).toString('hex')}\n` : `F ${e.id} ${e.hash} ${e.size} ${Buffer.from(e.path).toString('hex')}\n`).join('')
 }
+const structuralPlanHash = (p: FolderPlan) => digest(JSON.stringify({ id: p.id, root: p.root, title: p.title, content: p.content, appVersion: p.appVersion, total: p.total, metadataHash: p.metadataHash, entries: p.entries.map(({ path, dir, size, stamp, id }) => ({ path, dir, size, stamp, id })) }))
 export async function verifyFolderPlan(p: FolderPlan, item: Ps5Item, root: string) {
-  if (p.version !== 1 || p.id !== item.transferId || p.root !== root || p.title !== item.titleId || p.content !== item.contentId || p.appVersion !== item.appVersion || p.total !== item.size || !Array.isArray(p.entries) || !/^[0-9a-f]{64}$/.test(p.metadataHash) || p.manifestHash !== await digest(folderManifest(p)) || item.hash && item.hash !== p.manifestHash) fail('Сохранённый план Folder не соответствует заданию')
+  if (![1,2].includes(p.version) || p.id !== item.transferId || p.root !== root || p.title !== item.titleId || p.content !== item.contentId || p.appVersion !== item.appVersion || p.total !== item.size || !Array.isArray(p.entries) || !/^[0-9a-f]{64}$/.test(p.metadataHash)) fail('Сохранённый план Folder не соответствует заданию')
+  if (p.version === 2 && p.planHash !== await structuralPlanHash(p)) fail('Сохранённый состав Folder изменился')
+  if ((p.version === 1 || p.manifestHash) && (p.entries.some(e => !e.dir && !/^[0-9a-f]{64}$/.test(e.hash || '')) || p.manifestHash !== await digest(folderManifest(p)))) fail('Контрольные суммы Folder не соответствуют плану')
+  if (item.hash && item.hash !== p.manifestHash) fail('Сохранённый план Folder не соответствует заданию')
 }
 export async function verifyFolderSource(p: FolderPlan, item: Ps5Item, root: string, signal: AbortSignal) {
   await verifyFolderPlan(p, item, root)
   const current = await entries(root, signal)
   if (current.length !== p.entries.length || current.some((e, i) => e.path !== p.entries[i].path || e.dir !== p.entries[i].dir || e.size !== p.entries[i].size || e.stamp !== p.entries[i].stamp)) fail('Исходная папка изменилась; передача остановлена')
 }
-export async function createFolderPlan(root: string, item: Ps5Item, signal: AbortSignal, progress: (bytes: number) => void): Promise<FolderPlan> {
+export async function createFolderPlan(root: string, item: Ps5Item, signal: AbortSignal, progress: (bytes: number) => void, streaming = false): Promise<FolderPlan> {
   if (item.platform !== 'ps5' || item.order !== 0 || !/^PPSA\d{5}$/.test(item.titleId) || !/^[A-Z0-9_-]{1,63}$/.test(item.contentId || '') || !item.contentId!.includes(item.titleId) || !/^\d{2}\.\d{3}\.\d{3}$/.test(item.appVersion || '') || !/^[0-9a-f]{32}$/.test(item.transferId)) fail('Не удалось определить метаданные Folder')
   const list = await entries(root, signal), total = list.reduce((n, e) => n + e.size, 0)
   if (!Number.isSafeInteger(total) || total !== item.size || !list.some(e => e.path === 'eboot.bin' && !e.dir && e.size > 0) || !list.some(e => e.path === 'sce_sys/param.json' && !e.dir && e.size > 0 && e.size <= 65536)) fail('Folder неполный или изменился. Переиндексируйте хранилище')
@@ -55,38 +60,44 @@ export async function createFolderPlan(root: string, item: Ps5Item, signal: Abor
   try { metadata = JSON.parse(param.toString('utf8')) } catch { fail('Некорректный param.json Folder') }
   if (metadata.titleId !== item.titleId || metadata.contentId !== item.contentId || metadata.contentVersion !== item.appVersion) fail('Метаданные Folder не соответствуют библиотеке')
   const cache = new Ps5SourceHashCache(root)
-  await seedPs5SourceHashHistory(cache, signal)
+  if (!streaming) await seedPs5SourceHashHistory(cache, signal)
   let checked = 0; progress(0)
   try {
     for (const entry of list) {
       if (entry.dir) continue
       entry.id = (await digest(`${item.transferId}/${entry.path}`)).slice(0, 32)
+      if (streaming) { if (!entry.size) entry.hash = await digest(''); continue }
       const file = await open(join(root, entry.path), 'r')
       try { if (ps5SourceStamp(await file.stat()) !== entry.stamp) fail('Исходный файл изменился'); entry.hash = await cachedPs5SourceHash(cache, entry.path, file, entry.size, entry.stamp, signal, n => progress(checked + n)) }
       finally { await file.close() }
       checked += entry.size
     }
-    const p: FolderPlan = { version: 1, id: item.transferId, root, title: item.titleId, content: item.contentId!, appVersion: item.appVersion!, total, entries: list, metadataHash: await digest(param), manifestHash: '' }
-    if (list.find(e => e.path === 'sce_sys/param.json')!.hash !== p.metadataHash) fail('Метаданные Folder изменились во время проверки')
-    p.manifestHash = await digest(folderManifest(p)); await verifyFolderSource(p, item, root, signal); progress(total); return p
+    const p: FolderPlan = { version: streaming ? 2 : 1, id: item.transferId, root, title: item.titleId, content: item.contentId!, appVersion: item.appVersion!, total, entries: list, metadataHash: await digest(param), manifestHash: '' }
+    if (!streaming && list.find(e => e.path === 'sce_sys/param.json')!.hash !== p.metadataHash) fail('Метаданные Folder изменились во время проверки')
+    if (streaming) p.planHash = await structuralPlanHash(p); else p.manifestHash = await digest(folderManifest(p))
+    if (!streaming) await verifyFolderSource(p, item, root, signal)
+    progress(streaming ? 0 : total); return p
   } finally { cache.flush() }
 }
-async function upload(id: string, size: number, hash: string, read: (buffer: Buffer, position: number) => Promise<number>, signal: AbortSignal, request: FolderRequest, progress: (bytes: number) => void, checking: () => void = () => {}, background?: (verification: Promise<void>) => void) {
-  let r = await request(id, '/api/v1/transfers/begin', { 'X-PackageFlow-Size': String(size), 'X-PackageFlow-Blake3': hash }, undefined, signal)
+async function upload(id: string, size: number, hash: string, read: (buffer: Buffer, position: number) => Promise<number>, signal: AbortSignal, request: FolderRequest, progress: (bytes: number) => void, checking: () => void = () => {}, background?: (verification: Promise<void>) => void, stream?: { identity: string; prepare: (offset: number) => Promise<void>; acknowledge: (offset: number) => void; finish: () => Promise<string> }) {
+  let r = await request(id, '/api/v1/transfers/begin', { 'X-PackageFlow-Size': String(size), 'X-PackageFlow-Blake3': stream?.identity || hash, ...(stream ? { 'X-PackageFlow-Stream': 'folder-stream-v2' } : {}) }, undefined, signal)
   if (r.status === 409) r = await request(id, '/api/v1/transfers/status', {}, undefined, signal)
-  const valid = (r: any) => r?.id === id && r.size === size && r.blake3 === hash && r.cancelled === false && Number.isSafeInteger(r.bytesDurable) && r.bytesDurable >= 0 && r.bytesDurable <= size
+  const valid = (r: any) => r?.id === id && r.size === size && (stream ? r.sourceIdentity === stream.identity && typeof r.hashPending === 'boolean' && (r.hashPending ? !r.verified && r.blake3 === stream.identity : /^[0-9a-f]{64}$/.test(r.blake3 || '') && (!hash || r.blake3 === hash)) : r.blake3 === hash) && r.cancelled === false && Number.isSafeInteger(r.bytesDurable) && r.bytesDurable >= 0 && r.bytesDurable <= size
   if (r.status !== 200 || !valid(r.body)) fail('PS5 не подтвердила файл Folder')
   const max = r.body.chunkMax, chunk = typeof max === 'number' && max >= 262144 && max <= 4194304 && (max & (max - 1)) === 0 ? max : 262144
   const offset = r.body.bytesDurable; progress(offset)
+  if (stream && r.body.verified === true && hash && r.body.blake3 === hash && offset === size) return
+  if (stream) await stream.prepare(offset)
   await ps5SendChunks({ read, size, offset, chunkSize: chunk, signal, validateSource: async () => true,
     send: async (position, bytes) => {
       r = await request(id, '/api/v1/transfers/chunk', { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
       if (r.status !== 200 || !valid(r.body) || r.body.bytesDurable !== position + bytes.length) throw new Error('Folder acknowledgement lost; reconcile durable offset')
-    }, progress,
+    }, progress: n => { stream?.acknowledge(n); progress(n) },
   })
-  if (r.body.verified === true && r.body.bytesDurable === size) return
+  if (stream) hash = await stream.finish()
+  if (r.body.verified === true && r.body.bytesDurable === size && r.body.blake3 === hash) return
   checking()
-  r = await request(id, '/api/v1/transfers/commit', {}, undefined, signal)
+  r = await request(id, '/api/v1/transfers/commit', stream ? { 'X-PackageFlow-Stream': 'folder-stream-v2', 'X-PackageFlow-Blake3': hash } : {}, undefined, signal)
   if (r.status === 409) throw new Error('Root worker busy')
   if (![200, 202].includes(r.status)) fail('Проверка файла Folder не началась')
   if (r.status === 200 && valid(r.body) && r.body.bytesDurable === size && r.body.verified === true) return
@@ -112,7 +123,7 @@ async function upload(id: string, size: number, hash: string, read: (buffer: Buf
   if (background) background(verification)
   else await verification
 }
-export async function runFolderPlan(p: FolderPlan, item: Ps5Item, signal: AbortSignal, request: FolderRequest, save: (patch: Partial<Ps5Item>) => void, verificationWindow = 0): Promise<Partial<Ps5Item>> {
+export async function runFolderPlan(p: FolderPlan, item: Ps5Item, signal: AbortSignal, request: FolderRequest, save: (patch: Partial<Ps5Item>) => void, verificationWindow = 0, persist: (p: FolderPlan) => void = () => {}): Promise<Partial<Ps5Item>> {
   await verifyFolderPlan(p, item, p.root)
   const finish = (r: any): Partial<Ps5Item> | undefined => {
     if (r.status !== 200) return
@@ -142,6 +153,7 @@ export async function runFolderPlan(p: FolderPlan, item: Ps5Item, signal: AbortS
     const window = verificationWindow === 2 ? 2 : 0
     const stop = new AbortController(), transferSignal = AbortSignal.any([signal, stop.signal])
     const pending: Promise<void>[] = []
+    const streamedCache = p.version === 2 ? new Ps5SourceHashCache(p.root) : undefined
     const track = (verification: Promise<void>) => {
       // Catch immediately: verification can fail while the next POST is running.
       pending.push(verification.catch(error => { stop.abort(error) }))
@@ -156,20 +168,29 @@ export async function runFolderPlan(p: FolderPlan, item: Ps5Item, signal: AbortS
         const f = await open(join(p.root, e.path), 'r')
         try {
           if (ps5SourceStamp(await f.stat()) !== e.stamp) fail('Файл Folder изменился')
+          let streamHash: Awaited<ReturnType<typeof ps5StreamHasher>> | undefined
+          const stream = p.version === 2 ? {
+            identity: await digest(`${p.planHash}/${e.id}/${e.stamp}`),
+            prepare: async (offset: number) => { streamHash = await ps5StreamHasher(f, p.root, e.id!, e.stamp, offset, transferSignal) },
+            acknowledge: (offset: number) => streamHash!.acknowledge(offset, offset === e.size),
+            finish: async () => { await streamHash!.validate(); const hash = streamHash!.digest(); if (e.hash && e.hash !== hash || e.path === 'sce_sys/param.json' && hash !== p.metadataHash) fail('Содержимое Folder изменилось'); e.hash = hash; streamedCache?.put(e.path, await f.stat(), hash); persist(p); return hash },
+          } : undefined
           await upload(e.id!, e.size, e.hash!, async (buffer, position) => {
+            if (streamHash) return streamHash.read(buffer, position)
             const result = await f.read(buffer, 0, buffer.length, position)
             if (ps5SourceStamp(await f.stat()) !== e.stamp) fail('Файл Folder изменился во время передачи')
             return result.bytesRead
-          }, transferSignal, request, n => save({ bytesSent: sent + n }), () => { if (!window) save({ state: 'verifying', progressPhase: 'device-check', detail: 'PS5 проверяет переданный файл Folder' }) }, window ? track : undefined)
+          }, transferSignal, request, n => save({ bytesSent: sent + n }), () => { if (!window) save({ state: 'verifying', progressPhase: 'device-check', detail: 'PS5 проверяет переданный файл Folder' }) }, window ? track : undefined, stream)
         } finally { await f.close() }
         sent += e.size
       }
       if (pending.length) save({ state: 'verifying', progressPhase: 'device-check', detail: 'PS5 завершает проверки переданных файлов Folder' })
       while (pending.length) await drainOne()
     } finally {
-      stop.abort(); await Promise.all(pending)
+      stop.abort(); await Promise.all(pending); streamedCache?.flush()
     }
     await verifyFolderSource(p, item, p.root, signal)
+    if (p.version === 2) { p.manifestHash = await digest(folderManifest(p)); persist(p); save({ hash: p.manifestHash, bytesChecked: p.total }) }
     const manifest = Buffer.from(folderManifest(p))
     if (manifest.length > 16 * 1024 * 1024) fail('Слишком большой список файлов Folder')
     save({ state: 'verifying', progressPhase: 'device-check', bytesSent: p.total, detail: 'PS5 проверяет комплект файлов Folder' })

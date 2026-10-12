@@ -46,6 +46,8 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
       if (path === '/api/v1/capabilities') return response({ service: ready.service, capabilities: { installPs4Pkg: true, installPs5Content: true, backgroundService: false } })
       if (path === '/api/v1/system') return response({ service: ready.service, storageRead: true, freeBytes: 1000000, totalBytes: 2000000 })
       if (path === '/api/v1/install/readiness') return response(readiness, readinessStatus)
+      if (path === '/api/v1/management/status') return response({ protocol: 'ps5-management-v1', ready: true, catalog: true })
+      if (path === '/api/v1/console/catalog') return response({ revision: 'd'.repeat(64), entries: [], next: 0, done: true })
       if (path.startsWith('/api/v1/transfers/')) {
         transferId = headers['X-PackageFlow-Transfer-Id']
         if (path.endsWith('/begin')) transferHash = headers['X-PackageFlow-Blake3']

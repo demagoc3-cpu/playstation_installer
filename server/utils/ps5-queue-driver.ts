@@ -110,12 +110,12 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
         const present = await installedGate(item, signal); if (present) return present
         if (plan) await verifyFolderSource(plan, item, source.path, signal)
         else {
-          save({ state: 'verifying', progressPhase: 'source-check', bytesChecked: 0, detail: 'Проверяем файлы исходной папки' })
-          plan = await createFolderPlan(source.path, item, signal, bytesChecked => save({ bytesChecked }))
+          save({ state: 'verifying', progressPhase: 'source-check', bytesChecked: 0, detail: capabilities.folder?.streamProtocol ? 'Читаем список файлов и метаданные Folder' : 'Проверяем файлы исходной папки' })
+          plan = await createFolderPlan(source.path, item, signal, bytesChecked => save({ bytesChecked }), capabilities.folder?.streamProtocol === 'folder-stream-v2')
           writeDurableJson(planPath(item), plan)
         }
-        save({ hash: plan.manifestHash, bytesChecked: item.size })
-        return runFolderPlan(plan, item, signal, folderRequest, save, capabilities.folder?.verificationWindow)
+        if (plan.manifestHash) save({ hash: plan.manifestHash, bytesChecked: item.size })
+        return runFolderPlan(plan, item, signal, folderRequest, save, capabilities.folder?.verificationWindow, p => writeDurableJson(planPath(item), p))
       }
       // An intent is durably recorded BEFORE dispatch. Recovery never submits it again.
       if (item.installDispatched) {

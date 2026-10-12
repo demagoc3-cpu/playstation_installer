@@ -9,7 +9,7 @@ export interface ConsoleCapabilities {
   installPs5: boolean
   background: boolean
   contentTypes?: string[]
-  folder?: { route: 'staged-folder'; ready: true; verificationWindow?: 2 }
+  folder?: { route: 'staged-folder'; ready: true; verificationWindow?: 2; streamProtocol?: 'folder-stream-v2'; storageCopies?: 1 }
   images?: { route: 'staged-image'; ready: true; protocol: 'image-registration-v1'; backend: 'ShadowMountPlus-1.7beta3'; registrationReceipt: true }
   installation?: { route: 'staged-pkg'; ready: boolean; reason: string; exactVersionReceipt: false }
 }

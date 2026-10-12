@@ -111,3 +111,44 @@ test('local publication reports preparation bytes without counting them as netwo
   const r = await api.runFolderPlan(p, item, signal, request, () => assert.fail('must not transfer or redispatch'))
   assert.equal(r.state, 'installing'); assert.match(r.detail, /Подготавливаем/); assert.equal(r.bytesSent, undefined)
 })
+
+test('streamed Folder begins after metadata scan, hashes bytes as sent, recovers lost ACK and publishes only sealed files', async () => {
+  const { root, item } = await fixture('stream-resume'), progress = [], p = await api.createFolderPlan(root, item, signal, n => progress.push(n), true)
+  assert.equal(p.version, 2); assert.equal(p.manifestHash, ''); assert.ok(p.planHash)
+  assert.ok(p.entries.filter(e => !e.dir && e.size).every(e => !e.hash), 'preparation never computes content hashes')
+  assert.deepEqual(progress, [0,0])
+  const transfers = new Map(), offsets = [], snapshots = []; let lost = false, publication = false
+  const request = async (id, path, headers = {}, bytes) => {
+    let t = transfers.get(id)
+    if (path.endsWith('/begin')) {
+      if (t) return { status: 409, body: {} }
+      const stream = headers['X-PackageFlow-Stream'] === 'folder-stream-v2'
+      t = { id, size: +headers['X-PackageFlow-Size'], blake3: headers['X-PackageFlow-Blake3'], sourceIdentity: stream ? headers['X-PackageFlow-Blake3'] : '', hashPending: stream, bytesDurable: 0, cancelled: false, verified: false, chunkMax: 262144, data: Buffer.alloc(0) }; transfers.set(id, t)
+    }
+    if (path.endsWith('/chunk')) {
+      assert.equal(+headers['X-PackageFlow-Offset'], t.bytesDurable); offsets.push(t.bytesDurable)
+      t.data = Buffer.concat([t.data, bytes]); t.bytesDurable += bytes.length
+      if (!lost) { assert.equal(p.entries.find(e=>e.id===id).hash, undefined, 'first upload starts before full-file hash'); lost = true; throw new Error('lost ACK') }
+    }
+    if (path === '/api/v1/transfers/commit') {
+      if (t.hashPending) { assert.equal(headers['X-PackageFlow-Stream'], 'folder-stream-v2'); assert.equal(headers['X-PackageFlow-Blake3'], Buffer.from(blake3(t.data)).toString('hex')); t.blake3 = headers['X-PackageFlow-Blake3']; t.hashPending = false }
+      assert.equal(Buffer.from(blake3(t.data)).toString('hex'), t.blake3); t.verified = true
+    }
+    if (path === '/api/v1/folder/commit') { assert.ok([...transfers.values()].every(t => t.verified && !t.hashPending)); publication = true; return { status: 202, body: {} } }
+    return { status: 200, body: t }
+  }
+  const save = patch => Object.assign(item,patch), persist = value => snapshots.push(structuredClone(value))
+  await assert.rejects(api.runFolderPlan(p,item,signal,request,save,0,persist),/lost ACK/)
+  assert.equal(publication,false)
+  await api.runFolderPlan(p,item,signal,request,save,0,persist)
+  assert.equal(offsets[1],262144); assert.equal(publication,true); assert.equal(item.hash,p.manifestHash)
+  assert.ok(snapshots.at(-1).entries.filter(e=>!e.dir).every(e=>e.hash))
+  await api.verifyFolderPlan(p,item,root)
+  const mutated = structuredClone(p); mutated.entries[0].path = 'foreign'; await assert.rejects(api.verifyFolderPlan(mutated,item,root),/изменился/)
+})
+
+test('streamed route is admitted only with exact tested protocol and single-copy receipt', () => {
+  const body = { service: 'PackageFlowService-PS5', schemaVersion: 1, folder: { schemaVersion: 1, route: 'staged-folder', ready: true, platforms: ['ps5'], verificationWindow: 2, streamProtocol: 'folder-stream-v2', storageCopies: 1, streamingHash: true } }
+  assert.equal(api.ps5InstallCapabilities(200,body,'13.60').folder.streamProtocol,'folder-stream-v2')
+  for(const patch of [{storageCopies:2},{streamingHash:false},{streamProtocol:'unknown'}]) assert.equal(api.ps5InstallCapabilities(200,{...body,folder:{...body.folder,...patch}},'13.60').folder.streamProtocol,undefined)
+})
