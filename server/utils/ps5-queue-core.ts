@@ -157,7 +157,7 @@ export class Ps5QueueRunner {
           catch { checkpoint({ detail: 'Ожидаем подтверждение отмены передачи от PS5' }) }
         } else if (error instanceof Ps5QueueFailure) checkpoint({ state: 'failed', detail: error.message, completedAt: Date.now() })
         else if (error instanceof Ps5QueueUncertain) checkpoint({ state: 'unconfirmed', detail: error.message })
-        else checkpoint({ detail: 'PS5 недоступна. Ожидаем связь; повторная установка не отправлялась' })
+        else checkpoint({ detail: 'Не получено подтверждение запроса PS5. Проверяем состояние передачи; повторная установка не отправлялась' })
       }
       this.activeItem = undefined; this.controller = undefined
       if (this.queue.status !== 'running') return

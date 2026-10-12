@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { logEvent } from './event-log'
 import { existsSync } from 'node:fs'
 import { createError } from 'h3'
 import { assertNoConsoleSpeedTest } from './console-speed-lock'
@@ -68,9 +69,18 @@ export async function ps5OperationRequest(consoleId: string, path: keyof typeof 
   if (profile.platform !== 'ps5' || !ps4ServiceIp(profile.ip) || !token) throw createError({ statusCode: 409, message: 'Требуется сопряжение PS5' })
   if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Stream|Offset|Installer-Job|Web-Host|Web-Port|Console-Id|Update-Id|Request-Id|UI-Title|UI-Metadata-Hash|Title|Content|Version|User|Save-Kind|Save-Path|File-Id|Action|Destination|Source-Identity|Confirm-Title|Expected-App-Id|Image-Protocol)$/.test(key))) throw new Ps5OperationValidationError('Invalid PS5 operation')
   if (operationMethods[path] === 'POST') assertNoConsoleSpeedTest(consoleId)
+  const timeout = path === '/api/v1/transfers/batch' ? 90000 : 15000
   const response = await fetch(`http://${profile.ip}:8095${path}`, { method: operationMethods[path],
-    headers: { ...headers, Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/octet-stream' } : {}) },
-    body: body as BodyInit | undefined, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) })
+    headers: { ...headers, Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/octet-stream' } : {}),
+      // Do not race the ELF's short idle lifetime while WEB saves progress.
+      ...(path === '/api/v1/transfers/batch' ? { Connection: 'close' } : {}) },
+    body: body as BodyInit | undefined, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout) }).catch(error => {
+      if (!signal?.aborted) {
+        const code = error?.cause?.code || error?.name
+        logEvent('warn', `PS5: запрос ${path} прерван (${typeof code === 'string' && /^[A-Za-z0-9_]{1,40}$/.test(code) ? code : 'transport'}). Состояние сверяется с приставкой.`)
+      }
+      throw error
+    })
   if (!response.body) throw new Error('Empty service response')
   const reader = response.body.getReader(); let size = 0; const chunks: Uint8Array[] = []
   try { for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.length; if (size > 65536) throw new Error('Response too large'); chunks.push(part.value) } }
