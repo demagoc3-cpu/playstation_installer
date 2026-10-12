@@ -96,21 +96,21 @@ test('durable write failure prevents dispatch and does not crash the WEB worker'
   assert.match(q.message,/приостановлена/);assert.equal(q.status,'running','unknown work cannot be replaced by a new queue')
 })
 
-for (const batchMax of [0, 16777216, 33554432]) test(`driver reconciles lost ${batchMax ? batchMax/1048576+' MiB batch' : 'chunk'} response, preserves hash and offset, and refuses a changed source`,async()=>{
+for (const batchMax of [0, 16777216, 33554432, 67108864, 134217728]) test(`driver reconciles lost ${batchMax ? batchMax/1048576+' MiB batch' : 'chunk'} response, preserves hash and offset, and refuses a changed source`,async()=>{
   const batched = !!batchMax
   const oldEnv=process.env.PACKAGEFLOW_DATA_DIR,oldFetch=globalThis.fetch,oldError=globalThis.createError
   globalThis.createError=createError
   try{
-    const ip=batchMax===33554432?'192.168.1.11':batched?'192.168.1.9':'192.168.1.5'
+    const ip=`192.168.1.${batched ? 9 + 2*Math.log2(batchMax/16777216) : 5}`
     let profile=api.saveConsoleProfile({name:'own test',platform:'ps5',ip}).consoles.find(c=>c.ip===ip)
     profile=api.saveConsoleProfile({...profile,firmware:'13.60'}).consoles.find(c=>c.ip===ip)
     writeFileSync(join(process.env.PACKAGEFLOW_DATA_DIR,'ps5-service-keys.json'),JSON.stringify({[profile.ip]:'a'.repeat(64)}))
-    const contents=putPs5ParamPkg(Buffer.alloc((batched ? 37 : 9)*1024*1024+19,39)),source=join(work,'test.pkg');writeFileSync(source,contents)
+    const contents=putPs5ParamPkg(Buffer.alloc((batched ? batchMax+5*1024*1024 : 9*1024*1024)+19,39)),source=join(work,'test.pkg');writeFileSync(source,contents)
     const pkg={...input('own'),id:'own',path:source,libraryRoot:work,size:contents.length,contentType:'PS5GD',contentId:'IV0000-PPSA95001_00-PACKAGEFLOWUI001',appVersion:'01.000.001',sourceModifiedAt:1,installOrder:0,icon:{offset:0,size:0},iconSize:0,packageDigest:''}
     writeFileSync(join(process.env.PACKAGEFLOW_DATA_DIR,'package-library.json'),JSON.stringify({version:2,packages:[pkg],deliveries:{}}))
     const item={...input('own'),size:contents.length,contentId:pkg.contentId,appVersion:pkg.appVersion,transferId:'1'.repeat(32),state:'pending',detail:'',bytesSent:0}
     let offset=0,hash='',lost=false,verified=false,installs=0,chunkMax; const chunkOffsets=[]
-    const describe=()=>({id:item.transferId,bytesDurable:offset,size:item.size,blake3:hash,verified,cancelled:false,chunkMax,batchMax:batchMax||67108864})
+    const describe=()=>({id:item.transferId,bytesDurable:offset,size:item.size,blake3:hash,verified,cancelled:false,chunkMax,batchMax:batchMax||268435456})
     const response=body=>new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}})
     globalThis.fetch=async(url,opts)=>{
       assert.equal(new URL(url).hostname,profile.ip);if(new URL(url).pathname!=='/health')assert.equal(opts.headers.Authorization,`Bearer ${'a'.repeat(64)}`)
@@ -158,7 +158,7 @@ for (const batchMax of [0, 16777216, 33554432]) test(`driver reconciles lost ${b
     assert.equal(api.submitPs5AppCommand(command).state,'failed');assert.throws(()=>api.submitPs5AppCommand({...command,action:'dlc'}),/уже использован/)
     assert.equal(transferCalls,0)
     const queueFile=join(process.env.PACKAGEFLOW_DATA_DIR,'consoles',profile.id,'ps5-installation-queue.json');mkdirSync(join(process.env.PACKAGEFLOW_DATA_DIR,'consoles',profile.id),{recursive:true})
-    const otherIp=batchMax===33554432?'192.168.1.12':batched?'192.168.1.10':'192.168.1.6'
+    const otherIp=`192.168.1.${batched ? 10 + 2*Math.log2(batchMax/16777216) : 6}`
     const another=api.saveConsoleProfile({name:'corrupt',platform:'ps5',ip:otherIp}).consoles.find(c=>c.ip===otherIp)
     const bad=join(process.env.PACKAGEFLOW_DATA_DIR,'consoles',another.id);mkdirSync(bad,{recursive:true});writeFileSync(join(bad,'ps5-installation-queue.json'),'broken')
     assert.throws(()=>api.getPs5Queue(another.id),/Сохранённый файл/);assert.equal(readFileSync(join(bad,'ps5-installation-queue.json'),'utf8'),'broken')

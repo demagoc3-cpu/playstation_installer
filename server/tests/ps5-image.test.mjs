@@ -108,7 +108,7 @@ test('lost publication reply is read-only on recovery even when the source was r
   const result = await api.runImagePlan(p, f.item, signal, async () => ({ status: 200, body: publication(p) }), () => {})
   assert.equal(result.state, 'unconfirmed')
 })
-for (const batchMax of [16777216,33554432]) for (const format of ['ufs2', 'exfat', 'pfs', 'ffpfsc']) test(`${format} ${batchMax/1048576} MiB uses qualified batches, resumes lost ACK and preserves image registration protocol`, async () => {
+for (const batchMax of [16777216,33554432,67108864,134217728]) for (const format of ['ufs2', 'exfat', 'pfs', 'ffpfsc']) test(`${format} ${batchMax/1048576} MiB uses qualified batches, resumes lost ACK and preserves image registration protocol`, async () => {
   const f = await fixture(`batch-${format}-${batchMax}`, format)
   // Retain real container metadata and add trailing space to cross batch boundaries.
   f.bytes = Buffer.concat([f.bytes, Buffer.alloc(36 * 1048576, 31)])

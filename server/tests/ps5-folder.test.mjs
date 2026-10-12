@@ -181,7 +181,7 @@ test('streamed route is admitted only with exact tested protocol and single-copy
   for(const patch of [{storageCopies:2},{streamingHash:false},{streamProtocol:'unknown'}]) assert.equal(api.ps5InstallCapabilities(200,{...body,folder:{...body.folder,...patch}},'13.60').folder.streamProtocol,undefined)
 })
 
-for (const batchMax of [16777216,33554432]) test(`qualified ${batchMax/1048576} MiB batches resume a lost acknowledgement without resending and seal the same file`, async () => {
+for (const batchMax of [16777216,33554432,67108864,134217728]) test(`qualified ${batchMax/1048576} MiB batches resume a lost acknowledgement without resending and seal the same file`, async () => {
   const { root, item } = await fixture('batch-resume-'+batchMax)
   const data=Buffer.alloc(36*1048576+137,0x37);await writeFile(join(root,'eboot.bin'),data);item.size+=data.length-700000
   const p=await api.createFolderPlan(root,item,signal,()=>{},true),transfers=new Map(),offsets=[];let lost=false,published=false

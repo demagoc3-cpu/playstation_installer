@@ -40,6 +40,11 @@ test('prefetch overlaps reads with transfer, never sends before ACK, drains fail
     const out = join(dir, 'test.mjs')
     await build({ stdin: { contents: `export * from './server/utils/ps5-send-chunks'`, resolveDir: resolve('.') }, outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent' })
     const { ps5SendChunks } = await import(pathToFileURL(out).href)
+    await ps5SendChunks({size: 10, offset: 0, chunkSize: 128*1048576, signal: new AbortController().signal,
+      read: async buffer => { assert.equal(buffer.length, 10); assert.equal(buffer.buffer.byteLength, 10, 'small Folder files must not allocate a full negotiated group'); buffer.fill(42); return 10 },
+      validateSource: async () => true, send: async (offset, bytes) => { assert.equal(offset, 0); assert.deepEqual(bytes, Buffer.alloc(10,42)) }, progress: offset => assert.equal(offset,10),
+    })
+
     const source = Buffer.from('abcdefghij'), events = [], sent = [], progress = []
     const controller = new AbortController()
     let release, sending = false

@@ -3,7 +3,7 @@ import { Ps5QueueFailure } from './ps5-queue-core'
 /** Only the exact, hardware-qualified batch limit enables the pipelined route.
  * Older services keep their bounded chunk protocol. */
 export function ps5TransferProtocol(reply: { chunkMax?: unknown; batchMax?: unknown }) {
-  if (reply.batchMax === 16 * 1024 * 1024 || reply.batchMax === 32 * 1024 * 1024) return { path: '/api/v1/transfers/batch' as const, size: reply.batchMax }
+  if (reply.batchMax === 16 * 1024 * 1024 || reply.batchMax === 32 * 1024 * 1024 || reply.batchMax === 64 * 1024 * 1024 || reply.batchMax === 128 * 1024 * 1024) return { path: '/api/v1/transfers/batch' as const, size: reply.batchMax }
   const max = reply.chunkMax
   const size = typeof max === 'number' && Number.isInteger(max) && max >= 262144 && max <= 4194304 && (max & (max - 1)) === 0 ? max : 262144
   return { path: '/api/v1/transfers/chunk' as const, size }
@@ -20,7 +20,8 @@ export async function ps5SendChunks(input: {
   const { size, chunkSize, signal } = input
   signal.throwIfAborted()
   if (input.offset >= size) return
-  const buffers = [Buffer.alloc(chunkSize), Buffer.alloc(chunkSize)]
+  const bufferSize = Math.min(chunkSize, size - input.offset)
+  const buffers = [Buffer.alloc(bufferSize), Buffer.alloc(bufferSize)]
   let offset = input.offset, index = 0
   // Catch immediately: an early read failure must not become an unhandled rejection
   // while the current network request is in flight.
