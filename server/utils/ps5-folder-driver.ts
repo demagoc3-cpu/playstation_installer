@@ -85,12 +85,13 @@ async function upload(id: string, size: number, hash: string, read: (buffer: Buf
   const valid = (r: any) => r?.id === id && r.size === size && (stream ? r.sourceIdentity === stream.identity && typeof r.hashPending === 'boolean' && (r.hashPending ? !r.verified && r.blake3 === stream.identity : /^[0-9a-f]{64}$/.test(r.blake3 || '') && (!hash || r.blake3 === hash)) : r.blake3 === hash) && r.cancelled === false && Number.isSafeInteger(r.bytesDurable) && r.bytesDurable >= 0 && r.bytesDurable <= size
   if (r.status !== 200 || !valid(r.body)) fail('PS5 не подтвердила файл Folder')
   const max = r.body.chunkMax, chunk = typeof max === 'number' && max >= 262144 && max <= 4194304 && (max & (max - 1)) === 0 ? max : 262144
+  const batch = stream && r.body.batchMax === 16777216 ? r.body.batchMax : 0
   const offset = r.body.bytesDurable; progress(offset)
   if (stream && r.body.verified === true && hash && r.body.blake3 === hash && offset === size) return
   if (stream) await stream.prepare(offset)
-  await ps5SendChunks({ read, size, offset, chunkSize: chunk, signal, validateSource: async () => true,
+  await ps5SendChunks({ read, size, offset, chunkSize: batch || chunk, signal, validateSource: async () => true,
     send: async (position, bytes) => {
-      r = await request(id, '/api/v1/transfers/chunk', { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
+      r = await request(id, batch ? '/api/v1/transfers/batch' : '/api/v1/transfers/chunk', { 'X-PackageFlow-Offset': String(position) }, bytes, signal)
       if (r.status !== 200 || !valid(r.body) || r.body.bytesDurable !== position + bytes.length) throw new Error('Folder acknowledgement lost; reconcile durable offset')
     }, progress: n => { stream?.acknowledge(n); progress(n) },
   })

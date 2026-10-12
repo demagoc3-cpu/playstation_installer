@@ -191,3 +191,18 @@ test('real PS5 request transport forwards the registration protocol and still re
  } finally {globalThis.fetch=originalFetch;globalThis.createError=originalError}
 })
 test.after(()=>{if(initialData===undefined)delete process.env.PACKAGEFLOW_DATA_DIR;else process.env.PACKAGEFLOW_DATA_DIR=initialData;rmSync(work,{recursive:true,force:true})})
+test('diagnostic pause retains receiver data, cannot replace queue, and resumes the same transfer',async()=>{
+ let cancels=0,calls=0,started
+ const {runner,q,read}=make({async run(item,signal,save){calls++;if(calls===1){save({state:'sending',bytesSent:40});started=true;await new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(signal.reason),{once:true}))}return {state:'installed',bytesSent:100}},async cancel(){cancels++}})
+ runner.enqueue([input('game')]);await wait(()=>started);const transfer=q.items[0].transferId
+ await runner.pause(q.id);assert.equal(q.status,'paused');assert.equal(read().status,'paused');assert.equal(q.items[0].bytesSent,40);assert.equal(cancels,0);assert.throws(()=>runner.enqueue([input('other')]),/приостановлена/)
+ runner.resume(q.id);await runner.settled();assert.equal(q.items[0].transferId,transfer);assert.equal(q.status,'completed');assert.equal(cancels,0)
+})
+
+test('cancelling every item of a paused queue releases it for the next queue',async()=>{
+ const q=api.ps5BlankQueue('paused-cancel','192.168.1.5');q.id='b'.repeat(32);q.status='paused';q.items=[{...input('base'),transferId:'a'.repeat(32),state:'sending',detail:'paused',bytesSent:40},{...input('next','ps5:PPSA95002'),transferId:'c'.repeat(32),state:'pending',detail:'queued',bytesSent:0}]
+ const runner=new api.Ps5QueueRunner(q,()=>{},{async run(){return{state:'installed'}},async cancel(){}},5)
+ runner.cancel(q.id,['base']);assert.equal(q.status,'paused','other transfer stays paused')
+ runner.cancel(q.id);assert.equal(q.status,'cancelled');assert.ok(q.items.every(i=>i.state==='cancelled'))
+ runner.enqueue([input('new')]);await runner.settled();assert.equal(q.status,'completed')
+})

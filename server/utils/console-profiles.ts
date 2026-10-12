@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { createError } from 'h3'
+import { assertNoConsoleSpeedTest } from './console-speed-lock'
 import { dataPath } from './data-path'
 import { captureLegacyConsole } from './console-scope'
 import { readJsonFile, writeJsonFile } from './json-store'
@@ -45,7 +46,7 @@ export function activeConsoleProfile() { const saved = store(); return saved.con
 function ps5Token(ip: string) { const value = readJsonFile<Record<string, string>>(keyPath(), {})[ip]; return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value) ? value : undefined }
 const operationMethods = {
   '/api/v1/transfers/begin': 'POST', '/api/v1/transfers/status': 'GET', '/api/v1/transfers/chunk': 'POST',
-  '/api/v1/transfers/commit': 'POST', '/api/v1/transfers/cancel': 'POST', '/api/v1/operations/status': 'GET',
+  '/api/v1/transfers/batch': 'POST', '/api/v1/benchmark/info': 'GET', '/api/v1/transfers/commit': 'POST', '/api/v1/transfers/cancel': 'POST', '/api/v1/operations/status': 'GET',
   '/api/v1/install/staged': 'POST', '/api/v1/install/status': 'GET', '/api/v1/installer/job': 'GET',
   '/api/v1/install/verify': 'GET', '/api/v1/install/readiness': 'GET', '/api/v1/app/status': 'GET', '/api/v1/app/launch': 'POST',
   '/api/v1/app/stop': 'POST', '/api/v1/app/stop/status': 'GET',
@@ -66,6 +67,7 @@ export async function ps5OperationRequest(consoleId: string, path: keyof typeof 
   const profile = getConsoleProfile(consoleId), token = ps5Token(profile.ip)
   if (profile.platform !== 'ps5' || !ps4ServiceIp(profile.ip) || !token) throw createError({ statusCode: 409, message: 'Требуется сопряжение PS5' })
   if (!Object.hasOwn(operationMethods, path) || Object.keys(headers).some(key => !/^X-PackageFlow-(Transfer-Id|Size|Blake3|Stream|Offset|Installer-Job|Web-Host|Web-Port|Console-Id|Update-Id|Request-Id|UI-Title|UI-Metadata-Hash|Title|Content|Version|User|Save-Kind|Save-Path|File-Id|Action|Destination|Source-Identity|Confirm-Title|Expected-App-Id|Image-Protocol)$/.test(key))) throw new Ps5OperationValidationError('Invalid PS5 operation')
+  if (operationMethods[path] === 'POST') assertNoConsoleSpeedTest(consoleId)
   const response = await fetch(`http://${profile.ip}:8095${path}`, { method: operationMethods[path],
     headers: { ...headers, Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/octet-stream' } : {}) },
     body: body as BodyInit | undefined, redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) })
@@ -278,4 +280,20 @@ export async function ps5ConsoleIcon(consoleId:string,titleId:string){
   const reader=r.body?.getReader();if(!reader)throw Error('Empty icon');const chunks:Uint8Array[]=[];let bytes=0
   try{for(;;){const part=await reader.read();if(part.done)break;bytes+=part.value.length;if(bytes>expected)throw Error('Icon overflow');chunks.push(part.value)}}finally{await reader.cancel().catch(()=>{})}
   const data=Buffer.concat(chunks);if(bytes!==expected||!data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))throw createError({statusCode:404,message:'Значок повреждён'});return data
+}
+
+/** Synthetic test endpoints only. The service credential never leaves WEB. */
+export async function ps5SpeedRequest(consoleId: string, mode: 'upload' | 'download' | 'disk', size: number, signal: AbortSignal) {
+  const profile = getConsoleProfile(consoleId), token = ps5Token(profile.ip)
+  if (profile.platform !== 'ps5' || !token) throw createError({ statusCode: 409, message: 'Требуется подключение PS5' })
+  if (!['upload','download','disk'].includes(mode) || !Number.isInteger(size) || size < 1048576 || size > 268435456) throw new Ps5OperationValidationError('Invalid speed test')
+  const { Readable } = await import('node:stream')
+  const block = Buffer.alloc(1048576, 0x5a)
+  async function *bytes() { for (let n = 0; n < size; n += block.length) { signal.throwIfAborted(); yield block.subarray(0, Math.min(block.length, size-n)) } }
+  return fetch(`http://${profile.ip}:8095/api/v1/benchmark/${mode}`, {
+    method: mode === 'download' ? 'GET' : 'POST', redirect: 'error',
+    headers: { Authorization: `Bearer ${token}`, 'X-PackageFlow-Size': String(size), ...(mode === 'download' ? {} : { 'Content-Type': 'application/octet-stream', 'Content-Length': String(size) }) },
+    ...(mode === 'download' ? {} : { body: Readable.from(bytes()) as any, duplex: 'half' as any }),
+    signal: AbortSignal.any([signal, AbortSignal.timeout(35000)]),
+  })
 }

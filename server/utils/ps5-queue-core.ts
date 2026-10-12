@@ -16,7 +16,7 @@ export interface Ps5Item {
 }
 export interface Ps5Queue {
   version: 1; id?: string; consoleId: string; psIp: string; transport: 'service'
-  status: 'idle' | 'running' | 'completed' | 'failed' | 'cancelled'; items: Ps5Item[]; history: Ps5Item[][]
+  status: 'idle' | 'paused' | 'running' | 'completed' | 'failed' | 'cancelled'; items: Ps5Item[]; history: Ps5Item[][]
   createdAt: number; updatedAt: number; message: string
 }
 export class Ps5QueueFailure extends Error {}
@@ -53,6 +53,7 @@ export class Ps5QueueRunner {
     if (!items.length || items.length > 10000) throw new Ps5QueueFailure('Выберите пакеты для установки')
     if (initialQueueId && (queueId || !/^[a-f0-9]{32}$/.test(initialQueueId) || initialQueueId === this.queue.id)) throw new Ps5QueueFailure('Неверный номер новой очереди')
     if (queueId && (queueId !== this.queue.id || this.queue.status !== 'running')) throw new Ps5QueueFailure('Очередь изменилась. Обновите задания')
+    if (this.queue.status === 'paused') throw new Ps5QueueFailure('Очередь приостановлена. Сначала продолжите её')
     if (!queueId && this.queue.status === 'running') throw new Ps5QueueFailure('Уже работает очередь этой PS5')
     if (!queueId) {
       if (this.queue.items.length) this.queue.history = [this.queue.items, ...this.queue.history].slice(0, 10)
@@ -80,6 +81,7 @@ export class Ps5QueueRunner {
       else { item.state = 'cancelled'; item.detail = 'Убрано из очереди'; item.completedAt = Date.now() }
     }
     this.queue.message = selected.some(item => item.installDispatched && !terminal(item)) ? 'Ожидающие пакеты убраны. Отмена принятой системой установки пока не поддерживается' : 'Отмена выбранных пакетов запрошена'
+    if (this.queue.status === 'paused' && this.queue.items.every(terminal)) this.queue.status = 'cancelled'
     this.save(); this.wake(); return this.snapshot()
   }
   confirmInstalled(queueId: string, packageId: string) {
@@ -96,6 +98,16 @@ export class Ps5QueueRunner {
   clear(selected: (item:Ps5Item)=>boolean = ()=>true) {
     for (const item of [...this.queue.items, ...this.queue.history.flat()]) if (terminal(item)&&selected(item)) item.hidden = true
     this.save(); return this.snapshot()
+  }
+  async pause(queueId: string) {
+    if (queueId !== this.queue.id || this.queue.status !== 'running' || this.queue.items.some(item => item.installDispatched && !terminal(item))) throw new Ps5QueueFailure('Приостановка доступна до системной установки')
+    this.queue.status = 'paused'; this.queue.message = 'Передача приостановлена; данные докачки сохранены'; this.save()
+    this.controller?.abort(new Error('Queue paused')); await this.settled()
+    return this.snapshot()
+  }
+  resume(queueId: string) {
+    if (queueId !== this.queue.id || this.queue.status !== 'paused') throw new Ps5QueueFailure('Приостановленная очередь изменилась')
+    this.queue.status = 'running'; this.queue.message = 'Продолжаем передачу с подтверждённой позиции'; this.save(); this.wake(); return this.snapshot()
   }
   wake() {
     if (this.active || this.queue.status !== 'running') return
@@ -136,7 +148,8 @@ export class Ps5QueueRunner {
         if (item.state === 'installed' && item.confirmation !== 'user') { this.installed(item); checkpoint({ installedAt: Date.now(), completedAt: Date.now() }) }
         else if (terminal(item)) checkpoint({ completedAt: Date.now() })
       } catch (error) {
-        if (item.cancelRequested && !item.installDispatched) {
+        if (this.queue.status === 'paused') { /* Retain durable offsets; never cancel receiver data. */ }
+        else if (item.cancelRequested && !item.installDispatched) {
           try { await this.driver.cancel(item); checkpoint({ state: 'cancelled', detail: 'Передача отменена', completedAt: Date.now() }) }
           catch { checkpoint({ detail: 'Ожидаем подтверждение отмены передачи от PS5' }) }
         } else if (error instanceof Ps5QueueFailure) checkpoint({ state: 'failed', detail: error.message, completedAt: Date.now() })
@@ -144,6 +157,7 @@ export class Ps5QueueRunner {
         else checkpoint({ detail: 'PS5 недоступна. Ожидаем связь; повторная установка не отправлялась' })
       }
       this.activeItem = undefined; this.controller = undefined
+      if (this.queue.status !== 'running') return
       if (!terminal(item)) await new Promise<void>(resolve => { const timer = setTimeout(resolve, this.interval); timer.unref?.() })
     }
   }

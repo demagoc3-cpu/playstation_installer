@@ -1,3 +1,4 @@
+import { assertNoConsoleSpeedTest } from './console-speed-lock'
 import { randomBytes } from 'node:crypto'
 import { readFileSync, existsSync } from 'node:fs'
 import { createError } from 'h3'
@@ -38,6 +39,7 @@ export async function ps5AppLaunchInfo(id:unknown) {
 }
 export async function launchPs5App(id:unknown) {
   const p=profile(id);assertNoPs5ServiceUpdate(p.id)
+  assertNoConsoleSpeedTest(p.id)
   if(pending.has(p.id))return ps5AppLaunchInfo(p.id)
   pending.add(p.id)
   try {

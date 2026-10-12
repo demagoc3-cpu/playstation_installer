@@ -1,3 +1,4 @@
+import { assertNoConsoleSpeedTest } from './console-speed-lock'
 import { createError } from 'h3'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -47,6 +48,7 @@ function idle(p:ReturnType<typeof profile>,action:Ps5GameAction){assertNoPs5Serv
     return !(['launch','stop'].includes(action)&&j.state==='pending'&&j.sourceIp===p.ip&&j.receipt?.state==='pending'&&j.receipt.requestId===j.id&&j.receipt.titleId===j.target?.titleId&&j.receipt.userId===j.target?.userId&&j.receipt.kind===j.target?.kind)
   }catch{return true}}))throw fail('Сначала завершите восстановление сохранения или откатите его')}
 export async function ps5ConsoleGameCommand(id:unknown,input:any){
+ assertNoConsoleSpeedTest(String(id))
   let intentWritten=false
   try{
   const p=profile(id),titleId=title(input?.titleId),requestId=input?.requestId,action=input?.action as Ps5GameAction

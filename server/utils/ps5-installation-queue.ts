@@ -1,3 +1,4 @@
+import { assertNoConsoleSpeedTest } from './console-speed-lock'
 import { existsSync, readFileSync } from 'node:fs'
 import { createError } from 'h3'
 import { dataPath } from './data-path'
@@ -36,7 +37,7 @@ function runner(id: string) {
     if (existsSync(path(profile.id))) {
       try {
         queue = JSON.parse(readFileSync(path(profile.id), 'utf8'))
-        if (queue.version !== 1 || queue.consoleId !== profile.id || queue.psIp !== profile.ip || !validItems(queue.items) || !Array.isArray(queue.history) || queue.history.length > 10 || !queue.history.every(validItems) || !['idle','running','completed','failed','cancelled'].includes(queue.status)) throw new Error('Invalid queue')
+        if (queue.version !== 1 || queue.consoleId !== profile.id || queue.psIp !== profile.ip || !validItems(queue.items) || !Array.isArray(queue.history) || queue.history.length > 10 || !queue.history.every(validItems) || !['idle','paused','running','completed','failed','cancelled'].includes(queue.status)) throw new Error('Invalid queue')
       } catch { throw createError({ statusCode: 500, message: 'Не удалось прочитать очередь PS5. Сохранённый файл не изменён' }) }
     }
     value = new Ps5QueueRunner(queue, q => writeDurableJson(path(profile.id), q), ps5QueueDriver(profile.id), 2000, item => { markPackageInstalled(item.packageId, true, profile.ip) })
@@ -111,6 +112,7 @@ export async function startPs5Queue(input: { consoleId: string; packageIds?: unk
       if (firmware.state !== 'compatible') throw createError({ statusCode: 409, message: `«${item.title}»: ${firmware.detail}. Набор не отправлен` })
     }
   }
+  assertNoConsoleSpeedTest(profile.id)
   try { current.enqueue(items.map(item => ({ packageId: item.id, title: item.title, fileName: item.fileName, size: item.size, type: item.type,
     titleId: item.titleId, branch: contentBranchKey(item), order: item.installOrder, platform: contentPlatform(item), format: contentFormat(item), appVersion: item.appVersion, contentId: item.contentId, overwriteApproved: overwrite.includes(item.id) || repair?.packageId===item.id })), input.queueId, input.newQueueId); return getPs5Queue(profile.id) }
   catch (error) { if (error instanceof Ps5QueueFailure) throw createError({ statusCode: 409, message: error.message }); throw error }
@@ -156,7 +158,7 @@ export function getPs5Tasks(id: string, query: { categories?: unknown; page?: un
       canConfirm: item.installDispatched === true && !!item.serviceJobId && item.bytesSent === item.size && ['installing','unconfirmed','failed'].includes(item.state),
       canDismiss: ['installed','failed','skipped','cancelled'].includes(item.state),
       consolePlatform: 'ps5', category: installationTaskCategory(item.state), groupTitle: base?.title || item.title, groupIconId: base?.iconSize ? base.id : undefined,
-      createdAt: item.createdAt || q.createdAt, transport: 'service', canCancel: index === 0 && q.status === 'running' && ps5CanCancel(item), cancelRequested: !!item.cancelRequested })
+      createdAt: item.createdAt || q.createdAt, transport: 'service', canCancel: index === 0 && ['running','paused'].includes(q.status) && ps5CanCancel(item), cancelRequested: !!item.cancelRequested })
   }
   const visibleTasks = latestInstallationAttempts(tasks, query.history).filter(task => !hiddenTasks.has(task.id))
   const counts = Object.fromEntries(TASK_CATEGORIES.map(c => [c,visibleTasks.filter(t => t.category === c).length])) as InstallationTasksPage['counts']
@@ -167,10 +169,13 @@ export function getPs5Tasks(id: string, query: { categories?: unknown; page?: un
   for (const task of filtered) { const key = contentBranchKey(task); const entries = branches.get(key) || []; entries.push(task); branches.set(key,entries) }
   const total = tree ? branches.size : filtered.length, pages = Math.max(1,Math.ceil(total/50)), page = Math.min(pages,Math.max(1,Math.floor(Number(query.page)||1)))
   return { active, items: tree ? [...branches.values()].slice((page-1)*50,page*50).flat() : filtered.slice((page-1)*50,page*50), counts, page, pages, total, unit: tree ? 'games' : 'tasks',
-    queueId:q.id, queueStatus:q.status, canCancelAll:q.status==='running'&&q.items.some(ps5CanCancel) }
+    resumableQueues:q.status==='paused'&&q.id?[q.id]:[], queueId:q.id, queueStatus:q.status, canCancelAll:['running','paused'].includes(q.status)&&q.items.some(ps5CanCancel) }
 }
 export function resumePs5Queues() {
   for (const profile of getConsoleProfiles().consoles.filter(p => p.platform === 'ps5')) {
     try { runner(profile.id).wake() } catch (error) { console.error('PS5 queue recovery unavailable:', error instanceof Error ? error.message : 'unknown') }
   }
 }
+
+export async function pausePs5Queue(id: string, queueId: string) { return runner(id).pause(queueId) }
+export function resumePs5Queue(id: string, queueId: string) { assertNoConsoleSpeedTest(id); return runner(id).resume(queueId) }

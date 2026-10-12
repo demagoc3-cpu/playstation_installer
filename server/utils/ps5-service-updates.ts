@@ -1,3 +1,4 @@
+import { assertNoConsoleSpeedTest } from './console-speed-lock'
 import { createHash, randomBytes } from 'node:crypto'
 import { createConnection } from 'node:net'
 import { readFileSync, existsSync } from 'node:fs'
@@ -71,6 +72,7 @@ export function assertNoPs5ServiceUpdate(id: string) {
 }
 export async function beginPs5ServiceUpdate(id: unknown) {
   const p = profile(id), candidate = release(), previous = saved(p.id)
+  assertNoConsoleSpeedTest(p.id)
   assertNoPs5Bootstrap(p.id)
   if (!candidate) throw createError({ statusCode: 409, message: 'Проверенный ELF службы PS5 не подготовлен' })
   if (!p.verified || p.firmware !== candidate.firmware) throw createError({ statusCode: 409, message: 'Обновление ещё не подтверждено для прошивки этого устройства' })
