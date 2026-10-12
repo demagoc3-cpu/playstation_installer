@@ -61,7 +61,7 @@ export async function runConsoleSpeed(job: ConsoleSpeedJob, modes: SpeedMode[], 
       }
       const start=performance.now(),r=await io.stream(mode,job.size,signal)
       if(r.status!==200){await r.body?.cancel();throw Error(`ELF отклонил тест (${r.status})`)}
-      let writeMs:number|undefined,syncMs:number|undefined,cleanup:boolean|undefined
+      let writeMs:number|undefined,syncMs:number|undefined,cleanup:boolean|undefined,receivePipeline:boolean|undefined
       if(mode==='download') {
         if(r.headers.get('content-length')!==String(job.size)||r.headers.get('content-type')!=='application/octet-stream'){await r.body?.cancel();throw Error('Неверный размер ответа теста')}
         let bytes=0;const reader=r.body?.getReader();if(!reader)throw Error('Пустой ответ ELF')
@@ -70,9 +70,9 @@ export async function runConsoleSpeed(job: ConsoleSpeedJob, modes: SpeedMode[], 
       } else {
         const text=await r.text();if(text.length>4096)throw Error('Ответ теста слишком большой');const b=JSON.parse(text)
         if(b.protocol!=='speed-test-v1'||b.mode!==mode||b.bytes!==job.size||b.complete!==true||b.cleanup!==true||!Number.isFinite(b.elapsedMs)||b.elapsedMs<=0)throw Error('ELF не подтвердил полный тест или уборку временного файла')
-        writeMs=b.writeMs;syncMs=b.syncMs;cleanup=b.cleanup
+        writeMs=b.writeMs;syncMs=b.syncMs;cleanup=b.cleanup;receivePipeline=b.receivePipeline===true
       }
-      const elapsedMs=performance.now()-start;job.results.push({mode,bytes:job.size,elapsedMs,bytesPerSecond:job.size*1000/elapsedMs,writeMs,syncMs,cleanup})
+      const elapsedMs=performance.now()-start;job.results.push({mode,bytes:job.size,elapsedMs,bytesPerSecond:job.size*1000/elapsedMs,writeMs,syncMs,cleanup,receivePipeline})
     }
     job.state='completed'
   }catch(e){job.state=signal.aborted?'cancelled':'failed';job.error=signal.aborted?'Тест остановлен':e instanceof Error?e.message:'Не удалось выполнить тест'}
