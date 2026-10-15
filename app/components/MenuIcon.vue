@@ -1,5 +1,36 @@
 <script setup lang="ts">
-const props=defineProps<{name:string}>()
-const paths:Record<string,string>={library:'M6 7h12c2 0 3 2 4 5l1 5c0 2-2 3-3 1l-3-3H7l-3 3c-1 2-3 1-3-1l1-5c1-3 2-5 4-5M6 10v5M4 12.5h4M16 11h.01M19 14h.01',console:'M3 4h18v13H3zM8 21h8M12 17v4',saves:'M4 3h13l3 3v15H4zM8 3v6h8V3M8 21v-7h8v7',torrents:'M12 3v12M7 10l5 5 5-5M4 16v5h16v-5',search:'M18 18l4 4M19 10a9 9 0 1 1-18 0 9 9 0 0 1 18 0',log:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 7v6l4 2',tasks:'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',presets:'M4 5h16M4 12h16M4 19h16M8 3v4M16 10v4M10 17v4',storage:'M5 4h14l3 16H2zM2 15h20M7 18h.01M10 18h.01',devices:'M5 4h14v12H5zM9 20h6M12 16v4M2 8H1v10h5M22 8h1v10h-5',settings:'M9 3h6l1 4 4 2v6l-4 2-1 4H9l-1-4-4-2V9l4-2zM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',ftp:'M2 6h8l2 3h10v12H2z',system:'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 11v6M12 7h.01',donate:'M12 21 3 12C-3 5 7-1 12 6c5-7 15-1 9 6z'}
+defineProps<{ name: string }>();
+const paths: Record<string, string> = {
+  library:
+    'M6 7h12c2 0 3 2 4 5l1 5c0 2-2 3-3 1l-3-3H7l-3 3c-1 2-3 1-3-1l1-5c1-3 2-5 4-5M6 10v5M4 12.5h4M16 11h.01M19 14h.01',
+  console: 'M3 4h18v13H3zM8 21h8M12 17v4',
+  saves: 'M4 3h13l3 3v15H4zM8 3v6h8V3M8 21v-7h8v7',
+  torrents: 'M12 3v12M7 10l5 5 5-5M4 16v5h16v-5',
+  search: 'M18 18l4 4M19 10a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
+  log: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 7v6l4 2',
+  tasks: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  presets: 'M4 5h16M4 12h16M4 19h16M8 3v4M16 10v4M10 17v4',
+  storage: 'M5 4h14l3 16H2zM2 15h20M7 18h.01M10 18h.01',
+  devices: 'M5 4h14v12H5zM9 20h6M12 16v4M2 8H1v10h5M22 8h1v10h-5',
+  settings: 'M9 3h6l1 4 4 2v6l-4 2-1 4H9l-1-4-4-2V9l4-2zM15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
+  ftp: 'M2 6h8l2 3h10v12H2z',
+  system: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 11v6M12 7h.01',
+  donate: 'M12 21 3 12C-3 5 7-1 12 6c5-7 15-1 9 6z',
+};
 </script>
-<template><svg class="menu-icon" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="paths[name]||paths.library"/></svg></template>
+<template>
+  <svg
+    class="menu-icon"
+    width="21"
+    height="21"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path :d="paths[name] || paths.library" />
+  </svg>
+</template>
