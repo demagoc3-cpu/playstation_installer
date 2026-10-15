@@ -1,0 +1,103 @@
+{
+  "version": "1.10.25",
+  "sourceCommit": "9370769e7a22dee87689dccb7c8d3e21c57b4457",
+  "stableTransferCardIncluded": true,
+  "installer": {
+    "path": "/home/developer/projects/PS/.packageflow-windows-build-20261015/source-9370769/dist/windows/PackageFlowSetup-1.10.25-x64.exe",
+    "bytes": 105757596,
+    "sha256": "9eedcf9b36c45b24d7be5df3633448f21e3a95e4c52f4b7511b624e706215f2c"
+  },
+  "launcherSha256": "24f13a30ebc74643e45a3e5bd56eea95b331a84d16f579d67750a134fb109077",
+  "assemblyVersion": "1.10.25.0",
+  "windowsNodeVersion": "22.23.3",
+  "toolVersions": {
+    "node": "v22.22.1",
+    "npm": "11.6.2",
+    "dotnet": "8.0.425",
+    "nsis": "v3.10-2"
+  },
+  "consoleBundle": {
+    "schemaVersion": 1,
+    "elf": {
+      "fileName": "PackageFlowService-PS5.elf",
+      "size": 4094576,
+      "sha256": "2e478b29ac7f62c21207155fcf6acdbb0a6531a29f05397f7ec9575a665559fe",
+      "version": "0.1.28-dev",
+      "buildId": "ps5-service-own-app-update-028b-sse2",
+      "firmware": "13.60"
+    },
+    "app": {
+      "fileName": "PPSA95001-01.000.044.ffpkg",
+      "size": 22020096,
+      "sha256": "7ecf378d3c49c30dfdbf6a692432cf2e276fd340ce98d6bf6b31c15e046b3612",
+      "name": "PackageFlow",
+      "titleId": "PPSA95001",
+      "contentId": "IV0000-PPSA95001_00-PACKAGEFLOWUI001",
+      "version": "01.000.044",
+      "format": "ufs2",
+      "buildId": "6c32b25"
+    },
+    "ps4": {
+      "fileName": "PackageFlowService-2.14.pkg",
+      "size": 6619136,
+      "sha256": "83995a02c90e8dc6fb775243f911573dc3e2b0acd390e0f3d2d591c1dc554abf",
+      "name": "PackageFlow",
+      "titleId": "PFLS00001",
+      "version": "2.14"
+    }
+  },
+  "consoleBundleUnchanged": true,
+  "onlyServiceElf": "PackageFlowService-PS5.elf",
+  "serviceDisplayName": "PackageFlowService-PS5",
+  "companionInstallerAdded": false,
+  "checks": {
+    "check": true,
+    "eslintWarnings": 0,
+    "typeErrors": 0,
+    "prettier": true,
+    "profiledHostTests": 22,
+    "failedHostTests": 0,
+    "skippedHostTests": 0,
+    "coreTests": true,
+    "bundleCheck": true,
+    "nodeOfficialChecksum": true,
+    "payloadAudit": true,
+    "packagedWebHttpSmoke": true,
+    "packagedStableCardMarkers": true,
+    "browserLoadedNewCss": true,
+    "sourceAudit": true,
+    "buildExitCode": 0
+  },
+  "geometryValidation": {
+    "source": "committed synthetic fixture evidence for exact source",
+    "telemetryTransitions": 48,
+    "compactTransitions": 6,
+    "longStatuses": 12,
+    "hardware": false
+  },
+  "releaseOverlay": [
+    "scripts/check-windows-payload.mjs",
+    "packaging/windows/console-bundle-1.10.25.json"
+  ],
+  "previous1.10.24Preserved": true,
+  "windowsInstallerExecuted": false,
+  "windowsUpdatedOrRestarted": false,
+  "consoleOperationsRun": false,
+  "hardwareValidation": "Not performed; no live installation, queue or console/process intervention",
+  "createdAtUtc": "2026-10-15T15:51:23.729259+00:00",
+  "windowsCopy": {
+    "Path": "C:\\Users\\gamepad\\Downloads\\PackageFlow-admission-20261015\\PackageFlowSetup-1.10.25-x64.exe",
+    "Bytes": 105757596,
+    "Sha256": "9eedcf9b36c45b24d7be5df3633448f21e3a95e4c52f4b7511b624e706215f2c",
+    "ComputerName": "GAMEPAD-PC",
+    "sizeMatches": true,
+    "sha256Matches": true,
+    "copied": true,
+    "installerExecuted": false,
+    "applicationRestarted": false,
+    "consoleServicesRestarted": false,
+    "queueOperationsRun": false,
+    "verifiedAtUtc": "2026-10-15T15:55:14.610702+00:00"
+  },
+  "status": "copied, not installed"
+}
