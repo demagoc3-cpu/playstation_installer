@@ -1,0 +1,22 @@
+{
+  "scope": "CSS only: task devices, filters, table/tree controls, progress and speed palette",
+  "scriptAndTemplateUnchanged": true,
+  "checks": {
+    "eslintWarnings": 0,
+    "typeErrors": 0,
+    "prettier": "passed",
+    "targetedHostTests": {
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "browser": {
+    "page": "#tasks",
+    "deviceExpansion": "passed",
+    "treeAndTableToggle": "passed",
+    "emptyQueueRendering": "passed",
+    "realActiveInstallRendering": "not exercised; no active tasks"
+  },
+  "realInstallationTriggered": false
+}

@@ -71,7 +71,7 @@ function select(checked: boolean) {
   font:
     10px 'DM Mono',
     monospace;
-  color: #85828a;
+  color: #a6bee1;
   display: block;
   margin-top: 3px;
 }

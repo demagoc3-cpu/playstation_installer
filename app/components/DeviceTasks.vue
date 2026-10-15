@@ -417,7 +417,7 @@ h1 {
 }
 p {
   margin: 6px 0;
-  color: #a39dad;
+  color: #acbfdc;
   font-size: 12px;
 }
 .filters > input {
@@ -431,11 +431,11 @@ p {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  scrollbar-color: #8266c4 #19191c;
+  scrollbar-color: #3070b6 #07172b;
 }
 .device-group {
-  border: 1px solid #39353f;
-  background: #19191c;
+  border: 1px solid var(--pf-line);
+  background: #071c3580;
   border-radius: 10px;
   margin-bottom: 12px;
   overflow: hidden;
@@ -449,18 +449,18 @@ p {
   border: 0;
   border-radius: 0;
   padding: 16px;
-  background: #1e1d22;
+  background: #0b294980;
 }
 .device-heading strong {
   font-size: 15px;
 }
 .device-heading span:not(.arrow) {
-  color: #9994a5;
+  color: #a6bee1;
   font-size: 11px;
 }
 .device-heading small {
   margin-left: auto;
-  color: #aba4b8;
+  color: #a6bee1;
   font-size: 11px;
 }
 .device-heading i {
@@ -471,14 +471,14 @@ p {
   color: #8fd0a6;
 }
 .arrow {
-  color: #b89bdd;
+  color: #8dddff;
   font-size: 22px;
 }
 .device-details {
   height: min(68vh, 720px);
   min-height: 300px;
   padding: 16px;
-  border-top: 1px solid #39353f;
+  border-top: 1px solid var(--pf-line);
 }
 .device-details :deep(.task-title h1) {
   font-size: 17px;
@@ -497,7 +497,7 @@ p {
   gap: 12px;
   align-items: center;
   padding: 12px;
-  border-bottom: 1px solid #333139;
+  border-bottom: 1px solid #5897e730;
   font-size: 12px;
 }
 .torrent-tasks strong {
@@ -507,10 +507,10 @@ button,
 input:not([type='checkbox']),
 select {
   padding: 9px 12px;
-  background: #28272d;
-  border: 1px solid #454052;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
+  border: 1px solid var(--pf-line);
   border-radius: 8px;
-  color: #e9e5ef;
+  color: #e6efff;
   font-size: 12px;
 }
 button {
@@ -520,7 +520,7 @@ button:disabled {
   opacity: 0.4;
 }
 input {
-  accent-color: #a786df;
+  accent-color: #37c9fb;
 }
 @media (max-width: 900px) {
   .device-heading {

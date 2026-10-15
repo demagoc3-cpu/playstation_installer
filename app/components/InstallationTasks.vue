@@ -754,30 +754,30 @@ function go(value: number) {
   align-items: center;
   gap: 8px 14px;
   padding: 9px 14px;
-  border: 1px solid #615076;
+  border: 1px solid var(--pf-line);
   border-radius: 9px;
-  background: #1e1d22;
+  background: #0b294980;
   font-size: 11px;
 }
 .maintenance-line span {
-  color: #c4b9ff;
+  color: #89dfff;
 }
 .task-views {
   display: flex;
   gap: 3px;
   padding-right: 8px;
-  border-right: 1px solid #4c3e5b;
+  border-right: 1px solid var(--pf-line);
 }
 .task-views button {
   padding: 5px 9px;
 }
 .task-views button[aria-pressed='true'] {
-  background: #7754ad;
-  border-color: #af8de2;
+  background: #1672a566;
+  border-color: #64d6ff80;
   color: white;
 }
 .task-game {
-  border: 1px solid #3a3046;
+  border: 1px solid var(--pf-line);
   border-radius: 12px;
   overflow: hidden;
 }
@@ -790,12 +790,12 @@ function go(value: number) {
   border: 0;
   border-radius: 0;
   padding: 10px 14px;
-  background: #27202f;
+  background: #17406a66;
 }
 .tree-arrow {
   width: 16px;
   font-size: 20px;
-  color: #bda1e6;
+  color: #8dddff;
 }
 .tree-cover {
   width: 32px;
@@ -803,7 +803,7 @@ function go(value: number) {
   flex: 0 0 32px;
   display: grid;
   place-items: center;
-  background: linear-gradient(130deg, #8a68c5, #433255);
+  background: linear-gradient(145deg, #23517b, #162c50);
   border-radius: 5px;
   overflow: hidden;
   font-size: 18px;
@@ -826,16 +826,16 @@ function go(value: number) {
   display: block;
   margin-top: 5px;
   font-size: 10px;
-  color: #a192b5;
+  color: #a6bee1;
 }
 .task-game-heading small {
-  color: #c2a5ee;
+  color: #a8dfff;
 }
 .task-game-packages {
   display: grid;
   gap: 6px;
   padding: 8px;
-  background: #17131e;
+  background: #081f3990;
 }
 .task-game-packages :deep(.job-row) {
   padding: 10px 12px;
@@ -854,8 +854,8 @@ function go(value: number) {
   top: -8px;
   width: 15px;
   height: 40px;
-  border-left: 1px solid #655078;
-  border-bottom: 1px solid #655078;
+  border-left: 1px solid #5897e74d;
+  border-bottom: 1px solid #5897e74d;
   border-radius: 0 0 0 5px;
 }
 .tasks-workspace {
@@ -877,7 +877,7 @@ function go(value: number) {
 }
 .task-title p {
   margin: 5px 0 0;
-  color: #9a90a7;
+  color: #acbfdc;
   font-size: 12px;
 }
 .task-message {
@@ -912,9 +912,9 @@ function go(value: number) {
   flex-wrap: wrap;
   gap: 10px;
   padding: 12px 14px;
-  border: 1px solid #393045;
+  border: 1px solid var(--pf-line);
   border-radius: 12px;
-  background: #1e1d22;
+  background: #0b294980;
 }
 .task-filters label {
   display: flex;
@@ -924,10 +924,10 @@ function go(value: number) {
   cursor: pointer;
 }
 .task-filters small {
-  color: #ad99d4;
+  color: #a6bee1;
 }
 input {
-  accent-color: #9977d8;
+  accent-color: #37c9fb;
 }
 .task-list {
   display: grid;
@@ -938,7 +938,7 @@ input {
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  scrollbar-color: #8266c4 #17131f;
+  scrollbar-color: #3070b6 #07172b;
   padding-right: 6px;
 }
 .torrent-job {
@@ -946,12 +946,12 @@ input {
   gap: 12px;
   align-items: center;
   padding: 14px 16px;
-  border: 1px solid #393045;
-  background: #19191c;
+  border: 1px solid var(--pf-line);
+  background: #071c3580;
   border-radius: 12px;
 }
 .torrent-job.active {
-  border-color: #7860ae;
+  border-color: #64d6ff66;
 }
 .torrent-job div {
   flex: 1;
@@ -966,19 +966,19 @@ input {
   font:
     10px 'DM Mono',
     monospace;
-  color: #85828a;
+  color: #a6bee1;
   margin-top: 5px;
 }
 progress {
   width: 120px;
-  accent-color: #b28bef;
+  accent-color: #37c9fb;
 }
 button {
-  border: 1px solid #574569;
+  border: 1px solid var(--pf-line);
   border-radius: 8px;
   padding: 8px 12px;
-  background: #34283f;
-  color: #e9ddff;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
+  color: #e6efff;
   cursor: pointer;
   font-size: 11px;
 }
@@ -988,7 +988,7 @@ button:disabled {
 }
 .task-empty {
   font-size: 11px;
-  color: #85838b;
+  color: #acbfdc;
   padding: 15px;
 }
 footer {
@@ -996,7 +996,7 @@ footer {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  color: #887b98;
+  color: #a6bee1;
   font-size: 10px;
 }
 footer div {

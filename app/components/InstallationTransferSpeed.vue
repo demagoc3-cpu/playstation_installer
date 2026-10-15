@@ -49,7 +49,7 @@ const number = (value: number) =>
 }
 .transfer-bytes,
 .transfer-speed {
-  color: #c4b9ff;
+  color: #89dfff;
   font:
     10px 'DM Mono',
     monospace;

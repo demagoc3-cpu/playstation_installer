@@ -91,27 +91,27 @@ const progress = (task: InstallationTask) => Math.round(installationTaskProgress
   margin-right: 8px;
 }
 .table-queue input {
-  accent-color: #a789df;
+  accent-color: #37c9fb;
   cursor: pointer;
 }
 .task-table {
   width: 100%;
   border-collapse: collapse;
-  background: #19191c;
+  background: #071c3580;
   font-size: 11px;
 }
 th {
   padding: 12px;
   text-align: left;
-  color: #a999c0;
-  background: #1e1d22;
+  color: #b9cce7;
+  background: #0b294980;
   position: sticky;
   top: 0;
   z-index: 1;
 }
 td {
   padding: 9px 12px;
-  border-top: 1px solid #393042;
+  border-top: 1px solid #5897e730;
   vertical-align: middle;
 }
 td:first-child {
@@ -132,7 +132,7 @@ td strong {
 }
 td span {
   margin: 4px 0;
-  color: #85828a;
+  color: #a6bee1;
   font:
     10px 'DM Mono',
     monospace;
@@ -141,16 +141,16 @@ td span {
 td small {
   font-size: 9px;
   line-height: 1.35;
-  color: #a09da6;
+  color: #acbfdc;
 }
 .game-label {
-  color: #85828a;
+  color: #a6bee1;
   margin-bottom: 5px;
 }
 .task-state {
   font-size: 9px;
   line-height: 1.35;
-  color: #a09da6;
+  color: #acbfdc;
 }
 .task-state.installed,
 .task-state.delivered {
@@ -161,7 +161,7 @@ td small {
 .task-state.waiting,
 .task-state.installing,
 .task-state.verifying {
-  color: #c4b9ff;
+  color: #89dfff;
 }
 .task-state.failed,
 .task-state.unconfirmed {
@@ -171,20 +171,20 @@ td small {
   color: #e3bd77;
 }
 .active {
-  background: #202025;
+  background: #10567d40;
 }
 progress {
   display: block;
   width: 75px;
   height: 5px;
   margin-top: 6px;
-  accent-color: #b48bee;
+  accent-color: #37c9fb;
 }
 button {
-  border: 1px solid #645071;
+  border: 1px solid var(--pf-line);
   border-radius: 8px;
-  background: #3e2e4b;
-  color: #eee5fa;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
+  color: #e6efff;
   font-size: 10px;
   padding: 8px;
   cursor: pointer;

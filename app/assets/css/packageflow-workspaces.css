@@ -1720,3 +1720,147 @@ body .glass-shell .save-layout .glass-table th {
     max-height: 42dvh;
   }
 }
+
+/* Task queues use the same glass surfaces as the library and device picker. */
+body .glass-shell .device-tasks :is(button, .task-table button) {
+  border-color: var(--pf-line);
+  border-radius: 9px;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
+  color: #e6efff;
+  min-height: 34px;
+  transition:
+    background 0.16s,
+    border-color 0.16s;
+}
+body .glass-shell .device-tasks button:hover:not(:disabled) {
+  background: #28517c99;
+  border-color: #64d6ff80;
+}
+body .glass-shell .device-tasks button[aria-pressed='true'] {
+  background: linear-gradient(135deg, #1672a566, #20558066);
+  border-color: #64d6ff80;
+}
+body .glass-shell .device-tasks button:focus-visible {
+  outline: 2px solid var(--pf-cyan);
+  outline-offset: 2px;
+}
+body
+  .glass-shell
+  .device-tasks
+  :is(.device-group, .task-game, .active-install-card, .torrent-tasks) {
+  border: 1px solid var(--pf-line);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #12345ac2, #08192ed6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 1px 0 #d8efff0f,
+    0 10px 30px #0008181a;
+}
+body .glass-shell .device-tasks :is(.device-heading, .task-game-heading) {
+  background: linear-gradient(110deg, #173c6373, #10284659);
+  border: 0;
+  border-radius: 0;
+}
+body .glass-shell .device-tasks .device-heading[aria-expanded='true'] {
+  background: #154b7359;
+  box-shadow: inset 3px 0 #65cfff8c;
+}
+body .glass-shell .device-tasks :is(.pf-package-row, .torrent-tasks article) {
+  background: #12345866;
+  border-color: #5897e730;
+}
+body .glass-shell .device-tasks .pf-package-row:hover {
+  background: #24578266;
+}
+body .glass-shell .device-tasks :is(.pf-package-meta, .pf-size, .pf-state, .task-details) {
+  color: #acbfdc;
+}
+body
+  .glass-shell
+  .device-tasks
+  .pf-state:is(.sending, .receiving, .waiting, .installing, .verifying) {
+  color: #89dfff;
+}
+body .glass-shell .device-tasks .pf-state:is(.installed, .delivered) {
+  color: #8fd0a6;
+}
+body .glass-shell .device-tasks .pf-state:is(.failed, .unconfirmed) {
+  color: #e8a291;
+}
+body .glass-shell .device-tasks .pf-state.skipped {
+  color: #e3bd77;
+}
+body .glass-shell .device-tasks .task-table {
+  min-width: 680px;
+  background: #06193366;
+}
+body .glass-shell .device-tasks .task-table th {
+  background: #0c294a;
+  color: #b9cce7;
+  font-size: 11px;
+}
+body .glass-shell .device-tasks .task-table :is(td, th) {
+  border-color: #5897e730;
+}
+body .glass-shell .device-tasks .task-table tr:hover {
+  background: #24578240;
+}
+body .glass-shell .device-tasks .task-table tr.active {
+  background: #10567d40;
+}
+body .glass-shell .device-tasks .task-table :is(.table-file span, .game-label) {
+  color: #a6bee1;
+}
+body .glass-shell .device-tasks .active-install-card.problem {
+  border-color: #e8a29166;
+}
+body .glass-shell .device-tasks button.danger {
+  color: #f2aabf;
+  background: #481f3833;
+  border-color: #93506666;
+}
+body .glass-shell .device-tasks button.danger:hover:not(:disabled) {
+  background: #783b5052;
+}
+body .glass-shell .device-tasks :is(.task-list, .active-jobs, .devices-list) {
+  scrollbar-width: thin;
+  scrollbar-color: #3070b6 #07172b;
+}
+body .glass-shell .device-tasks .pf-progress {
+  background: #07172b;
+}
+body .glass-shell .device-tasks .pf-progress i {
+  background: linear-gradient(90deg, #159dce, #65cfff);
+}
+body .glass-shell .device-tasks progress {
+  accent-color: var(--pf-cyan);
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #07172b;
+}
+body .glass-shell .device-tasks progress::-webkit-progress-bar {
+  background: #07172b;
+}
+body .glass-shell .device-tasks progress::-webkit-progress-value {
+  background: linear-gradient(90deg, #159dce, #65cfff);
+}
+body .glass-shell .device-tasks progress::-moz-progress-bar {
+  background: linear-gradient(90deg, #159dce, #65cfff);
+}
+@media (max-width: 760px) {
+  body .glass-shell .device-tasks > :is(header, .filters) {
+    flex-wrap: wrap;
+  }
+  body .glass-shell .device-tasks > .filters > input {
+    width: 100%;
+    max-width: 100%;
+  }
+  body .glass-shell .device-tasks .task-title {
+    align-items: flex-start;
+  }
+  body .glass-shell .device-tasks .task-controls {
+    flex-wrap: wrap;
+  }
+}
