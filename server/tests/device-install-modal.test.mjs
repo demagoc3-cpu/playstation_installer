@@ -68,6 +68,12 @@ test('table review is mandatory, sends only selected destinations/packages, and 
       { packageIds: ['base'] },
       'selection is frozen when opening the modal',
     );
+    await view.load(true);
+    assert.deepEqual(
+      calls[1].options.body,
+      { packageIds: ['base'], refresh: true },
+      'explicit refresh preserves the captured selection and requests a fresh device check',
+    );
     const streaming = {
       ...view.preview.value.devices[0],
       requiredBytes: 610,

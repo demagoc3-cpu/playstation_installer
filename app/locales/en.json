@@ -1688,5 +1688,7 @@
   "Убрать из выбора": "Remove from selection",
   "Пока ничего не выбрано": "Nothing selected yet",
   "Отмечайте игры в библиотеке, чтобы собрать набор для установки.": "Select games in the library to build your installation list.",
-  "Продолжить выбор": "Continue selecting"
+  "Продолжить выбор": "Continue selecting",
+  "Не удалось подтвердить установленные пакеты на приставке. Повторите проверку; повторная установка не отправлена": "Could not verify installed packages on the console. Check again; no reinstall was sent",
+  "Игра есть в каталоге PS5; версия пакета не подтверждена. Для замены явно выберите переустановку": "The game is registered in the PS5 catalog; the package version is unconfirmed. Explicitly select reinstall to replace it"
 }

@@ -284,6 +284,7 @@ test('production PS5 driver skips existing PKG/Folder before hashing, waits on u
           ? response({}, 503)
           : response({
               revision: 'b'.repeat(64),
+              total: found ? 1 : 0,
               entries: found
                 ? [
                     {
@@ -323,8 +324,9 @@ test('production PS5 driver skips existing PKG/Folder before hashing, waits on u
       signal = new AbortController().signal;
     let v = item();
     let result = await driver.run(v, signal, (x) => Object.assign(v, x));
-    assert.equal(result.state, 'installed');
-    assert.equal(result.confirmation, 'service-existing');
+    assert.equal(result.state, 'skipped');
+    assert.equal(result.alreadyPresent, true);
+    assert.equal(result.confirmation, undefined);
     assert.equal(v.hash, undefined);
     assert.deepEqual(writes, []);
     const folder = {

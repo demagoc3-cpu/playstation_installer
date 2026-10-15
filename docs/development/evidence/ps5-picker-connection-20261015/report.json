@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "incident": "Install device picker reports no PS5 connection or unavailable installed-package check although root and PKG installer respond",
+  "liveBaseline": {
+    "observedAtUtc": "2026-10-15T16:54:55Z",
+    "windowsVersion": "1.10.24.0",
+    "rootVersion": "0.1.27-dev",
+    "healthStatus": 200,
+    "authStatus": 200,
+    "webOnline": true,
+    "webPaired": true,
+    "freeBytes": 210648367104,
+    "installerVersion": "1.4.0",
+    "installerReady": true,
+    "pkgReady": true,
+    "folderReady": false,
+    "imagesReady": false,
+    "managementStatus": 200,
+    "managementReady": true,
+    "catalogReady": true,
+    "consoleGames": false,
+    "catalogFirstPageStatus": 200,
+    "astroInfoStatus": 503,
+    "astroInfoDurationMs": 2019,
+    "previewEligible": false,
+    "queueChanged": false,
+    "installationDispatched": false
+  },
+  "findings": [
+    "The device picker retains its own preview snapshot; explicit refresh reused the ordinary 15-second profile cache",
+    "The installed-package check required ShadowMount-backed console/info after reading the system catalog, even for base PS5 PKG",
+    "This info dependency existed since c4d5c85 on 2026-10-11; later 91c3c5b formatting did not introduce it",
+    "consoleGames qualification and ShadowMount API availability are separate; loss of a qualification marker was not established"
+  ],
+  "scope": [
+    "Explicit picker refresh bypasses profile TTL while preserving background transfer handling and in-flight coalescing",
+    "Explicit base PS5 PKG presence is conservatively derived from a complete stable system catalog without console/info; metadata is not treated as exact-version proof",
+    "Explicit overwrite review and catalog revision binding remain required; other content checks are retained",
+    "Passive activity scans share pending promises until completion, start TTL after settlement and use one-at-a-time PS5 checks per scan; PS4 keeps concurrency eight"
+  ],
+  "checks": {
+    "targetedFileCount": 11,
+    "targetedCommandExitCode": 0,
+    "eslint": "passed",
+    "prettier": "passed",
+    "fixtureCorrection": "Empty catalog refresh fixture includes total=0 to match the real root contract",
+    "peerReview": "Picker and catalog diffs have no remaining P1/P2; overstrict metadata validation was corrected",
+    "hardware": "Baseline diagnosis only; no new installation or deployment"
+  },
+  "hardwareValidationLimit": "Live baseline diagnosed on Windows 1.10.24; fixes are not yet deployed or validated by a real reinstallation",
+  "notPerformed": [
+    "new installation or reinstall",
+    "queue reset or resume",
+    "source rescan or path replacement",
+    "pairing change",
+    "root or companion reload",
+    "ShadowMount configuration or qualification changes"
+  ],
+  "formatRouting": {
+    "pkg": "PackageFlow transfer and PackageFlowInstaller-PS5 system installation",
+    "ffpkg": "UFS2 image mounted and registered via ShadowMount",
+    "folder": "PackageFlow tree transfer and verification, then ShadowMount source registration",
+    "images": "Format-specific ShadowMount mount and registration"
+  },
+  "catalogCapture": {
+    "observedAtUtc": "2026-10-15T17:08:15Z",
+    "complete": false,
+    "pages": 0,
+    "managementStatus": 200,
+    "managementDurationMs": 3677,
+    "firstCatalogPage": "timeout without HTTP response",
+    "firstCatalogPageDurationMs": 4021,
+    "retried": false,
+    "realDataReplayPerformed": false
+  },
+  "limits": [
+    "Own-service catalog latency exceeded the one-shot capture timeout; the exact runtime congestion source remains a hypothesis",
+    "This change is scoped to base PS5 PKG; patch/DLC and other format proof paths retain their existing checks"
+  ],
+  "passivePollingLimit": "A single mounted client already uses activityRefreshRunning; cross-client/remount pending duplication and burst concurrency were reproduced in mocked host tests. The captured hardware timeout is not attributed conclusively to this mechanism."
+}

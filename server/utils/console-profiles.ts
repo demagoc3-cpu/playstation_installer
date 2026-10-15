@@ -667,14 +667,14 @@ export function refreshConsoleProfile(id: string, force = false, background = fa
   return pending;
 }
 /** No device-count limit; bound the number of simultaneous network probes. */
-export async function refreshConsoleProfiles() {
+export async function refreshConsoleProfiles(force = false) {
   const ids = getConsoleProfiles().consoles.map((item) => item.id);
   let next = 0;
   await Promise.all(
     Array.from({ length: Math.min(8, ids.length) }, async () => {
       while (next < ids.length) {
         const id = ids[next++]!;
-        await refreshConsoleProfile(id, false, true).catch(() => {});
+        await refreshConsoleProfile(id, force, true).catch(() => {});
       }
     }),
   );

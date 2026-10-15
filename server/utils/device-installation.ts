@@ -224,9 +224,11 @@ export async function deviceActivitiesLive(packageIds: string[] = []): Promise<D
       }
       const value = (async () => {
         const present: string[] = [];
-        for (let offset = 0; offset < packageIds.length; offset += 8) {
+        // The PS5 serves requests serially; leave room between passive source checks.
+        const width = profile.platform === 'ps5' ? 1 : 8;
+        for (let offset = 0; offset < packageIds.length; offset += width) {
           await Promise.all(
-            packageIds.slice(offset, offset + 8).map(async (id) => {
+            packageIds.slice(offset, offset + width).map(async (id) => {
               try {
                 const pkg = getPackage(id);
                 if ((await check(profile, pkg)).state === 'installed') present.push(id);
@@ -238,9 +240,20 @@ export async function deviceActivitiesLive(packageIds: string[] = []): Promise<D
         }
         return present;
       })();
-      if (liveActivitySnapshots.size > 64) liveActivitySnapshots.clear();
-      liveActivitySnapshots.set(key, { until: Date.now() + 5000, value });
-      entry.installedPackageIds = await value;
+      // Pending scans must remain shared even when a slow device exceeds the TTL.
+      const snapshot = { until: Number.POSITIVE_INFINITY, value };
+      if (liveActivitySnapshots.size > 64)
+        for (const [oldKey, old] of liveActivitySnapshots)
+          if (Number.isFinite(old.until)) liveActivitySnapshots.delete(oldKey);
+      liveActivitySnapshots.set(key, snapshot);
+      try {
+        entry.installedPackageIds = await value;
+      } catch (error) {
+        if (liveActivitySnapshots.get(key) === snapshot) liveActivitySnapshots.delete(key);
+        throw error;
+      } finally {
+        snapshot.until = Date.now() + 5000;
+      }
     }),
   );
   return activity;
@@ -273,6 +286,7 @@ const packageSummary = (item: ReturnType<typeof getPackage>) => ({
 export async function previewDeviceInstall(
   selection: DeviceSelection,
   destinations?: string[],
+  forceRefresh = false,
 ): Promise<DeviceInstallPreview> {
   const ids = resolveDeviceSelection(selection),
     items = ids.map((id) => getPackage(id));
@@ -281,7 +295,7 @@ export async function previewDeviceInstall(
       await Promise.all(
         destinations.slice(offset, offset + 8).map((id) => refreshConsoleProfile(id, true)),
       );
-  else await refreshConsoleProfiles();
+  else await refreshConsoleProfiles(forceRefresh);
   const checkInstalled = installedPackagePreviewChecker();
   const size = items.reduce((sum, item) => sum + item.size, 0);
   return {

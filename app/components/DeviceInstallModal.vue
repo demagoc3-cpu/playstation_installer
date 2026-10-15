@@ -76,7 +76,7 @@ const ready = computed(
       );
     }),
 );
-async function load() {
+async function load(forceRefresh = false) {
   const token = ++generation,
     captured = JSON.parse(JSON.stringify(selection));
   busy.value = true;
@@ -90,7 +90,7 @@ async function load() {
   try {
     const value = await $fetch<DeviceInstallPreview>('/api/consoles/install-preview', {
       method: 'POST',
-      body: captured,
+      body: { ...captured, ...(forceRefresh ? { refresh: true } : {}) },
     });
     if (token !== generation) return;
     preview.value = value;
@@ -247,7 +247,7 @@ onBeforeUnmount(() => {
           <option value="all">{{ t('Все') }}</option>
           <option value="ps4">PS4</option>
           <option value="ps5">PS5</option></select
-        ><button :disabled="busy || attempted" @click="load">
+        ><button :disabled="busy || attempted" @click="load(true)">
           {{ t(busy ? 'Проверяем…' : 'Обновить') }}</button
         ><button v-if="preview" :disabled="busy || attempted" @click="openSelection">
           {{ t('Выбранные пакеты') }} · {{ preview.files }}

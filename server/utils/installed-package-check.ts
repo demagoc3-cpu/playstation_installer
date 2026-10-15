@@ -14,6 +14,8 @@ export interface InstalledCandidate {
   appVersion?: string;
   installOrder: number;
   type?: string;
+  platform?: string;
+  format?: string;
 }
 export interface InstalledCheck {
   revision?: string;
@@ -31,7 +33,7 @@ export interface InstalledCheck {
 const unavailable = (): InstalledCheck => ({
   state: 'unavailable',
   detail:
-    'Не удалось проверить установленные пакеты на приставке. Ожидаем связь; повторная установка не отправлена',
+    'Не удалось подтвердить установленные пакеты на приставке. Повторите проверку; повторная установка не отправлена',
 });
 const sameVersion = (a?: string, b?: string) =>
   !!a &&
@@ -206,7 +208,9 @@ export async function checkPs5InstalledPackage(
   read = readPs5,
 ): Promise<InstalledCheck> {
   try {
+    signal?.throwIfAborted();
     const status = await read(consoleId, '/api/v1/management/status', {}, undefined, signal);
+    signal?.throwIfAborted();
     if (
       status.status !== 200 ||
       status.body?.protocol !== 'ps5-management-v1' ||
@@ -214,8 +218,17 @@ export async function checkPs5InstalledPackage(
       status.body.catalog !== true
     )
       return unavailable();
+    // A base PKG only needs live registration for explicit reinstall review.
+    // Folder/image source details never prove this selected PKG or its version.
+    const catalogBase =
+      pkg.platform === 'ps5' &&
+      pkg.format === 'pkg' &&
+      pkg.installOrder === 0 &&
+      pkg.type !== 'DLC' &&
+      /^PPSA\d{5}$/.test(pkg.titleId);
     let offset = 0,
-      revision: string | undefined;
+      revision: string | undefined,
+      total: number | undefined;
     let found: { installed: boolean; version: string; content_id: string } | undefined;
     for (let page = 0; page < 4096; page++) {
       const r = await read(
@@ -225,6 +238,7 @@ export async function checkPs5InstalledPackage(
         undefined,
         signal,
       );
+      signal?.throwIfAborted();
       const v = r.body;
       if (
         r.status !== 200 ||
@@ -238,6 +252,18 @@ export async function checkPs5InstalledPackage(
       )
         return unavailable();
       revision = v.revision;
+      if (catalogBase) {
+        if (
+          !Number.isSafeInteger(v.total) ||
+          v.total < 0 ||
+          v.total > 4096 ||
+          (total !== undefined && total !== v.total) ||
+          v.next > v.total ||
+          v.done !== (v.next === v.total)
+        )
+          return unavailable();
+        total = v.total;
+      }
       for (const row of v.entries) {
         if (
           !/^(PPSA|CUSA)\d{5}$/.test(row?.titleId) ||
@@ -246,7 +272,14 @@ export async function checkPs5InstalledPackage(
           row.metadata.length > 32768
         )
           return unavailable();
+        if (catalogBase && row.contentId.length > 128) return unavailable();
         if (row.titleId === pkg.titleId) {
+          if (catalogBase) {
+            // The live catalog guarantees a registered Title ID, not metadata
+            // JSON, Content ID identity, a source format or an installed version.
+            found = { installed: true, version: '', content_id: row.contentId };
+            continue;
+          }
           let meta: any = {};
           try {
             meta = JSON.parse(row.metadata);
@@ -260,6 +293,13 @@ export async function checkPs5InstalledPackage(
       offset = v.next;
       if (v.done) {
         if (!found) return absent();
+        if (catalogBase)
+          return {
+            state: 'base-present',
+            revision,
+            detail:
+              'Игра есть в каталоге PS5; версия пакета не подтверждена. Для замены явно выберите переустановку',
+          };
         const info = await read(
           consoleId,
           '/api/v1/console/info',
@@ -267,6 +307,7 @@ export async function checkPs5InstalledPackage(
           undefined,
           signal,
         );
+        signal?.throwIfAborted();
         const row = info.body;
         if (
           info.status !== 200 ||
@@ -300,8 +341,9 @@ export async function checkPs5InstalledPackage(
       }
     }
     return unavailable();
-  } catch {
+  } catch (error: any) {
     signal?.throwIfAborted();
+    if (error?.name === 'AbortError') throw error;
     return unavailable();
   }
 }

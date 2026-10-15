@@ -115,6 +115,7 @@ test('an installed PS5 PKG can be selected and explicitly queued for reinstall w
       if (path === '/api/v1/console/catalog')
         return response({
           revision: 'd'.repeat(64),
+          total: 1,
           entries: [{ titleId: pkg.titleId, contentId: pkg.contentId, metadata: '{}' }],
           next: 1,
           done: true,
