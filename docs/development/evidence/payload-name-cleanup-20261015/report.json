@@ -1,0 +1,22 @@
+{
+  "canonicalName": "PackageFlowService-PS5",
+  "canonicalFileName": "PackageFlowService-PS5.elf",
+  "payloadEntriesBefore": 7,
+  "payloadEntriesAfter": 1,
+  "oldEntriesArchived": 6,
+  "otherPayloadEntriesPreserved": 9,
+  "backupFiles": 14,
+  "backupVerifiedBySecondRead": true,
+  "backups": "Host backup and PS5 /data/packageflow-payload-backups-20261015",
+  "elfSha256BeforeAndAfter": "920e5580b6ad765f8526196947eec7ae5c3f803c239884361d72b7ee6e4ee37a",
+  "servicePidBeforeAndAfter": 91,
+  "serviceStartedAtUnchanged": true,
+  "serviceVersionBeforeAndAfter": "0.1.27-dev",
+  "configurationAndAutoloadBytesUnchanged": true,
+  "temporaryFtpPid": 98,
+  "temporaryFtpStopped": true,
+  "ftpPortUnreachableAfter": true,
+  "elfReplaced": false,
+  "serviceRestarted": false,
+  "realInstallationTriggered": false
+}
