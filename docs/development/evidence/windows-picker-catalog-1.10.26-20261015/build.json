@@ -1,0 +1,161 @@
+{
+  "version": "1.10.26",
+  "sourceCommit": "9592b7f65e738f75f39ca7b7e9dafc4c8b3b5526",
+  "status": "copied, not installed",
+  "installer": {
+    "fileName": "PackageFlowSetup-1.10.26-x64.exe",
+    "bytes": 105754438,
+    "sha256": "98c78de02c5f8562e1bc8f38712614cca75fde4d5270f7039f492b20498f4e75"
+  },
+  "launcherSha256": "eef7e330df8388949870fab9b43b0614cd31f3900305fedca460fee41916f8d5",
+  "assemblyVersion": "1.10.26.0",
+  "windowsNodeVersion": "22.23.3",
+  "toolVersions": {
+    "node": "v22.22.1",
+    "npm": "11.6.2",
+    "dotnet": "8.0.425",
+    "nsis": "v3.10-2"
+  },
+  "consoleBundle": {
+    "schemaVersion": 1,
+    "elf": {
+      "fileName": "PackageFlowService-PS5.elf",
+      "size": 4094576,
+      "sha256": "2e478b29ac7f62c21207155fcf6acdbb0a6531a29f05397f7ec9575a665559fe",
+      "version": "0.1.28-dev",
+      "buildId": "ps5-service-own-app-update-028b-sse2",
+      "firmware": "13.60"
+    },
+    "app": {
+      "fileName": "PPSA95001-01.000.044.ffpkg",
+      "size": 22020096,
+      "sha256": "7ecf378d3c49c30dfdbf6a692432cf2e276fd340ce98d6bf6b31c15e046b3612",
+      "name": "PackageFlow",
+      "titleId": "PPSA95001",
+      "contentId": "IV0000-PPSA95001_00-PACKAGEFLOWUI001",
+      "version": "01.000.044",
+      "format": "ufs2",
+      "buildId": "6c32b25"
+    },
+    "ps4": {
+      "fileName": "PackageFlowService-2.14.pkg",
+      "size": 6619136,
+      "sha256": "83995a02c90e8dc6fb775243f911573dc3e2b0acd390e0f3d2d591c1dc554abf",
+      "name": "PackageFlow",
+      "titleId": "PFLS00001",
+      "version": "2.14"
+    }
+  },
+  "consoleBundleUnchanged": true,
+  "companionInstallerAdded": false,
+  "checks": {
+    "check": true,
+    "eslintWarnings": 0,
+    "typeErrors": 0,
+    "prettier": true,
+    "profiledHostTests": 22,
+    "newAndRelatedHostTests": 19,
+    "hostTestsPassed": 41,
+    "hostTestsFailed": 0,
+    "hostTestsSkipped": 0,
+    "requiredNewTestFiles": [
+      "install-preview-refresh.test.mjs",
+      "ps5-catalog-base-presence.test.mjs",
+      "device-activity-cache.test.mjs"
+    ],
+    "coreTests": true,
+    "bundleCheck": true,
+    "payloadAudit": true,
+    "officialNodeChecksum": true,
+    "packagedHttpSmoke": true,
+    "packagedFeatureMarkers": true,
+    "browserFixtureRefresh": true,
+    "stableCardUnchangedFrom25": true,
+    "buildExitCode": 0
+  },
+  "packagedMarkers": {
+    "etaSlot": true,
+    "fixedPercentWidth": true,
+    "speedSlot": true,
+    "pickerRefreshFlag": true,
+    "serverFreshRefresh": true,
+    "catalogBase": true,
+    "pendingSharedCache": true,
+    "ttlAfterSettled": true,
+    "ps5Width1Ps4Width8": true,
+    "reviewToken": true,
+    "overwriteApproved": true,
+    "ps4ReinstallReview": true,
+    "backgroundPreserved": true
+  },
+  "packedWebAssets": [
+    {
+      "url": "/_nuxt/BUfLv5RN.js",
+      "status": 200,
+      "bytes": 3350,
+      "sha256": "22b079e7b37cf0544730b970e99e02ab619be879ae9b130607d783515d392d1a"
+    },
+    {
+      "url": "/_nuxt/DR0DQFJH.js",
+      "status": 200,
+      "bytes": 710464,
+      "sha256": "42290a2f4355d24ffcfa7e0bbc3ef1e7ac519d787686bf7b9ddd1e5077288cf1"
+    },
+    {
+      "url": "/_nuxt/MfamNO6N.js",
+      "status": 200,
+      "bytes": 9768,
+      "sha256": "0cfe9f91c3eb15268aaba8f79005e5e144b0b4a4800dec7a68aae637693f5095"
+    },
+    {
+      "url": "/_nuxt/entry.D6YZUJ0S.css",
+      "status": 200,
+      "bytes": 174515,
+      "sha256": "c2f85c6d7ce739163f41d3605633c4a7a57e9312b575178f1cf989dcd9585bb8"
+    }
+  ],
+  "delivery": {
+    "destinationRelativeToDownloads": "PackageFlow-admission-20261015/PackageFlowSetup-1.10.26-x64.exe",
+    "sizeAndSha256Verified": true,
+    "verifiedAtUtc": "2026-10-15T17:39:17.530671+00:00",
+    "installerExecuted": false,
+    "applicationRestarted": false,
+    "queueOperationsRun": false
+  },
+  "validationCommands": {
+    "check": "npm run check",
+    "profileTests": [
+      "node",
+      "--test",
+      "--test-concurrency=1",
+      "server/tests/transfer-speed.test.mjs",
+      "server/tests/ps5-transfer-profile.test.mjs",
+      "server/tests/ps4-speed.test.mjs",
+      "server/tests/library-selection.test.mjs",
+      "server/tests/task-controls.test.mjs",
+      "server/tests/task-removal.test.mjs",
+      "server/tests/task-attempt-history.test.mjs",
+      "server/tests/glass-workspaces.test.mjs",
+      "server/tests/device-install-modal.test.mjs",
+      "server/tests/device-installed-review.test.mjs",
+      "server/tests/device-installation.test.mjs",
+      "server/tests/ps5-install-readiness.test.mjs"
+    ],
+    "newAndRelatedTests": [
+      "node",
+      "--test",
+      "--test-concurrency=1",
+      "server/tests/install-preview-refresh.test.mjs",
+      "server/tests/ps5-catalog-base-presence.test.mjs",
+      "server/tests/device-activity-cache.test.mjs",
+      "server/tests/installed-package-check.test.mjs",
+      "server/tests/ps5-install-admission.test.mjs"
+    ],
+    "build": "bash packaging/windows/build.sh --version 1.10.26 --skip-install",
+    "payloadAudit": "node scripts/check-windows-payload.mjs dist/windows/payload 1.10.26"
+  },
+  "limits": "Host tests and synthetic browser fixture only; no Windows installation or console hardware validation. No queue, pairing, source, runtime or service changes.",
+  "liveWebCheckoutBuilt": false,
+  "gitIndexChanged": false,
+  "gitPushPerformed": false
+}
