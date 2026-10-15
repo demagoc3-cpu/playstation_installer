@@ -2,8 +2,8 @@
 import { installationTaskGroupKey, TASK_CATEGORIES, type TaskCategory, type InstallationTask, type InstallationTasksPage } from '#shared/types/tasks'
 const { t } = useAppLocale()
 interface Torrent { hash: string; name: string; state: string; progress: number }
-const props = defineProps<{ visible: boolean; consoleId?: string; platform?: 'ps4'|'ps5'; ip: string; torrents: Torrent[]; queueStatus: string; cancelling: boolean; maintenance?: { id: string; title: string; state: string; message: string } | null }>()
-const emit = defineEmits<{ changed: []; torrent: [hash: string, action: 'pause' | 'resume' | 'delete']; stop: []; resolve: [] }>()
+const props = defineProps<{ visible: boolean; consoleId?: string; platform?: 'ps4'|'ps5'; ip: string; category?:TaskCategory|'all'; torrents: Torrent[]; queueStatus: string; cancelling: boolean; maintenance?: { id: string; title: string; state: string; message: string } | null }>()
+const emit = defineEmits<{ changed: []; snapshot:[value:InstallationTasksPage]; torrent: [hash: string, action: 'pause' | 'resume' | 'delete']; stop: []; resolve: [] }>()
 const categories = ref<TaskCategory[]>([...TASK_CATEGORIES])
 const labels = { active: 'Активные', queued: 'В очереди', completed: 'Завершённые', failed: 'Ошибки и пропуски' }
 const data = ref<InstallationTasksPage>({ active: [], items: [], counts: { active: 0, queued: 0, completed: 0, failed: 0 }, page: 1, pages: 1, total: 0, unit: 'games' })
@@ -27,9 +27,11 @@ async function refresh() {
   try {
     const result = await $fetch<InstallationTasksPage>(props.consoleId ? '/api/consoles/tasks' : '/api/ps4/installation/tasks', { query: { consoleId:props.consoleId, ip: props.ip, page: page.value, categories: categories.value.join(','), view: view.value, history: showHistory.value }, signal: controller.signal })
     if (request !== generation) return
-    data.value = result; page.value = result.page
+    data.value = result; page.value = result.page; emit('snapshot',result)
   } catch (error: any) { if (request === generation && !controller?.signal.aborted) message.value = error?.data?.message || 'Не удалось обновить задания' }
 }
+watch(()=>props.category,value=>{if(value){categories.value=value==='all'?[...TASK_CATEGORIES]:[value]}},{immediate:true})
+async function pauseQueue(){if(props.platform!=='ps5'||!props.consoleId||!data.value.queueId||pending.value)return;pending.value='pause';message.value='';try{await $fetch('/api/consoles/tasks',{method:'POST',body:{action:'pause',consoleId:props.consoleId,queueId:data.value.queueId}});emit('changed');await refresh()}catch(error:any){message.value=error?.data?.message||'Не удалось приостановить очередь'}finally{pending.value=''}}
 function selectView(value: 'tree' | 'table') { if (view.value === value) return; view.value = value; page.value = 1; try { localStorage.setItem('packageflow-tasks-view', value) } catch { /* Session choice still applies. */ } void refresh() }
 function setAll(checked: boolean) { categories.value = checked ? [...TASK_CATEGORIES] : [] }
 watch(categories, () => { page.value = 1; void refresh() }, { deep: true })
@@ -44,6 +46,14 @@ async function confirmInstalled(task: InstallationTask) {
   try { await $fetch('/api/consoles/tasks',{method:'POST',body:{action:'confirm-installed',consoleId:props.consoleId,queueId:task.queueId,packageId:task.packageId,installed:true}}); emit('changed'); await refresh() }
   catch(error:any) {message.value=error?.data?.message || 'Не удалось подтвердить установку'}
   finally {pending.value=''}
+}
+async function stopWaiting(task: InstallationTask) {
+  if (pending.value || !props.consoleId || !task.canStopWaiting) return
+  if (!window.confirm(t('Снять ожидание результата? Очередь WEB продолжит работу. Результат установки на PS5 останется неподтверждённым.'))) return
+  pending.value = task.id; message.value = ''
+  try { await $fetch('/api/consoles/tasks', { method:'POST', body:{ action:'stop-waiting', consoleId:props.consoleId, queueId:task.queueId, packageId:task.packageId } }); emit('changed'); await refresh() }
+  catch (error:any) { message.value = error?.data?.message || 'Не удалось снять ожидание' }
+  finally { pending.value = '' }
 }
 async function cancel(task: InstallationTask) {
   if (pending.value) return
@@ -139,15 +149,15 @@ function go(value: number) { page.value = value; void refresh().then(() => { con
     <p v-if="message" class="task-message pf-notice" role="status">{{ t(message) }}</p>
     <div v-if="showMaintenance" class="maintenance-line" role="status"><strong>{{ t('Переустановка:') }} {{ maintenance?.title }}</strong><span>{{ t(maintenance?.message || '') }}</span><button v-if="data.maintenance?.canStop" :disabled="!!pending" @click="stopReinstall">{{ t('Остановить переустановку') }}</button></div>
     <section v-if="(categories.includes('active') && data.active.length) || activeTorrents.length" class="active-jobs" :aria-label="t('Активные задания')">
-      <InstallationTaskRow v-for="task in categories.includes('active') ? data.active : []" :key="task.id" :task="task" :busy="!!pending" @cancel="cancel" @confirm="confirmInstalled" @remove="removeTasks([$event])" />
+      <ActiveInstallationCard v-for="task in categories.includes('active') ? data.active : []" :key="task.id" :task="task" :busy="!!pending" :can-pause="platform==='ps5'&&task.transport==='service'&&queueStatus==='running'&&task.state==='sending'" @pause="pauseQueue" @cancel="cancel" @confirm="confirmInstalled" @stop-waiting="stopWaiting" @remove="removeTasks([$event])" />
       <article v-for="item in activeTorrents" :key="item.hash" class="torrent-job active"><div><strong>{{ item.name }}</strong><span>qBittorrent · {{ Math.round(item.progress * 100) }}%</span></div><progress :value="item.progress" max="1" /><button @click="torrentAction(item, 'pause')">{{ t('Остановить') }}</button><button @click="torrentAction(item, 'delete')">{{ t('Убрать задачу') }}</button></article>
     </section>
     <div class="task-filters"><label><input v-model="showHistory" type="checkbox"> {{ t('История попыток') }}</label><div class="task-views" :aria-label="t('Вид заданий')"><button :aria-pressed="view === 'tree'" @click="selectView('tree')">{{ t('Дерево') }}</button><button :aria-pressed="view === 'table'" @click="selectView('table')">{{ t('Таблица') }}</button></div><label><input type="checkbox" :checked="categories.length === TASK_CATEGORIES.length" :indeterminate="categories.length > 0 && categories.length < TASK_CATEGORIES.length" @change="setAll(($event.target as HTMLInputElement).checked)"> {{ t('Все') }}</label><label v-for="category in TASK_CATEGORIES" :key="category"><input v-model="categories" :value="category" type="checkbox"> {{ t(labels[category]) }} <small>{{ data.counts[category] + torrentCounts[category] }}</small></label></div>
     <div class="task-list" tabindex="0" :aria-label="t('Список заданий')">
       <template v-if="view === 'tree'">
-        <GameTreeBranch v-for="group in taskGroups" :key="group.key" :title="group.title" :title-id="group.titleId" :cover="group.icon ? `/api/packages/${group.icon}?asset=icon` : undefined" :count="group.items.length" :open="treeOpen(group)" @toggle="treeExpanded[group.key]=!treeOpen(group)"><template #actions><button v-if="group.items.some(task => task.canCancel)" :disabled="!!pending" @click="cancelBranch(group.items)">{{ t('Отменить ветку') }}</button><button v-if="group.items.some(task => task.canCancel || task.canDismiss)" :disabled="!!pending" @click="removeTasks(group.items,true)">{{ t('Убрать всю ветку') }}</button></template><InstallationTaskRow v-for="task in group.items" :key="task.id" :task="task" :busy="!!pending" @cancel="cancel" @confirm="confirmInstalled" @remove="removeTasks([$event])" /></GameTreeBranch>
+        <GameTreeBranch v-for="group in taskGroups" :key="group.key" :title="group.title" :title-id="group.titleId" :cover="group.icon ? `/api/packages/${group.icon}?asset=icon` : undefined" :count="group.items.length" :open="treeOpen(group)" @toggle="treeExpanded[group.key]=!treeOpen(group)"><template #actions><button v-if="group.items.some(task => task.canCancel)" :disabled="!!pending" @click="cancelBranch(group.items)">{{ t('Отменить ветку') }}</button><button v-if="group.items.some(task => task.canCancel || task.canDismiss)" :disabled="!!pending" @click="removeTasks(group.items,true)">{{ t('Убрать всю ветку') }}</button></template><InstallationTaskRow v-for="task in group.items" :key="task.id" :task="task" :busy="!!pending" @cancel="cancel" @confirm="confirmInstalled" @stop-waiting="stopWaiting" @remove="removeTasks([$event])" /></GameTreeBranch>
       </template>
-      <InstallationTaskTable v-else-if="data.items.length" :tasks="data.items" :busy="!!pending" @cancel="cancel" @confirm="confirmInstalled" @remove="removeTasks([$event])" />
+      <InstallationTaskTable v-else-if="data.items.length" :tasks="data.items" :busy="!!pending" @cancel="cancel" @confirm="confirmInstalled" @stop-waiting="stopWaiting" @remove="removeTasks([$event])" />
       <article v-for="item in otherTorrents" :key="item.hash" class="torrent-job"><div><strong>{{ item.name }}</strong><span>qBittorrent · {{ t(labels[torrentCategory(item)]) }} · {{ Math.round(item.progress * 100) }}%</span></div><button v-if="/paused|stopped/i.test(item.state)" @click="torrentAction(item, 'resume')">{{ t('Продолжить') }}</button><button @click="torrentAction(item, 'delete')">{{ t('Убрать задачу') }}</button></article>
       <p v-if="!data.items.length && !otherTorrents.length" class="task-empty">{{ t('В выбранных категориях заданий нет.') }}</p>
     </div>

@@ -5,6 +5,8 @@ const props = defineProps<{ results: SearchResult[]; busy: boolean; ready: boole
 const emit = defineEmits<{ download: [result: SearchResult, autoInstall: boolean]; loadMore: [] }>()
 const { t, formatLocale } = useAppLocale()
 const sort = ref('date')
+const display = ref<'table'|'grid'>('table'), sourceFilter = ref('')
+const sources = computed(()=>[...new Set(props.results.map(row=>row.indexer || 'Torznab'))].sort())
 const selected = ref<SearchResult | null>(null)
 const modal = ref<HTMLDialogElement>()
 const detailCache = reactive<Record<string, SearchDetails>>({})
@@ -20,7 +22,7 @@ let active = 0
 const failure = reactive<Record<string, string>>({})
 
 const details = computed(() => selected.value?.id ? detailCache[selected.value.id] : undefined)
-const sorted = computed(() => [...props.results].sort((a, b) => {
+const sorted = computed(() => props.results.filter(row=>!sourceFilter.value||(row.indexer||'Torznab')===sourceFilter.value).slice().sort((a, b) => {
   if (sort.value === 'date') return (Date.parse(b.published || '') || 0) - (Date.parse(a.published || '') || 0)
   if (sort.value === 'size') return a.size - b.size
   if (sort.value === 'title') return a.displayTitle.localeCompare(b.displayTitle, formatLocale.value)
@@ -123,21 +125,24 @@ watch(sorted, () => {
   }
   void observeCards()
 })
+watch(display,()=>{void observeCards()})
+watch(sources,items=>{if(sourceFilter.value&&!items.includes(sourceFilter.value))sourceFilter.value=''})
 onMounted(() => { void observeCards() })
 onBeforeUnmount(() => { stopped = true; cancelPreload(); generation++ })
 </script>
 
 <template>
   <div class="search-catalog" :aria-busy="busy">
-    <div v-if="results.length" class="catalog-toolbar">
+    <div class="catalog-toolbar">
       <p>{{ t('Результаты поиска') }} <span>{{ results.length }}<template v-if="total !== undefined"> / {{ total }}</template></span></p>
-      <label>{{ t('Сортировка') }} <select v-model="sort"><option value="date">{{ t('Сначала новые') }}</option><option value="seeders">{{ t('Сначала больше сидов') }}</option><option value="size">{{ t('Сначала меньше размер') }}</option><option value="title">{{ t('По названию') }}</option></select></label>
+      <div class="catalog-options"><select v-model="sourceFilter" :aria-label="t('Источник результатов')"><option value="">{{t('Все источники')}}</option><option v-for="source in sources" :key="source" :value="source">{{source}}</option></select><label>{{ t('Сортировка') }} <select v-model="sort"><option value="date">{{ t('Сначала новые') }}</option><option value="seeders">{{ t('Сначала больше сидов') }}</option><option value="size">{{ t('Сначала меньше размер') }}</option><option value="title">{{ t('По названию') }}</option></select></label><div class="glass-view-switch"><button :aria-pressed="display==='table'" :aria-label="t('Таблица')" @click="display='table'">☷</button><button :aria-pressed="display==='grid'" :aria-label="t('Сетка')" @click="display='grid'">▦</button></div></div>
     </div>
     <p v-if="busy" class="catalog-note" role="status">{{ t('Ищем раздачи в источнике…') }}</p>
     <p v-else-if="searched && !results.length" class="catalog-note">{{ t('По запросу ничего не найдено') }}</p>
     <p v-else-if="!results.length" class="catalog-note">{{ t('Найдите игру и откройте карточку, чтобы посмотреть состав раздачи.') }}</p>
-    <div ref="grid" class="result-grid">
-      <button v-for="result in sorted" :key="result.id || result.source" :data-result-id="result.id" type="button" class="result-card" @mouseenter="preload(result, true)" @focus="preload(result, true)" :disabled="busy" @click="open(result)">
+    <div ref="grid" :class="display==='grid'?'result-grid':'glass-table-wrap glass-surface'">
+    <table v-if="display==='table'" class="glass-table search-results-table" :class="{'is-empty':!sorted.length}"><thead><tr><th>{{t('Игра')}}</th><th>{{t('Платформа')}}</th><th>{{t('Размер')}}</th><th>{{t('Сиды / Пиры')}}</th><th>{{t('Источник')}}</th><th>{{t('Действия')}}</th></tr></thead><tbody><tr v-for="result in sorted" :key="result.id||result.source" :data-result-id="result.id" @mouseenter="preload(result)"><td><button class="search-result-title" :disabled="busy" @focus="preload(result)" @click="open(result)"><GlassArtwork :title="result.displayTitle" :cover="cover(result)"/><span><strong>{{result.displayTitle}}</strong><small>{{result.titleId||result.version||date(result.published)}}</small></span></button></td><td><ContentTags :platform="result.platform?.toLowerCase()" :formats="formats(result)"/></td><td class="numeric">{{bytes(result.size)}}</td><td class="numeric seeds">{{number(result.seeders)}} / {{number(result.leechers ?? result.peers)}}</td><td><span class="source-pill">{{result.indexer||'Torznab'}}</span></td><td><div class="row-actions"><button class="primary" :disabled="busy||!ready||!!pending" @click="emit('download',result,false)">↓ {{t(pending===result.source?'Добавляем…':'Скачать')}}</button><button :disabled="busy" :aria-label="`${t('Подробнее')}: ${result.displayTitle}`" @click="open(result)">···</button></div></td></tr><tr v-if="!sorted.length"><td colspan="6" class="glass-empty"><span class="empty-symbol" aria-hidden="true">⌕</span><strong>{{t(busy?'Ищем раздачи в источнике…':searched?'По запросу ничего не найдено':'Введите название игры')}}</strong><span>{{t('Найдите игру и откройте карточку, чтобы посмотреть состав раздачи.')}}</span></td></tr></tbody></table>
+      <button v-for="result in display==='grid'?sorted:[]" :key="result.id || result.source" :data-result-id="result.id" type="button" class="result-card" @mouseenter="preload(result, true)" @focus="preload(result, true)" :disabled="busy" @click="open(result)">
         <div class="result-art"><SearchCover :cover="cover(result)" :title="result.displayTitle" /><div class="cover-badges"><ContentTags :platform="result.platform?.toLowerCase()" :formats="formats(result)" /><span v-if="!formats(result).length" class="unknown-format">{{ t('Формат не указан') }}</span><span v-if="result.backport" class="backport">Backport</span></div><span class="open-hint">{{ t('Подробнее') }} ↗</span></div>
         <div class="result-info"><h3>{{ result.displayTitle }}</h3><p class="release-tags"><span v-if="result.version">v{{ result.version }}</span><span v-if="result.region">{{ result.region }}</span><span v-if="result.languages.length">{{ result.languages.map(label => t(label)).join(' / ') }}</span></p><div class="result-stats"><strong>{{ bytes(result.size) }}</strong><span class="seeds" :class="{ none: result.seeders === 0 }">↑ {{ number(result.seeders) }} {{ t('сидов') }}</span></div><div class="result-origin"><span>{{ result.indexer || 'Torznab' }}</span><time>{{ date(result.published) }}</time></div></div>
       </button>

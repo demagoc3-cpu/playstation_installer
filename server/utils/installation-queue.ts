@@ -11,13 +11,14 @@ import { claimConsoleWorker } from './console-worker-lock'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 
 import { writeJsonFile } from './json-store'
-import { blockPackageDelivery, getPackage, getLibraryPackages, getPackageDelivery, markPackageInstalled, readPackageIcon, readPackageMetadata, resetPackageDelivery } from './package-library'
+import { blockPackageDelivery, getPackage, getLibraryPackages, getPackageDelivery, isPackageTransferActive, markPackageInstalled, readPackageIcon, readPackageMetadata, resetPackageDelivery } from './package-library'
 import { sendPackage, startInstaller } from './ps4-installer'
 import { createHash, randomUUID } from 'node:crypto'
 import { serviceArtifact } from './service-updates'
 import { createError } from 'h3'
 import { installationTransport, serviceJobDetail } from './installation-transport'
 import { getInstallationPreference } from './installation-preference'
+import { getPs4InstallSettings } from './ps4-install-settings'
 import { checkPs4InstallSpace, installSpaceMessage } from './installation-space'
 import { checkPs4InstalledPackage } from './installed-package-check'
 import { assessPackageFirmware, checkPs4Firmware } from './installation-firmware'
@@ -82,8 +83,8 @@ const runnerKey = () => currentConsoleIp() || 'legacy'
 
 const blankQueue = (): InstallationQueue => ({ version: 1, status: 'idle', items: [] })
 
-// Only the verified service installer can operate without the service it installs.
-// Ordinary PyLoader game queues still require live installed/firmware checks.
+// The bootstrap artifact retains its independent identity/integrity check.
+// Ordinary PyLoader queues do not require PackageFlowService.
 function isServiceBootstrap(queue: InstallationQueue, pkg: ReturnType<typeof getPackage>) {
   if (!queue.bootstrapArtifactId) return false
   const artifact = serviceArtifact(queue.bootstrapArtifactId)
@@ -321,13 +322,24 @@ async function runQueue(releaseWorker: () => void) {
       }
 
       queue.currentIndex = index
+      // Async admission checks re-read the durable queue. Preserve the selected
+      // index so an early sender failure cannot leave a "sending" ghost item.
+      writeQueue(queue)
       let item = queue.items[index]!
-      const packageInfo = getPackage(item.packageId)
+      let packageInfo: ReturnType<typeof getPackage>
+      try { packageInfo = getPackage(item.packageId) }
+      catch (error: any) {
+        // A missing, never-dispatched source cannot have started an installation.
+        if (queue.bootstrapArtifactId || item.dispatchedAt || item.serviceDispatchedAt) throw error
+        item.state = 'failed'; item.completedAt = Date.now()
+        item.detail = error?.message || 'Исходный PKG недоступен'
+        writeQueue(queue); continue
+      }
       const bootstrap = !!queue.bootstrapArtifactId
       if (bootstrap && !item.dispatchedAt) isServiceBootstrap(queue, packageInfo)
 
-      if (!bootstrap && !item.serviceDispatchedAt && !item.dispatchedAt && !item.cancelRequested) {
-        const present = await checkPs4InstalledPackage(queue.psIp, packageInfo, queue.transport === 'payload')
+      if (queue.transport === 'service' && !bootstrap && !item.serviceDispatchedAt && !item.dispatchedAt && !item.cancelRequested) {
+        const present = await checkPs4InstalledPackage(queue.psIp, packageInfo)
         const checked = stillCurrent(queue, index); if (!checked) return
         queue = checked; item = queue.items[index]!
         if (item.cancelRequested) continue
@@ -345,6 +357,7 @@ async function runQueue(releaseWorker: () => void) {
       }
 
       if (queue.transport === 'service') {
+        let dispatchAttempt = false
         try {
           if (item.cancelRequested) {
             if (!item.serviceDispatchedAt || !item.requestId) {
@@ -368,11 +381,12 @@ async function runQueue(releaseWorker: () => void) {
               if (!capability.ready) throw createError({ statusCode: 503, message: capability.message })
               if (!capability.contentTypes.includes('PS4GDE')) throw createError({ statusCode: 409, message: 'Для установки приложений PS4GDE обновите PackageFlowService до PKG 1.69 или новее' })
             }
-            // Old library indexes predate firmware fields; read the original PKG
-            // before dispatch so a stale cache cannot bypass the check.
-            const metadata = packageInfo.requiredFirmware || packageInfo.sdkFirmware ? packageInfo
+            // The optional requirements check can read older library metadata.
+            // Disabled means no PKG re-read or firmware request before sending.
+            const verifyPkg = getPs4InstallSettings().verifyPkgBeforeSend
+            const metadata = !verifyPkg || packageInfo.requiredFirmware || packageInfo.sdkFirmware ? packageInfo
               : await readPackageMetadata(packageInfo.path, packageInfo.fileName).catch(() => packageInfo)
-            const firmware = await checkPs4Firmware(queue.psIp, metadata)
+            const firmware = verifyPkg ? await checkPs4Firmware(queue.psIp, metadata) : { state: 'compatible', detail: '' }
             const checked = stillCurrent(queue, index); if (!checked) return
             queue = checked; item = queue.items[index]!
             if (item.cancelRequested) continue
@@ -424,6 +438,7 @@ async function runQueue(releaseWorker: () => void) {
             beforeDispatch.items[index]!.serviceDispatchedAt = Date.now()
             beforeDispatch.items[index]!.dispatchedAt = Date.now()
             writeQueue(beforeDispatch)
+            dispatchAttempt = true
             job = await submitServicePackage(queue.psIp, { requestId: item.requestId, titleId: packageInfo.titleId, contentId: packageInfo.contentId,
               title: packageInfo.title, url: item.url, contentType: packageInfo.contentType, size: packageInfo.size })
           } else {
@@ -495,9 +510,18 @@ async function runQueue(releaseWorker: () => void) {
             logEvent('warn', `PackageFlowService пропустил «${packageInfo.title}»: ${current.detail}. Очередь продолжена.`)
             continue
           }
+          if (dispatchAttempt && [400,422].includes(error?.statusCode) && updated.status === 'running') {
+            current.state = 'failed'; current.completedAt = Date.now()
+            current.detail = error.message; updated.message = current.detail
+            writeQueue(updated)
+            logEvent('warn', `PackageFlowService отклонил «${packageInfo.title}»: ${current.detail}. Очередь продолжена.`)
+            continue
+          }
           // Other explicit rejections stop the queue. Connection/5xx errors
           // may have occurred after acceptance, so keep observing the same ID.
-          const rejected = error?.statusCode >= 400 && error.statusCode < 500
+          // Only explicit package rejection at POST proves it wasn't accepted.
+          // A missing receipt during later GETs remains ambiguous, as does 5xx.
+          const rejected = error?.statusCode >= 400 && error.statusCode < 500 && (dispatchAttempt || !current.serviceDispatchedAt || [401,403].includes(error.statusCode))
           current.state = rejected ? 'failed' : 'verifying'
           current.detail = error?.statusCode ? error.message : 'Связь с сервисом потеряна; проверяем прежнее задание без повторной отправки'
           updated.message = current.detail
@@ -509,12 +533,16 @@ async function runQueue(releaseWorker: () => void) {
       }
 
       if (item.state === 'pending' || item.state === 'sending') {
-        // The alternate sender must not bypass the firmware admission check.
-        const metadata = packageInfo.requiredFirmware || packageInfo.sdkFirmware ? packageInfo
-          : await readPackageMetadata(packageInfo.path, packageInfo.fileName).catch(() => packageInfo)
-        // No console version is invented: this exception accepts only our
-        // verified homebrew with zero firmware requirements in PARAM/SFO.
-        const firmware = bootstrap ? assessPackageFirmware('0.00', metadata) : await checkPs4Firmware(queue.psIp, metadata)
+        // PyLoader exposes neither firmware nor installed inventory. Never call
+        // PackageFlowService for this transport, even when a service key exists.
+        const metadata = getPs4InstallSettings().verifyPkgBeforeSend && !bootstrap
+          ? packageInfo.requiredFirmware || packageInfo.sdkFirmware ? packageInfo
+            : await readPackageMetadata(packageInfo.path, packageInfo.fileName).catch(() => packageInfo)
+          : packageInfo
+        const savedFirmware = readJsonFile<{ consoles?: Array<{ ip: string; firmware?: string }> }>(dataPath('console-profiles.json'), {}).consoles?.find(profile => profile.ip === queue.psIp)?.firmware
+        const firmware = bootstrap ? assessPackageFirmware('0.00', metadata)
+          : getPs4InstallSettings().verifyPkgBeforeSend && savedFirmware ? assessPackageFirmware(savedFirmware, metadata)
+            : { state: 'compatible', detail: '' }
         const checked = stillCurrent(queue, index); if (!checked) return
         queue = checked; item = queue.items[index]!
         if (item.cancelRequested) continue
@@ -569,7 +597,14 @@ async function runQueue(releaseWorker: () => void) {
         item.detail = `PS4 получила ${formatBytes(Math.min(item.bytesSent, delivery.requiredSize))} из ${formatBytes(delivery.requiredSize)}`
         writeQueue(queue)
       } else if (delivery.requests > 0) {
-        // The console fetched the manifest/package but no bytes have streamed yet: keep waiting.
+        // A rejected BGFT job can request only the manifest/HEAD and never
+        // fetch body bytes. Don't let that empty observation hold the tail forever.
+        if (delivery.lastActivityAt && Date.now() - delivery.lastActivityAt >= 30_000 && !isPackageTransferActive(item.packageId)) {
+          item.state = 'unconfirmed'; item.completedAt = Date.now()
+          item.detail = 'PS4 запросила сведения о пакете, но скачивание не началось. Итог не подтверждён; очередь продолжена'
+          writeQueue(queue); continue
+        }
+        // An active or recent request may still be opening a slow source.
         if (item.detail !== 'PS4 запросила пакет, начинает скачивание…') { item.detail = 'PS4 запросила пакет, начинает скачивание…'; writeQueue(queue) }
       } else if (item.dispatchedAt && Date.now() - item.dispatchedAt >= UNCONFIRMED_AFTER_MS) {
         logEvent('warn', `PS4 не запросила «${packageInfo.title}» за 20 с — результат не подтверждён`)

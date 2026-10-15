@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { parse, compileScript } from '@vue/compiler-sfc'
 import { build } from 'esbuild'
@@ -32,7 +32,7 @@ test('PS5 save view lists saves independently of backup errors and can clear gam
       const onMounted=()=>{},onBeforeUnmount=()=>{};
       export {reactive,nextTick};\n${script}`
     const outfile = join(work, 'view.cjs')
-    await build({ stdin: { contents, loader: 'ts', resolveDir: process.cwd() }, outfile, bundle: true, platform: 'node', format: 'cjs', logLevel: 'silent' })
+    await build({ stdin: { contents, loader: 'ts', resolveDir: process.cwd() }, outfile, alias:{'#shared':resolve('shared')}, bundle: true, platform: 'node', format: 'cjs', logLevel: 'silent' })
     const module = createRequire(import.meta.url)(outfile)
     const props = module.reactive({ consoleId: 'selected-ps5', focusTitleId: 'PPSA99999' })
     const view = module.default.setup(props, { expose() {} })

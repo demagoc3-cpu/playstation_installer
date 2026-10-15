@@ -24,11 +24,21 @@ internal static class WebRuntimeTests
             if(anonymous.StatusCode!=HttpStatusCode.NotFound)throw new Exception("Windows setup API is available without the launcher key.");
             if(File.Exists(Path.Combine(AppContext.BaseDirectory,"console-setup","manifest.json"))) {
                 var manifest=System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(folder,"data","web","console-setup","manifest.json")))!;
-                if(manifest["app"]?["version"]?.GetValue<string>()!="01.000.041")throw new Exception("PS5 application bundle was not staged.");
+                var bundled=System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory,"console-setup","manifest.json")))!;
+                if(manifest["app"]?["sha256"]?.GetValue<string>()!=bundled["app"]?["sha256"]?.GetValue<string>())throw new Exception("PS5 application bundle was not staged.");
                 var artifact=await host.Api("/api/desktop/ps4-setup-artifact",new{},lifetime.Token);
-                if(artifact["version"]?.GetValue<string>()!="2.05"||artifact["sha256"]?.GetValue<string>()!=manifest["ps4"]?["sha256"]?.GetValue<string>())throw new Exception("PS4 bundled package was not verified and staged.");
+                if(artifact["version"]?.GetValue<string>()!=manifest["ps4"]?["version"]?.GetValue<string>()||artifact["sha256"]?.GetValue<string>()!=manifest["ps4"]?["sha256"]?.GetValue<string>())throw new Exception("PS4 bundled package was not verified and staged.");
+                var elfRelease=System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(folder,"data","web","ps5-service-updates","release.json")))!;
+                if(elfRelease["sha256"]?.GetValue<string>()!=bundled["elf"]?["sha256"]?.GetValue<string>())throw new Exception("PS5 ELF update release was not staged.");
             }
-            await host.Stop(lifetime.Token);
+            if (Directory.Exists(Path.Combine(folder,"components"))) throw new Exception("Fresh WEB-only setup unexpectedly installed torrent components.");
+            var ledger=Path.Combine(folder,"data","web","installation-queue.json");
+            File.WriteAllText(ledger,"{\"status\":\"running\",\"items\":[]}");
+            var refused=false;
+            try { await host.Stop(lifetime.Token); } catch(InvalidOperationException) { refused=true; }
+            if(!refused || !host.Started)throw new Exception("Unconfirmed stop interrupted an active job.");
+            await host.StopAfterConfirmation(lifetime.Token);
+            if(host.Started)throw new Exception("Explicitly confirmed stop did not stop WEB.");
             File.WriteAllText(report,"PASS: packaged Windows Node + WEB starts with isolated data, new PS4/PS5 catalog, launcher authorization and orderly shutdown.\n");
         }
         finally { if(host.Started)await host.Stop(CancellationToken.None);if(Directory.Exists(folder))Directory.Delete(folder,true); }

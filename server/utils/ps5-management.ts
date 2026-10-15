@@ -40,7 +40,7 @@ async function response(id: string, route: Parameters<typeof ps5OperationRequest
 export async function managementStatus(id: unknown) {
   const p = profile(id), v = await response(p.id, '/api/v1/management/status')
   if (v?.protocol !== 'ps5-management-v1') throw fail('Неизвестный протокол службы PS5')
-  return { consoleId: p.id, ready: v.ready === true, catalog: v.catalog === true, savesList: v.savesList === true, savesBackup: v.savesBackup === true, savesRestore: v.savesRestore === true, consoleGames: v.consoleGames === true, consoleControl: v.consoleControl === true, consoleUnpack: v.consoleUnpack === true, consoleActivity: v.consoleActivity === true }
+  return { consoleId: p.id, ready: v.ready === true, catalog: v.catalog === true, savesList: v.savesList === true, savesBackup: v.savesBackup === true, savesRestore: v.savesRestore === true, consoleGames: v.consoleGames === true, consoleControl: v.consoleControl === true, consoleSourceControl: v.consoleSourceControl === undefined ? v.consoleControl === true : v.consoleSourceControl === true, consoleUnpack: v.consoleUnpack === true, consoleActivity: v.consoleActivity === true }
 }
 async function ready(id: string, operation: 'catalog' | 'savesList' | 'savesBackup' | 'savesRestore') { const v = await managementStatus(id); if (!v.ready || !v[operation]) throw fail('Эта возможность службы PS5 ещё не подтверждена испытанием'); return v }
 function names(id: string) { const p = profile(id); return getLibraryPackages(p.ip) }

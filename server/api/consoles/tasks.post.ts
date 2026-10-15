@@ -1,5 +1,5 @@
 import { getConsoleProfile } from '../../utils/console-profiles'
-import { pausePs5Queue, resumePs5Queue, cancelPs5Queue, clearPs5Tasks, confirmPs5Installation, removePs5Tasks } from '../../utils/ps5-installation-queue'
+import { pausePs5Queue, resumePs5Queue, cancelPs5Queue, clearPs5Tasks, confirmPs5Installation, removePs5Tasks, stopPs5Waiting } from '../../utils/ps5-installation-queue'
 import { assertInstallationOrigin } from '../../utils/installation-origin'
 import { getInstallationQueue, cancelInstallationQueue, cancelInstallationItems, cancelGameInstallations, resolveCancelledQueue, resumeInstallationQueue } from '../../utils/installation-queue'
 import { clearFinishedTasks, removeInstallationTasks } from '../../utils/task-visibility'
@@ -28,6 +28,10 @@ export default defineEventHandler(async event => {
     return cancelInstallationQueue(p.ip)
   }
   if (['pause','resume'].includes(b.action) && typeof b.queueId === 'string') return b.action === 'pause' ? pausePs5Queue(p.id,b.queueId) : resumePs5Queue(p.id,b.queueId)
+  if (b.action === 'stop-waiting') {
+    if (typeof b.queueId !== 'string' || typeof b.packageId !== 'string') throw createError({ statusCode: 400, message: 'Выберите неподтверждённое задание' })
+    return stopPs5Waiting(p.id, b.queueId, b.packageId)
+  }
   if (b.action === 'confirm-installed') {
     if (typeof b.queueId !== 'string' || typeof b.packageId !== 'string' || b.installed !== true) throw createError({statusCode:400,message:'Подтвердите установку выбранного пакета'})
     return confirmPs5Installation(p.id,b.queueId,b.packageId)

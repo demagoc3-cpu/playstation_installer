@@ -19,7 +19,8 @@ test('PS4 suffix URLs serve real manifest/HEAD/ranges and preserve recipient iso
     const bytes = Buffer.alloc(2 * 1024 * 1024); for (let i = 0; i < bytes.length; i++) bytes[i] = i % 251
     const source = join(work, 'Own test.pkg'); writeFileSync(source, bytes)
     const base = { id: 'own', platform: 'ps4', format: 'pkg', title: 'Own test', titleId: 'CUSA95001', contentId: 'IV0000-CUSA95001_00-PACKAGEFLOWUI001', contentType: 'PS4GD', size: bytes.length, type: 'Игра', fileName: 'Own test.pkg', path: source, packageDigest: 'AB'.repeat(32), iconSize: 0, icon: { offset: 0, size: 0 } }
-    writeFileSync(join(process.env.PACKAGEFLOW_DATA_DIR, 'package-library.json'), JSON.stringify({ version: 2, packages: [base, { ...base, id: 'ps5', platform: 'ps5' }], deliveries: {} }))
+    const small=join(work,'small.pkg');writeFileSync(small,bytes.subarray(0,32768))
+    writeFileSync(join(process.env.PACKAGEFLOW_DATA_DIR, 'package-library.json'), JSON.stringify({ version: 2, packages: [base, { ...base, id: 'ps5', platform: 'ps5' },{...base,id:'small',size:32768,path:small,packageDigest:'CD'.repeat(32)}], deliveries: {} }))
     // Selecting PS5 in the browser must not change PS4 callback ownership.
     writeFileSync(join(process.env.PACKAGEFLOW_DATA_DIR, 'console-profiles.json'), JSON.stringify({ activeId: 'five', consoles: [{ id: 'five', ip: '192.168.0.127', platform: 'ps5' }] }))
     const bundle = join(work, 'routes.mjs')
@@ -71,6 +72,15 @@ test('PS4 suffix URLs serve real manifest/HEAD/ranges and preserve recipient iso
     assert.equal((await fetch(`${origin}/ps4/manifest/10.1.10.33/ps5.json`)).status, 400)
     assert.equal((await fetch(`${origin}/ps4/package/10.1.10.33/ps5.pkg`)).status, 400)
     const legacy = await fetch(`${origin}/json/own.json?console=10.1.10.33`); assert.equal(legacy.status, 200); assert.equal((await legacy.json()).pieces[0].url, `${origin}/ps4/package/10.1.10.33/own.pkg`)
+    const smallUrl=`${origin}/ps4/package/10.1.10.35/small.pkg`
+    const tail=await fetch(smallUrl,{headers:{Range:'bytes=-16'}});await tail.arrayBuffer()
+    assert.equal(api.inConsoleScope('10.1.10.35',()=>api.getPackageDelivery('small')).completedAt,undefined,'tiny PKG tail probe must not dispatch its successor')
+    const header=await fetch(smallUrl,{headers:{Range:'bytes=0-4095'}});await header.arrayBuffer()
+    assert.equal(api.inConsoleScope('10.1.10.35',()=>api.getPackageDelivery('small')).completedAt,undefined,'header plus tail still lacks the middle of the small PKG')
+    const body=await fetch(smallUrl,{headers:{Range:'bytes=4096-32751'}});await body.arrayBuffer()
+    await new Promise(resolve=>setTimeout(resolve,20))
+    const delivered=api.inConsoleScope('10.1.10.35',()=>api.getPackageDelivery('small'))
+    assert.equal(delivered.bytesSent,32768);assert.ok(delivered.completedAt);assert.equal(delivered.partial,undefined)
   } finally {
     if (server) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) }
     for (const [key, descriptor] of globals) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key] }

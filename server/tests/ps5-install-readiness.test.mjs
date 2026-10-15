@@ -67,7 +67,7 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
     profiles = (await api.probeConsoleProfile(ps5.id)).consoles
     assert.equal(profiles[1].capabilities.installation.ready, false, 'global flags do not bypass route readiness')
     assert.deepEqual(profiles[1].capabilities.formats, [])
-    assert.match(api.deviceInstallReason(profiles[1], [indexed], 64), /не запущен/)
+    assert.equal(api.deviceInstallReason(profiles[1], [indexed], 64), '', 'qualified PKG admission allows choosing the console while the worker independently waits for readiness')
     const item = { ...indexed, packageId: indexed.id, transferId: 'c'.repeat(32), state: 'pending', detail: '', bytesSent: 0, branch: 'own', order: 0 }
     const driver = api.ps5QueueDriver(ps5.id), signal = new AbortController().signal
     calls.length = 0

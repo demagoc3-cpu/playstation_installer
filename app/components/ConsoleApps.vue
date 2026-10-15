@@ -146,7 +146,7 @@ onBeforeUnmount(() => { generation++; clearTimeout(timer); clearInterval(runtime
 
 <template>
   <div class="console-apps">
-    <header><div><p class="eyebrow">PLAYSTATION 4</p><h1>{{ t("На консоли") }}</h1><p>{{ t("Установленные игры, патчи / бэкпорты и DLC на") }} {{ ip }}.</p></div><button :disabled="loading" @click="refresh">{{ t(loading ? 'Читаем PS4…' : 'Обновить список') }}</button></header>
+    <header><div><p class="eyebrow">PLAYSTATION 4</p><h1>{{ t("На консоли") }}</h1><p>{{ t("Установленные игры, патчи / бэкпорты и DLC на") }} {{ ip }}.</p></div><button :disabled="loading" @click="refresh">{{ t(loading ? 'Читаем PS4…' : 'Обновить список') }}</button></header><slot name="target"/>
     <nav class="console-tabs"><button :class="{chosen:consoleTab==='ready'}" @click="consoleTab='ready'">◈ {{t("Готово к запуску")}}</button><button :class="{chosen:consoleTab==='files'}" @click="consoleTab='files'">▤ {{t("Файлы игр")}}</button></nav>
     <ConsoleFiles v-if="consoleTab==='files'" :ps-ip="targetIp" />
     <div v-if="message" class="notice notice-row" role="alert"><span>{{ t(message) }}</span><button class="dismiss" type="button" :aria-label="t(&quot;Скрыть уведомление&quot;)" @click="message = ''">×</button></div>

@@ -22,6 +22,14 @@ test('active, lost and unconfirmed attempts never authorize a duplicate', async 
     assert.equal(await desktopAppRetryState(attempt, async () => {assert.fail('must reconcile the old attempt first')}), !attempt || attempt.state==='unconfirmed' ? 'unconfirmed':'active')
   }
 })
+test('same version is current only after verified registration of the exact bundled bytes',async()=>{
+ const revision={recordedSha256:'a'.repeat(64),targetSha256:'a'.repeat(64)},read=async()=>({state:'installed',detail:''})
+ const installed={state:'installed',confirmation:'service-registration'}
+ assert.equal(await desktopAppRetryState(installed,read,revision),'installed')
+ for(const attempt of [{state:'failed'},{state:'installed'},{...installed,alreadyPresent:true}])assert.equal(await desktopAppRetryState(attempt,read,revision),'different-build')
+ assert.equal(await desktopAppRetryState(installed,read,{...revision,targetSha256:'b'.repeat(64)}),'different-build')
+ assert.equal(await desktopAppRetryState({state:'unconfirmed'},async()=>assert.fail(),revision),'unconfirmed')
+})
 test('terminal failure still needs live absence; unreachable and other versions cannot be reinstalled blindly', async () => {
   for (const state of ['failed','cancelled','skipped']) {
     for (const [live,expected] of [['absent','absent'],['installed','installed'],['unavailable','unavailable'],['base-present','different-version']]) {

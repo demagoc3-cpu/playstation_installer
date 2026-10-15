@@ -24,7 +24,7 @@ async function closeApp() {
  finally{if(request===generation)busy.value=false}
 }
 async function install() {
-  if (!info.value?.release || !window.confirm(t('Обновить фоновую службу PS5? Интерфейс PackageFlow закроется, сопряжение сохранится.'))) return
+  if (!info.value?.release || !info.value?.updateAvailable || !window.confirm(t('Обновить фоновую службу PS5? Интерфейс PackageFlow закроется, сопряжение сохранится.'))) return
   const request = generation; busy.value = true; message.value = ''
   try { const value = await $fetch('/api/consoles/service-update', { method: 'POST', body: { consoleId: props.consoleId } }); if (request === generation) info.value = value }
   catch (error: any) { if (request === generation) { message.value = error?.data?.message || 'Нет ответа от WEB'; await refresh() } }
@@ -37,9 +37,9 @@ onBeforeUnmount(() => { generation++; clearInterval(timer) })
 <template>
 <section class="updates">
 <p>{{ name }} · PS5 {{ ip }}</p><h2>{{ t('Обновление PackageFlowService') }}</h2>
-<p>{{ t('Сервис') }} {{ info?.current || '—' }}</p>
+<p>{{ t('Сервис') }} {{ info?.current || '—' }}<template v-if="info?.currentBuildId"> · {{ info.currentBuildId }}</template></p>
 <p>{{ t(info?.message || 'Подождите…') }}</p>
-<template v-if="info?.release"><p>{{ t('Доступная версия') }}: {{ info.release.version }}</p><button :disabled="busy || inProgress || info.flow?.state==='unconfirmed'" @click="install">{{ t('Обновить сервис') }}</button></template>
+<template v-if="info?.release"><p>{{ t('Доступная версия') }}: {{ info.release.version }} · {{ info.release.buildId }}</p><button :disabled="busy || inProgress || !info.updateAvailable || info.flow?.state==='unconfirmed'" @click="install">{{ t('Обновить сервис') }}</button></template>
 <p v-if="app?.release">{{ t('Приложение') }} {{ app.release.version }} · {{ t(app.message) }}</p>
 <button :disabled="busy || inProgress || !app?.available || !app?.release || app?.running || ['intent','accepted','unconfirmed'].includes(app?.flow?.state)" @click="launch">{{ t('Запустить PackageFlow') }}</button>
 <button :disabled="busy || inProgress || !app?.canStop || !app?.release || stop?.flow && ['intent','accepted','unconfirmed'].includes(stop.flow.state)" @click="closeApp">{{ t('Закрыть PackageFlow') }}</button>
@@ -47,6 +47,7 @@ onBeforeUnmount(() => { generation++; clearInterval(timer) })
 <button :disabled="busy" @click="refresh">{{ t('Проверить результат') }}</button>
 <p v-if="info?.flow" aria-live="polite">{{ t(info.flow.message) }}</p><p v-if="message" role="alert">{{ t(message) }}</p>
 </section>
+<Ps5AppUpdates :key="`${consoleId}:${info?.currentBuildId || ''}`" :console-id="consoleId" />
 </template>
 <style scoped>
 .updates{padding:16px;border:1px solid #343039;border-radius:10px;background:#1b1a1f}h2{font-size:16px}p{font-size:12px;color:#aaa3b7;line-height:1.7}button{padding:10px 14px;margin:4px;background:#302a3b;color:#d8caed;border:1px solid #514360;border-radius:7px;cursor:pointer}button:disabled{opacity:.4;cursor:default}

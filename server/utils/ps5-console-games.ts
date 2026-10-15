@@ -1,3 +1,4 @@
+import { preparePs5GameLaunch } from './ps5-launch-preparation'
 import { assertNoConsoleSpeedTest } from './console-speed-lock'
 import { createError } from 'h3'
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
@@ -25,14 +26,23 @@ export function normalizePs5Game(row:any){
 }
 export async function ps5ConsoleGames(id:unknown){
   const p=profile(id),capabilities=await managementStatus(p.id),library=getLibraryPackages(p.ip)
-  if(!capabilities.consoleGames){const value=await consoleCatalog(p.id);return{...value,capabilities,entries:value.entries.map(row=>({...row,installed:true,sourceType:'unknown',format:'',canUninstall:false,canManageSource:false,sourceAvailable:false,cover:row.cover||`/api/ps5/management/icon?consoleId=${encodeURIComponent(p.id)}&titleId=${row.titleId}`}))}}
   const entries:any[]=[];let offset=0,revision:string|undefined,total:number|undefined;const seen=new Set<string>()
   for(let page=0;page<513;page++){
-    const v=await result(p.id,'/api/v1/console/games',{'X-PackageFlow-Offset':String(offset)})
+    // Reading a complete catalog does not grant launch/storage permissions.
+    // Losing a private qualification marker must not hide existing sources.
+    const reply=await ps5OperationRequest(p.id,'/api/v1/console/games',{'X-PackageFlow-Offset':String(offset)})
+    if(reply.status!==200){
+      if(!capabilities.consoleGames&&page===0&&[404,405,410,503].includes(reply.status)){
+        const value=await consoleCatalog(p.id)
+        return{...value,capabilities:{...capabilities,consoleSourcesRead:false},sourceMessage:reply.status===503?'Чтение папок и образов сейчас недоступно. Обновите список после восстановления связи.':'Для чтения исходных папок и образов нужна обновлённая служба PS5.',entries:value.entries.map(row=>({...row,installed:true,sourceType:'unknown',format:'',canUninstall:false,canManageSource:false,sourceAvailable:false,cover:row.cover||`/api/ps5/management/icon?consoleId=${encodeURIComponent(p.id)}&titleId=${row.titleId}`}))}
+      }
+      throw fail(`PS5 отклонила чтение списка игр (${reply.status}). Обновите список.`)
+    }
+    const v=reply.body
     if(!/^[a-f0-9]{64}$/.test(v.revision)||revision!==undefined&&revision!==v.revision||!Number.isSafeInteger(v.total)||v.total<0||v.total>4096||total!==undefined&&total!==v.total||!Array.isArray(v.entries)||v.entries.length>8||v.next!==offset+v.entries.length||v.next>v.total||v.done!==(v.next===v.total)||!v.done&&!v.entries.length)throw fail('Список игр изменился; обновите его')
     revision=v.revision;total=v.total
     for(const raw of v.entries){const row=normalizePs5Game(raw);if(seen.has(row.titleId))throw fail('Повторная запись игры');seen.add(row.titleId);const item=library.find(item=>item.titleId===row.titleId&&item.type==='Игра');entries.push({...row,title:raw.title_name||item?.title||row.titleId,cover:item?.iconSize?`/api/packages/${item.id}?asset=icon`:`/api/ps5/management/icon?consoleId=${encodeURIComponent(p.id)}&titleId=${row.titleId}`})}
-    offset=v.next;if(v.done)return{consoleId:p.id,complete:true,capabilities,entries}
+    offset=v.next;if(v.done)return{consoleId:p.id,complete:true,capabilities:{...capabilities,consoleSourcesRead:true},entries}
   }
   throw fail('Неполный список игр PS5')
 }
@@ -47,7 +57,7 @@ function idle(p:ReturnType<typeof profile>,action:Ps5GameAction){assertNoPs5Serv
     // Only launch/stop may run during that review; storage mutations remain blocked.
     return !(['launch','stop'].includes(action)&&j.state==='pending'&&j.sourceIp===p.ip&&j.receipt?.state==='pending'&&j.receipt.requestId===j.id&&j.receipt.titleId===j.target?.titleId&&j.receipt.userId===j.target?.userId&&j.receipt.kind===j.target?.kind)
   }catch{return true}}))throw fail('Сначала завершите восстановление сохранения или откатите его')}
-export async function ps5ConsoleGameCommand(id:unknown,input:any){
+export async function ps5ConsoleGameCommand(id:unknown,input:any,internal?:{bundledPackageFlowUpdate:true}){
  assertNoConsoleSpeedTest(String(id))
   let intentWritten=false
   try{
@@ -60,18 +70,32 @@ export async function ps5ConsoleGameCommand(id:unknown,input:any){
   const binding={consoleId:p.id,sourceIp:p.ip,titleId,action,sourceIdentity:input.sourceIdentity,destination,expectedAppId}
   const path=jobPath(requestId)
   if(existsSync(path)){intentWritten=true;const old=JSON.parse(readFileSync(path,'utf8'));if(Object.keys(binding).some(k=>(k==='expectedAppId'?(old[k]??0):old[k])!==binding[k as keyof typeof binding]))throw fail('Номер команды относится к другой операции');return ps5ConsoleGameCommandStatus(p.id,requestId)}
-  const capabilities=await managementStatus(p.id);if(!capabilities.consoleControl)throw fail('Управление играми ещё не подтверждено испытанием службы PS5');if(action==='unpack'&&!capabilities.consoleUnpack)throw fail('Распаковка образов на этой PS5 ещё не подтверждена; исходный образ сохранён');idle(p,action)
+  const bundledUpdate=internal?.bundledPackageFlowUpdate===true&&titleId==='PPSA95001'&&['stop','delete','uninstall'].includes(action)
+  const capabilities=await managementStatus(p.id);if(!capabilities.consoleControl)throw fail('Управление играми ещё не подтверждено испытанием службы PS5');if(!['launch','stop'].includes(action)&&capabilities.consoleSourceControl===false&&!bundledUpdate)throw fail('Изменение исходных файлов ещё не подтверждено испытанием службы PS5');if(action==='unpack'&&!capabilities.consoleUnpack)throw fail('Распаковка образов на этой PS5 ещё не подтверждена; исходный образ сохранён');idle(p,action)
   if(action==='launch'){
     if(!capabilities.consoleActivity)throw fail('Обновите ELF для проверки запущенной игры перед запуском')
     const active=await ps5ConsoleActivity(p.id)
     if(active.running)throw createError({statusCode:409,message:'На PS5 уже запущена игра. Подтвердите её закрытие перед запуском другой.',data:{activeGame:active}})
   }
   const current=await ps5ConsoleGameInfo(p.id,titleId);if(current.sourceIdentity!==input.sourceIdentity)throw fail('Файлы или сведения игры изменились. Обновите карточку.')
-  if(action==='uninstall'&&!current.canUninstall||!['launch','stop','uninstall'].includes(action)&&!current.canManageSource)throw fail('Эта операция недоступна для выбранной игры')
+  // This server-only permission belongs to the bundled app updater. A browser
+  // body flag cannot grant general game source access.
+  const ownOrphan=bundledUpdate&&action==='uninstall'&&current.installed&&!current.sourceAvailable
+  if(bundledUpdate&&(current.contentId!=='IV0000-PPSA95001_00-PACKAGEFLOWUI001'||!ownOrphan&&(current.sourceType!=='image'||!current.managed||!current.sourceAvailable||!current.canManageSource)))throw fail('Источник приложения PackageFlow не подтверждён для обновления')
+  if(action==='uninstall'&&!current.canUninstall&&!ownOrphan||!['launch','stop','uninstall'].includes(action)&&!current.canManageSource)throw fail('Эта операция недоступна для выбранной игры')
   if(action==='launch'&&!current.installed)throw fail('Сначала смонтируйте и зарегистрируйте игру')
-  const job={id:requestId,...binding,state:'unconfirmed',createdAt:new Date().toISOString()}
+  let job:any={id:requestId,...binding,state:'unconfirmed',createdAt:new Date().toISOString()}
   writeDurableJson(path,job)
   intentWritten=true
+  if(action==='launch'){
+    job=await preparePs5GameLaunch(job,current,{
+      save:value=>writeDurableJson(path,value),
+      mount:mountId=>result(p.id,'/api/v1/console/command',{'X-PackageFlow-Request-Id':mountId,'X-PackageFlow-Title':titleId,'X-PackageFlow-Action':'mount','X-PackageFlow-Source-Identity':input.sourceIdentity}),
+      info:()=>ps5ConsoleGameInfo(p.id,titleId),activity:()=>ps5ConsoleActivity(p.id)
+    })
+    writeDurableJson(path,job)
+    if(job.launchPreparation&&!job.nativeLaunchDispatched)return job
+  }
   try{const v=await result(p.id,'/api/v1/console/command',{'X-PackageFlow-Request-Id':requestId,'X-PackageFlow-Title':titleId,'X-PackageFlow-Action':action,'X-PackageFlow-Source-Identity':input.sourceIdentity,...(destination?{'X-PackageFlow-Destination':destination}:{}),...(expectedAppId?{'X-PackageFlow-Expected-App-Id':String(expectedAppId)}:{}),...(['delete','uninstall'].includes(action)?{'X-PackageFlow-Confirm-Title':titleId}:{})});return persistCommand(job,v)}
   catch(e:any){writeDurableJson(path,{...job,message:e?.message||'Ответ не получен; команда не повторяется'});return ps5ConsoleGameCommandStatus(p.id,requestId)}
   }catch(e:any){
@@ -80,5 +104,9 @@ export async function ps5ConsoleGameCommand(id:unknown,input:any){
   }
 }
 function persistCommand(job:any,v:any){if(v?.requestId!==job.id||v.titleId!==job.titleId||v.action!==job.action||!['accepted','failed','unconfirmed'].includes(v.state))throw fail('Ответ PS5 не соответствует команде');const next={...job,state:v.state,result:v.result};writeDurableJson(jobPath(job.id),next);return next}
-export async function ps5ConsoleGameCommandStatus(id:unknown,requestId:string){const p=profile(id),path=jobPath(requestId);let job:any;try{job=JSON.parse(readFileSync(path,'utf8'))}catch(e:any){if(e?.code==='ENOENT')throw createError({statusCode:404,message:'Запись команды не найдена в этом WEB. Автоматически повторять запуск не будем.',data:{commandRecordMissing:true}});throw fail('WEB не смог прочитать запись команды. Автоматически повторять её не будем.')};if(job.consoleId!==p.id||job.sourceIp!==p.ip)throw fail('Команда относится к другой приставке');if(job.state==='unconfirmed'){try{return persistCommand(job,await result(p.id,'/api/v1/console/command/status',{'X-PackageFlow-Request-Id':requestId}))}catch{return job}}return job}
+export async function ps5ConsoleGameCommandStatus(id:unknown,requestId:string){const p=profile(id),path=jobPath(requestId);let job:any;try{job=JSON.parse(readFileSync(path,'utf8'))}catch(e:any){if(e?.code==='ENOENT')throw createError({statusCode:404,message:'Запись команды не найдена в этом WEB. Автоматически повторять запуск не будем.',data:{commandRecordMissing:true}});throw fail('WEB не смог прочитать запись команды. Автоматически повторять её не будем.')};if(job.consoleId!==p.id||job.sourceIp!==p.ip)throw fail('Команда относится к другой приставке');if(job.state==='unconfirmed'){
+ if(job.launchPreparation&&!job.nativeLaunchDispatched){
+  try{const receipt=await result(p.id,'/api/v1/console/command/status',{'X-PackageFlow-Request-Id':job.launchPreparation.requestId});if(receipt.requestId===job.launchPreparation.requestId&&receipt.titleId===job.titleId&&receipt.action==='mount'&&['accepted','failed'].includes(receipt.state)){job={...job,state:'failed',launchPreparation:receipt,result:{error:'launch_not_dispatched',stage:'mount'},message:'Результат подготовки получен. Запуск не отправлялся; нажмите «Запустить» снова'};writeDurableJson(path,job)}}catch{/* Read-only reconciliation never mounts or launches. */}return job
+ }
+ try{return persistCommand(job,await result(p.id,'/api/v1/console/command/status',{'X-PackageFlow-Request-Id':requestId}))}catch{return job}}return job}
 export async function ps5ConsoleStorageStatus(id:unknown,requestId:string){const p=profile(id),job=await ps5ConsoleGameCommandStatus(p.id,requestId);if(!job.result?.job_id)return job;const v=await result(p.id,'/api/v1/console/storage');if(v.job_id!==job.result.job_id)throw fail('Служба сообщает о другом задании файлов');return{...job,storage:v}}

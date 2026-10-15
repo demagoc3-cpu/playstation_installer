@@ -8,7 +8,7 @@ import { installedPackagePreviewChecker } from './installed-package-check'
 import { getPackage, getLibraryPackages } from './package-library'
 import { presetSelection } from './presets'
 import { filterContent, contentBranchKey, contentFormat } from '../../shared/content-platform'
-import { deviceInstallReason } from '../../shared/device-eligibility'
+import { deviceInstallReason, installationSpaceSupported } from '../../shared/device-eligibility'
 import type { DeviceSelection, DeviceInstallPreview, DeviceActivity } from '../../shared/types/consoles'
 import { getInstallationQueue, peekInstallationQueue, getInstallationHistory, appendInstallationQueue, startInstallationQueue } from './installation-queue'
 import { getPs5Queue, getPs5TaskCounts, getPs5PendingSpaceItems, startPs5Queue } from './ps5-installation-queue'
@@ -20,6 +20,7 @@ import { dataPath } from './data-path'
 import { writeDurableJson } from './durable-json'
 import { requiredPs5InstallSpace } from '../../shared/ps5-installation-space'
 import { requiredInstallSpace } from './installation-space'
+import { getPs4InstallSettings } from './ps4-install-settings'
 import { ps4TransportConflict, PS4_PARALLEL_SERVICE_REQUIRED } from './ps4-transport-admission'
 
 export function resolveDeviceSelection(selection: DeviceSelection): string[] {
@@ -79,7 +80,7 @@ export async function deviceActivitiesLive(packageIds:string[]=[]):Promise<Devic
  const activity=deviceActivities(packageIds),check=installedPackagePreviewChecker()
  await Promise.all(activity.map(async entry=>{
   const profile=getConsoleProfile(entry.consoleId)
-  if(!profile.online || !(profile.paired || profile.transport==='payload') || !packageIds.length)return
+  if(!profile.online || !profile.paired || profile.platform==='ps4' && profile.transport==='payload' || !packageIds.length)return
   const key=JSON.stringify([profile.id,profile.ip,profile.transport,packageIds]),cached=liveActivitySnapshots.get(key)
   if(cached&&cached.until>Date.now()){entry.installedPackageIds=await cached.value;return}
   const value=(async()=>{const present:string[]=[];for(let offset=0;offset<packageIds.length;offset+=8){await Promise.all(packageIds.slice(offset,offset+8).map(async id=>{try{const pkg=getPackage(id);if((await check(profile,pkg)).state==='installed')present.push(id)}catch{/* Unavailable package is not installed proof. */}}))}return present})()
@@ -105,7 +106,8 @@ export async function previewDeviceInstall(selection: DeviceSelection, destinati
     const queue = deviceQueue(profile.id), running = ['running','cancelling'].includes(queue.status)
     const existing = new Set(running ? queue.items.filter(item => activeStates.includes(item.state)).map(item => item.packageId) : [])
     const checks = []
-    if (profile.online && (profile.paired || profile.transport === 'payload')) for (let offset=0;offset<items.length;offset+=8) checks.push(...await Promise.all(items.slice(offset,offset+8).map(async item => ({ item, check: await checkInstalled(profile,item) }))))
+    // PyLoader has no inventory API and must work independently of our service.
+    if (profile.online && profile.paired && !(profile.platform === 'ps4' && profile.transport === 'payload')) for (let offset=0;offset<items.length;offset+=8) checks.push(...await Promise.all(items.slice(offset,offset+8).map(async item => ({ item, check: await checkInstalled(profile,item) }))))
     const installedPackages = checks.filter(({check}) => ['installed','base-present'].includes(check.state)).map(({item,check}) => {
       const components=check.components || []
       const relevant=components.filter(c=>item.installOrder===0 || c.kind===(item.type==='DLC'?'dlc':'patch') && (c.kind!=='dlc'||c.contentId===item.contentId))
@@ -122,13 +124,13 @@ export async function previewDeviceInstall(selection: DeviceSelection, destinati
     const pendingBytes = running ? queue.items.filter(item => ['pending','sending','waiting','receiving','installing','verifying','unconfirmed'].includes(item.state)).reduce((sum,item) => sum + (item.size || 0), 0) : 0
     // Folder v2 publishes the received inodes; legacy routes still need two copies.
     const sourceBytes=additional+pendingBytes
-    const requiredBytes = sourceBytes ? profile.platform === 'ps5' ? requiredPs5InstallSpace(ps5SpaceItems(profile.id,items.filter(item=>!existing.has(item.id)&&!installedIds.has(item.id)),running),profile.capabilities) : requiredInstallSpace(sourceBytes) : 0
+    const requiredBytes = sourceBytes && installationSpaceSupported(profile) ? profile.platform === 'ps5' ? requiredPs5InstallSpace(ps5SpaceItems(profile.id,items.filter(item=>!existing.has(item.id)&&!installedIds.has(item.id)),running),profile.capabilities) : requiredInstallSpace(sourceBytes) : 0
     const transportConflict = profile.platform === 'ps4' ? ps4TransportConflict(profile.ip, profile.transport || 'service') : ''
     const selectedPs4 = destinations ? getConsoleProfiles().consoles.filter(other => destinations.includes(other.id) && other.platform === 'ps4') : []
     const mixedPayload = profile.platform === 'ps4' && selectedPs4.length > 1 && selectedPs4.some(other => other.transport === 'payload')
     const finishedRetry=running && items.some(item=>!installedIds.has(item.id)&&queue.items.some(old=>old.packageId===item.id&&!activeStates.includes(old.state)))
     const maintenance=readMaintenance()[profile.ip]
-    const reason = maintenance&&!['completed','failed'].includes(maintenance.state) ? 'Дождитесь завершения переустановки или обновления службы' : deviceInstallReason(profile,items,requiredBytes) || (sourceBytes && profile.freeBytes===undefined ? 'Не удалось прочитать свободное место с приставки' : '') || checks.find(({check})=>check.state === 'unavailable')?.check.detail || transportConflict || (mixedPayload ? PS4_PARALLEL_SERVICE_REQUIRED : '') || (finishedRetry ? 'Выбранный пакет есть в истории текущей очереди. Дождитесь её завершения перед новым заданием' : '') || (queue.status === 'cancelling' ? 'Дождитесь завершения отмены очереди' : '') ||
+    const reason = maintenance&&!['completed','failed'].includes(maintenance.state) ? 'Дождитесь завершения переустановки или обновления службы' : deviceInstallReason(profile,items,requiredBytes,getPs4InstallSettings().verifyPkgBeforeSend) || (sourceBytes && installationSpaceSupported(profile) && profile.freeBytes===undefined ? 'Не удалось прочитать свободное место с приставки' : '') || checks.find(({check})=>check.state === 'unavailable')?.check.detail || transportConflict || (mixedPayload ? PS4_PARALLEL_SERVICE_REQUIRED : '') || (finishedRetry ? 'Выбранный пакет есть в истории текущей очереди. Дождитесь её завершения перед новым заданием' : '') || (queue.status === 'cancelling' ? 'Дождитесь завершения отмены очереди' : '') ||
       (running && profile.platform === 'ps4' && queue.transport !== (profile.transport || 'service') ? 'Очередь использует другой способ установки' : '')
     const queuedPackages = running ? queue.items.filter(item=>activeStates.includes(item.state)).map(item=>({packageId:item.packageId,title:item.title || item.packageId,titleId:item.titleId || '',type:item.type || '',version:'',size:item.size || 0})) : []
     const reviewToken=createHash('sha256').update(JSON.stringify({ids:[...ids].sort(),checks:checks.map(({item,check})=>[item.id,check.state,check.revision || '',(check.components || []).map(c=>[c.id,c.kind,c.contentId,c.version,c.canRemove]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])))]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),queue:running?{id:queue.id,items:queuedPackages.map(item=>item.packageId)}:null})).digest('hex')
@@ -185,8 +187,8 @@ export async function installDeviceBatch(id: string, selection: DeviceSelection,
       if ((device.installedPackages.length || device.queuedPackages.length || reviewTokens[device.profile.id]) && reviewTokens[device.profile.id]!==device.reviewToken) {device.eligible=false;device.reason='Состав устройства или очереди изменился. Обновите и подтвердите таблицу заново';continue}
       if(approvedPackages.some(pkg=>!pkg || !(pkg.canOverwrite || pkg.canReinstall))) {device.eligible=false;device.reason='Выбранные пакеты нельзя переустановить этим способом';continue}
       const extra=approvedPackages.reduce((sum,pkg)=>sum+(pkg?.size || 0),0), sourceBytes=device.selectedBytes+device.queueBytes+extra
-      device.requiredBytes=sourceBytes ? device.profile.platform==='ps5'?requiredPs5InstallSpace(ps5SpaceItems(device.profile.id,ids.map(getPackage).filter(pkg=>!device.queuedPackages.some(queued=>queued.packageId===pkg.id)&&(!device.installedPackages.some(installed=>installed.packageId===pkg.id)||approved.includes(pkg.id))),deviceQueue(device.profile.id).status==='running'),device.profile.capabilities):requiredInstallSpace(sourceBytes):0
-      const reason=deviceInstallReason(device.profile,ids.map(getPackage),device.requiredBytes) || (device.requiredBytes && device.profile.freeBytes===undefined ? 'Не удалось прочитать свободное место с приставки' : '')
+      device.requiredBytes=sourceBytes && installationSpaceSupported(device.profile) ? device.profile.platform==='ps5'?requiredPs5InstallSpace(ps5SpaceItems(device.profile.id,ids.map(getPackage).filter(pkg=>!device.queuedPackages.some(queued=>queued.packageId===pkg.id)&&(!device.installedPackages.some(installed=>installed.packageId===pkg.id)||approved.includes(pkg.id))),deviceQueue(device.profile.id).status==='running'),device.profile.capabilities):requiredInstallSpace(sourceBytes):0
+      const reason=deviceInstallReason(device.profile,ids.map(getPackage),device.requiredBytes,getPs4InstallSettings().verifyPkgBeforeSend) || (device.requiredBytes && installationSpaceSupported(device.profile) && device.profile.freeBytes===undefined ? 'Не удалось прочитать свободное место с приставки' : '')
       if(reason){device.eligible=false;device.reason=reason;continue}
       if(device.profile.platform==='ps4'&&approved.length){
         if(device.queuedPackages.length){device.eligible=false;device.reason='Для переустановки дождитесь завершения или отмены прежней очереди';continue}

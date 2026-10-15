@@ -1,0 +1,10 @@
+using System.Text.Json;using PackageFlow.Core;
+internal static class DesktopBridgeTests {
+ public static void Run(){const string origin="https://packageflow.local/index.html";void Good(string c,object p){DesktopBridgeProtocol.Parse(origin,JsonSerializer.Serialize(new{id="1",command=c,payload=p}));}void Bad(string c,object p,string source=origin){try{DesktopBridgeProtocol.Parse(source,JsonSerializer.Serialize(new{id="1",command=c,payload=p}));}catch(ArgumentException){return;}catch(JsonException){return;}throw new Exception("Unsafe bridge message accepted: "+c);}
+  Good("link",new{target="discord"});Good("apply",new{port=3000,hostIp="192.168.1.2",visibleBrowser=true});Good("wizard.finish",new{torrents=false,consoles=new[]{"192.168.1.5"},trackerUsername="",trackerPassword="",manual=false});Good("discovery.cancel",new{});Good("dialog.reply",new{dialogId="safe",confirmed=false});
+  foreach(var c in new[]{"shell","fetch","file.read","process.start","powershell","docker"})Bad(c,new{});
+  foreach(var source in new[]{"http://packageflow.local","https://packageflow.local.evil","https://packageflow.local:444","https://user@packageflow.local","file:///index.html"})Bad("ready",new{},source);
+  Bad("apply",new{gamesDirectory="C:\\unexpected"});Bad("apply",new{shell="cmd"});Bad("apply",new{port="3000"});Bad("apply",new{port=80});Bad("apply",new{visibleBrowser="true"});Bad("apply",new{mode="native"});Bad("apply",new{composeProwlarr=true});Bad("console.connect",new{ip="127.0.0.1",name="fixture",platform="ps5"});Bad("console.connect",new{ip="192.168.1.5",name="fixture",platform="ps6"});Bad("console.install",new{ids=Enumerable.Repeat("x",65)});Bad("wizard.finish",new{torrents=false});Bad("link",new{target="https://evil"});Bad("wallet.copy",new{index=2});Bad("tracker.test",new{trackerPassword=new string('x',4097)});
+  try{DesktopBridgeProtocol.Parse(origin,"{\"id\":\"1\",\"command\":\"ready\",\"command\":\"shell\",\"payload\":{}}");throw new Exception("Duplicate command accepted");}catch(ArgumentException){}
+ }
+}

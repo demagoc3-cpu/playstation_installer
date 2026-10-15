@@ -12,7 +12,7 @@ export interface InstallationTask {
   id: string; queueId: string; packageId: string; psIp: string; title: string; fileName: string; type: string; size: number
   titleId: string; groupTitle: string; groupIconId?: string; contentId?: string; appVersion?: string; masterVersion?: string; requiredFirmware?: string; sdkFirmware?: string; contentType?: string; packageDigest?: string
   state: string; category: TaskCategory; detail: string; bytesSent: number; createdAt: number; completedAt?: number
-  transport: string; canConfirm?: boolean; canDismiss?: boolean; canCancel: boolean; cancelRequested: boolean
+  transport: string; canConfirm?: boolean; canStopWaiting?: boolean; canDismiss?: boolean; canCancel: boolean; cancelRequested: boolean
   progressPhase?: 'source-check' | 'transfer' | 'device-check'; bytesChecked?: number
   transferBytesPerSecond?: number; transferMeasuredAt?: number
 }
@@ -45,6 +45,12 @@ export function installationTaskSpeed(task: InstallationTask, now = Date.now()) 
   const transmitting = ps4Download || task.state === 'sending' && task.progressPhase === 'transfer' || task.format === 'folder' && task.state === 'verifying' && task.progressPhase === 'device-check' && task.bytesSent < task.size
   if (!transmitting || !Number.isFinite(task.transferBytesPerSecond) || task.transferBytesPerSecond! < 0 || !task.transferMeasuredAt) return undefined
   return now - task.transferMeasuredAt > 5000 ? 0 : task.transferBytesPerSecond
+}
+
+export function installationTaskRemainingMinutes(task: InstallationTask, now = Date.now()) {
+  const rate = installationTaskSpeed(task, now)
+  if (!rate || !Number.isSafeInteger(task.size) || !Number.isSafeInteger(task.bytesSent) || task.bytesSent < 0 || task.bytesSent >= task.size) return undefined
+  return Math.ceil((task.size - task.bytesSent) / rate / 60)
 }
 
 /** Match the progress bar's phase; source checks must not look like sent bytes. */

@@ -3,11 +3,9 @@
 set -euo pipefail
 
 export PF_REPO="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
-export PF_VERSION="${PF_VERSION:-1.10.7}"
+export PF_VERSION="${PF_VERSION:-1.10.15}"
 export PF_PAYLOAD="$PF_REPO/dist/windows/payload"
 PF_NODE_VERSION="${PF_NODE_VERSION:-22.23.3}"
-PF_DOCKER_IMAGE="${PF_DOCKER_IMAGE:-demagoc3/packageflow:latest}"
-export PF_DOCKER_IMAGE
 skip_install=0
 skip_web=0
 skip_installer=0
@@ -22,13 +20,13 @@ while (($#)); do
     --skip-installer) skip_installer=1; shift ;;
     --check) check_only=1; shift ;;
     --help|-h)
-      printf '%s\n' 'bash packaging/windows/build.sh [--version 1.10.7] [--check] [--skip-install] [--skip-web-build] [--skip-installer]' 'Overrides: PF_NPM_CLI, PF_DOTNET, PF_MAKENSIS, NSISDIR, PF_NODE_VERSION, PF_DOCKER_IMAGE'
+      printf '%s\n' 'bash packaging/windows/build.sh [--version 1.10.15] [--check] [--skip-install] [--skip-web-build] [--skip-installer]' 'Overrides: PF_NPM_CLI, PF_DOTNET, PF_MAKENSIS, NSISDIR, PF_NODE_VERSION'
       exit 0 ;;
     *) fail "Неизвестный параметр: $1" ;;
   esac
 done
-[[ "$PF_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'Версия должна состоять из трёх чисел, например 1.10.7'
-((10#${PF_VERSION%%.*} != 10)) || fail '10.x.x — ошибочная версия установщика. Укажите 1.x.x (например 1.10.7) и пересоберите EXE, а не переименовывайте его.'
+[[ "$PF_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail 'Версия должна состоять из трёх чисел, например 1.10.15'
+((10#${PF_VERSION%%.*} != 10)) || fail '10.x.x — ошибочная версия установщика. Укажите 1.x.x (например 1.10.15) и пересоберите EXE, а не переименовывайте его.'
 [[ "$PF_NODE_VERSION" =~ ^22\.[0-9]+\.[0-9]+$ ]] || fail 'PF_NODE_VERSION должен задавать версию Node.js 22'
 cd -- "$PF_REPO"
 
@@ -100,11 +98,22 @@ if (( !skip_web )); then
 else
   [[ -f .output/server/index.mjs ]] || fail 'Нет готового WEB в .output. Запустите сборку без --skip-web-build'
 fi
-"$PF_DOTNET" run --project apps/windows-launcher/PackageFlow.Core.Tests -c Release
+node scripts/package-windows-brand.mjs
+"${npm_command[@]}" ci --prefix apps/windows-launcher/desktop-ui --ignore-scripts --no-audit --no-fund
+"${npm_command[@]}" run build --prefix apps/windows-launcher/desktop-ui
+PF_BUILD_TEMP="$(mktemp -d "${TMPDIR:-/tmp}/packageflow-windows-build.XXXXXXXX")"
+trap 'rm -rf -- "$PF_BUILD_TEMP"' EXIT
+"$PF_DOTNET" build apps/windows-launcher/PackageFlow.Core.Tests -c Release --disable-build-servers -m:1 -p:NuGetAudit=false -p:ArtifactsPath="$PF_BUILD_TEMP/tests"
+"$PF_DOTNET" "$PF_BUILD_TEMP/tests/bin/PackageFlow.Core.Tests/release/PackageFlow.Core.Tests.dll"
 "$PF_DOTNET" publish apps/windows-launcher/PackageFlow.Windows \
-  -c Release -r win-x64 --self-contained true \
+  -c Release -r win-x64 --self-contained true --disable-build-servers -m:1 -p:NuGetAudit=false \
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
-  -p:EnableCompressionInSingleFile=true -p:Version="$PF_VERSION" -o "$PF_PAYLOAD"
+  -p:EnableCompressionInSingleFile=true -p:Version="$PF_VERSION" \
+  -p:ArtifactsPath="$PF_BUILD_TEMP/publish" -o "$PF_PAYLOAD"
+"$PF_DOTNET" build packaging/windows/BundleCheck -c Release --disable-build-servers -m:1 -p:NuGetAudit=false -p:ArtifactsPath="$PF_BUILD_TEMP/check"
+"$PF_DOTNET" "$PF_BUILD_TEMP/check/bin/BundleCheck/release/BundleCheck.dll" "$PF_PAYLOAD/PackageFlow.exe" "$PF_VERSION"
+
+node scripts/package-windows-desktop.mjs "$PF_PAYLOAD"
 
 PF_NODE_ARCHIVE="node-v$PF_NODE_VERSION-win-x64.zip"
 PF_NODE_STAGE="$PF_REPO/dist/windows/node-runtime-$PF_NODE_VERSION"
@@ -134,17 +143,16 @@ server = payload / 'server' / '.output'
 if server.exists():
     shutil.rmtree(server)
 shutil.copytree(output, server)
-(payload / 'compose').mkdir(exist_ok=True)
-for name in ['Dockerfile', 'Dockerfile.dockerignore']:
-    shutil.copy2(repo / 'packaging' / 'compose' / name, payload / 'compose' / name)
 shutil.copy2(repo / 'packaging/windows/configure-firewall.ps1', payload)
 shutil.copy2(repo / 'LICENSE', payload)
 (payload / 'release.json').write_text(json.dumps({
-    'version': os.environ['PF_VERSION'], 'dockerImage': os.environ['PF_DOCKER_IMAGE']
+    'version': os.environ['PF_VERSION']
 }), encoding='utf-8')
 PYTHON
 
 node scripts/package-console-bundle.mjs "${PF_PS5_BUNDLE:-}" "$PF_PAYLOAD/console-setup"
+
+node scripts/check-windows-payload.mjs "$PF_PAYLOAD" "$PF_VERSION"
 
 if (( !skip_installer )); then
   "$PF_MAKENSIS" -V2 -DVERSION="$PF_VERSION" -DPAYLOAD="$PF_PAYLOAD" \

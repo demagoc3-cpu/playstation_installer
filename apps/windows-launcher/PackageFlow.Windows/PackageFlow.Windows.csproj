@@ -7,14 +7,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>PackageFlow</AssemblyName>
-    <Version>1.10.7</Version>
+    <Version>1.10.15</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>packageflow.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="PackageFlow.Windows.Tests" />
+    <EmbeddedResource Include="packageflow.ico" LogicalName="PackageFlow.Assets.packageflow.ico" />
+    <EmbeddedResource Include="Assets/*.json" LogicalName="PackageFlow.Assets.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets/*.png" LogicalName="PackageFlow.Assets.%(Filename)%(Extension)" />
     <ProjectReference Include="../PackageFlow.Core/PackageFlow.Core.csproj" />
+    <Content Include="Desktop/**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
 </Project>

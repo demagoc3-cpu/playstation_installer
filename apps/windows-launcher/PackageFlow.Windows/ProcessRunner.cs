@@ -20,7 +20,7 @@ internal static class ProcessRunner
         try { await process.WaitForExitAsync(ct); }
         catch { try { process.Kill(true); } catch { } throw; }
         var output = await stdout; await stderr;
-        if (process.ExitCode != 0) throw new InvalidOperationException($"{Path.GetFileName(executable)} failed ({process.ExitCode}). Check Docker Desktop or the application log.");
+        if (process.ExitCode != 0) throw new InvalidOperationException($"{Path.GetFileName(executable)} failed ({process.ExitCode}). Check the application log.");
         return output;
     }
 

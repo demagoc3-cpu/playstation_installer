@@ -7,22 +7,24 @@ using PackageFlow.Core;
 
 static void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
 static async Task Reject(Func<Task> action) { try { await action(); } catch { return; } throw new Exception("Expected failure."); }
-if (args.Length == 5 && args[0] == "--compose-fixture")
-{
-    var root = Path.GetFullPath(args[1]);
-    Directory.CreateDirectory(Path.Combine(root, "web")); Directory.CreateDirectory(Path.Combine(root, "games"));
-    var fixture = new LauncherSettings { Mode = "compose", HostIp = "192.168.50.2", GamesDirectory = Path.Combine(root, "games"), Port = int.Parse(args[3]), PayloadPort = int.Parse(args[4]) };
-    File.WriteAllText(Path.Combine(root, "compose.json"), ComposeConfiguration.Generate(fixture, root, "fixture-launcher-key", "packageflow/installer-smoke:local", args[2]));
-    return;
-}
 var directory = Path.Combine(Path.GetTempPath(), "pf-windows-test-" + Guid.NewGuid()); Directory.CreateDirectory(directory);
 try
 {
+    DesktopBridgeTests.Run();
+    await RuntimePreparationTests.Run(directory);
+    await NativeMigrationTests.Run(directory);
     ConsoleSetupTests.Run(directory);
-    var settings = new LauncherSettings { Mode = "compose", HostIp = "10.1.10.47", GamesDirectory = directory };
+    await ConsoleSetupCoordinatorTests.Run();
+    var settings = new LauncherSettings { Mode = "native", HostIp = "10.1.10.47", GamesDirectory = directory, TorrentSetupSelected = true };
     var legacyPath = Path.Combine(directory, "legacy-launcher.json");
     File.WriteAllText(legacyPath, "{\"Schema\":1,\"Mode\":\"native\",\"FlareSolverr\":true}");
     var migrated = LauncherSettings.Load(legacyPath);
+    Check(migrated.WizardComplete && migrated.TorrentSetupSelected, "Legacy configured installs retain their component choice and do not restart the first-run wizard.");
+    var first = new LauncherSettings(); first.Save(Path.Combine(directory, "first.json"));
+    var loadedFirst = LauncherSettings.Load(Path.Combine(directory, "first.json"));
+    Check(!loadedFirst.WizardComplete && !loadedFirst.TorrentSetupSelected && !loadedFirst.AutomaticSetupPending, "Fresh install must await explicit choices before downloading optional components.");
+    first.WizardComplete=true;first.SetupComplete=true;first.TorrentSetupSelected=false;first.Save(Path.Combine(directory,"first.json"));
+    Check(LauncherSettings.Load(Path.Combine(directory,"first.json")).WizardComplete && !LauncherSettings.Load(Path.Combine(directory,"first.json")).TorrentSetupSelected, "Skipped torrents must stay skipped after restart.");
     Check(!migrated.AutomaticSetupPending && !migrated.ManagedQbittorrent, "Updating an existing installation must not enable automatic setup or replace its torrent client.");
     migrated.AutomaticSetupPending = true; migrated.Save(legacyPath);
     Check(LauncherSettings.Load(legacyPath).AutomaticSetupPending, "Interrupted first setup must resume on next launch.");
@@ -51,8 +53,6 @@ try
     var next = new LauncherSettings { Mode = "native", HostIp = native.HostIp, GamesDirectory = directory + "-next", AutoStart = true };
     Check(!native.RequiresRestart(next), "Native folder and autostart edits must apply while WEB stays running.");
     next.Port = 3002; Check(native.RequiresRestart(next), "Port edits require a guarded restart."); next.Port = 3000;
-    next.Mode = "compose"; Check(native.RequiresRestart(next), "Mode changes require a guarded restart.");
-    native.Mode = "compose"; Check(native.RequiresRestart(next), "A Compose folder edit must update its bind mount through a restart.");
     using var githubHttp = new HttpClient(new MockHandler(request => {
         Check(request.RequestUri!.Host == "api.github.com" && request.Headers.UserAgent.Any(), "GitHub metadata needs the official API and a User-Agent.");
         return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(request.RequestUri.AbsolutePath.EndsWith("/tags") ? "[{\"name\":\"v1.9.0\"},{\"name\":\"v1.10.2\"},{\"name\":\"v1.11.0-beta\"},{\"name\":\"scratch\"}]" : "{\"stargazers_count\":17}") });
@@ -85,17 +85,8 @@ try
     Check(await ReleaseDownloads.LatestWindows(repairedHttp, default) == null, "A repository containing only erroneous Windows builds has no valid update.");
     windowsAssets[2]!["assets"]![0]!["digest"] = "";
     await Reject(() => ReleaseDownloads.LatestWindows(windowsHttp, default));
-    var compose = JsonNode.Parse(ComposeConfiguration.Generate(settings, directory, "test-token", "test/image:1"))!;
-    Check(compose["services"]!["packageflow"]!["environment"]!["PACKAGEFLOW_HOST_IP"]!.GetValue<string>() == "10.1.10.47", "LAN address missing.");
-    Check(compose["services"]!["packageflow"]!["ports"]!.AsArray().Count == 2, "Callback port must be published.");
-    Check(compose["services"]!["packageflow"]!["volumes"]![1]!["read_only"]!.GetValue<bool>(), "Games must stay read-only.");
-    settings.ManagedProwlarr = true;
-    var withSearch = JsonNode.Parse(ComposeConfiguration.Generate(settings, directory, "token", "image"))!;
-    Check(withSearch["services"]!["prowlarr"]!["ports"]![0]!["host_ip"]!.GetValue<string>() == "127.0.0.1", "Prowlarr must not expose credentials to LAN.");
-    var quoted = Path.Combine(directory, "games $test"); Directory.CreateDirectory(quoted); settings.GamesDirectory = quoted;
-    Check(ComposeConfiguration.Generate(settings, directory, "token", "image").Contains("$$test"), "Compose dollar interpolation must be escaped.");
-    settings.HostIp = "999.1.1.1";
-    await Reject(() => { settings.Validate(); return Task.CompletedTask; });
+    settings.HostIp="999.1.1.1";
+    await Reject(() => {settings.Validate();return Task.CompletedTask;});
 
     var template = JsonNode.Parse("""{"definitionName":"rutracker","fields":[{"name":"username","value":""},{"name":"password","value":""}],"presets":[],"id":0}""")!;
     var candidate = ProwlarrClient.PrepareRuTracker(template, " user ", "secret-password", 3);
@@ -144,16 +135,13 @@ try
     var client = new ProwlarrClient(prowlarrHttp, "http://localhost:9696/base", "private-key");
     Check(await client.AddRuTracker("user", "secret-password", default) == 2, "Returned indexer ID.");
     Check(calls.IndexOf("POST /base/api/v1/indexer/test") < calls.IndexOf("POST /base/api/v1/indexer"), "Must test before saving.");
-    var connection = client.Connection(2, "http://prowlarr:9696/base");
-    Check(connection.Endpoint == "http://prowlarr:9696/base/2/api" && !connection.Endpoint.Contains("private-key"), "Server address mapping or secret leakage.");
+    var connection = client.Connection(2, "http://localhost:9696/base");
+    Check(connection.Endpoint == "http://localhost:9696/base/2/api" && !connection.Endpoint.Contains("private-key"), "Server address mapping or secret leakage.");
     using var failing = new HttpClient(new MockHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest) { Content = new StringContent("secret-password") })));
     try { await new ProwlarrClient(failing, "http://localhost", "key").Indexers(default); }
     catch (Exception error) { Check(!error.Message.Contains("secret-password"), "Upstream validation leaked credentials."); }
 
     settings.HostIp = "10.1.10.47"; settings.FlareSolverr = true; settings.Port = 4444;
-    var flareCompose = JsonNode.Parse(ComposeConfiguration.Generate(settings, directory, "token", "image"))!;
-    Check(flareCompose["services"]!["flaresolverr"]!["ports"]![0]!["host_ip"]!.GetValue<string>() == "127.0.0.1", "FlareSolverr must be local-only.");
-    Check(flareCompose["services"]!["packageflow"]!["environment"]!["PACKAGEFLOW_PUBLIC_PORT"]!.GetValue<string>() == "4444", "PS4 must receive the published WEB port.");
     var proxyCalls = new List<string>();
     using var proxyHttp = new HttpClient(new MockHandler(async request => {
         var route = request.RequestUri!.AbsolutePath; proxyCalls.Add(request.Method + " " + route);
@@ -161,7 +149,7 @@ try
         if (route == "/api/v1/indexerproxy/test" || route == "/api/v1/indexerproxy") {
             if (content != null) {
                 Check(content["tags"]!.AsArray().Count == 1 && content["tags"]![0]!.GetValue<int>() == 9, "Proxy must target only our RuTracker tag.");
-                Check(content["fields"]![0]!["value"]!.GetValue<string>() == "http://flaresolverr:8191/", "Compose proxy address incorrect.");
+                Check(content["fields"]![0]!["value"]!.GetValue<string>() == "http://10.0.0.5:8191/", "Configured proxy address incorrect.");
             }
         }
         if (request.Method == HttpMethod.Put && route == "/api/v1/indexer/2") {
@@ -177,7 +165,7 @@ try
         return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(result, Encoding.UTF8, "application/json") };
     }));
     var proxyClient = new ProwlarrClient(proxyHttp, "http://localhost:9696", "private-key");
-    var proxyTag = await proxyClient.ConfigureFlareSolverr("http://flaresolverr:8191/", default);
+    var proxyTag = await proxyClient.ConfigureFlareSolverr("http://10.0.0.5:8191/", default);
     await proxyClient.AttachRuTrackerProxy(2, proxyTag, default);
     Check(proxyCalls.IndexOf("POST /api/v1/indexerproxy/test") < proxyCalls.IndexOf("POST /api/v1/indexerproxy"), "Proxy must be tested before saving.");
     proxyCalls.Clear();
@@ -223,7 +211,7 @@ try
     }));
     var preparedProxy = new ProwlarrClient(existingProxyHttp, "http://127.0.0.1:9696", "fixture-key");
     Check(await preparedProxy.ExistingFlareSolverrTag("http://127.0.0.1:8191/", default) == 9, "A prepared matching proxy must be reused.");
-    Check(await preparedProxy.ExistingFlareSolverrTag("http://flaresolverr:8191/", default) == null, "A proxy for another runtime must not be reused.");
+    Check(await preparedProxy.ExistingFlareSolverrTag("http://10.0.0.5:8191/", default) == null, "A proxy for another runtime must not be reused.");
     var manualCalls = new List<string>(); string? manualSession = null;
     using var manualHttp = new HttpClient(new MockHandler(async request => {
         Check(request.RequestUri!.ToString() == "http://127.0.0.1:8191/v1", "Manual login must use the local solver.");
@@ -277,7 +265,7 @@ try
             } else if (request.Method == HttpMethod.Put && route == "/api/v1/indexerproxy/4") {
                 Check((succeeds || activationFailure) && request.RequestUri.Query == "?forceSave=true", "Only a confirmed Cloudflare ping block plus tracker success permits forceSave.");
                 Check(content!["tags"]!.AsArray().Count == 1 && content["tags"]![0]!.GetValue<int>() == 9, "Fallback activation must assign our tracker tag.");
-                Check(content!["fields"]![0]!["value"]!.GetValue<string>() == "http://flaresolverr:8191/", "Compose saved address must remain distinct from the Windows probe address.");
+                Check(content!["fields"]![0]!["value"]!.GetValue<string>() == "http://10.0.0.5:8191/", "Configured remote proxy address must remain distinct from the Windows probe address.");
                 result = activationFailure ? "private-key secret-password" : "{\"id\":4}";
                 if (activationFailure) responseStatus = HttpStatusCode.BadRequest;
             } else if (request.Method == HttpMethod.Delete && route == "/api/v1/indexerproxy/4") {
@@ -297,7 +285,7 @@ try
         }));
         var fallbackClient = new ProwlarrClient(fallbackHttp, "http://localhost:9696", "private-key");
         var completed = false;
-        try { Check(await fallbackClient.ConfigureFlareSolverr("http://flaresolverr:8191/", default, "http://127.0.0.1:8191/") == 9, "Fallback tag incorrect."); completed = true; }
+        try { Check(await fallbackClient.ConfigureFlareSolverr("http://10.0.0.5:8191/", default, "http://127.0.0.1:8191/") == 9, "Fallback tag incorrect."); completed = true; }
         catch (ProwlarrRequestException error) { Check(!error.Message.Contains("private-key") && !error.Message.Contains("secret-password"), "Fallback error leaked secrets."); }
         Check(completed == succeeds && fallbackClient.UsedTrackerFallback == succeeds, "Incorrect fallback outcome.");
         var save = "PUT /api/v1/indexerproxy/4";
@@ -332,7 +320,7 @@ try
     using (var archive = ZipFile.Open(zip, ZipArchiveMode.Create)) { using var writer = new StreamWriter(archive.CreateEntry("../escape.txt").Open()); writer.Write("unsafe"); }
     await Reject(() => { ReleaseDownloads.ExtractZip(zip, Path.Combine(directory, "extract")); return Task.CompletedTask; });
     Check(!File.Exists(Path.Combine(directory, "escape.txt")), "Zip traversal escaped destination.");
-    Console.WriteLine("Windows core tests passed: Compose mapping, Prowlarr onboarding, credential handling, verified downloads and archive safety.");
+    Console.WriteLine("Windows core tests passed: Runtime resolver/download/journal, Native migration, Prowlarr onboarding, credential handling, verified downloads and archive safety.");
 }
 finally { Directory.Delete(directory, true); }
 

@@ -5,7 +5,7 @@ import { dataPath } from './data-path'
 import { readPs5ImageMetadata } from './ps5-content-metadata'
 
 export interface SetupElf { fileName: string; size: number; sha256: string; version: string; buildId: string; firmware: string }
-export interface SetupApp { fileName: string; size: number; sha256: string; titleId: string; contentId: string; version: string; format: 'ufs2' | 'exfat' | 'pfs' | 'ffpfsc'; name: 'PackageFlow' }
+export interface SetupApp { fileName: string; size: number; sha256: string; titleId: string; contentId: string; version: string; buildId?: string; format: 'ufs2' | 'exfat' | 'pfs' | 'ffpfsc'; name: 'PackageFlow' }
 export interface SetupBundle { schemaVersion: 1; elf: SetupElf; app: SetupApp }
 const safeName = (v: unknown): v is string => typeof v === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(v) && !v.includes('..')
 export function validateSetupManifest(v: any): SetupBundle {
@@ -14,6 +14,7 @@ export function validateSetupManifest(v: any): SetupBundle {
     if (!safeName(a.fileName) || !/^[a-f0-9]{64}$/.test(a.sha256) || !Number.isSafeInteger(a.size) || a.size < 4096 || a.size > (role === 'elf' ? 4 : 256) * 1024 ** 2) throw new Error('Неверный манифест комплекта PS5')
   }
   if (v.elf.firmware !== '13.60' || !/^\d+\.\d+\.\d+(?:-dev)?$/.test(v.elf.version) || !/^[a-z0-9-]{1,64}$/.test(v.elf.buildId) || !/\.elf$/.test(v.elf.fileName)) throw new Error('ELF ещё не проверен для этой прошивки')
+  if (v.app.buildId!==undefined && (typeof v.app.buildId!=='string' || !/^[a-z0-9-]{1,64}$/.test(v.app.buildId))) throw new Error('Неверная сборка приложения PackageFlow')
   if (v.app.name !== 'PackageFlow' || !/^PPSA\d{5}$/.test(v.app.titleId) || typeof v.app.contentId !== 'string' || !/^[A-Z0-9_-]{1,63}$/.test(v.app.contentId) || !v.app.contentId.includes(`${v.app.titleId}_`)
     || !/^\d{2}\.\d{3}\.\d{3}$/.test(v.app.version) || !['ufs2','exfat','pfs','ffpfsc'].includes(v.app.format) || v.app.fileName === v.elf.fileName) throw new Error('Неверное приложение PackageFlow в комплекте PS5')
   return v

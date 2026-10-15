@@ -1,3 +1,4 @@
+import { ps5RegistrationWait } from './ps5-registration-wait'
 import { lstat, open } from 'node:fs/promises'
 import { createBLAKE3 } from 'hash-wasm'
 import { readPs5ImageMetadata } from './ps5-content-metadata'
@@ -136,9 +137,7 @@ export async function runImagePlan(p: ImagePlan, item: Ps5Item, signal: AbortSig
     const r = await request(p.id, '/api/v1/images/status', {}, undefined, signal)
     const result = protocol === 'image-registration-v1' ? imageRegistrationResult(p, r) : imagePublicationResult(p, r); if (result) return result
     if (protocol === 'image-registration-v1' && r.status === 200 && r.body.state === 'published') {
-      if (!item.imagePublishedAt) save({ imagePublishedAt: Date.now() })
-      else if (Date.now() - item.imagePublishedAt > 120_000) throw new Ps5QueueUncertain('Образ передан, но системная регистрация ещё не подтверждена. Повтор не отправлен')
-      return { state: 'installing', detail: 'Образ передан. Ожидаем системную регистрацию PS5' }
+      return ps5RegistrationWait(item, 'image', r.body, signal, request, save)
     }
     const op = await request(p.id, '/api/v1/operations/status', {}, undefined, signal)
     if (op.status === 200 && op.body.id === p.id && op.body.phase === 'publishing-image' && op.body.running === true) return { state: 'installing', detail: 'Служба подготавливает образ на PS5' }

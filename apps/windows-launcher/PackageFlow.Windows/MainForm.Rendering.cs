@@ -3,6 +3,7 @@ namespace PackageFlow.Windows;
 internal sealed partial class MainForm
 {
     private bool repaintPending;
+    protected override void OnPaintBackground(PaintEventArgs e) => GlassStyle.Paint(this, e, 100);
 
     private void RepaintSurface()
     {

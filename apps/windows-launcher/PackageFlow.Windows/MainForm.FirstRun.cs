@@ -6,7 +6,6 @@ internal sealed partial class MainForm
 {
     private async Task PrepareFirstRun()
     {
-        if (mode.SelectedIndex == 1) throw new InvalidOperationException(T("Автонастройка предназначена для режима Windows. В Compose используйте шаги мастера для подключения компонентов.", "Automatic setup is for Windows mode. In Compose use the wizard steps to connect components."));
         settings.AutomaticSetupPending = true;
         if (games.Text.Length == 0) games.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "PackageFlow");
         Directory.CreateDirectory(games.Text);
@@ -22,6 +21,7 @@ internal sealed partial class MainForm
             catch (OperationCanceledException) { throw; }
             catch (Exception error) { failures.Add(name); Component(name, T("Нужна проверка", "Needs attention"), T("Подробности в журнале", "See activity log"), false); Report(name + ": " + FriendlyError(error)); }
         }
+        if (settings.TorrentSetupSelected) {
         await Step("Prowlarr", async () => {
             Report(T("Шаг 2/4 • Подготавливаем Prowlarr…", "Step 2/4 • Preparing Prowlarr…"));
             if (settings.ProtectedProwlarrKey.Length == 0 || settings.ManagedProwlarr) await host.InstallProwlarr(DownloadProgress("Prowlarr"), lifetime.Token);
@@ -39,9 +39,15 @@ internal sealed partial class MainForm
             await host.InstallQbittorrent(DownloadProgress("qBittorrent"), lifetime.Token);
             restoredTorrent = false;
         });
+        }
+        settings.SetupComplete = true;
         settings.AutomaticSetupPending = failures.Count > 0;
         settings.Save(ServerHost.SettingsPath);
-        tabs.SelectedIndex = 2;
+        tabs.SelectedIndex = settings.TorrentSetupSelected ? 2 : 0;
+        if (!settings.TorrentSetupSelected) {
+            applicationSummary = T("PackageFlow готов. Торрент-компоненты пропущены.", "PackageFlow is ready. Torrent components skipped.");
+            return;
+        }
         applicationSummary = failures.Count == 0
             ? T("Компоненты готовы. Введите логин и пароль RuTracker и нажмите «Добавить RuTracker и проверить».", "Components are ready. Enter your RuTracker credentials and click Add and test RuTracker.")
             : T("Требуется повторить подготовку: ", "Retry setup for: ") + string.Join(", ", failures) + T(". Причины указаны в журнале ниже.", ". See the activity log below for details.");

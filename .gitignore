@@ -32,9 +32,14 @@ node_modules
 # Windows launcher build outputs
 /apps/windows-launcher/**/bin/
 /apps/windows-launcher/**/obj/
+/packaging/windows/BundleCheck/bin/
+/packaging/windows/BundleCheck/obj/
 
 # Machine-specific SSH diagnostics are kept locally, not distributed.
 /scripts/windows/diagnostics/
 
 # Local release copy and generated recording assets.
 /output/
+
+# Reproducible local WebView2 frontend output
+/apps/windows-launcher/PackageFlow.Windows/Desktop/

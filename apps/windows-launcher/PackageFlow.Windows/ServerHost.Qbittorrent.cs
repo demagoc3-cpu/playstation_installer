@@ -22,7 +22,6 @@ internal sealed partial class ServerHost
 
     public async Task InstallQbittorrent(IProgress<int>? progress, CancellationToken ct)
     {
-        if (settings.Mode != "native") throw new InvalidOperationException("Automatic qBittorrent setup is available in Windows mode. Connect your download client in Downloads for Compose.");
         Status?.Invoke("Checking qBittorrent…");
         var saved = await Api("/api/torrents/settings", ct: ct);
         if (saved["configured"]?.GetValue<bool>() == true)

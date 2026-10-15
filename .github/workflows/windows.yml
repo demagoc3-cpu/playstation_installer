@@ -8,11 +8,7 @@ on:
       version:
         description: 'Installer version (three numbers, for example 1.11.0)'
         required: true
-        default: '1.10.7'
-      docker_image:
-        description: 'Matching PackageFlow Docker image'
-        required: true
-        default: 'demagoc3/packageflow:latest'
+        default: '1.10.15'
   push:
     tags: ['v*']
 permissions:
@@ -34,11 +30,9 @@ jobs:
         shell: pwsh
         env:
           INPUT_VERSION: ${{ inputs.version }}
-          INPUT_IMAGE: ${{ inputs.docker_image }}
         run: |
           $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { $env:INPUT_VERSION }
-          $image = if ($env:GITHUB_REF_TYPE -eq 'tag') { "demagoc3/packageflow:$version" } else { $env:INPUT_IMAGE }
-          ./packaging/windows/build.ps1 -Version $version -DockerImage $image
+          ./packaging/windows/build.ps1 -Version $version
           Get-FileHash dist/windows/PackageFlowSetup-*-x64.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist/windows/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:

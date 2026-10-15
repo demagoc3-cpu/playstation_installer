@@ -107,7 +107,7 @@ export async function downloadLatestServicePackage(current: string) {
   if (result.version !== release.version) throw createError({ statusCode: 400, message: 'Версия внутри PKG не совпала с релизом' })
   return result
 }
-export async function installServiceArtifact(value: unknown, id: string, baseUrl: string) {
+export async function installServiceArtifact(value: unknown, id: string, baseUrl: string, restoreMissingLauncher = false) {
   const ip = ps4ServiceIp(value); if (!ip) throw createError({ statusCode: 400, message: 'Укажите IP PS4' })
   if (updateLocks.has(ip)) throw createError({ statusCode: 409, message: 'Обновление этого устройства уже начинается' })
   updateLocks.add(ip)
@@ -118,7 +118,13 @@ export async function installServiceArtifact(value: unknown, id: string, baseUrl
   const r = await readPs4Service(ip, '/system/info'); const current = r.body as any
   if (r.status !== 200 || current?.service !== 'PackegeFlowService' || current.environment !== 'ps4' || typeof current.pkgVersion !== 'string') throw createError({ statusCode: 502, message: 'Не удалось проверить версию PS4' })
   if (comparePkgVersions(current.pkgVersion, '1.19') < 0) throw createError({ statusCode: 409, message: 'Для обновления из WEB сначала установите PKG 1.19 вручную' })
-  if (comparePkgVersions(a.version, current.pkgVersion) <= 0) throw createError({ statusCode: 409, message: 'Выбранная версия уже установлена или старее текущей' })
+  const comparison=comparePkgVersions(a.version,current.pkgVersion)
+  if (comparison < 0 || comparison === 0 && !restoreMissingLauncher) throw createError({ statusCode: 409, message: 'Выбранная версия уже установлена или старее текущей' })
+  if(restoreMissingLauncher) {
+    const {getConsoleCatalog}=await import('./ps4-console-apps')
+    const catalog=await getConsoleCatalog(ip)
+    if(comparison!==0||!catalog.complete||catalog.apps.some(app=>app.titleId==='PFLS00001'))throw createError({statusCode:409,message:'PS4 не подтвердила отсутствие запускателя той же версии'})
+  }
   const runtime = await consoleRuntime(ip, 'PFLS00001')
   if (runtime.running) {
     if (comparePkgVersions(current.pkgVersion, '2.03') < 0) throw createError({ statusCode: 409, message: 'Закройте интерфейс PackageFlow на PS4. Начиная с версии 2.03 он закрывается автоматически при обновлении.' })

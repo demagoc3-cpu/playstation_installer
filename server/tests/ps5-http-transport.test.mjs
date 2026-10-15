@@ -8,7 +8,7 @@ import {pathToFileURL} from 'node:url'
 const dir=mkdtempSync(join(tmpdir(),'pf-http-'))
 await build({stdin:{contents:"export * from './server/utils/console-profiles';export * from './server/utils/event-log'",resolveDir:resolve('.')},bundle:true,platform:'node',format:'esm',outfile:join(dir,'api.mjs'),logLevel:'silent'})
 const api=await import(pathToFileURL(join(dir,'api.mjs')).href)
-test('batch opts out of retired socket reuse; only transfer gets a longer deadline; logs omit credentials and arbitrary error text',async()=>{
+test('batch opts out of retired socket reuse; explicit readiness gets an operation deadline while status stays quick; logs omit credentials and arbitrary error text',async()=>{
  const env=process.env.PACKAGEFLOW_DATA_DIR,fetch=globalThis.fetch,timeout=AbortSignal.timeout
  process.env.PACKAGEFLOW_DATA_DIR=dir
  try {
@@ -21,6 +21,9 @@ test('batch opts out of retired socket reuse; only transfer gets a longer deadli
   assert.deepEqual(deadlines,[90000])
   globalThis.fetch=async(url,opts)=>{calls++;assert.equal(opts.headers.Connection,undefined);return new Response('{}')}
   await api.ps5OperationRequest(p.id,'/api/v1/install/staged');assert.deepEqual(deadlines,[90000,15000])
+  await api.ps5ServiceRequest(p.ip,'/health')
+  await api.ps5ServiceRequest(p.ip,'/api/v1/install/readiness')
+  assert.deepEqual(deadlines,[90000,15000,3500,15000], 'only the slow readiness preflight relaxes the status timeout')
   const fault=Object.assign(new Error('do not log credentials '+token),{cause:{code:'ECONNRESET'}})
   globalThis.fetch=async()=>{calls++;throw fault}
   const before=calls;await assert.rejects(api.ps5OperationRequest(p.id,'/api/v1/transfers/batch',{},Buffer.from('own fixture')),e=>e===fault)

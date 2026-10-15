@@ -13,6 +13,9 @@ export interface Ps5Item {
   hash?: string; sourceStamp?: string; installDispatched?: boolean; serviceJobId?: string; cancelRequested?: boolean; hidden?: boolean
   queueId?: string; createdAt?: number; confirmation?: 'user' | 'service-registration' | 'service-existing' | 'recorded-existing'; confirmedAt?: number
   imagePublishedAt?: number
+  observationStoppedAt?: number
+  registrationIdleSince?: number
+  registrationBlockedByApp?: boolean
   folderPublishedAt?: number
   transferProfile?: Ps5TransferProfile
   progressPhase?: 'source-check' | 'transfer' | 'device-check'; bytesChecked?: number
@@ -40,16 +43,21 @@ export class Ps5QueueRunner {
   private activeItem?: Ps5Item
   private progressSavedAt = 0
   private speed: TransferSpeed
-  private speedUpdatedAt = 0
   constructor(readonly queue: Ps5Queue, private persist: (queue: Ps5Queue) => void,
-    private driver: Ps5Driver, private interval = 2000, private installed: (item: Ps5Item) => void = () => {}, clock?: () => number) { this.speed = new TransferSpeed(clock) }
+    private driver: Ps5Driver, private interval = 2000, private installed: (item: Ps5Item) => void = () => {}, clock?: () => number) {
+    // A 128 MiB durable ACK or an intermediate Folder check can exceed five
+    // seconds. Include that time in the rate; a longer silence is still a stall.
+    this.speed = new TransferSpeed(clock, 15000)
+  }
   private save() { this.queue.updatedAt = Date.now(); this.persist(this.queue) }
   private transmissionActive(item: Ps5Item) {
     return item.state === 'sending' && item.progressPhase === 'transfer' || item.format === 'folder' && item.state === 'verifying' && item.progressPhase === 'device-check' && item.bytesSent < item.size
   }
   transferTelemetry(item: Ps5Item) {
-    if (item !== this.activeItem || !this.transmissionActive(item)) return {}
-    return { transferBytesPerSecond: this.speed.read() ?? 0, transferMeasuredAt: this.speedUpdatedAt || Date.now() }
+    if (this.queue.status !== 'running' || item.cancelRequested || item !== this.activeItem || !this.transmissionActive(item)) return {}
+    // This is the time the live rate was sampled, not the last durable ACK.
+    // The browser's freshness limit detects lost WEB polls independently.
+    return { transferBytesPerSecond: this.speed.read() ?? 0, transferMeasuredAt: Date.now() }
   }
   snapshot() { return structuredClone(this.queue) }
   enqueue(items: Omit<Ps5Item, 'transferId' | 'state' | 'detail' | 'bytesSent'>[], queueId?: string, initialQueueId?: string) {
@@ -91,12 +99,23 @@ export class Ps5QueueRunner {
     const item = (queueId === this.queue.id ? this.queue.items : this.queue.history.flat().filter(entry => entry.queueId === queueId)).find(entry => entry.packageId === packageId)
     if (!queueId || !item) throw new Ps5QueueFailure('Задание больше не существует в этой очереди')
     if (item.state === 'installed' && item.confirmation === 'user') return this.snapshot()
-    if (!item.installDispatched || !item.serviceJobId || item.bytesSent !== item.size || !['installing','unconfirmed','failed'].includes(item.state)) throw new Ps5QueueFailure('Подтверждение доступно после передачи пакета установщику')
+    if (item.observationStoppedAt || !item.installDispatched || !item.serviceJobId || item.bytesSent !== item.size || !['installing','unconfirmed','failed'].includes(item.state)) throw new Ps5QueueFailure('Подтверждение доступно после передачи пакета установщику')
     const previous = structuredClone(item)
     Object.assign(item, { state: 'installed', confirmation: 'user', confirmedAt: Date.now(), installedAt: Date.now(), completedAt: Date.now(), detail: 'Установку подтвердил пользователь' })
     try { this.save() } catch(error) { for (const key of Object.keys(item)) delete (item as unknown as Record<string, unknown>)[key]; Object.assign(item,previous); throw error }
     this.installed(item); this.wake()
     return this.snapshot()
+  }
+  stopWaiting(queueId: string, packageId: string) {
+    const item = this.queue.items.find(item => item.packageId === packageId)
+    if (queueId !== this.queue.id || !item || item.state !== 'unconfirmed' || !item.installDispatched) throw new Ps5QueueFailure('Снять ожидание можно только для неподтверждённой установки')
+    const previous = structuredClone(item)
+    Object.assign(item, { state: 'failed', observationStoppedAt: Date.now(), completedAt: Date.now(), detail: 'Ожидание снято пользователем. Результат установки на PS5 не подтверждён; повтор не отправлен' })
+    try { this.save() } catch (error) { for (const key of Object.keys(item)) delete (item as unknown as Record<string, unknown>)[key]; Object.assign(item, previous); throw error }
+    // Stop only our read-only reconciliation. Never call transfer cancellation
+    // or undo a system dispatch whose outcome is still unknown.
+    if (item === this.activeItem) this.controller?.abort(new Error('Observation stopped'))
+    this.wake(); return this.snapshot()
   }
   clear(selected: (item:Ps5Item)=>boolean = ()=>true) {
     for (const item of [...this.queue.items, ...this.queue.history.flat()]) if (terminal(item)&&selected(item)) item.hidden = true
@@ -130,13 +149,13 @@ export class Ps5QueueRunner {
       }
       const failedBase = this.queue.items.some(entry => entry.branch === item.branch && entry.order === 0 && ['failed','cancelled','skipped'].includes(entry.state) && !entry.alreadyPresent)
       if (item.order > 0 && failedBase) { Object.assign(item, { state: 'skipped', detail: 'Базовая игра в этой очереди не установлена', completedAt: Date.now() }); this.save(); continue }
-      this.activeItem = item; this.controller = new AbortController(); this.speed.reset(); this.speedUpdatedAt = 0
+      this.activeItem = item; this.controller = new AbortController(); this.speed.reset()
       const checkpoint = (patch: Partial<Ps5Item>) => {
         // A read-only poll that began before the human receipt cannot undo it.
-        if (item.confirmation === 'user') return
+        if (item.confirmation === 'user' || item.observationStoppedAt) return
         Object.assign(item, patch)
         if (!this.transmissionActive(item)) this.speed.reset()
-        else if (patch.bytesSent !== undefined) { this.speed.observe(item.bytesSent); this.speedUpdatedAt = Date.now() }
+        else if (patch.bytesSent !== undefined) this.speed.observe(item.bytesSent)
         // Byte offsets are already durable on PS5. Coalesce only WEB progress;
         // dispatch intents, hashes and state transitions always fsync immediately.
         if (Object.keys(patch).length === 1 && (patch.bytesSent !== undefined || patch.bytesChecked !== undefined) && Date.now()-this.progressSavedAt < 1000) return
@@ -151,7 +170,8 @@ export class Ps5QueueRunner {
         if (item.state === 'installed' && item.confirmation !== 'user') { this.installed(item); checkpoint({ installedAt: Date.now(), completedAt: Date.now() }) }
         else if (terminal(item)) checkpoint({ completedAt: Date.now() })
       } catch (error) {
-        if (this.queue.status === 'paused') { /* Retain durable offsets; never cancel receiver data. */ }
+        if (item.observationStoppedAt) { /* Explicitly stopped observation: preserve its durable unresolved result. */ }
+        else if (this.queue.status === 'paused') { /* Retain durable offsets; never cancel receiver data. */ }
         else if (item.cancelRequested && !item.installDispatched) {
           try { await this.driver.cancel(item); checkpoint({ state: 'cancelled', detail: 'Передача отменена', completedAt: Date.now() }) }
           catch { checkpoint({ detail: 'Ожидаем подтверждение отмены передачи от PS5' }) }

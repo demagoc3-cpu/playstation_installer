@@ -18,7 +18,7 @@ internal sealed partial class MainForm
     {
         healthCards.Clear();
         var strip = new BufferedPanel { Dock = DockStyle.Top, Height = 100, Padding = new Padding(14, 0, 14, 10), BackColor = BackColor };
-        foreach (var name in new[] { "WEB", "Pairing", "qBittorrent", "Prowlarr", "FlareSolverr" })
+        foreach (var name in new[] { "WEB", "qBittorrent", "Prowlarr", "FlareSolverr" })
         {
             var card = new StatusCard(name == "Pairing" ? T("Сопряжение", "Pairing") : name);
             card.Set(T("Проверяем…", "Checking…"), T("Проверка подключения", "Connection check"), Theme.Muted);
@@ -34,7 +34,7 @@ internal sealed partial class MainForm
             }
         }
         strip.SizeChanged += (_, _) => FitCards(); FitCards();
-        if (!healthTimerWired) { healthTimer.Tick += async (_, _) => { if (!busy) { await RefreshHealth(); _ = RefreshGithub(); } }; healthTimerWired = true; }
+        if (!healthTimerWired) { healthTimer.Tick += async (_, _) => { if (!busy) { await RefreshHealth(background:true); _ = RefreshGithub(); } }; healthTimerWired = true; }
         return strip;
     }
 
@@ -53,7 +53,7 @@ internal sealed partial class MainForm
         status.Text = message;
         events.Items.Insert(0, $"{DateTime.Now:HH:mm:ss}  {message}");
         while (events.Items.Count > 80) events.Items.RemoveAt(events.Items.Count - 1);
-        events.ResetView();
+        events.ResetView(); PushDesktopState();
     }
     private IProgress<int> DownloadProgress(string name)
     {
@@ -68,8 +68,10 @@ internal sealed partial class MainForm
 
     private void Component(string name, string state, string note, bool? ready)
     {
+        desktopComponents[name] = new { state, note, ready }; PushDesktopState();
         if (!healthCards.TryGetValue(name, out var card)) return;
         card.Set(state, note, ready == true ? Theme.Green : ready == false ? Color.FromArgb(250, 133, 156) : Theme.Muted);
+        if(searchComponentStates.TryGetValue(name,out var mirror)){mirror.Text="●  "+state;mirror.ForeColor=ready==true?Theme.Green:Theme.Muted;}
     }
 
     private async Task RestoreTracker(ProwlarrClient client, int id, CancellationToken ct)
@@ -86,9 +88,9 @@ internal sealed partial class MainForm
         }
     }
 
-    private async Task RefreshHealth()
+    private async Task RefreshHealth(bool background = false)
     {
-        if (probing || IsDisposed || lifetime.IsCancellationRequested) return;
+        if (probing || IsDisposed || lifetime.IsCancellationRequested || settings.LegacyMigrationRequired) return;
         probing = true;
         var running = T("Работает", "Running"); var offline = T("Недоступен", "Unavailable"); var absent = T("Не настроен", "Not configured");
         async Task Web()
@@ -113,7 +115,7 @@ internal sealed partial class MainForm
                     restoredTorrent = true;
                 }
                 Component("qBittorrent", !configured ? absent : ready ? T("Подключён", "Connected") : offline,
-                    ready ? info["version"]?.GetValue<string>() ?? "Web UI" : configured ? T("Проверьте Web UI и доступ", "Check Web UI and access") : T("Настройте в «Загрузках»", "Set up in Downloads"), configured ? ready : null);
+                    ready ? info["version"]?.GetValue<string>() ?? "Web UI" : configured ? T("Проверьте Web UI и доступ", "Check Web UI and access") : T("Настройте в «Поиске»", "Set up in Search"), configured ? ready : null);
             } catch { Component("qBittorrent", T("Не проверен", "Not checked"), T("Нужен запущенный WEB", "WEB must be running"), null); }
         }
         async Task Prowlarr()
@@ -134,27 +136,10 @@ internal sealed partial class MainForm
                 }
             } catch { Component("Prowlarr", offline, T("Проверьте адрес и API-ключ", "Check address and API key"), false); }
         }
-        async Task Pairing()
+        async Task Consoles()
         {
-            try {
-                using var ct = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token); ct.CancelAfter(TimeSpan.FromSeconds(6));
-                var list = await host.Api("/api/consoles", ct: ct.Token);
-                SavedConsoleGrid.Render(consoleGrid,list,settings.ConsoleId,settings.Language);
-                var profiles = list["consoles"]!.AsArray();
-                var selected = profiles.FirstOrDefault(p => p?["id"]?.GetValue<string>() == settings.ConsoleId)
-                    ?? profiles.FirstOrDefault(p => p?["ip"]?.GetValue<string>() == settings.PsIp)
-                    ?? profiles.FirstOrDefault(p => p?["id"]?.GetValue<string>() == list["activeId"]?.GetValue<string>());
-                if (selected == null) { Component("Pairing", T("Нет сопряжения", "Not paired"), T("Настройте в «Приставки»", "Set up in Consoles"), false); return; }
-                var id = selected["id"]!.GetValue<string>();
-                var checkedList = await host.Api("/api/consoles/probe", new {id}, ct.Token);
-                SavedConsoleGrid.Render(consoleGrid,checkedList,settings.ConsoleId,settings.Language);
-                var info = checkedList["consoles"]!.AsArray().First(p => p?["id"]?.GetValue<string>() == id)!;
-                var paired = info["online"]?.GetValue<bool>() == true ? info["paired"]?.GetValue<bool>() : null;
-                var ip = info["ip"]!.GetValue<string>();
-                if (!restoredPs) { psIp.Text = ip; restoredPs = true; }
-                Component("Pairing", paired == true ? T("Сопряжено", "Paired") : paired == false ? T("Нет сопряжения", "Not paired") : T("Не проверено", "Not checked"),
-                    info["platform"]!.GetValue<string>().ToUpperInvariant() + " • " + ip, paired);
-            } catch { Component("Pairing", T("Не проверено", "Not checked"), T("Проверьте WEB и приставку", "Check WEB and console"), null); }
+            await RefreshSavedConsoles(true, background:background);
+            if (!restoredPs && settings.PsIp.Length > 0) { psIp.Text = settings.PsIp; restoredPs = true; }
         }
         async Task Flare()
         {
@@ -165,7 +150,7 @@ internal sealed partial class MainForm
                 Component("FlareSolverr", ready ? running : offline, ready ? "API • 127.0.0.1:8191" : T("API не готов", "API not ready"), ready);
             } catch { Component("FlareSolverr", settings.FlareSolverr ? offline : absent, "127.0.0.1:8191", settings.FlareSolverr ? false : null); }
         }
-        try { healthWork = Task.WhenAll(Web(), Pairing(), Torrent(), Prowlarr(), Flare()); await healthWork; }
+        try { healthWork = Task.WhenAll(Web(), Consoles(), Torrent(), Prowlarr(), Flare()); await healthWork; }
         finally { probing = false; }
     }
 }

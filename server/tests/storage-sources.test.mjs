@@ -161,3 +161,23 @@ test('desktop Linux SMB uses GIO stdin credentials and a private GVfs link; remo
     await c.disconnect(source);assert.equal(calls.length,1,'no unmount subprocess is launched');await assert.rejects(fsp.lstat(point),e=>e.code==='ENOENT')
   } finally {cp.spawn=oldSpawn;fsp.stat=oldStat;fsp.readdir=oldReaddir;syncBuiltinESMExports()}
 }))
+
+test('mapped drive volume folders are excluded; genuine unreadable game folders still fail without erasing the index or its error',()=>context(async(api,work)=>{
+  const root=join(work,'drive');mkdirSync(root)
+  for(const name of ['$RECYCLE.BIN','System Volume Information','.packageflow'])mkdirSync(join(root,name))
+  const game=join(root,'Games');mkdirSync(game);writeFileSync(join(game,'game.pkg'),fixture('base'))
+  const fsp=createRequire(import.meta.url)('node:fs/promises'),oldStat=fsp.stat,oldRead=fsp.readdir
+  let broken=false,systemProbes=0
+  const protectedPath=path=>/\$(?:recycle\.bin)|system volume information|\.packageflow/i.test(String(path))
+  try{
+    fsp.stat=async(path,...args)=>{if(protectedPath(path)){systemProbes++;throw Object.assign(new Error('Protected folder'),{code:'EACCES'})}return oldStat(path,...args)}
+    fsp.readdir=async(path,...args)=>{if(protectedPath(path)){systemProbes++;throw Object.assign(new Error('Protected folder'),{code:'EACCES'})}if(broken&&path===game)throw Object.assign(new Error('NAS disconnected'),{code:'EIO'});return oldRead(path,...args)}
+    syncBuiltinESMExports()
+    const manager=api.createStorageManager(connector()),source=await manager.save({kind:'local',path:root});await manager.settle()
+    assert.equal(systemProbes,0);assert.equal(api.getLibraryPackages().length,1);assert.equal(manager.list().sources[0].state,'online')
+    broken=true;manager.action(source.id,'index');await manager.settle()
+    const message=manager.list().sources[0].message;assert.match(message,/Games.*EIO/);assert.equal(api.getLibraryPackages().length,1)
+    manager.action(source.id,'connect');await manager.settle();assert.equal(manager.list().sources[0].state,'online');assert.equal(manager.list().sources[0].message,message,'connectivity check must retain index failure')
+    broken=false;manager.action(source.id,'index');await manager.settle();assert.notEqual(manager.list().sources[0].message,message)
+  }finally{fsp.stat=oldStat;fsp.readdir=oldRead;syncBuiltinESMExports()}
+}))

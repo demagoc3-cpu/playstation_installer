@@ -104,7 +104,7 @@ test('runner publishes live speed only for its active transmission, without pers
     assert.equal(runner.transferTelemetry(item).transferBytesPerSecond, 100)
     assert.deepEqual(runner.transferTelemetry({ ...item }), {}, 'another task cannot inherit the rate')
     assert.equal('transferBytesPerSecond' in durable.items[0], false)
-    time = 7000; assert.equal(runner.transferTelemetry(item).transferBytesPerSecond, 0)
+    time = 17000; assert.equal(runner.transferTelemetry(item).transferBytesPerSecond, 0)
     save({ state: 'verifying', progressPhase: 'device-check' }); assert.deepEqual(runner.transferTelemetry(item), {})
     release(); await runner.settled(); assert.deepEqual(runner.transferTelemetry(item), {})
     assert.equal(queue.status, 'completed')
@@ -131,6 +131,74 @@ test('folder speed remains visible through an intermediate check and stops at fi
     save({ state: 'verifying', progressPhase: 'device-check', bytesSent: 1000 }); assert.deepEqual(runner.transferTelemetry(item), {})
     release(); await runner.settled()
   } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('PS5 rate and ETA survive slow durable ACKs and fresh polls, but stop for stale polls, stalls and pause', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'pf-live-rate-'))
+  try {
+    const out = join(dir, 'test.mjs')
+    await build({ stdin: { contents: `export * from './server/utils/ps5-queue-core'; export * from './shared/types/tasks'`, resolveDir: resolve('.') }, outfile: out, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent' })
+    const { Ps5QueueRunner, ps5BlankQueue, installationTaskSpeed, installationTaskRemainingMinutes } = await import(pathToFileURL(out).href)
+    let time = 0, save, finish, durable, attempts = 0
+    t.mock.method(Date, 'now', () => 100000 + time)
+    const mib = 1048576, queue = ps5BlankQueue('slow-folder', '192.0.2.1')
+    const runner = new Ps5QueueRunner(queue, q => { durable = structuredClone(q) }, {
+      async run(item, signal, checkpoint) {
+        attempts++; save = checkpoint
+        save({ state: 'sending', progressPhase: 'transfer', bytesSent: item.bytesSent })
+        await new Promise((resolve, reject) => {
+          finish = resolve
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+        })
+        return { state: 'installed' }
+      }, async cancel() {},
+    }, 5, () => {}, () => time)
+    runner.enqueue([{ packageId:'folder', title:'folder', fileName:'folder', size:1024*mib, type:'Игра', titleId:'PPSA95001', platform:'ps5', format:'folder', branch:'ps5:PPSA95001', order:0 }])
+    const item = queue.items[0]
+    const snapshot = () => ({ ...structuredClone(item), consolePlatform:'ps5', ...runner.transferTelemetry(item) })
+    assert.equal(installationTaskRemainingMinutes(snapshot(), Date.now()), undefined, 'a baseline is not a measured rate')
+    time = 4000; save({ bytesSent:128*mib })
+    assert.equal(installationTaskSpeed(snapshot(), Date.now()), 32*mib)
+    assert.equal(installationTaskRemainingMinutes(snapshot(), Date.now()), 1)
+    save({ state:'verifying', progressPhase:'device-check' })
+    // Replacing task objects on each two-second poll must not lose the meter.
+    for (time = 6000; time <= 10000; time += 2000) {
+      const task = snapshot()
+      assert.equal(task.transferMeasuredAt, Date.now(), 'the timestamp belongs to this rate sample')
+      assert.equal(installationTaskSpeed(task, Date.now()), 128*mib/(time/1000), 'elapsed ACK/check time remains in the rate')
+      assert.ok(installationTaskRemainingMinutes(task, Date.now()) > 0, 'ETA remains available between ACKs')
+    }
+    time = 12000; save({ state:'sending', progressPhase:'transfer', bytesSent:256*mib })
+    assert.equal(installationTaskSpeed(snapshot(), Date.now()), 16*mib, 'eight-second ACK interval is a measured rate')
+    const oldResponse = snapshot()
+    time = 18000
+    assert.equal(installationTaskSpeed(oldResponse, Date.now()), 0, 'lost WEB connection does not retain an old positive rate')
+    assert.equal(installationTaskRemainingMinutes(oldResponse, Date.now()), undefined)
+    assert.ok(installationTaskSpeed(snapshot(), Date.now()) > 0, 'a fresh poll during the next slow batch remains live')
+    time = 28001
+    save({ bytesSent:item.bytesSent })
+    assert.equal(installationTaskSpeed(snapshot(), Date.now()), 0, 'duplicate counters do not hide a real stall')
+    assert.equal(installationTaskRemainingMinutes(snapshot(), Date.now()), undefined)
+    time = 29000; save({ bytesSent:384*mib })
+    assert.ok(installationTaskSpeed(snapshot(), Date.now()) > 0, 'the next ACK recovers the rate')
+    const pause = runner.pause(queue.id)
+    assert.deepEqual(runner.transferTelemetry(item), {}, 'pause hides speed immediately before driver cleanup')
+    await pause
+    assert.equal(installationTaskRemainingMinutes(snapshot(), Date.now()), undefined)
+    time = 30000; runner.resume(queue.id)
+    assert.equal(attempts, 2)
+    assert.equal(installationTaskSpeed(snapshot(), Date.now()), 0, 'resume starts from a byte baseline')
+    time = 34000; save({ bytesSent:512*mib })
+    assert.equal(installationTaskSpeed(snapshot(), Date.now()), 32*mib, 'previous-attempt time and bytes are excluded')
+    save({ state:'verifying', progressPhase:'device-check', bytesSent:1024*mib })
+    assert.deepEqual(runner.transferTelemetry(item), {}, 'final verification is not a network transfer')
+    assert.equal(installationTaskRemainingMinutes(snapshot(), Date.now()), undefined)
+    finish(); await runner.settled()
+    assert.deepEqual(runner.transferTelemetry(item), {})
+    assert.equal(installationTaskRemainingMinutes(snapshot(), Date.now()), undefined)
+    assert.equal('transferBytesPerSecond' in durable.items[0], false, 'rates are still never persisted')
+    assert.equal('transferMeasuredAt' in durable.items[0], false)
+  } finally { rmSync(dir, { recursive:true, force:true }) }
 })
 
 test('PS4 live telemetry isolates consoles/attempts, survives download states, excludes restored bytes and local installation', async () => {

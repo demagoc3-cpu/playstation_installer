@@ -25,9 +25,18 @@ export interface ConsoleProfile {
   firmware?: string
   model?: string
   transport?: 'service' | 'payload'
+  servicePid?: number
+  serviceBuild?: string
+  capabilitiesDeferred?: boolean
+  henName?: string
+  henVersion?: string
+  henSdk?: string
+  transferFreeBytes?: number
+  totalBytes?: number
   freeBytes?: number
   checkedAt?: number
   paired: boolean
+  pairingConfigured?: boolean
   online: boolean
   capabilities: ConsoleCapabilities
 }

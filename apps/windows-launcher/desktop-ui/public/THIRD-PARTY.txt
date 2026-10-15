@@ -1,0 +1,7 @@
+PackageFlow Desktop UI 1.10.15
+Vue 3.5.42: MIT; license in licenses/vue-MIT.txt
+Vite 7.3.1 build tool: licenses/vite-LICENSE.txt
+Official component logos: asset-provenance.json and licenses/.
+Brand names and marks identify the corresponding software and services.
+WebView2 SDK 1.0.4191.47 is a Microsoft redistributable. Evergreen Runtime is not bundled. A pinned official bootstrapper is downloaded only if a suitable Runtime is absent, verified by SHA256 and Microsoft Authenticode, then installs the shared Runtime from Microsoft.
+https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution

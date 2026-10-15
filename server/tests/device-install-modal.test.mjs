@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { createRequire } from 'node:module'
 import { parse, compileScript } from '@vue/compiler-sfc'
 import { build } from 'esbuild'
@@ -20,11 +20,13 @@ test('table review is mandatory, sends only selected destinations/packages, and 
   const {descriptor}=parse(readFileSync('app/components/DeviceInstallModal.vue','utf8'))
   const script=compileScript(descriptor,{id:'install-dialog'}).content
   const contents=`import {ref,computed} from 'vue';const onMounted=()=>{};const onBeforeUnmount=()=>{};const useAppLocale=()=>({t:s=>s});const localStorage={getItem:()=>null,setItem:()=>{}};const $fetch=(url,options)=>globalThis.pfInstallDialogFixture(url,options);\n${script}`
-  const outfile=join(work,'view.cjs');await build({stdin:{contents,loader:'ts',resolveDir:process.cwd()},outfile,bundle:true,platform:'node',format:'cjs',logLevel:'silent'})
+  const outfile=join(work,'view.cjs');await build({stdin:{contents,loader:'ts',resolveDir:join(process.cwd(),'app/components')},outfile,alias:{'#shared':resolve('shared')},bundle:true,platform:'node',format:'cjs',logLevel:'silent'})
   const module=createRequire(import.meta.url)(outfile), props={selection:{packageIds:['base']}},view=module.default.setup(props,{expose(){},emit(){}})
   props.selection.packageIds.push('not-selected','LittleNightmares')
   await view.load();assert.deepEqual(calls[0].options.body,{packageIds:['base']},'selection is frozen when opening the modal')
   const streaming={...view.preview.value.devices[0],requiredBytes:610,selectedBytes:100,queueBytes:500,installedPackages:[]}
+  const payload={...streaming,profile:{id:'payload',platform:'ps4',transport:'payload',freeBytes:1}}
+  assert.equal(view.required(payload),0);assert.equal(view.spaceEnough(payload),true,'PyLoader must not use missing or stale service space')
   assert.equal(view.required(streaming),610,'UI keeps server mixed queue estimate instead of doubling source bytes')
   view.selected.value=['one'];assert.equal(view.ready.value,false);await view.install();assert.equal(calls.filter(c=>c.url.endsWith('install-batch')).length,0)
   view.openInstalled(view.preview.value.devices[0]);view.draft.value=['base'];await view.applyPanel()

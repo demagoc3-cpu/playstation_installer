@@ -29,6 +29,8 @@ test('task controls send scoped removal for each queue, keep errors visible, and
   view.data.value.queueId='current';view.data.value.canCancelAll=true
   calls.length=0;await view.cancelAll();assert.equal(calls[0].options.body.action,'cancel');assert.equal(calls[0].options.body.queueId,'current')
   calls.length=0;await view.resumeQueue('stopped');assert.equal(calls[0].options.body.action,'resume');assert.equal(calls[0].options.body.queueId,'stopped');assert.equal(calls[0].options.body.consoleId,'selected-ps4')
+  calls.length=0;await view.stopWaiting({id:'unknown',queueId:'uncertain',packageId:'image',canStopWaiting:true})
+  assert.equal(calls[0].options.body.action,'stop-waiting');assert.equal(calls[0].options.body.queueId,'uncertain');assert.equal(calls[0].options.body.packageId,'image');assert.equal(calls[0].options.body.consoleId,'selected-ps4')
   view.data.value.maintenance={id:'flow',canStop:true,title:'selected',state:'removing',message:''}
   calls.length=0;await view.stopReinstall();assert.equal(calls[0].options.body.action,'stop-reinstall');assert.equal(calls[0].options.body.queueId,'flow')
   // Compile and run the actual row handler: unchecking requests cancellation of exactly that row.

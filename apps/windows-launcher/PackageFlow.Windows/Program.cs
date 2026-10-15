@@ -13,6 +13,12 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
+        // An old launcher could otherwise stop its container through its old IPC handler.
+        if(args.Contains("--prepare-update") && PackageFlow.Core.LauncherSettings.Load(ServerHost.SettingsPath).LegacyMigrationRequired) {
+            if(Mutex.TryOpenExisting(MutexName,out var oldLauncher)){oldLauncher.Dispose();Environment.ExitCode=2;return;}
+            try {using var probeHttp=new HttpClient();new ServerHost(PackageFlow.Core.LauncherSettings.Load(ServerHost.SettingsPath),probeHttp).PrepareUpdate(CancellationToken.None).GetAwaiter().GetResult();Environment.ExitCode=0;}catch{Environment.ExitCode=2;}
+            return;
+        }
         using var mutex = new Mutex(true, MutexName, out var first);
         if (!first)
         {
@@ -46,9 +52,10 @@ internal static class Program
             if (!File.Exists(ServerHost.SettingsPath))
             {
                 var language = args.FirstOrDefault(arg => arg.StartsWith("--language="))?.Split('=')[1];
-                new PackageFlow.Core.LauncherSettings { Language = language is "ru" or "en" ? language : "ru", AutomaticSetupPending = true }.Save(ServerHost.SettingsPath);
+                new PackageFlow.Core.LauncherSettings { Language = language is "ru" or "en" ? language : "ru" }.Save(ServerHost.SettingsPath);
             }
-            Application.Run(new MainForm(args.Contains("--background")));
+            var capture = args.FirstOrDefault(arg => arg.StartsWith("--capture-ui="))?[13..];
+            Application.Run(new MainForm(args.Contains("--background"), captureDirectory:capture));
         }
         catch (Exception exception)
         {

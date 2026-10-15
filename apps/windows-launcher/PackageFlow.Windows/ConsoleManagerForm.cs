@@ -17,39 +17,49 @@ internal sealed class ConsoleManagerForm : Form
     private readonly Dictionary<string, JsonNode> profiles = new();
     private readonly List<Button> actions = [];
     private readonly DataGridView grid = new();
-    private readonly TextBox ip = new(), name = new(), firmware = new();
+    private readonly TextBox ip = new(), name = new();
+    private readonly HashSet<string> checkedIps = new();
     private readonly Label details = new(), status = new();
     private readonly Button discoverButton;
     private CancellationTokenSource? searchLifetime;
     private Task searchWork = Task.CompletedTask;
     private bool busy, refreshing, disposed;
-    private string? lastSelected;
+    public string[] SelectedConsoleIds { get; private set; } = [];
     public string? SelectedConsoleId { get; private set; }
     private string T(string ru, string en) => settings.Language == "en" ? en : ru;
     private string Unknown => T("Не проверено", "Not checked");
     private string Flag(bool? v) => v == true ? T("Готово", "Ready") : v == false ? T("Недоступно", "Unavailable") : Unknown;
     private string? SelectedIp => grid.SelectedRows.Count > 0 ? grid.SelectedRows[0].Tag as string : null;
     private JsonNode? SelectedProfile => SelectedIp is { } address ? profiles.GetValueOrDefault(address) : null;
-    public ConsoleManagerForm(ServerHost host, LauncherSettings settings, Func<string, CancellationToken, IProgress<string>, Task> installPs4, bool preview = false, string? settingsPath = null)
+    public ConsoleManagerForm(ServerHost host, LauncherSettings settings, Func<string, CancellationToken, IProgress<string>, Task> installPs4, bool preview = false, string? settingsPath = null, bool selectionOnly = false)
     {
         this.host = host; this.settings = settings; this.installPs4 = installPs4; this.settingsPath = settingsPath ?? ServerHost.SettingsPath;
+        Icon = GlassStyle.BrandIcon();
         Text = T("Приставки PS4 и PS5", "PS4 and PS5 consoles"); BackColor = Theme.Background; ForeColor = Color.White;
         Font = new Font("Segoe UI", 10); AutoScaleMode = AutoScaleMode.Dpi; StartPosition = FormStartPosition.CenterParent;
         var workArea=Screen.FromPoint(Cursor.Position).WorkingArea;
         ClientSize = new Size(Math.Min(1120,workArea.Width-60),Math.Min(740,workArea.Height-60)); MinimumSize = new Size(1000, 700);
-        var layout = new BufferedTable { Dock = DockStyle.Fill, Padding = new Padding(20), ColumnCount = 1, RowCount = 8 };
-        foreach (var h in new[] { 44f, 0f, 120f, 58f, 58f, 46f, 106f, 72f }) layout.RowStyles.Add(h == 0 ? new RowStyle(SizeType.Percent, 100) : new RowStyle(SizeType.Absolute, h));
+        var layout = new BufferedTable { Dock = DockStyle.Fill, Padding = new Padding(20), ColumnCount = 1, RowCount = 7 };
+        foreach (var h in new[] { 38f, 0f, 74f, 58f, 40f, 108f, 62f }) layout.RowStyles.Add(h == 0 ? new RowStyle(SizeType.Percent, 100) : new RowStyle(SizeType.Absolute, h));
         Controls.Add(layout);
-        layout.Controls.Add(new Label { Text = T("Найденные и сохранённые приставки — выберите, какую подключить", "Discovered and saved consoles — select one to connect"), Dock = DockStyle.Fill, Font = new Font("Segoe UI", 14, FontStyle.Bold) }, 0, 0);
+        layout.Controls.Add(new Label { Text = T("Приставки — выберите строку или отметьте несколько", "Consoles — select a row or check several"), Dock = DockStyle.Fill, Font = new Font("Segoe UI", 14, FontStyle.Bold) }, 0, 0);
         grid.Dock = DockStyle.Fill; grid.BackgroundColor = Theme.Background; grid.BorderStyle = BorderStyle.None;
-        grid.AllowUserToAddRows = grid.AllowUserToDeleteRows = false; grid.ReadOnly = true; grid.MultiSelect = false;
+        grid.AllowUserToAddRows = grid.AllowUserToDeleteRows = false; grid.ReadOnly = false; grid.MultiSelect = false;
         grid.RowHeadersVisible = false; grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect; grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         grid.EnableHeadersVisualStyles = false; grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Theme.Card, ForeColor = Theme.Muted, Font = Font };
         grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing; grid.ColumnHeadersHeight = 34;
         grid.DefaultCellStyle = new DataGridViewCellStyle { BackColor = Theme.Card, ForeColor = Color.White, SelectionBackColor = Theme.Accent, SelectionForeColor = Color.White, Padding = new Padding(5) };
         grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(25, 24, 40); grid.GridColor = Theme.Border; grid.RowTemplate.Height = 44;
+        grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "batch", HeaderText = "✓", Width = 36, MinimumWidth = 36, AutoSizeMode = DataGridViewAutoSizeColumnMode.None });
+        grid.CurrentCellDirtyStateChanged += (_,_) => { if(grid.IsCurrentCellDirty)grid.CommitEdit(DataGridViewDataErrorContexts.Commit); };
+        grid.CellValueChanged += (_,e) => {
+            if(refreshing || e.RowIndex<0 || e.ColumnIndex!=0)return;
+            var row=grid.Rows[e.RowIndex];if(row.Tag is not string address)return;
+            if(row.Cells[0].Value is true)checkedIps.Add(address);else checkedIps.Remove(address);
+        };
         foreach (var (key, title) in new[] { ("name", T("Приставка", "Console")), ("ip", "IP"), ("platform", "PS"), ("firmware", "FW"), ("paired", T("Сопряжение", "Pairing")), ("service", T("Служба", "Service")), ("loader", T("Загрузчик", "Loader")) }) grid.Columns.Add(key, title);
         foreach(var column in grid.Columns.Cast<DataGridViewColumn>()) {
+            if(column.Name=="batch")continue; column.ReadOnly=true;
             column.MinimumWidth = column.Name == "platform" ? 50 : column.Name == "name" ? 150 : 110;
             column.FillWeight = column.Name == "name" ? 150 : column.Name == "platform" ? 50 : 110;
         }
@@ -62,28 +72,27 @@ internal sealed class ConsoleManagerForm : Form
         manual.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); manual.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
         AddField(manual, 0, T("IP вручную", "Manual IP"), ip); AddField(manual, 1, T("Название", "Name"), name);
         layout.Controls.Add(manual, 0, 3);
-        var pairing = new BufferedTable { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
-        pairing.RowStyles.Add(new RowStyle(SizeType.Percent,100));
-        pairing.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50)); pairing.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-        AddField(pairing, 0, T("Прошивка PS5 из настроек (для первого запуска ELF)", "PS5 firmware from Settings (for first ELF start)"), firmware);
-        layout.Controls.Add(pairing, 0, 4);
-        layout.Controls.Add(new Label { Text = T("PS4: GoldHEN + PyLoader. PS5: выполненный эксплойт + загрузчик ELF. Подключение выполняется автоматически; для приложения нужен ShadowMount+.", "PS4: GoldHEN + PyLoader. PS5: completed exploit + ELF loader. Connection is automatic; the application needs ShadowMount+."), Dock = DockStyle.Fill, ForeColor = Theme.Muted }, 0, 5);
+        layout.Controls.Add(new Label { Text = T("PS4: GoldHEN + PyLoader. PS5: выполненный эксплойт + загрузчик ELF. Подключение выполняется автоматически; для приложения нужен ShadowMount+.", "PS4: GoldHEN + PyLoader. PS5: completed exploit + ELF loader. Connection is automatic; the application needs ShadowMount+."), Dock = DockStyle.Fill, ForeColor = Theme.Muted }, 0, 4);
         var buttons = new BufferedFlow { Dock = DockStyle.Fill, WrapContents = true };
         discoverButton = new RoundedButton { Text = T("Найти", "Find"), Size = new Size(120, 40), BackColor = Theme.Card, ForeColor = Color.White, Margin = new Padding(0, 8, 10, 0) };
         discoverButton.Click += async (_, _) => await FindOrCancel(); buttons.Controls.Add(discoverButton);
         AddButton(buttons, T("Добавить", "Add"), AddManual);
         AddButton(buttons, T("Проверить", "Check"), CheckSelected);
-        AddButton(buttons, T("Установить", "Install"), Install);
+        if (selectionOnly) AddButton(buttons, "OK", SelectCheckedConsoles);
+        else {
+        AddButton(buttons, T("Установить / обновить", "Install / update"), Install);
+        AddButton(buttons, T("Найти и установить", "Find and install"), FindAndInstall);
         AddButton(buttons, T("Подключить", "Connect"), Pair);
-        AddButton(buttons, T("Выбрать", "Select"), SelectConsole);
         AddButton(buttons, T("Удалить приложение", "Remove app"), RemoveApp);
         AddButton(buttons, T("Удалить устройство", "Remove device"), RemoveDevice);
+        }
         var close = new RoundedButton { Text = T("Закрыть", "Close"), Size = new Size(100, 40), BackColor = Theme.Card, ForeColor = Color.White, Margin = new Padding(0, 8, 0, 0) };
         close.Click += (_, _) => Close(); buttons.Controls.Add(close);
-        layout.Controls.Add(buttons, 0, 6);
+        layout.Controls.Add(buttons, 0, 5);
         status.Dock = DockStyle.Fill; status.ForeColor = Theme.Muted; status.AutoEllipsis = true; status.Padding = new Padding(0, 8, 0, 0);
-        layout.Controls.Add(status, 0, 7);
+        layout.Controls.Add(status, 0, 6);
         ip.Text = settings.PsIp;
+        GlassStyle.TransparentLabels(this);
         // Closing stops observation, not an already accepted console command.
         FormClosing += (_, _) => lifetime.Cancel();
         if (!preview) Shown += async (_, _) => await FindOrCancel();
@@ -107,11 +116,11 @@ internal sealed class ConsoleManagerForm : Form
     {
         if (busy) return; busy = true; actions.ForEach(b => b.Enabled = false); grid.Enabled = false;
         discoverButton.Enabled = false;
-        ip.Enabled = name.Enabled = firmware.Enabled = false;
+        ip.Enabled = name.Enabled = false;
         try { searchLifetime?.Cancel(); await searchWork; await action(); }
         catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
         catch (Exception e) when (!lifetime.IsCancellationRequested) { if (!IsDisposed) status.Text = e.Message; }
-        finally { busy = false; if (!IsDisposed) { discoverButton.Enabled = true; actions.ForEach(b => b.Enabled = true); grid.Enabled = true; ip.Enabled = name.Enabled = firmware.Enabled = true; } }
+        finally { busy = false; if (!IsDisposed) { discoverButton.Enabled = true; actions.ForEach(b => b.Enabled = true); grid.Enabled = true; ip.Enabled = name.Enabled = true; } }
     }
     private async Task<JsonNode> Api(string path, object? body = null, CancellationToken ct = default)
     {
@@ -137,8 +146,8 @@ internal sealed class ConsoleManagerForm : Form
             var p = profiles.GetValueOrDefault(address); var d = discovered.GetValueOrDefault(address);
             var online = p?["online"]?.GetValue<bool>() == true; var stale = !online || p?["checkedAt"] == null;
             var fw = online ? p?["firmware"]?.GetValue<string>() : d?.Firmware;
-            var n = grid.Rows.Add(p?["name"]?.GetValue<string>() ?? d?.Name, address, (p?["platform"]?.GetValue<string>() ?? d?.Platform)?.ToUpperInvariant(), fw ?? Unknown,
-                stale ? Unknown : p?["paired"]?.GetValue<bool>() == true ? T("Сопряжено", "Paired") : T("Не сопряжено", "Not paired"), online || d?.Service == true ? T("Работает", "Running") : Unknown,
+            var n = grid.Rows.Add(checkedIps.Contains(address), p?["name"]?.GetValue<string>() ?? d?.Name, address, (p?["platform"]?.GetValue<string>() ?? d?.Platform)?.ToUpperInvariant(), fw ?? Unknown,
+                stale ? p?["pairingConfigured"]?.GetValue<bool>() == true ? T("Ключ сохранён", "Key saved") : Unknown : p?["paired"]?.GetValue<bool>() == true ? T("Сопряжено", "Paired") : p?["pairingConfigured"]?.GetValue<bool>() == true ? T("Ключ сохранён", "Key saved") : T("Не сопряжено", "Not paired"), online || d?.Service == true ? T("Работает", "Running") : Unknown,
                 d?.RestMode == true ? T("Режим покоя", "Rest mode") : d?.Loader == true ? T("Доступен", "Available") : Unknown);
             grid.Rows[n].Tag = address; if (address == selected) grid.Rows[n].Selected = true;
         }
@@ -149,10 +158,9 @@ internal sealed class ConsoleManagerForm : Form
     {
         var address = SelectedIp; var p = SelectedProfile; var d = address == null ? null : discovered.GetValueOrDefault(address);
         if (address == null) { details.Text = T("Нажмите «Найти» или добавьте приставку по IP.", "Click Find or add a console by IP."); return; }
-        if(lastSelected!=address){firmware.Clear();lastSelected=address;}
         ip.Text = address; name.Text = p?["name"]?.GetValue<string>() ?? d?.Name ?? "";
         details.Text = T("Модель: ", "Model: ") + (p?["model"]?.GetValue<string>() ?? d?.Model ?? Unknown) + "\n" +
-            T("WebKit: не проверено · kstuff: не проверено · ShadowMount+: не проверено\nВыберите «Проверить» для актуального ответа. Наличие загрузчика не подтверждает готовность ядра.", "WebKit: not checked · kstuff: not checked · ShadowMount+: not checked\nSelect Check for a current response. Loader availability does not prove kernel readiness.");
+            T("Прошивка читается автоматически. «Установить / обновить» проверит службу и приложение.\nДля нескольких приставок используйте галочки слева.", "Firmware is detected automatically. Install / update checks both service and app.\nUse the checkboxes on the left for several consoles.");
     }
     private Task FindOrCancel() => RunSearch(Discover);
     private async Task RunSearch(Func<CancellationToken, Task> action)
@@ -236,56 +244,48 @@ internal sealed class ConsoleManagerForm : Form
         SelectedConsoleId=id;
     }
     private async Task SelectConsole() { var id=await EnsureProfile();await SaveSelection(id);busy=false;DialogResult=DialogResult.OK;Close(); }
+    private async Task SelectCheckedConsoles()
+    {
+        var addresses = checkedIps.Count > 0 ? checkedIps.ToArray() : SelectedIp is {} selected ? new[] { selected } : [];
+        if (addresses.Length == 0) throw new InvalidOperationException(T("Выберите приставку.", "Select a console."));
+        var ids = new List<string>();
+        foreach (var address in addresses) {
+            if (!profiles.TryGetValue(address, out var profile)) {
+                var found = discovered[address];
+                await Api("/api/consoles", new { ip = found.Ip, name = found.Name, platform = found.Platform, transport = "service" }, lifetime.Token);
+                await Reload(); profile = profiles[address];
+            }
+            ids.Add(profile["id"]!.GetValue<string>());
+        }
+        SelectedConsoleIds = ids.ToArray(); busy = false; DialogResult = DialogResult.OK; Close();
+    }
+    protected override void OnPaintBackground(PaintEventArgs e) => GlassStyle.Paint(this, e, 130);
     private async Task Install()
     {
-        var id = await EnsureProfile(); var p=SelectedProfile!;
-        if(p["platform"]?.GetValue<string>()=="ps4") {
-            await installPs4(p["ip"]!.GetValue<string>(), lifetime.Token, new Progress<string>(message => { if (!IsDisposed && !lifetime.IsCancellationRequested) status.Text=message; }));
-            await Reload();
-            if(SelectedProfile?["online"]?.GetValue<bool>()==true) {
-                if(SelectedProfile?["paired"]?.GetValue<bool>()!=true)await Api("/api/consoles/pair",new {id},lifetime.Token);
-                await Reload();await SaveSelection(id);
-                status.Text=T("PS4 подключена. PackageFlow готов к работе.","PS4 connected. PackageFlow is ready.");
+        var addresses=checkedIps.Count>0?checkedIps.ToArray():SelectedIp is {} selected?new[]{selected}:Array.Empty<string>();
+        await InstallAddresses(addresses);
+    }
+    private async Task FindAndInstall()
+    {
+        await Discover(lifetime.Token);
+        await InstallAddresses(discovered.Values.Where(d=>!d.RestMode).Select(d=>d.Ip).ToArray());
+    }
+    private async Task InstallAddresses(string[] addresses)
+    {
+        if(addresses.Length==0)throw new InvalidOperationException(T("Выберите приставки или выполните поиск.","Select consoles or run discovery."));
+        var ids=new List<string>();
+        foreach(var address in addresses) {
+            if(!profiles.TryGetValue(address,out var profile)) {
+                var d=discovered[address];
+                await Api("/api/consoles",new {ip=d.Ip,name=d.Name,platform=d.Platform,transport="service"},lifetime.Token);
+                await Reload();profile=profiles[address];
             }
-            return;
+            ids.Add(profile["id"]!.GetValue<string>());
         }
-        var r=await Api("/api/desktop/console-setup?consoleId="+Uri.EscapeDataString(id),ct:lifetime.Token);
-        if(r["release"]==null)throw new InvalidOperationException(r["artifactMessage"]?.GetValue<string>() ?? T("Комплект PS5 не подготовлен.","PS5 bundle unavailable."));
-        if(r["profile"]?["online"]?.GetValue<bool>()!=true) {
-            if(firmware.Text.Trim()!=r["release"]?["elf"]?["firmware"]?.GetValue<string>())throw new InvalidOperationException(T("Проверьте прошивку в настройках PS5 и введите её в поле справа. Нужна 13.60.","Check PS5 firmware in Settings and enter it on the right. 13.60 is required."));
-            if (MessageBox.Show(this,T("Подтверди первый запуск: игра и приложение закрыты, старая нагрузка PackageFlow остановлена, эксплойт и загрузчик ELF активны. Отправить новый ELF?", "Confirm first start: the game and application are closed, the old PackageFlow payload is stopped, and the exploit and ELF loader are active. Send the new ELF?"),"PackageFlow · PS5",MessageBoxButtons.YesNo,MessageBoxIcon.Question)!=DialogResult.Yes)return;
-            settings.PendingSetupConsoleId=id;settings.Save(settingsPath);
-            await Api("/api/desktop/console-setup",new {consoleId=id,action="bootstrap",firmware=firmware.Text.Trim(),confirmedServiceStopped=true},lifetime.Token);
-            for(var i=0;i<25;i++) { await Task.Delay(1000,lifetime.Token);r=await Api("/api/desktop/console-setup?consoleId="+Uri.EscapeDataString(id),ct:lifetime.Token);status.Text=r["flow"]?["message"]?.GetValue<string>() ?? ""; if(r["flow"]?["state"]?.GetValue<string>() is "completed" or "failed" or "unconfirmed")break; }
-            await Reload();
-            if(r["flow"]?["state"]?.GetValue<string>()!="completed") { status.Text=r["flow"]?["message"]?.GetValue<string>() ?? T("Запуск ELF ещё не подтверждён.","ELF start is not yet confirmed.");return; }
-        }
-        if(r["profile"]?["paired"]?.GetValue<bool>()!=true) {
-            settings.PendingSetupConsoleId=id;settings.Save(settingsPath);
-            status.Text=T("Подключаем PS5…","Connecting PS5…");
-            await Api("/api/consoles/pair",new {id},lifetime.Token);
-            await Reload();await SaveSelection(id);
-        }
-        var sha=r["release"]!["app"]!["sha256"]!.GetValue<string>();
-        if(settings.SetupAppConsoleId!=id||settings.SetupAppSha256!=sha||settings.SetupAppRequestId.Length!=32) {settings.SetupAppConsoleId=id;settings.SetupAppSha256=sha;settings.SetupAppRequestId=Guid.NewGuid().ToString("N");settings.Save(settingsPath);}
-        var started=await Api("/api/desktop/console-setup",new {consoleId=id,action="install-app",requestId=settings.SetupAppRequestId},lifetime.Token);
-        var retry=started["retry"]?.GetValue<string>();
-        if(retry=="installed") {AppInstalled(id);status.Text=T("PackageFlow уже установлен — наличие проверено на PS5.","PackageFlow is already installed — verified on PS5.");await Reload();return;}
-        if(retry=="absent") {
-            settings.SetupAppRequestId=Guid.NewGuid().ToString("N");settings.Save(settingsPath);
-            started=await Api("/api/desktop/console-setup",new {consoleId=id,action="install-app",requestId=settings.SetupAppRequestId},lifetime.Token);
-        } else if(retry is "unconfirmed" or "unavailable" or "different-version") {
-            throw new InvalidOperationException(retry=="different-version" ? T("На PS5 есть другая версия PackageFlow. Требуется обновление приложения.","PS5 has a different PackageFlow version. An application update is required.") : T("Не удалось подтвердить результат прежней установки или наличие приложения. Повторная установка не отправлена — нажмите «Проверить» после восстановления связи.","The previous installation or application presence could not be confirmed. No duplicate was sent — check again after restoring the connection."));
-        }
-        var queueId=started["receipt"]?["queueId"]?.GetValue<string>();
-        for(var i=0;i<120;i++) {
-            r=await Api("/api/desktop/console-setup?consoleId="+Uri.EscapeDataString(id),ct:lifetime.Token);var q=r["queue"];
-            if(q?["id"]?.GetValue<string>()!=queueId)throw new InvalidOperationException(T("Очередь изменилась. Результат установки нужно проверить; повторная команда не отправлена.","The queue changed. Verify setup status; no command was repeated."));
-            var item=q?["items"]?.AsArray().FirstOrDefault();status.Text=item?["detail"]?.GetValue<string>() ?? T("Устанавливаем PackageFlow…","Installing PackageFlow…");
-            if(q?["status"]?.GetValue<string>() is "completed" or "failed" or "cancelled") {if(item?["state"]?.GetValue<string>()=="installed") {AppInstalled(id);status.Text=T("PackageFlow установлен и зарегистрирован. Откройте его из библиотеки PS5.","PackageFlow installed and registered. Open it from the PS5 library.");}break;}
-            await Task.Delay(1500,lifetime.Token);
-        }
+        var coordinator=new ConsoleSetupCoordinator((path,body,ct)=>Api(path,body,ct),installPs4,settings,()=>settings.Save(settingsPath));
+        var results=await coordinator.Run(ids,new Progress<string>(message=>{if(!IsDisposed && !Disposing && !lifetime.IsCancellationRequested)status.Text=message;}),lifetime.Token);
         await Reload();
+        status.Text=T($"Готово: {results.Count(r=>r.Complete)} из {results.Count}. ",$"Ready: {results.Count(r=>r.Complete)} of {results.Count}. ")+string.Join("; ",results.Where(r=>!r.Complete).Select(r=>r.Name+": "+r.Message));
     }
     private void AppInstalled(string id) { settings.SetupRemoveAppConsoleId="";settings.SetupRemoveAppRequestId="";SetupFinished(id);settings.Save(settingsPath); }
     private void SetupFinished(string id) { if(settings.PendingSetupConsoleId==id) {settings.PendingSetupConsoleId="";settings.Save(settingsPath);} }
@@ -310,6 +310,7 @@ internal sealed class ConsoleManagerForm : Form
         var address=SelectedIp!;
         var result=await Api("/api/desktop/console-forget",new {consoleId=id,confirmed=true},lifetime.Token);
         if(settings.ConsoleId==id){settings.ConsoleId="";settings.PsIp="";SelectedConsoleId=null;}
+        settings.ConsoleSetupRequests.Remove(id);checkedIps.Remove(address);
         SetupFinished(id);settings.Save(settingsPath);discovered.Remove(address);await Reload();
         status.Text=result["message"]?.GetValue<string>() ?? T("Устройство удалено из Windows.","Device removed from Windows.");
     }

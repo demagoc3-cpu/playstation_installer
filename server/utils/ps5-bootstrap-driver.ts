@@ -17,6 +17,10 @@ export function bootstrapReceipt(flow: BootstrapFlow, r: { status: number; body:
   return r.status === 200 && h?.apiVersion === 'v1' && s?.service === 'PackageFlowService-PS5' && s.platform === 'ps5' && s.consoleVerified === true
     && s.version === flow.version && s.buildId === flow.buildId && Number.isSafeInteger(h.pid) && h.pid > 0 && h.firmwareRead === true && /^0x1360[0-9a-f]{4}$/i.test(h.firmwareRaw || '')
 }
+function unsupportedBootstrapFirmware(flow:BootstrapFlow,r:{status:number;body:any}) {
+  const h=r.body,s=h?.serviceReport
+  return r.status===200 && h?.apiVersion==='v1' && s?.service==='PackageFlowService-PS5' && s.platform==='ps5' && s.consoleVerified===true && s.version===flow.version && s.buildId===flow.buildId && h.firmwareRead===true && /^0x[0-9a-f]{8}$/i.test(h.firmwareRaw||'') && !/^0x1360[0-9a-f]{4}$/i.test(h.firmwareRaw)
+}
 export async function runPs5Bootstrap(flow: BootstrapFlow, bytes: Uint8Array, d: {
   idle(): boolean; health(): Promise<{ status: number; body: any } | null>;
   connect(): Promise<{ send(bytes: Uint8Array): Promise<void>; close(): void }>; save(flow: BootstrapFlow): void; pause(): Promise<void>
@@ -28,6 +32,7 @@ export async function runPs5Bootstrap(flow: BootstrapFlow, bytes: Uint8Array, d:
     const current = await d.health()
     if (current) {
       if (bootstrapReceipt(flow,current)) { save('completed','Эта версия ELF уже работает. Можно выполнить сопряжение'); return }
+      if(unsupportedBootstrapFirmware(flow,current)) {save('failed','ELF прочитал прошивку: этот комплект ещё не подтверждён для неё. Приложение не отправлено');return}
       throw new Error('На порту службы уже есть ответ. Сопрягите работающую службу и используйте обновление; второй ELF не отправлен')
     }
     loader = await d.connect()
@@ -36,7 +41,7 @@ export async function runPs5Bootstrap(flow: BootstrapFlow, bytes: Uint8Array, d:
     save('sending','Передаём полезную нагрузку PS5')
     await loader.send(bytes); loader.close(); loader = undefined
     save('verifying','Проверяем запущенную версию ELF')
-    for (let i = 0; i < 15; i++) { await d.pause(); try { const r = await d.health(); if (r && bootstrapReceipt(flow,r)) { save('completed','ELF запущен. Продолжаем подключение к PS5'); return } } catch { /* Only reconcile; never resend. */ } }
+    for (let i = 0; i < 15; i++) { await d.pause(); try { const r = await d.health(); if (r && bootstrapReceipt(flow,r)) { save('completed','ELF запущен. Продолжаем подключение к PS5'); return } if(r&&unsupportedBootstrapFirmware(flow,r)){save('failed','ELF прочитал прошивку: этот комплект ещё не подтверждён для неё. Приложение не отправлено');return} } catch { /* Only reconcile; never resend. */ } }
     save('unconfirmed','ELF отправлен, запуск пока не подтверждён. Проверьте PS5; повтор не отправлен')
   } catch (e) { save(['sending','verifying'].includes(flow.state) ? 'unconfirmed' : 'failed', e instanceof Error ? e.message : 'Запуск ELF не подтверждён') }
   finally { loader?.close() }

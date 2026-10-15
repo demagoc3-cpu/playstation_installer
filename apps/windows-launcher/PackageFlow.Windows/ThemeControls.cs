@@ -4,7 +4,7 @@ namespace PackageFlow.Windows;
 
 internal static class Theme
 {
-    public static readonly Color Background = Color.FromArgb(19, 19, 31), Card = Color.FromArgb(30, 29, 46), Border = Color.FromArgb(57, 52, 78), Accent = Color.FromArgb(123, 96, 220), Muted = Color.FromArgb(174, 171, 196), Green = Color.FromArgb(112, 215, 166);
+    public static readonly Color Background = Color.FromArgb(6, 19, 40), Card = Color.FromArgb(15, 40, 73), Border = Color.FromArgb(54, 95, 142), Accent = Color.FromArgb(81, 72, 233), Muted = Color.FromArgb(174, 197, 225), Green = Color.FromArgb(49, 220, 174), Navigation = Color.FromArgb(8, 25, 49), Input = Color.FromArgb(10, 29, 54);
     // Respect the invalid region when Windows repaints only part of a moved
     // child window. Graphics.Clear can erase outside that region.
     public static void Clear(PaintEventArgs e, Color color) {
@@ -17,33 +17,24 @@ internal static class Theme
         path.AddArc(bounds.X, bounds.Y, d, d, 180, 90); path.AddArc(bounds.Right - d, bounds.Y, d, d, 270, 90);
         path.AddArc(bounds.Right - d, bounds.Bottom - d, d, d, 0, 90); path.AddArc(bounds.X, bounds.Bottom - d, d, d, 90, 90); path.CloseFigure(); return path;
     }
-    public static void Icon(Graphics g, int kind, Rectangle r, Color color)
-    {
-        g.SmoothingMode = SmoothingMode.AntiAlias;
-        using var pen = new Pen(color, 2) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
-        var x = r.X; var y = r.Y; var w = r.Width; var h = r.Height;
-        switch (kind)
-        {
-            case 0: g.DrawRectangle(pen, x + 1, y + 2, w - 2, h - 8); g.DrawLine(pen, x + w / 2, y + h - 6, x + w / 2, y + h - 1); g.DrawLine(pen, x + 5, y + h - 1, x + w - 5, y + h - 1); break;
-            case 1: g.DrawArc(pen, x, y + 3, w - 1, h - 6, 150, 240); g.DrawLine(pen, x + 4, y + h / 2, x + 10, y + h / 2); g.DrawLine(pen, x + 7, y + h / 2 - 3, x + 7, y + h / 2 + 3); g.DrawEllipse(pen, x + w - 8, y + h / 2 - 1, 2, 2); break;
-            case 2: g.DrawEllipse(pen, x + 1, y + 1, w - 8, h - 8); g.DrawLine(pen, x + w - 8, y + h - 8, x + w - 1, y + h - 1); break;
-            case 3: g.DrawLine(pen, x + w / 2, y + 1, x + w / 2, y + h - 8); g.DrawLines(pen, new Point[] {new(x + 5, y + h - 13), new(x + w / 2, y + h - 7), new(x + w - 5, y + h - 13) }); g.DrawLines(pen, new Point[] {new(x + 2, y + h - 7), new(x + 2, y + h - 1), new(x + w - 2, y + h - 1), new(x + w - 2, y + h - 7) }); break;
-            default: g.DrawArc(pen, x + 1, y + 1, w - 2, h - 2, 35, 285); g.DrawLines(pen, new Point[] {new(x + w - 1, y + 1), new(x + w - 1, y + 8), new(x + w - 8, y + 8) }); break;
-        }
-    }
+    public static void Icon(Graphics g, int kind, Rectangle r, Color color) => LauncherIcons.Draw(g, kind, r, color);
+
 }
 
 internal class BufferedPanel : Panel
 {
     public BufferedPanel() { DoubleBuffered = true; SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint, true); }
+    protected override void OnPaintBackground(PaintEventArgs e) => GlassStyle.Paint(this, e);
 }
 internal sealed class BufferedTable : TableLayoutPanel
 {
     public BufferedTable() { DoubleBuffered = true; SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint, true); }
+    protected override void OnPaintBackground(PaintEventArgs e) => GlassStyle.Paint(this, e);
 }
 internal sealed class BufferedFlow : FlowLayoutPanel
 {
     public BufferedFlow() { DoubleBuffered = true; SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint, true); }
+    protected override void OnPaintBackground(PaintEventArgs e) => GlassStyle.Paint(this, e);
 }
 
 internal class RoundedPanel : BufferedPanel
@@ -51,10 +42,12 @@ internal class RoundedPanel : BufferedPanel
     public RoundedPanel() { DoubleBuffered = true; BackColor = Theme.Card; }
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        Theme.Clear(e, Parent?.BackColor ?? Theme.Background);
+        if (Width < 2 || Height < 2) return;
+        GlassStyle.Paint(this, e);
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = Theme.Shape(new Rectangle(0, 0, Width - 1, Height - 1));
-        using var fill = new SolidBrush(BackColor); using var border = new Pen(Theme.Border);
+        using var fill = new LinearGradientBrush(ClientRectangle, Color.FromArgb(155, 26, 66, 111), Color.FromArgb(210, 8, 27, 54), 90);
+        using var border = new Pen(Theme.Border);
         e.Graphics.FillPath(fill, path); e.Graphics.DrawPath(border, path);
     }
 }
@@ -69,10 +62,12 @@ internal class RoundedButton : Button
     protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
     protected override void OnPaint(PaintEventArgs e)
     {
-        var g = e.Graphics; Theme.Clear(e, Parent?.BackColor ?? Theme.Background); g.SmoothingMode = SmoothingMode.AntiAlias;
+        if (Width < 3 || Height < 3) return;
+        var g = e.Graphics; GlassStyle.Paint(this, e); g.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = Theme.Shape(new Rectangle(1, 1, Width - 3, Height - 3), 11);
         var color = Enabled ? (hover ? ControlPaint.Light(BackColor, .12f) : BackColor) : Theme.Card;
-        using var fill = new SolidBrush(color); using var border = new Pen(Focused ? Color.FromArgb(186, 160, 255) : Theme.Border);
+        using var fill = new LinearGradientBrush(ClientRectangle, BackColor == Theme.Accent && Enabled ? Color.FromArgb(0, 172, 246) : ControlPaint.Light(color, .12f), color, 15);
+        using var border = new Pen(Focused ? Color.FromArgb(120, 210, 255) : Theme.Border, Focused ? 2 : 1);
         g.FillPath(fill, path); g.DrawPath(border, path);
         var text = new Rectangle(Padding.Left, 0, Width - Padding.Horizontal, Height);
         if (Glyph is int icon) { Theme.Icon(g, icon, new Rectangle(16, (Height - 22) / 2, 22, 22), Enabled ? Theme.Muted : Color.Gray); text.X = 52; text.Width = Width - 60; }
@@ -107,14 +102,17 @@ internal sealed class PageHost : BufferedPanel
 internal sealed class StatusCard : RoundedPanel
 {
     private readonly Label detail, state;
+    private readonly int glyph;
     public StatusCard(string title)
     {
+        glyph=title=="WEB"?13:title=="qBittorrent"?5:title=="Prowlarr"?2:14;
         Padding = new Padding(14, 9, 14, 9);
-        Controls.Add(new Label { Text = title, Dock = DockStyle.Top, Height = 23, Font = new Font("Segoe UI", 10, FontStyle.Bold), BackColor = BackColor });
+        Controls.Add(new Label { Padding=new Padding(35,0,0,0), Text = title, Dock = DockStyle.Top, Height = 23, Font = new Font("Segoe UI", 10, FontStyle.Bold), BackColor = BackColor });
         detail = new Label { Dock = DockStyle.Bottom, Height = 20, ForeColor = Theme.Muted, AutoEllipsis = true, BackColor = BackColor };
         state = new Label { Dock = DockStyle.Bottom, Height = 25, BackColor = BackColor };
         Controls.Add(state); Controls.Add(detail);
     }
+    protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);LauncherIcons.Draw(e.Graphics,glyph,new Rectangle(14,9,23,23),Color.FromArgb(70,210,255));}
     public void Set(string text, string note, Color color) { state.Text = "●  " + text; state.ForeColor = color; detail.Text = note; }
 }
 
@@ -124,8 +122,8 @@ internal sealed class ActivityProgress : Control
     public ActivityProgress() { DoubleBuffered = true; Height = 5; }
     protected override void OnPaint(PaintEventArgs e)
     {
-        Theme.Clear(e, Theme.Border); if (Value < 0) return;
-        using var brush = new SolidBrush(Theme.Accent); e.Graphics.FillRectangle(brush, 0, 0, Width * Math.Clamp(Value, 0, 100) / 100, Height);
+        Theme.Clear(e, Theme.Border); if (Value < 0 || Width < 1 || Height < 1) return;
+        using var brush = new LinearGradientBrush(ClientRectangle, Color.FromArgb(0, 198, 255), Theme.Accent, 0f); e.Graphics.FillRectangle(brush, 0, 0, Width * Math.Clamp(Value, 0, 100) / 100, Height);
     }
 }
 
@@ -144,7 +142,7 @@ internal sealed class DarkChoice : Control
     }
     protected override void OnPaint(PaintEventArgs e)
     {
-        Theme.Clear(e, Parent?.BackColor ?? Theme.Background); e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        GlassStyle.Paint(this, e); e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         using var path = Theme.Shape(new Rectangle(0, 0, Width - 1, Height - 1), 7);
         using var fill = new SolidBrush(BackColor); using var pen = new Pen(Focused ? Theme.Accent : Theme.Border);
         e.Graphics.FillPath(fill, path); e.Graphics.DrawPath(pen, path);
@@ -217,6 +215,7 @@ internal sealed class CardFlow : FlowLayoutPanel
     private bool dragging;
     public new bool AutoScroll { get => false; set => base.AutoScroll = false; }
     public CardFlow() { DoubleBuffered = true; base.AutoScroll = false; }
+    protected override void OnPaintBackground(PaintEventArgs e) => GlassStyle.Paint(this, e);
     public override Rectangle DisplayRectangle => new(Padding.Left, Padding.Top - offset,
         Math.Max(1, ClientSize.Width - Padding.Horizontal - 14), Math.Max(ClientSize.Height, contentHeight));
     protected override void OnLayout(LayoutEventArgs e)

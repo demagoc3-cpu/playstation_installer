@@ -43,8 +43,8 @@ try {
   const {startInstallationQueue,getInstallationQueue,cancelInstallationQueue}=await load('installation-queue')
   startInstallationQueue({psIp:input[0],packageIds:[game.id],packageUrls:{[game.id]:`http://192.168.88.10:3000/json/${game.id}.json`},transport:'payload'})
   await new Promise(done=>setTimeout(done,1800))
-  assert.equal(getInstallationQueue(input[0]).items[0].state,'pending')
-  assert.equal(calls.commands,0,'Ordinary queues must not bypass live checks when the service is absent')
+  assert.equal(getInstallationQueue(input[0]).items[0].state,'waiting')
+  assert.equal(calls.commands,1,'Ordinary PyLoader queues work without PackageFlowService')
   cancelInstallationQueue(input[0])
  } else if(mode === 'changed-after-acceptance') {
   const result=await bootstrapService(...input)

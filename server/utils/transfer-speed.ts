@@ -2,7 +2,7 @@
 export class TransferSpeed {
   private samples: Array<{ time: number; bytes: number }> = []
   private clock: () => number
-  constructor(clock: () => number = () => performance.now()) { this.clock = clock }
+  constructor(clock: () => number = () => performance.now(), private stallAfterMs = 5000) { this.clock = clock }
   reset() { this.samples = [] }
   observe(bytes: number) {
     const time = this.clock(), last = this.samples.at(-1)
@@ -16,7 +16,7 @@ export class TransferSpeed {
   read() {
     const time = this.clock(), first = this.samples[0], last = this.samples.at(-1)
     if (!first || !last || time < last.time || time - first.time < 1000) return undefined
-    if (time - last.time > 5000) return 0
+    if (time - last.time > this.stallAfterMs) return 0
     return (last.bytes - first.bytes) * 1000 / (time - first.time)
   }
 }

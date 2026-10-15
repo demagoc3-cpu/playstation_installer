@@ -64,13 +64,17 @@ export function createStorageManager(connector: StorageConnector = createStorage
   async function work(id: string, indexing: boolean, force = false) {
     let source = sourceById(id)
     if (!source.enabled) return
-    source.state = 'connecting'; source.message = ''; source.lastCheckedAt = Date.now(); if (indexing) source.lastIndexAttemptAt = Date.now(); put(source)
+    source.state = 'connecting'; if (indexing) source.message = ''; source.lastCheckedAt = Date.now(); if (indexing) source.lastIndexAttemptAt = Date.now(); put(source)
     try {
       await connector.connect(source, readStoragePassword(id))
       source = sourceById(id)
       if (indexing) {
         source.state = 'indexing'; source.lastIndexAttemptAt = Date.now(); put(source)
-        const result = await scanPackageFolder(source.localPath, undefined, { strict: true, replaceRoot: true, force })
+        let progressAt = 0
+        const result = await scanPackageFolder(source.localPath, undefined, { strict: true, replaceRoot: true, force, onProgress: packages => {
+          if (Date.now() - progressAt < 1000) return
+          progressAt = Date.now(); source.message = `Индексация: найдено пакетов — ${packages}`; put(source)
+        } })
         source.lastIndexedAt = Date.now()
         const summary = librarySourceSummary(source.localPath)
         source.packageCount = summary.packageCount; source.indexedBytes = summary.indexedBytes

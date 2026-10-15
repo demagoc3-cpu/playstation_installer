@@ -1,0 +1,14 @@
+{
+  "runtime/MicrosoftEdgeWebView2RuntimeInstallerX64.exe": {
+    "size": 214090448,
+    "sha256": "2a6add76c37bfa872eb8c2b22d45b3216b8e2a1f193e0774006340ff62ac5fa0"
+  },
+  "compose/Dockerfile": {
+    "size": 280,
+    "sha256": "95af5006b71b12385c531545ae21642fc5e5671c7ee261b1eba8cfbce30e1fde"
+  },
+  "compose/Dockerfile.dockerignore": {
+    "size": 78,
+    "sha256": "4b4cca9984398314fdd79ff7a6afca0b45a91fb2b1e2115e1a6a600492f162da"
+  }
+}

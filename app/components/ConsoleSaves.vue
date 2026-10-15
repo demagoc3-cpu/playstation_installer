@@ -159,22 +159,11 @@ watch(() => props.focusTitleId, titleId => {
 })
 </script>
 
-<template>
-  <section class="saves-page">
-    <header><div><p class="eyebrow">PLAYSTATION 4</p><h1>{{ t("Сохранения") }}</h1><p>{{ t("Сейвы остаются в этом списке, даже если игра удалена с приставки.") }}</p></div><button :disabled="loading" @click="refresh">{{ t(loading ? 'Читаем…' : 'Обновить список') }}</button></header>
-    <SaveCollections :key="targetIp" :ip="targetIp" :users="users" />
-    <h2 class="separate-title">{{ t("Отдельные копии игр и слотов") }}</h2>
-    <p>{{ t("Слот — одно сохранение внутри игры. Копия игры сохраняет все её слоты. Именной набор выше охватывает все игры и профили PS4.") }}</p>
-    <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
-    <p v-if="notice" class="notice" role="status">{{ t(notice) }}</p>
-    <div v-if="users.length" class="filters"><label>{{ t("Профиль PS4") }} <select :disabled="changingSave" v-model="selectedUser" @change="chooseUser(selectedUser)"><option v-for="(user, index) in users" :key="user.userId" :value="user.userId">{{ t("Профиль") }} {{ t(index + 1) }} · {{ t(user.games.length) }} {{ t("игр") }}</option></select></label><input v-model="query" :placeholder="t(&quot;Название или CUSA&quot;)" :aria-label="t(&quot;Найти сохранения игры&quot;)"></div>
-    <p v-if="!loading && !users.length && !error" class="empty">{{ t("Сохранения не найдены.") }}</p>
-    <p v-else-if="!loading && !visibleGames.length && !error" class="empty">{{ t("Для этого профиля игр с сохранениями не найдено.") }}</p>
-    <div v-for="game in visibleGames" :key="game.titleId" class="game">
-      <button class="game-button" :disabled="changingSave" :aria-expanded="selectedTitle === game.titleId" @click="toggleGame(game.titleId)">
-        <span><strong>{{ t(game.title === game.titleId ? `Игра ${game.titleId}` : game.title) }}</strong><small>{{ t(game.title === game.titleId ? '' : `${game.titleId} · `) }}{{ t(game.installed === true ? 'Игра установлена' : game.installed === false ? 'Игра сейчас не установлена' : 'Состояние игры неизвестно') }}</small></span><span class="expand">{{ t(selectedTitle === game.titleId ? '−' : '+') }}</span>
-      </button>
-      <div v-if="selectedTitle === game.titleId" class="slots">
+<template><section class="saves-page glass-save-page"><header class="glass-page-heading"><div><h1>{{t('Сохранения')}}</h1><p>{{t('Резервное копирование и управление сохранениями')}} · PS4</p></div><button :disabled="loading" @click="refresh">{{t(loading?'Читаем…':'Обновить список')}}</button></header><slot name="target"/>
+ <p v-if="error" class="glass-notice error" role="alert">{{t(error)}}</p><p v-if="notice" class="glass-notice" role="status">{{t(notice)}}</p>
+ <div class="filters"><label>{{t('Профиль PS4')}}<select :disabled="changingSave" v-model="selectedUser" @change="chooseUser(selectedUser)"><option v-for="(user,index) in users" :key="user.userId" :value="user.userId">{{t('Профиль')}} {{index+1}} · {{user.userId}}</option></select></label><input v-model="query" type="search" :placeholder="t('Название или CUSA')" :aria-label="t('Найти сохранения игры')"></div>
+ <div class="save-layout"><div class="glass-table-wrap glass-surface"><table class="glass-table save-table" :class="{'is-empty':!visibleGames.length}"><thead><tr><th></th><th>{{t('Игра')}}</th><th>{{t('Профиль')}}</th><th>{{t('Состояние')}}</th></tr></thead><tbody><tr v-for="game in visibleGames" :key="game.titleId" :class="{selected:selectedTitle===game.titleId}"><td><input type="radio" name="ps4-save-game" :checked="selectedTitle===game.titleId" :disabled="changingSave" :aria-label="`${t('Выбрать')}: ${game.title}`" @change="openGame(game.titleId)"></td><td><button class="save-title" :disabled="changingSave" @click="openGame(game.titleId)"><GlassArtwork :title="game.title"/><span><strong>{{game.title}}</strong><small>{{game.titleId}}</small></span></button></td><td>{{selectedUser}}</td><td><small>{{t(game.installed===true?'Игра установлена':game.installed===false?'Игра сейчас не установлена':'Состояние игры неизвестно')}}</small></td></tr><tr v-if="!visibleGames.length"><td colspan="4" class="glass-empty"><span class="empty-symbol" aria-hidden="true">▤</span><strong>{{t(loading?'Читаем…':error?'Список сохранений недоступен':'Сохранения не найдены.')}}</strong></td></tr></tbody></table></div>
+ <aside class="save-inspector glass-surface"><template v-if="selectedTitle"><div class="inspector-title"><GlassArtwork :title="currentUser?.games.find(game=>game.titleId===selectedTitle)?.title||selectedTitle"/><div><h2>{{currentUser?.games.find(game=>game.titleId===selectedTitle)?.title||selectedTitle}}</h2><ContentTags platform="ps4"/><small>{{selectedTitle}} · {{selectedUser}}</small></div></div>      <div v-if="selectedTitle" class="slots">
         <div v-if="unassignedBackups.length" class="notice">
           <strong>{{ t('Старые копии без привязки к приставке') }}</strong>
           <p>{{ t('Приставка-источник не была записана. Эти архивы можно скачать; автоматическое восстановление отключено.') }}</p>
@@ -202,11 +191,8 @@ watch(() => props.focusTitleId, titleId => {
           <button :disabled="!!creatingSlot" @click="createBackup(slot)">{{ t(creatingSlot === slot.name ? 'Копируем…' : 'Создать копию слота') }}</button>
         </div>
       </div>
-    </div>
-    <p class="note">{{ t("Копии содержат только сохранения игр. Перед восстановлением закройте игру; после записи запустите её и подтвердите результат.") }}</p>
-  </section>
-</template>
-
+</template><div v-else class="glass-empty"><span class="empty-symbol" aria-hidden="true">▤</span><strong>{{t('Выберите сохранение')}}</strong><span>{{t('Здесь появятся сведения и доступные действия.')}}</span></div></aside></div>
+ <details class="save-collections glass-surface"><summary>{{t('Именные наборы сохранений')}}<span>{{t('Все игры и профили PS4')}}</span></summary><SaveCollections :key="targetIp" :ip="targetIp" :users="users"/></details><p class="workspace-footnote">{{t('Копии содержат только сохранения игр. Перед восстановлением закройте игру; после записи запустите её и подтвердите результат.')}}</p></section></template>
 <style scoped>
 .saves-page { max-width: 1000px; }
 header { display: flex; justify-content: space-between; align-items: center; gap: 20px; }

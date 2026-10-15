@@ -1,0 +1,373 @@
+/* Functional workspaces: tables and inspectors share one presentation for PS4/PS5. */
+body .glass-shell { --pf-panel:rgb(9 36 72 / 70%); --pf-glass:rgb(6 22 48 / 83%); --pf-line:rgb(88 151 231 / 30%); }
+body .glass-shell .glass-page-heading { display:flex;align-items:center;justify-content:space-between;gap:20px;margin:0 0 24px; }
+body .glass-shell .glass-page-heading h1 { margin:0 0 8px;font-size:34px;line-height:1.2; }
+body .glass-shell .glass-page-heading p { margin:0;color:#b5c9e9;font-size:14px;line-height:1.5; }
+body .glass-shell .glass-surface { border:1px solid var(--pf-line);border-radius:14px;background:linear-gradient(130deg,#123d6860,#061933b3);box-shadow:inset 0 1px 0 #d8efff0a,0 12px 36px #000b191a; }
+body .glass-shell .glass-workspace { display:grid;gap:18px;min-width:0; }
+body .glass-shell .glass-table-wrap { overflow:auto;scrollbar-color:#3070b6 #07172b;min-width:0; }
+body .glass-shell .glass-table { border-collapse:separate;border-spacing:0;width:100%;font-size:12px;text-align:left; }
+body .glass-shell .glass-table :is(th,td) { padding:14px 12px;border:0;border-bottom:1px solid #4d8cce2b;vertical-align:middle; }
+body .glass-shell .glass-table th { font-weight:500;font-size:11px;color:#a6bee1;background:#09244765;white-space:nowrap; }
+body .glass-shell .glass-table tbody tr:last-child td { border-bottom:0; }
+body .glass-shell .glass-table td { color:#ddeaff; }
+body .glass-shell .glass-table tr.selected { background:linear-gradient(100deg,#0059e844,#313cff44);box-shadow:inset 3px 0 #35ccff; }
+body .glass-shell .glass-table tr:hover { background-color:#167cc414; }
+body .glass-shell .glass-table small { display:block;margin-top:6px;font-size:11px;line-height:1.5;color:#9bb5d9; }
+body .glass-shell .glass-table strong { font-size:13px;font-weight:650; }
+body .glass-shell .numeric { white-space:nowrap;font-variant-numeric:tabular-nums; }
+body .glass-shell .glass-table input[type=checkbox], body .glass-shell .glass-table input[type=radio] { width:16px;height:16px;cursor:pointer; }
+body .glass-shell .glass-tabs { display:inline-flex;flex-wrap:wrap;gap:4px;padding:4px;border:1px solid #438bd339;background:#09264865;border-radius:12px; }
+body .glass-shell .glass-tabs button { display:flex;align-items:center;gap:7px;padding:10px 15px;min-height:40px;border:1px solid transparent;background:transparent;font-size:12px;white-space:nowrap;color:#c1d3ef; }
+body .glass-shell .glass-tabs button.active { background:linear-gradient(110deg,#00acfa,#315cfb 62%,#7357f8);color:white;border-color:#64c7ff9e;box-shadow:0 0 16px #0785fd3d,inset 0 1px 0 #e0faff42; }
+body .glass-shell .glass-tabs button span { font-variant-numeric:tabular-nums; }
+body .glass-shell .workspace-toolbar { display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap; }
+body .glass-shell .glass-empty { padding:40px 22px!important;text-align:center; }
+body .glass-shell .glass-empty :is(strong,span) { display:block; }
+body .glass-shell .glass-empty strong { font-size:16px!important;margin:10px 0;color:#dfebff; }
+body .glass-shell .glass-empty > span:last-of-type { font-size:12px;line-height:1.8;color:#9eb7da; }
+body .glass-shell .empty-symbol { font-size:38px;color:#56b5ff;line-height:1.4; }
+body .glass-shell .workspace-footnote { display:block;font-size:12px;line-height:1.6;color:#93add3;margin:8px 0; }
+body .glass-shell .glass-notice { padding:13px 17px;color:#a9c6ec;border:1px solid #4790ca4d;background:#10315180;border-radius:12px;font-size:12px;line-height:1.7; }
+body .glass-shell .glass-notice.error { color:#ffc1cb;border-color:#d867805a;background:#3b1b3059; }
+body .glass-shell .row-actions { display:flex;align-items:center;gap:6px;white-space:nowrap; }
+body .glass-shell .row-actions button { padding:8px 11px;min-width:34px;min-height:34px;background:#173b656b;border:1px solid var(--pf-line);font-size:12px; }
+body .glass-shell .glass-artwork { display:block;width:46px;height:54px;flex:0 0 46px;border-radius:8px;overflow:hidden;border:1px solid #6aacff47;background:#112a4f; }
+body .glass-shell .glass-artwork img { width:100%;height:100%;display:block;object-fit:cover; }
+body .glass-shell .glass-artwork-fallback { display:grid;place-items:center;height:100%;background:radial-gradient(at top right,#3477a988,#183768);color:#95d5ff;font-size:21px; }
+body .glass-shell .glass-view-switch { display:flex;gap:3px; }
+body .glass-shell .glass-view-switch button { padding:8px 12px;background:#123058;color:#c2dafd;border:1px solid var(--pf-line); }
+body .glass-shell .glass-view-switch button[aria-pressed=true] { color:white;background:linear-gradient(100deg,#0988e5,#464fee);box-shadow:0 0 12px #1688fa42; }
+body .glass-shell .connection-strip { display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:16px 20px; }
+body .glass-shell .connection-name { font-size:14px;font-weight:650;display:flex;gap:10px;align-items:center; }
+body .glass-shell .connection-name small { font-size:10px;font-weight:400;color:#91acd1; }
+body .glass-shell .strip-actions { display:flex;gap:8px;margin-left:auto; }
+body .glass-shell .strip-actions button { padding:9px 13px;background:#20476a66; }
+body .glass-shell .glass-status { display:inline-flex;align-items:center;gap:7px;color:#8ca6c8;background:#34405166;padding:5px 10px;border-radius:20px;font-size:11px; }
+body .glass-shell .glass-status i { width:7px;height:7px;border-radius:50%;background:currentColor; }
+body .glass-shell .glass-status.online { color:#38e9bd;background:#03977424; }
+body .glass-shell .downloads-page .torrent-add { margin:0;align-items:center;padding:16px;gap:12px; }
+body .glass-shell .downloads-page .torrent-add input:not([type=checkbox]) { font-size:13px; }
+body .glass-shell .downloads-page .torrent-settings { border:1px solid var(--pf-line);border-radius:14px;background:#09274690;padding:20px; }
+body .glass-shell .download-table { min-width:880px; }
+body .glass-shell .download-table .download-name { width:30%;min-width:200px;max-width:320px; }
+body .glass-shell .download-name strong { display:block;overflow-wrap:anywhere; }
+body .glass-shell .download-progress { min-width:110px; }
+body .glass-shell .download-progress progress { width:100%;height:6px;margin-top:8px;display:block;border:0;appearance:none;border-radius:8px;background:#32476a; }
+body .glass-shell progress::-webkit-progress-bar { background:#294065;border-radius:8px; }
+body .glass-shell progress::-webkit-progress-value { background:linear-gradient(90deg,#14cfff,#705aff);border-radius:8px; }
+body .glass-shell progress::-moz-progress-bar { background:linear-gradient(90deg,#14cfff,#705aff);border-radius:8px; }
+body .glass-shell .torrent-state { color:#39d2ff;white-space:nowrap; }
+body .glass-shell .torrent-state.complete { color:#34e1b0; }
+body .glass-shell .torrent-state.queued { color:#c8d2ec; }
+body .glass-shell .torrent-state.error { color:#ff8ca5; }
+body .glass-shell .download-auto { display:flex;gap:6px;align-items:center;margin-top:8px;font-size:10px;white-space:nowrap; }
+body .glass-shell .download-auto input { width:13px!important;height:13px!important; }
+body .glass-shell .download-folder { display:flex;gap:15px;align-items:center;padding:16px 20px; }
+body .glass-shell .download-folder > span { font-size:28px;color:#93c6ff; }
+body .glass-shell .download-folder > div { flex:1;min-width:0; }
+body .glass-shell .download-folder strong { display:block;font-size:13px;margin:5px 0;overflow-wrap:anywhere; }
+body .glass-shell .download-folder small { color:#a4bfdf; }
+body .glass-shell .selection-actions { display:flex;gap:8px;align-items:center;font-size:12px;color:#b6cdef; }
+body .glass-shell .download-file-list { display:grid;gap:8px;padding:10px; }
+body .glass-shell .download-file-list label { display:flex;gap:10px;align-items:center;font-size:12px; }
+body .glass-shell .download-file-list label span { flex:1;overflow-wrap:anywhere; }
+body .glass-shell .download-file-list small { margin:0;white-space:nowrap; }
+body .glass-shell .search-page .search-form { display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 15px;padding:14px; }
+body .glass-shell .search-page .search-form > input { font-size:13px;flex:1;min-width:180px; }
+body .glass-shell .search-page .search-platforms { display:flex;gap:5px;flex-wrap:nowrap;margin:0;padding:0;border:0; }
+body .glass-shell .search-page .search-platforms legend { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%); }
+body .glass-shell .search-page .search-platforms label { display:flex;gap:7px;align-items:center;padding:10px 13px;min-height:40px;background:#1533567a;border:1px solid var(--pf-line);color:#bcd3f6;border-radius:8px; }
+body .glass-shell .search-page .search-platforms label.selected { color:white;background:linear-gradient(110deg,#077ec1,#384bef);border-color:#54baff88; }
+body .glass-shell .search-page .search-settings { flex-wrap:wrap;border:1px solid var(--pf-line);background:#13366190;border-radius:12px;padding:18px;margin-bottom:16px; }
+body .glass-shell .search-page .search-catalog { padding:0; }
+body .glass-shell .catalog-options { display:flex;align-items:center;gap:12px;flex-wrap:wrap; }
+body .glass-shell .search-results-table { min-width:750px; }
+body .glass-shell .search-result-title { display:flex;gap:12px;align-items:center;text-align:left;border:0;background:transparent;padding:0;max-width:420px;width:100%; }
+body .glass-shell .search-result-title > span { min-width:0; }
+body .glass-shell .search-result-title strong { display:block;line-height:1.6; }
+body .glass-shell .search-results-table .seeds { color:#50e5b5; }
+body .glass-shell .source-pill { display:inline-block;font-size:10px;white-space:nowrap;color:#48e2c2;border:1px solid #22b48a66;border-radius:5px;padding:5px 8px;background:#08816318; }
+body .glass-shell .result-card { background:linear-gradient(145deg,#143e626b,#10254a90);border-color:var(--pf-line); }
+body .glass-shell .result-card:hover { border-color:#38cfff;background:#164e7882; }
+body .glass-shell .release-dialog { background:#0c2240;border-color:#4498eb66; }
+body .glass-shell .event-tools { display:flex;gap:8px; }
+body .glass-shell .event-tools input { padding:10px 12px;width:210px;font-size:12px; }
+body .glass-shell .event-timeline { max-height:70dvh;min-height:250px;overflow:auto;padding:0 18px; }
+body .glass-shell .event-row { position:relative;border-bottom:1px solid #4d8cce2b; }
+body .glass-shell .event-row:last-child { border-bottom:0; }
+body .glass-shell .event-row summary { list-style:none;display:grid;grid-template-columns:20px 160px 125px minmax(0,1fr) 16px;align-items:center;gap:14px;padding:19px 0;cursor:pointer;font-size:12px; }
+body .glass-shell .event-row summary::-webkit-details-marker { display:none; }
+body .glass-shell .event-row summary:focus-visible { outline:2px solid #58cfff;outline-offset:-2px; }
+body .glass-shell .event-dot { display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#258aff;color:#08264c;font-weight:bold; }
+body .glass-shell .event-row.warn .event-dot { background:#ffcf45; }
+body .glass-shell .event-row.error .event-dot { background:#ff6f90; }
+body .glass-shell .event-row time { font-size:11px;font-variant-numeric:tabular-nums;color:#a6c2e7; }
+body .glass-shell .event-level { width:fit-content;padding:5px 8px;border:1px solid #3d9edf66;border-radius:6px;font-size:10px;color:#7fc4ff;background:#076db021; }
+body .glass-shell .event-row.warn .event-level { color:#ffdc67;border-color:#d7ac4766;background:#a9771021; }
+body .glass-shell .event-row.error .event-level { color:#ffa0b5;border-color:#cb658366;background:#a0214221; }
+body .glass-shell .event-summary { color:#d6e7ff;line-height:1.5;overflow-wrap:anywhere; }
+body .glass-shell .event-chevron { font-size:19px;color:#a9c4ee; }
+body .glass-shell .event-row[open] .event-chevron { transform:rotate(180deg); }
+body .glass-shell .event-detail { margin:0 0 14px 34px;padding:15px 18px;border:1px solid var(--pf-line);border-radius:10px;background:#0b284c88; }
+body .glass-shell .event-detail small { color:#8caccf; }
+body .glass-shell .event-detail pre { color:#c8dbfa;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.8 'DM Mono',monospace;margin:7px 0 0; }
+body .glass-shell .glass-save-page { max-width:none; }
+body .glass-shell .save-toolbar { display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px; }
+body .glass-shell .save-help { max-width:470px;font-size:12px;color:#aac4e9; }
+body .glass-shell .save-help summary { cursor:pointer;padding:12px; }
+body .glass-shell .save-help p { background:#0a2947a1;border-radius:10px;padding:10px 14px; }
+body .glass-shell .glass-save-page .pf-controls { margin:14px 0; }
+body .glass-shell .glass-save-page .pf-controls :is(input,select,button) { font-size:12px; }
+body .glass-shell .save-layout { display:grid;grid-template-columns:minmax(0,1fr) 295px;align-items:start;gap:20px; }
+body .glass-shell .save-table { min-width:520px; }
+body .glass-shell .save-title { display:flex;align-items:center;gap:12px;text-align:left;padding:0;border:0;background:transparent;color:#e8f2ff;width:100%; }
+body .glass-shell .save-title strong { display:block;line-height:1.6; }
+body .glass-shell .save-inspector { padding:20px;position:sticky;top:100px;max-height:calc(100dvh - 120px);overflow:auto; }
+body .glass-shell .inspector-title { display:flex;align-items:center;gap:14px;margin-bottom:22px; }
+body .glass-shell .inspector-title > .glass-artwork { width:80px;height:92px;flex-basis:80px; }
+body .glass-shell .inspector-title h2 { margin:0 0 10px;font-size:15px;line-height:1.5;overflow-wrap:anywhere; }
+body .glass-shell .inspector-title small { display:block;color:#93afd8;font-size:10px;margin-top:10px; }
+body .glass-shell .save-inspector dl { display:grid;grid-template-columns:100px minmax(0,1fr);gap:14px;font-size:11px;line-height:1.6;margin:18px 0 24px; }
+body .glass-shell .save-inspector dt { color:#9db8dd; }
+body .glass-shell .save-inspector dd { margin:0;color:#dfedff;overflow-wrap:anywhere; }
+body .glass-shell .inspector-actions { display:grid;gap:10px; }
+body .glass-shell .inspector-actions button { text-align:left;width:100%;padding:13px 16px;font-size:13px; }
+body .glass-shell .inspector-copy-picker { display:grid;gap:8px;font-size:12px;color:#bcd3f2;margin-top:18px; }
+body .glass-shell .save-collections { padding:17px 20px;margin-top:24px; }
+body .glass-shell .save-collections > summary { cursor:pointer;font-weight:650;font-size:14px; }
+body .glass-shell .save-collections > summary span { margin-left:18px;font-size:11px;color:#a5bfde;font-weight:400; }
+body .glass-shell .save-inspector .slots { padding:0;border:0; }
+body .glass-shell .save-inspector :is(.slot,.all-slots,.backup-row) { flex-direction:column;align-items:stretch;gap:10px; }
+body .glass-shell .save-inspector .slot { border-color:var(--pf-line); }
+body .glass-shell .save-inspector .all-slots { border-top:1px solid var(--pf-line); }
+body .glass-shell .save-inspector .slot button { padding:10px;font-size:12px; }
+@media (min-width:761px) {
+ body .glass-shell .topbar { grid-template-columns:minmax(200px,1fr) auto auto; }
+ body .glass-shell .topbar > .brand { grid-column:1;grid-row:1;justify-self:start; }
+ body .glass-shell .brand-logo { max-width:185px;height:46px; }
+ body .glass-shell .topbar > .github-stats { grid-column:2;grid-row:1;justify-self:end; }
+ body .glass-shell .topbar > .topbar-controls { grid-column:3;grid-row:1; }
+}
+@media (max-width:1150px) {
+ body .glass-shell .save-layout { grid-template-columns:minmax(0,1fr) 260px;gap:14px; }
+ body .glass-shell .save-inspector { padding:16px; }
+ body .glass-shell .event-row summary { grid-template-columns:18px 125px 100px minmax(0,1fr) 14px;gap:10px; }
+}
+@media (max-width:960px) {
+ body .glass-shell .save-layout { grid-template-columns:minmax(0,1fr); }
+ body .glass-shell .save-inspector { position:static;max-height:none; }
+ body .glass-shell .event-row summary { grid-template-columns:20px 1fr auto;gap:8px 12px; }
+ body .glass-shell .event-row time { grid-column:2; }
+ body .glass-shell .event-row .event-level { grid-column:2;grid-row:2; }
+ body .glass-shell .event-row .event-summary { grid-column:2;grid-row:3; }
+ body .glass-shell .event-chevron { grid-column:3;grid-row:1; }
+ body .glass-shell .event-detail { margin-left:0; }
+}
+@media (max-width:760px) {
+ body .glass-shell .glass-page-heading { align-items:flex-start;margin-bottom:20px; }
+ body .glass-shell .glass-page-heading h1 { font-size:28px; }
+ body .glass-shell .glass-page-heading p { font-size:12px; }
+ body .glass-shell .glass-tabs { width:100%; }
+ body .glass-shell .glass-tabs button { flex:1;padding:9px 10px;font-size:11px; }
+ body .glass-shell .connection-strip { padding:14px;gap:12px; }
+ body .glass-shell .strip-actions { flex-basis:100%; }
+ body .glass-shell .strip-actions button { flex:1; }
+ body .glass-shell .downloads-page .torrent-add { flex-wrap:wrap; }
+ body .glass-shell .downloads-page .torrent-add > input { flex-basis:100%; }
+ body .glass-shell .event-tools { width:100%; }
+ body .glass-shell .event-tools input { min-width:0;width:100%;flex:1; }
+ body .glass-shell .event-timeline { padding:0 12px;max-height:none; }
+ body .glass-shell .save-toolbar { flex-direction:column;gap:4px; }
+ body .glass-shell .catalog-toolbar { margin:10px 0 16px; }
+ body .glass-shell .catalog-options { gap:8px;width:100%; }
+ body .glass-shell .catalog-options label { flex:1;min-width:0; }
+ body .glass-shell .catalog-options select { max-width:100%;font-size:11px; }
+ body .glass-shell .search-page .search-form { gap:10px;padding:12px; }
+ body .glass-shell .search-page .search-form > input { flex-basis:100%; }
+ body .glass-shell .glass-save-page .filters { margin:16px 0; }
+ body .glass-shell .save-collections > summary span { display:block;margin:8px 0 0; }
+}
+/* Console library and per-device installation dashboard. */
+body .glass-shell .console-layout { display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:24px;align-items:start; }
+body .glass-shell .console-library { min-width:0; }
+body .glass-shell .console-inspector { min-width:0;position:sticky;top:100px; }
+body .glass-shell .console-layout .game-info { position:static;width:100%;max-height:calc(100dvh - 120px);margin:20px 0;padding:20px;box-shadow:none; }
+body .glass-shell .console-layout .game-info header { align-items:flex-start; }
+body .glass-shell .console-layout .game-info header h2 { font-size:16px;line-height:1.6; }
+body .glass-shell .console-layout .game-info dl { grid-template-columns:85px minmax(0,1fr);gap:12px;font-size:11px; }
+body .glass-shell .console-layout .game-info :is(dt,dd) { line-height:1.7; }
+body .glass-shell .console-layout .game-info .info-actions { display:grid;gap:8px; }
+body .glass-shell .console-layout .game-info .info-actions button { text-align:left;font-size:12px;padding:11px 13px; }
+body .glass-shell .console-layout .game-info p { font-size:11px; }
+body .glass-shell .console-inspector-empty { margin-top:25px; }
+body .glass-shell .console-toolbar { align-items:center; }
+body .glass-shell .pf-console-games .tabs, body .glass-shell .console-tabs { display:inline-flex;gap:4px;padding:4px;border:1px solid var(--pf-line);background:#09274785;border-radius:12px;margin:22px 0 8px; }
+body .glass-shell .pf-console-games .tabs button, body .glass-shell .console-tabs button { border:0;border-radius:9px;padding:12px 20px; }
+body .glass-shell .pf-console-games .tabs button.active, body .glass-shell .console-tabs button.chosen { color:white;background:linear-gradient(110deg,#00aaff,#365af9,#7151ef);box-shadow:0 0 14px #0889fe39; }
+body .glass-shell .console-layout .game-grid { grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:14px; }
+body .glass-shell .pf-console-card { background:linear-gradient(135deg,#1745688a,#0c2346bd);border-color:#4497e45c; }
+body .glass-shell .pf-console-card.is-selected { border-color:#22cfff;box-shadow:0 0 0 2px #1bcfff35,0 0 20px #007bff33; }
+body .glass-shell .pf-console-card-body { padding:12px; }
+body .glass-shell .pf-console-actions > .primary { flex-basis:100%;box-shadow:0 0 12px #197efb22; }
+body .glass-shell .pf-console-tags,body .glass-shell .pf-console-status,body .glass-shell .pf-console-card-body small { color:#a4c6e9; }
+body .glass-shell .console-source-table { min-width:600px; }
+body .glass-shell .console-source-table .source-path { font:10px/1.6 'DM Mono',monospace;max-width:220px;overflow-wrap:anywhere; }
+body .glass-shell .console-source-table .save-title { min-width:170px; }
+body .glass-shell .console-target { background:linear-gradient(125deg,#12447470,#0a2342b3);border-color:var(--pf-line);border-radius:14px; }
+body .glass-shell .device-tasks { height:auto; }
+body .glass-shell .task-dashboard { display:grid;grid-template-columns:minmax(0,1fr) 275px;gap:22px;align-items:start;min-height:0; }
+body .glass-shell .task-dashboard-main { min-width:0; }
+body .glass-shell .task-category-tabs { margin-bottom:16px; }
+body .glass-shell .task-dashboard .devices-list { overflow:visible; }
+body .glass-shell .task-dashboard .device-group { margin-bottom:20px;background:linear-gradient(130deg,#133e6880,#061c3caa);border-color:var(--pf-line);border-radius:15px;scroll-margin-top:95px; }
+body .glass-shell .task-dashboard .device-heading { flex-wrap:wrap;padding:16px 18px;background:#17406a55;gap:10px; }
+body .glass-shell .task-dashboard .device-heading small { margin-left:0;flex-basis:100%;font-size:10px;color:#a9c4e6; }
+body .glass-shell .task-dashboard .device-heading .glass-status { margin-left:auto;font-size:10px; }
+body .glass-shell .task-dashboard .device-details { height:auto;min-height:0;padding:14px;border-color:var(--pf-line); }
+body .glass-shell .task-dashboard .tasks-workspace { height:auto;gap:12px; }
+body .glass-shell .task-dashboard .task-title > div:first-child { display:none; }
+body .glass-shell .task-dashboard .task-title { justify-content:flex-end; }
+body .glass-shell .task-dashboard .task-controls { flex-wrap:wrap;gap:6px; }
+body .glass-shell .task-dashboard .task-controls button { font-size:10px;padding:7px 9px; }
+body .glass-shell .task-dashboard .active-jobs { max-height:none;overflow:visible; }
+body .glass-shell .task-dashboard .task-list { overflow:auto;max-height:520px;gap:8px;padding:0; }
+body .glass-shell .task-dashboard .task-filters { background:#0a254387;border-color:var(--pf-line);padding:10px;gap:8px; }
+body .glass-shell .task-dashboard .task-filters label { font-size:10px; }
+body .glass-shell .task-dashboard .task-game-packages,body .glass-shell .task-dashboard .tree-packages { background:#081f3990; }
+body .glass-shell .task-dashboard .job-row { background:#123c5e5c;border-color:var(--pf-line);border-radius:10px; }
+body .glass-shell .task-dashboard-aside { position:sticky;top:100px;display:grid;gap:18px; }
+body .glass-shell .task-dashboard-aside > section { padding:18px; }
+body .glass-shell .task-dashboard-aside h2 { margin:0 0 16px;font-size:15px; }
+body .glass-shell .queue-metrics { display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px; }
+body .glass-shell .queue-metrics > div { display:grid;gap:7px;padding:16px;border:1px solid #6087d85c;border-radius:11px;background:linear-gradient(130deg,#127bcc2a,#5037ae2d); }
+body .glass-shell .queue-metrics strong { font-size:25px;color:#72c6ff; }
+body .glass-shell .queue-metrics span { font-size:11px;color:#b3ceef; }
+body .glass-shell .queue-device { display:grid;grid-template-columns:1fr 8px;gap:6px;text-align:left;width:100%;padding:12px;margin-top:10px;background:#0b244a7d;border:1px solid #448bce40;border-radius:10px; }
+body .glass-shell .queue-device strong { font-size:12px; }
+body .glass-shell .queue-device small { display:block;font-size:10px;color:#9fbee0;margin-top:5px; }
+body .glass-shell .queue-device > small { grid-column:1/-1; }
+body .glass-shell .queue-dot { width:7px;height:7px;border-radius:50%;background:#727d93; }
+body .glass-shell .queue-dot.online { background:#2fe5b2;box-shadow:0 0 10px #13ffb448; }
+body .glass-shell .recent-task { display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:12px 0;background:transparent;border:0;border-top:1px solid #4a89be3a;border-radius:0; }
+body .glass-shell .recent-task > span { min-width:0; }
+body .glass-shell .recent-task strong { font-size:11px;display:block;overflow-wrap:anywhere; }
+body .glass-shell .recent-task small { display:block;font-size:10px;color:#56ddb6;margin-top:5px; }
+body .glass-shell .active-install-card { display:grid;grid-template-columns:105px minmax(0,1fr) minmax(200px,.9fr);gap:16px;padding:16px; }
+body .glass-shell .active-install-card > .glass-artwork { width:105px;height:135px;flex-basis:105px; }
+body .glass-shell .active-install-main { min-width:0; }
+body .glass-shell .active-install-main h3 { margin:0 0 8px;font-size:15px;line-height:1.5;overflow-wrap:anywhere; }
+body .glass-shell .active-install-main > small { display:block;font-size:11px;color:#adc9ef;margin-top:8px; }
+body .glass-shell .active-install-bytes { margin:8px 0;color:#a9c7eb;font-size:11px; }
+body .glass-shell .active-install-progress { display:flex;gap:12px;align-items:center;margin:9px 0; }
+body .glass-shell .active-install-progress progress { width:100%;height:9px;appearance:none;border:0;border-radius:8px; }
+body .glass-shell .active-install-progress strong { font-size:20px; }
+body .glass-shell .active-install-card .transfer-info { display:grid;gap:5px; }
+body .glass-shell .active-install-status { border-left:1px solid var(--pf-line);padding-left:16px; }
+body .glass-shell .active-install-status > p { font-size:10px;line-height:1.7;overflow-wrap:anywhere;color:#9fc7ef; }
+body .glass-shell .active-install-status > small { font-size:10px;color:#839fc6; }
+body .glass-shell .installation-stages { list-style:none;display:flex;gap:10px;padding:0;margin:4px 0 14px; }
+body .glass-shell .installation-stages li { position:relative;flex:1;display:grid;justify-items:center;gap:9px;font-size:9px;color:#90a7ce;text-align:center; }
+body .glass-shell .installation-stages li:not(:last-child)::after { content:'';position:absolute;top:10px;left:calc(50% + 12px);width:calc(100% - 16px);height:1px;background:#5b87c266; }
+body .glass-shell .installation-stages i { display:grid;place-items:center;width:22px;height:22px;border:2px solid #5e85b9;border-radius:50%;background:#122e58;font-style:normal; }
+body .glass-shell .installation-stages .current i { border-color:#32cfff;background:#1c83d3;box-shadow:0 0 14px #22bfff9c; }
+body .glass-shell .installation-stages .done { color:#50edc2; }
+body .glass-shell .installation-stages .done i { background:#12b691;border-color:#40ffd2;color:#063f3a; }
+body .glass-shell .active-install-actions { display:flex;flex-wrap:wrap;gap:7px;margin-top:14px; }
+body .glass-shell .active-install-actions button { padding:8px 10px;font-size:11px; }
+body .glass-shell .active-install-actions .danger { background:#6620404a;color:#ff9bb2;border:1px solid #ba59756b; }
+@media (max-width:1250px) {
+ body .glass-shell .active-install-card { grid-template-columns:80px minmax(0,1fr); }
+ body .glass-shell .active-install-card > .glass-artwork { width:80px;height:110px; }
+ body .glass-shell .active-install-status { grid-column:1/-1;border:0;border-top:1px solid var(--pf-line);padding:12px 0 0; }
+ body .glass-shell .installation-stages { max-width:330px; }
+}
+@media (max-width:1100px) {
+ body .glass-shell .console-layout { grid-template-columns:minmax(0,1fr); }
+ body .glass-shell .console-inspector { position:static; }
+ body .glass-shell .console-layout .game-info { max-height:none; }
+ body .glass-shell .task-dashboard { grid-template-columns:minmax(0,1fr); }
+ body .glass-shell .task-dashboard-aside { position:static;grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:760px) {
+ body .glass-shell > .tasks-content { height:auto; }
+ body .glass-shell .task-dashboard-aside { grid-template-columns:minmax(0,1fr); }
+ body .glass-shell .task-category-tabs { flex-wrap:wrap; }
+ body .glass-shell .task-dashboard .device-details { padding:10px; }
+ body .glass-shell .active-install-card { gap:12px;padding:12px; }
+ body .glass-shell .active-install-card > .glass-artwork { width:70px;height:95px; }
+ body .glass-shell .active-install-card { grid-template-columns:70px minmax(0,1fr); }
+ body .glass-shell .active-install-main h3 { font-size:13px; }
+ body .glass-shell .console-layout .game-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ body .glass-shell .console-toolbar .glass-view-switch { margin-left:auto; }
+ body .glass-shell .pf-console-games .tabs button { padding:11px 15px;font-size:12px; }
+}
+body .glass-shell .glass-workspace button:not(.primary) { color:#d9eaff;border:1px solid var(--pf-line);background:#11395b7a;border-radius:8px; }
+body .glass-shell .glass-workspace .glass-tabs button { border:1px solid transparent;background:transparent; }
+body .glass-shell .glass-workspace .glass-tabs button.active { background:linear-gradient(110deg,#00acfa,#315cfb 62%,#7357f8);border-color:#64c7ff9e; }
+body .glass-shell .glass-workspace :is(.event-tools,.download-folder) > button { padding:10px 14px;font-size:12px; }
+body .glass-shell .glass-page-heading > button { padding:10px 14px;font-size:12px;background:#103b6399;border:1px solid var(--pf-line); }
+body .glass-shell .glass-save-page .save-title { border:0;background:transparent;padding:0; }
+body .glass-shell .glass-save-page .save-title:hover:not(:disabled) { background:transparent; }
+body .glass-shell .glass-save-page .pf-controls :is(input,select) { background:#061a36aa;border-color:var(--pf-line); }
+body .glass-shell .glass-save-page .save-inspector .inspector-actions > button:not(.primary) { background:#11395b7a;border-color:var(--pf-line); }
+body .glass-shell .console-target { margin-bottom:20px;padding:13px 16px; }
+body .glass-shell .console-target small { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%); }
+body .glass-shell .console-target label { min-width:0; }
+body .glass-shell .console-target select { min-width:0; }
+body .glass-shell #packageflow-navigation button { border-color:transparent;background:transparent; }
+body .glass-shell #packageflow-navigation button:hover { background:#143a6340; }
+body .glass-shell #packageflow-navigation button.active { border-color:#91bfff88;background:linear-gradient(100deg,#0664cb,#5b4bec);box-shadow:0 0 14px #258efa38,inset 0 1px 0 #c6eaff40; }
+body .glass-shell .menu-icon { width:21px;height:21px;flex:0 0 21px;color:#a8c9ef; }
+body .glass-shell .sidebar .active .menu-icon { color:#fff; }
+body .glass-shell :is(.pf-console-games,.device-tasks) { position:relative;isolation:isolate; }
+body .glass-shell .workspace-artwork { position:absolute;z-index:-1;pointer-events:none;top:-35px;right:-20px;width:75%;height:300px;overflow:hidden;opacity:.45;mask-image:linear-gradient(to bottom,#000b,transparent 95%); }
+body .glass-shell .workspace-artwork img { width:100%;height:100%;object-fit:cover;filter:blur(3px) saturate(.85);mask-image:linear-gradient(to right,transparent,#0008 55%); }
+body .glass-shell .glass-workspace button:disabled { cursor:not-allowed; }
+@media(max-width:760px) { body .glass-shell .workspace-artwork { right:0;width:100%;height:220px;opacity:.25; } }
+body .glass-shell .search-page .search-platforms input[type=checkbox] { min-width:16px;width:16px;height:16px;min-height:0;flex:none;padding:0;margin:0; }
+body .glass-shell .glass-table :is(input[type=checkbox],input[type=radio]) { padding:0;min-width:0;min-height:0;margin:0; }
+body .glass-shell .device-tasks > header > button { padding:10px 14px;background:#11395b7a;border-color:var(--pf-line); }
+body .glass-shell .task-dashboard .device-heading .glass-status { flex-basis:auto; }
+body .glass-shell .device-tasks .filters { flex-wrap:wrap;gap:10px; }
+body .glass-shell .device-tasks .filters > input { width:auto;max-width:none;min-width:140px;flex:1 1 210px; }
+@media(max-width:760px) {
+ body .glass-shell .device-tasks > header { flex-wrap:wrap; }
+ body .glass-shell .device-tasks .filters > input { flex-basis:100%; }
+ body .glass-shell .task-dashboard .device-heading .glass-status { margin-left:auto; }
+}
+body .glass-shell .task-dashboard .pf-game-branch { border:1px solid var(--pf-line);border-radius:12px;overflow:hidden;margin-bottom:10px; }
+body .glass-shell .task-dashboard .pf-game-head { grid-template-columns:26px 32px minmax(0,1fr) auto;background:#143e665e;padding:11px; }
+body .glass-shell .task-dashboard .pf-package-list { background:#08223e77; }
+body .glass-shell .task-dashboard .pf-package-row { background:#102f5273;border-color:var(--pf-line);padding:10px 12px; }
+body .glass-shell .task-dashboard .pf-package-meta,body .glass-shell .task-dashboard .task-details { color:#9abbe0; }
+body .glass-shell .task-dashboard .pf-state { color:#a8c6ed; }
+body .glass-shell .task-dashboard .pf-state.installed { color:#45e4b4; }
+body .glass-shell .task-dashboard .pf-state.failed,body .glass-shell .task-dashboard .pf-state.unconfirmed { color:#ffa0b8; }
+body .glass-shell .task-dashboard .pf-group-actions { flex-wrap:wrap; }
+@media(max-width:760px) {
+ body .glass-shell .task-dashboard .pf-game-head { grid-template-columns:26px 32px minmax(0,1fr); }
+ body .glass-shell .task-dashboard .pf-group-actions { grid-column:1/-1;justify-content:flex-end; }
+}
+body .glass-shell .preflight-phase { padding:10px 0;color:#8accff;font-size:12px; }
+body .glass-shell .preflight-phase small { display:block;margin:8px 0;color:#a4bfdf;font-size:11px; }
+body .glass-shell .active-install-actions button:not(.danger) { background:#17427399;border:1px solid var(--pf-line);color:#d4e7ff; }
+body .glass-shell .release-dialog .release-actions { background:#0b2344f2;border-color:var(--pf-line); }
+body .glass-shell .release-dialog .release-actions button { background:#16436b88;border-color:var(--pf-line);color:#d9eaff; }
+body .glass-shell .release-dialog .release-actions button.primary { background:linear-gradient(110deg,#109ecc,#6657f4);border-color:#70caff88; }
+body .glass-shell .release-dialog .release-metrics > div { background:#153b5e66;border-color:var(--pf-line); }
+body .glass-shell .release-dialog .dialog-heading { border-color:var(--pf-line); }
+body .glass-shell .release-dialog .release-original { border-color:var(--pf-line); }
+body .glass-shell .console-layout .pf-console-actions button:not(.primary) { background:#11365999;border-color:var(--pf-line);color:#c8e1fb; }
+body .glass-shell .console-layout .game-info .info-actions button:not(.primary) { background:#12375c88;border-color:var(--pf-line);color:#c8e1fb; }
+body .glass-shell .console-layout .pf-console-actions button.danger { background:#481f3833;color:#f2aabf;border-color:#93506655; }
+body .glass-shell .glass-workspace { grid-template-columns:minmax(0,1fr); }
+body .glass-shell .glass-workspace > * { min-width:0; }
+body .glass-shell .download-folder small { overflow-wrap:anywhere; }
+body .glass-shell .save-layout > .glass-table-wrap { max-height:60dvh; }
+body .glass-shell .save-layout .glass-table th { position:sticky;top:0;z-index:1;background:#0d2b4a; }
+@media(max-width:760px) {
+ body .glass-shell .glass-table.is-empty { min-width:0;table-layout:fixed; }
+ body .glass-shell .glass-table.is-empty thead { display:none; }
+ body .glass-shell .save-layout > .glass-table-wrap { max-height:42dvh; }
+}

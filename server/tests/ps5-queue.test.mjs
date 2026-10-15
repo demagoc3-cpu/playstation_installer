@@ -211,3 +211,28 @@ test('cancelling every item of a paused queue releases it for the next queue',as
  runner.cancel(q.id);assert.equal(q.status,'cancelled');assert.ok(q.items.every(i=>i.state==='cancelled'))
  runner.enqueue([input('new')]);await runner.settled();assert.equal(q.status,'completed')
 })
+
+test('explicit stop waiting preserves dispatch and unknown outcome, ignores late receipts and advances without native cancellation',async()=>{
+ let release,entered=false,cancels=0,dispatches=0
+ const {runner,q,read}=make({async run(item,signal,save){
+  if(item.packageId==='base'){
+   if(!item.installDispatched){dispatches++;save({installDispatched:true,state:'unconfirmed'})}
+   entered=true;await new Promise(r=>release=r)
+   save({state:'installed',confirmation:'service-registration',confirmedAt:Date.now()})
+   return{state:'installed'}
+  }
+  return{state:'installed'}
+ },async cancel(){cancels++}})
+ runner.enqueue([input('base'),input('patch','ps5:PPSA95001',1),input('next','ps5:PPSA95002')]);await wait(()=>entered)
+ assert.throws(()=>runner.stopWaiting('stale','base'),/Снять ожидание/)
+ assert.throws(()=>runner.stopWaiting(q.id,'next'),/Снять ожидание/)
+ runner.stopWaiting(q.id,'base');assert.equal(read().items[0].state,'failed');assert.equal(read().items[0].installDispatched,true);assert.ok(read().items[0].observationStoppedAt)
+ assert.throws(()=>runner.confirmInstalled(q.id,'base'),/после передачи/)
+ release();await runner.settled()
+ assert.equal(q.status,'failed');assert.equal(q.items[0].state,'failed');assert.equal(q.items[0].confirmation,undefined)
+ assert.equal(q.items[1].state,'skipped');assert.equal(q.items[2].state,'installed');assert.equal(cancels,0);assert.equal(dispatches,1)
+ runner.clear();assert.equal(q.items[0].hidden,true)
+ const saved=read();let calls=0
+ const restarted=new api.Ps5QueueRunner(saved,()=>{},{async run(){calls++;return{state:'installed'}},async cancel(){assert.fail()}},5)
+ restarted.wake();await restarted.settled();assert.equal(calls,0)
+})

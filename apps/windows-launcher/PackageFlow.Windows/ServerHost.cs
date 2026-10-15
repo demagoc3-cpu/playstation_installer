@@ -13,11 +13,9 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
 {
     public static string DataDirectory => Path.Combine(Program.UserDirectory, "data");
     public static string SettingsPath => Path.Combine(Program.UserDirectory, "launcher.json");
-    public static string ComposePath => Path.Combine(DataDirectory, "compose.json");
     private string UserDirectory => userDirectory ?? Program.UserDirectory;
     private string HostDataDirectory => Path.Combine(UserDirectory, "data");
     private string HostSettingsPath => Path.Combine(UserDirectory, "launcher.json");
-    private string HostComposePath => Path.Combine(HostDataDirectory, "compose.json");
     private static string InstallDirectory => AppContext.BaseDirectory;
     private Process? server;
     private Process? prowlarr;
@@ -49,7 +47,8 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
 
     private static void CheckPort(int port)
     {
-        var listener = new TcpListener(IPAddress.Any, port);
+        // An ordinary shared bind can hide an existing loopback-only listener on Windows.
+        var listener = new TcpListener(IPAddress.Any, port) { ExclusiveAddressUse = true };
         try { listener.Start(); }
         catch { throw new InvalidOperationException($"Port {port} is in use. Stop the other server or choose another port."); }
         finally { listener.Stop(); }
@@ -60,8 +59,9 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
         if (Started) { using var probe = ProbeTimeout(ct); try { await Api("/api/desktop/status", ct: probe.Token); return; } catch (Exception) when (!ct.IsCancellationRequested) { Started = false; } }
         Status?.Invoke("Checking the WEB server…");
         settings.Validate();
+        EnsureDataMigrationReady();
         if (await Adopt(ct)) {
-            if (!settings.AutomaticSetupPending && settings.Mode == "native") {
+            if (!settings.AutomaticSetupPending && settings.TorrentSetupSelected) {
                 if (settings.ManagedProwlarr) await InstallProwlarr(null, ct);
                 if (settings.FlareSolverr) await InstallFlareSolverr(null, ct);
                 if (settings.ManagedQbittorrent) await StartQbittorrent(ct);
@@ -72,37 +72,21 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
         settings.Save(HostSettingsPath);
         // An unrelated development server must never be adopted or stopped.
         CheckPort(settings.Port); CheckPort(settings.PayloadPort);
-        Directory.CreateDirectory(Path.Combine(HostDataDirectory, "web"));
-        ConsoleArtifacts.Stage(Path.Combine(InstallDirectory, "console-setup"), Path.Combine(HostDataDirectory, "web", "console-setup"));
-        if (settings.Mode == "compose")
-        {
-            Status?.Invoke("Checking Docker Desktop…");
-            await ProcessRunner.Run("docker", ["info", "--format", "{{.OSType}}"], HostDataDirectory, ct);
-            await ProcessRunner.Run("docker", ["compose", "version"], HostDataDirectory, ct);
-            if (settings.ManagedProwlarr) BootstrapProwlarr(true);
-            var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(InstallDirectory, "release.json")))!;
-            File.WriteAllText(HostComposePath, ComposeConfiguration.Generate(settings, HostDataDirectory, LocalSecrets.Read(settings.ProtectedLauncherKey), manifest["dockerImage"]!.GetValue<string>(), InstallDirectory));
-            Status?.Invoke("Downloading and starting containers…");
-            // The installer already contains WEB: no Git, npm or unpublished image is needed.
-            await Compose(["build", "packageflow"], ct);
-            await Compose(["up", "-d", "--no-build", "--pull", "missing"], ct);
-        }
-        else
-        {
+        Directory.CreateDirectory(WebDataDirectory);
+        await Task.Run(() => ConsoleArtifacts.Stage(Path.Combine(InstallDirectory, "console-setup"), Path.Combine(WebDataDirectory, "console-setup")), ct);
             var executable = Path.Combine(InstallDirectory, "runtime", "node.exe");
             var directory = Path.Combine(InstallDirectory, "server");
             if (!File.Exists(executable) || !File.Exists(Path.Combine(directory, ".output", "server", "index.mjs")))
                 throw new FileNotFoundException("Install the complete PackageFlow distribution.");
             var info = ProcessRunner.Info(executable, [Path.Combine(directory, ".output", "server", "index.mjs")], directory);
             info.Environment["NODE_ENV"] = "production"; info.Environment["HOST"] = "0.0.0.0"; info.Environment["PORT"] = settings.Port.ToString();
-            info.Environment["PACKAGEFLOW_DATA_DIR"] = Path.Combine(HostDataDirectory, "web");
+            info.Environment["PACKAGEFLOW_DATA_DIR"] = WebDataDirectory;
             info.Environment["PACKAGEFLOW_PAYLOAD_PORT"] = settings.PayloadPort.ToString();
             info.Environment["PACKAGEFLOW_PUBLIC_PORT"] = settings.Port.ToString();
             info.Environment["PACKAGEFLOW_LAUNCHER_KEY"] = LocalSecrets.Read(settings.ProtectedLauncherKey);
             if (settings.HostIp.Length > 0) info.Environment["PACKAGEFLOW_HOST_IP"] = settings.HostIp;
             Status?.Invoke("Starting the WEB server…");
             server = StartProcess(info);
-        }
         try
         {
             for (var attempt = 0; attempt < 90; attempt++)
@@ -121,8 +105,8 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
                 if (server?.HasExited == true) throw new InvalidOperationException("The WEB server stopped during startup.");
                 await Task.Delay(1000, ct);
             }
-            if (!Started) throw new InvalidOperationException("PackageFlow did not start. The Compose image must match this Windows release.");
-            if (settings.Mode == "native" && !settings.AutomaticSetupPending) {
+            if (!Started) throw new InvalidOperationException("PackageFlow did not start. Check its application log and the configured ports.");
+            if (settings.TorrentSetupSelected && !settings.AutomaticSetupPending) {
                 if (settings.ManagedProwlarr) await InstallProwlarr(null, ct);
                 if (settings.FlareSolverr) await InstallFlareSolverr(null, ct);
                 if (settings.ManagedQbittorrent) await StartQbittorrent(ct);
@@ -138,13 +122,13 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
 
     public async Task<bool> Adopt(CancellationToken ct)
     {
+        EnsureDataMigrationReady();
         if (settings.ProtectedLauncherKey.Length == 0) return false;
         JsonNode response;
         using var probe = ProbeTimeout(ct);
         try { response = await Api("/api/desktop/status", ct: probe.Token); }
         catch (Exception) when (!ct.IsCancellationRequested) { return false; }
         if (response["application"]?.GetValue<string>() != "PackageFlow") return false;
-        if (settings.Mode == "native")
         {
             var process = Process.GetProcessById(response["processId"]!.GetValue<int>());
             if (!string.Equals(process.MainModule?.FileName, Path.Combine(InstallDirectory, "runtime", "node.exe"), StringComparison.OrdinalIgnoreCase))
@@ -157,21 +141,24 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
 
     public async Task PrepareUpdate(CancellationToken ct)
     {
+        if(settings.LegacyMigrationRequired){CheckPort(settings.Port);CheckPort(settings.PayloadPort);return;}
         if (await Adopt(ct)) await Stop(ct);
         else CheckPort(settings.Port); // An unknown server must never be overwritten.
     }
 
-    public async Task Stop(CancellationToken ct)
+    public Task Stop(CancellationToken ct) => StopCore(ct, false);
+    public Task StopAfterConfirmation(CancellationToken ct) => StopCore(ct, true);
+    private async Task StopCore(CancellationToken ct, bool interruptActive)
     {
         if (!Started) return;
+        EnsureDataMigrationReady();
         Status?.Invoke("Checking active jobs before stopping…");
         var status = await Api("/api/desktop/prepare-stop", new { }, ct);
-        if (status["busy"]?.GetValue<bool>() != false)
+        if (!interruptActive && status["busy"]?.GetValue<bool>() != false)
             throw new InvalidOperationException("Active or unverified jobs prevent stopping. Check the WEB queue and PS4 operations.");
-        if (settings.Mode == "compose") await Compose(["stop"], ct);
-        else if (server is { HasExited: false }) { server.Kill(true); await server.WaitForExitAsync(ct); }
+        if (server is { HasExited: false }) { server.Kill(true); await server.WaitForExitAsync(ct); }
         // Native managed Prowlarr may be adopted after a launcher crash.
-        if (settings.ManagedProwlarr && settings.Mode == "native" && prowlarr == null)
+        if (settings.ManagedProwlarr && prowlarr == null)
         {
             var folder = Path.Combine(UserDirectory, "components", "prowlarr") + Path.DirectorySeparatorChar;
             foreach (var process in Process.GetProcessesByName("Prowlarr"))
@@ -180,7 +167,7 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
             }
         }
         if (prowlarr is { HasExited: false }) { prowlarr.Kill(true); await prowlarr.WaitForExitAsync(ct); }
-        if (settings.Mode == "native") {
+        {
             var folder = Path.Combine(UserDirectory, "components", "flaresolverr") + Path.DirectorySeparatorChar;
             foreach (var process in Process.GetProcessesByName("flaresolverr")) {
                 try {
@@ -203,9 +190,7 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
         return process;
     }
 
-    public Task<string> Compose(IEnumerable<string> arguments, CancellationToken ct) => ProcessRunner.Run("docker", new[] { "compose", "--file", HostComposePath, "--project-name", "packageflow-desktop" }.Concat(arguments), HostDataDirectory, ct);
-
-    private void BootstrapProwlarr(bool container)
+    private void BootstrapProwlarr()
     {
         var folder = Path.Combine(HostDataDirectory, "prowlarr"); Directory.CreateDirectory(folder);
         var path = Path.Combine(folder, "config.xml");
@@ -214,14 +199,14 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
             var document = XDocument.Load(path);
             var existing = document.Root?.Element("ApiKey")?.Value;
             if (!string.IsNullOrEmpty(existing)) settings.ProtectedProwlarrKey = LocalSecrets.Protect(existing);
-            document.Root?.SetElementValue("BindAddress", container ? "*" : "127.0.0.1");
+            document.Root?.SetElementValue("BindAddress", "127.0.0.1");
             document.Save(path);
         }
         else
         {
             var key = LocalSecrets.Generate(); settings.ProtectedProwlarrKey = LocalSecrets.Protect(key);
             // Only a loopback-published instance is managed without an additional GUI login.
-            new XDocument(new XElement("Config", new XElement("BindAddress", container ? "*" : "127.0.0.1"), new XElement("Port", 9696),
+            new XDocument(new XElement("Config", new XElement("BindAddress", "127.0.0.1"), new XElement("Port", 9696),
                 new XElement("ApiKey", key), new XElement("LaunchBrowser", false), new XElement("AuthenticationMethod", "External"),
                 new XElement("AuthenticationRequired", "Enabled"), new XElement("UrlBase", ""))).Save(path);
         }
@@ -260,7 +245,7 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
             finally { if (Directory.Exists(staging)) Directory.Delete(staging, true); }
         }
         CheckPort(9696);
-        BootstrapProwlarr(false);
+        BootstrapProwlarr();
         Status?.Invoke("Starting Prowlarr…");
         prowlarr = StartProcess(ProcessRunner.Info(executable, ["-nobrowser", "-data=" + Path.Combine(HostDataDirectory, "prowlarr")], Path.GetDirectoryName(executable)!));
         settings.ManagedProwlarr = true; settings.Save(HostSettingsPath);
@@ -286,12 +271,7 @@ internal sealed partial class ServerHost(LauncherSettings settings, HttpClient h
     public async Task InstallFlareSolverr(IProgress<int>? progress, CancellationToken ct)
     {
         Status?.Invoke("Checking FlareSolverr…");
-        if (settings.Mode == "compose") {
-            settings.FlareSolverr = true; settings.Save(HostSettingsPath);
-            var manifest = JsonNode.Parse(File.ReadAllText(Path.Combine(InstallDirectory, "release.json")))!;
-            File.WriteAllText(HostComposePath, ComposeConfiguration.Generate(settings, HostDataDirectory, LocalSecrets.Read(settings.ProtectedLauncherKey), manifest["dockerImage"]!.GetValue<string>(), InstallDirectory));
-            await Compose(["up", "-d", "--no-build", "--pull", "missing", "flaresolverr"], ct);
-        } else if (!await FlareReady(ct)) {
+        if (!await FlareReady(ct)) {
             CheckPort(8191);
             var components = Path.Combine(UserDirectory, "components", "flaresolverr");
             var executable = Directory.Exists(components) ? Directory.GetFiles(components, "flaresolverr.exe", SearchOption.AllDirectories).SingleOrDefault() : null;

@@ -116,12 +116,14 @@ export async function addTorrent(source: string, installAfterDownload = false, i
 /** qBittorrent joins tags with ", " (comma + space); older builds used a bare comma. */
 function torrentTags(torrent: Record<string, unknown>) { return String(torrent.tags || '').split(',').map((tag) => tag.trim()).filter(Boolean) }
 
+function reportedMetric(value:unknown){if(value===undefined||value===null)return undefined;const n=Number(value);return Number.isFinite(n)&&n>=0?n:undefined}
+
 export async function getTorrents() {
   const response = await request('/torrents/info?tag=packageflow')
   const torrents = await response.json() as Array<Record<string, unknown>>
   return torrents.map((torrent) => ({
     hash: String(torrent.hash || ''), name: String(torrent.name || 'Без названия'), state: String(torrent.state || 'unknown'), size: Number(torrent.size || 0), progress: Number(torrent.progress || 0),
-    downloaded: Number(torrent.downloaded || 0), speed: Number(torrent.dlspeed || 0), eta: Number(torrent.eta || 0), seeds: Number(torrent.num_seeds || 0), autoInstall: torrentTags(torrent).includes('packageflow-auto-install'), installIp: torrentTags(torrent).find(tag => /^packageflow-target-(?:\d{1,3}\.){3}\d{1,3}$/.test(tag))?.slice('packageflow-target-'.length), contentPath: String(torrent.content_path || ''), savePath: String(torrent.save_path || '')
+    downloaded: Number(torrent.downloaded || 0), speed: Number(torrent.dlspeed || 0), uploadSpeed: reportedMetric(torrent.upspeed), peers: reportedMetric(torrent.num_leechs), eta: Number(torrent.eta || 0), seeds: Number(torrent.num_seeds || 0), autoInstall: torrentTags(torrent).includes('packageflow-auto-install'), installIp: torrentTags(torrent).find(tag => /^packageflow-target-(?:\d{1,3}\.){3}\d{1,3}$/.test(tag))?.slice('packageflow-target-'.length), contentPath: String(torrent.content_path || ''), savePath: String(torrent.save_path || '')
   }))
 }
 

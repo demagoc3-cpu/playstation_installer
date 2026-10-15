@@ -1,3 +1,4 @@
+import { ps5RegistrationWait } from './ps5-registration-wait'
 import { lstat, readdir, readFile, open } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createBLAKE3 } from 'hash-wasm'
@@ -126,18 +127,14 @@ async function upload(id: string, size: number, hash: string, read: (buffer: Buf
 }
 export async function runFolderPlan(p: FolderPlan, item: Ps5Item, signal: AbortSignal, request: FolderRequest, save: (patch: Partial<Ps5Item>) => void, verificationWindow = 0, persist: (p: FolderPlan) => void = () => {}): Promise<Partial<Ps5Item>> {
   await verifyFolderPlan(p, item, p.root)
-  const finish = (r: any): Partial<Ps5Item> | undefined => {
+  const finish = async (r: any): Promise<Partial<Ps5Item> | undefined> => {
     if (r.status !== 200) return
     if (r.body.id !== item.transferId || r.body.title !== p.title || r.body.proof !== 'folder-registration' || r.body.manifestHash !== p.manifestHash || r.body.metadataHash !== p.metadataHash || !['prepared', 'published', 'registered'].includes(r.body.state)) fail('Результат Folder не соответствует переданной папке')
     if (r.body.state === 'registered') return { state: 'installed', confirmation: 'service-registration', confirmedAt: Date.now(), detail: `PS5 подтвердила регистрацию Folder, версия ${p.appVersion}` }
-    if (r.body.state === 'published') {
-      if (!item.folderPublishedAt) save({ folderPublishedAt: Date.now() })
-      else if (Date.now() - item.folderPublishedAt > 120_000) throw new Ps5QueueUncertain('Folder передан, но PS5 не подтвердила регистрацию за 2 минуты. Проверьте ShadowMount. Проверка продолжается; повторная передача не отправлена')
-      return { state: 'installing', detail: 'Folder передан. Ожидаем подтверждение регистрации игры от PS5' }
-    }
+    if (r.body.state === 'published') return ps5RegistrationWait(item, 'folder', r.body, signal, request, save)
   }
   if (item.installDispatched) {
-    const r = await request(p.id, '/api/v1/folder/status', {}, undefined, signal), done = finish(r)
+    const r = await request(p.id, '/api/v1/folder/status', {}, undefined, signal), done = await finish(r)
     if (done) return done
     if (![200,404].includes(r.status)) throw new Error('Folder receipt unavailable')
     const op = await request(p.id, '/api/v1/operations/status', {}, undefined, signal)

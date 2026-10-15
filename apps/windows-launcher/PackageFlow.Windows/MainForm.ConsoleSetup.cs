@@ -10,7 +10,7 @@ internal sealed partial class MainForm
     private Label consoleSetupStatus = null!;
     private DataGridView consoleGrid = null!;
     private bool refreshingConsoles;
-    private async Task RefreshSavedConsoles(bool probe = false)
+    private async Task RefreshSavedConsoles(bool probe = false, bool background = false)
     {
         if(refreshingConsoles || preview || IsDisposed)return;
         refreshingConsoles=true;
@@ -18,17 +18,24 @@ internal sealed partial class MainForm
             using var ct=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);ct.CancelAfter(TimeSpan.FromSeconds(12));
             var list=await host.Api("/api/consoles",ct:ct.Token);
             SavedConsoleGrid.Render(consoleGrid,list,settings.ConsoleId,settings.Language);
-            consoleSetupStatus.Text=list["consoles"]!.AsArray().Count==0?T("Добавленных приставок пока нет. Нажмите «Найти / подключить».","No saved consoles. Click Find / connect."):T("Выберите строку. ● — выбранная приставка. WebKit и kstuff: не проверено.","Select a row. ● marks the selected console. WebKit and kstuff: not checked.");
+            RefreshHomeConsoles(list);
+            consoleSetupStatus.Text=list["consoles"]!.AsArray().Count==0?T("Добавленных приставок пока нет. Нажмите «Найти / подключить».","No saved consoles. Click Find / connect."):T("Строка — выбор устройства. Галочки — обновление выбранных; без галочек обновляются все добавленные.","Click a row to select. Check devices to update; with no checks, all saved consoles are updated.");
             if(probe) {
                 using var gate=new SemaphoreSlim(2);
                 await Task.WhenAll(list["consoles"]!.AsArray().Select(async p=>{
                     await gate.WaitAsync(ct.Token);
                     using var check=CancellationTokenSource.CreateLinkedTokenSource(ct.Token);check.CancelAfter(TimeSpan.FromSeconds(6));
-                    try{await host.Api("/api/consoles/probe",new{id=p!["id"]!.GetValue<string>()},check.Token);}
+                    try {
+                        var id=p!["id"]!.GetValue<string>();
+                        // Only the periodic health caller opts into the WEB lightweight probe.
+                        object request=background ? new {id,background=true} : new {id};
+                        await host.Api("/api/consoles/probe",request,check.Token);
+                    }
                     catch(OperationCanceledException){}catch(Exception){}finally{gate.Release();}
                 }));
                 list=await host.Api("/api/consoles",ct:ct.Token);
                 SavedConsoleGrid.Render(consoleGrid,list,settings.ConsoleId,settings.Language);
+            RefreshHomeConsoles(list);
             }
         } catch(Exception error){consoleSetupStatus.Text=T("Не удалось обновить список: ","Unable to refresh consoles: ")+error.Message;}
         finally {refreshingConsoles=false;}
@@ -55,6 +62,29 @@ internal sealed partial class MainForm
         applicationSummary = consoleSetupStatus.Text;
         await RefreshSavedConsoles();
         _ = RefreshHealth();
+    }
+    private bool updatingConsoleComponents;
+    private async Task UpdateSavedConsoles()
+    {
+        if(updatingConsoleComponents)return;
+        updatingConsoleComponents=true;
+        try {
+            EnsureStarted();
+            var marked=SavedConsoleGrid.CheckedIds(consoleGrid);
+            var list=await host.Api("/api/consoles",ct:lifetime.Token);
+            var ids=marked.Length>0?marked:list["consoles"]!.AsArray().Select(p=>p!["id"]!.GetValue<string>()).ToArray();
+            if(ids.Length==0){await FindConsoles();return;}
+            using var timeout=CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);timeout.CancelAfter(TimeSpan.FromMinutes(Math.Max(8,ids.Length*8)));
+            var coordinator=new ConsoleSetupCoordinator(async(path,body,ct)=>{
+                using var request=CancellationTokenSource.CreateLinkedTokenSource(ct);request.CancelAfter(TimeSpan.FromSeconds(30));
+                return await host.Api(path,body,request.Token);
+            },InstallPs4ConsoleService,settings,()=>settings.Save(ServerHost.SettingsPath));
+            var results=await coordinator.Run(ids,new Progress<string>(message=>{Report(message);consoleSetupStatus.Text=message;}),timeout.Token);
+            var summary=T($"Обновлено / проверено: {results.Count(r=>r.Complete)} из {results.Count}",$"Updated / checked: {results.Count(r=>r.Complete)} of {results.Count}");
+            Report(summary);consoleSetupStatus.Text=summary;
+            foreach(var result in results.Where(r=>!r.Complete))Report(result.Name+": "+result.Message);
+            await RefreshSavedConsoles(true);
+        } finally {updatingConsoleComponents=false;}
     }
     private async Task InstallPs4ConsoleService(string consoleIp, CancellationToken observation, IProgress<string> messages)
     {
@@ -115,12 +145,12 @@ internal sealed partial class MainForm
             {
                 consoleSetupStatus.Text = T("PKG передан. Дождитесь установки на PS4, запустите сервис.", "PKG transferred. Wait for PS4 installation, then launch the service.");
                 applicationSummary = T("PKG сервиса передан через PyLoader. Итог установки виден в «Уведомлениях → Загрузки» PS4. После завершения запустите PackageFlow и нажмите «Подключить» в мастере.", "The service PKG was transferred via PyLoader. Check Notifications → Downloads on PS4 for the installation result. Once complete, launch PackageFlow and click Connect in the wizard.");
-                MessageBox.Show(this, applicationSummary, "PackageFlow", MessageBoxButtons.OK, MessageBoxIcon.Information); return;
+                await DesktopNotice(applicationSummary); return;
             }
             if (state == "unconfirmed") break;
         }
         applicationSummary = T("Задание отправлено, передача не подтверждена. Проверьте очередь WEB и загрузки PS4. Повтор установки автоматически не отправлен.", "The job was sent, but transfer is not confirmed. Check the WEB queue and PS4 downloads. Installation was not automatically repeated.");
         consoleSetupStatus.Text = T("Проверьте очередь WEB и загрузки PS4.", "Check the WEB queue and PS4 downloads.");
-        MessageBox.Show(this, applicationSummary, "PackageFlow", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        await DesktopNotice(applicationSummary);
     }
 }

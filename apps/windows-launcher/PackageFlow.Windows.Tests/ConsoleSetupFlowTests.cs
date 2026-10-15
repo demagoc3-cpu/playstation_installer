@@ -22,7 +22,8 @@ internal static class ConsoleSetupFlowTests
                 if(input?["id"]?.GetValue<string>()!="fixture"||input?["code"]!=null)throw new Exception("Automatic connection must target the selected console without a code.");
                 Paired=true;PairRequests++;
             }
-            if(path=="/api/consoles"||path=="/api/consoles/pair"||path=="/api/consoles/active")body=new JsonObject{["consoles"]=new JsonArray(Profile)};
+            if(path=="/api/consoles"||path=="/api/consoles/probe"||path=="/api/consoles/pair"||path=="/api/consoles/active")body=new JsonObject{["consoles"]=new JsonArray(Profile)};
+            else if(path=="/api/consoles/service-update")body=new JsonObject{["current"]="0.1.25-dev",["release"]=new JsonObject{["version"]="0.1.25-dev"}};
             else if(path=="/api/desktop/console-setup"&&r.Method==HttpMethod.Get)body=new JsonObject{
                 ["profile"]=Profile,["release"]=new JsonObject{["app"]=new JsonObject{["sha256"]=new string('a',64)}},
                 ["queue"]=new JsonObject{["id"]="queue",["status"]="completed",["items"]=new JsonArray(new JsonObject{["state"]="installed"})}
@@ -46,7 +47,7 @@ internal static class ConsoleSetupFlowTests
         void Invoke(string method) {
             var t=(Task)typeof(ConsoleManagerForm).GetMethod(method,BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(manager,null)!;
             for(var i=0;i<100&&!t.IsCompleted;i++)pump();
-            if(!t.IsCompleted)throw new Exception("Setup UI did not finish.");t.GetAwaiter().GetResult();
+            if(!t.IsCompleted)throw new Exception("Setup UI did not finish.");t.GetAwaiter().GetResult();pump();
         }
         Invoke("Install");
         if(!transport.Paired||transport.PairRequests!=1||transport.Installs!=1||settings.PendingSetupConsoleId!="")throw new Exception("Install must automatically pair and continue exactly once.");

@@ -18,13 +18,13 @@ internal sealed partial class MainForm : Form
     private readonly PageHost tabs = new() { Dock = DockStyle.Fill };
     private readonly ServerHost host;
     private readonly bool background;
-    private bool exiting, busy;
+    private bool exiting, busy, resourcesDisposed;
     private readonly List<Control> actionButtons = [];
-    private DarkChoice language = null!, mode = null!, lan = null!;
+    private DarkChoice language = null!, lan = null!;
     private TextBox games = null!, port = null!, payloadPort = null!, psIp = null!;
     private TextBox prowlarrUrl = null!, prowlarrKey = null!, trackerUser = null!, trackerPassword = null!;
     private DarkChoice indexers = null!;
-    private CheckBox autoStart = null!, composeProwlarr = null!, installFlare = null!, visibleFlare = null!;
+    private CheckBox autoStart = null!, installFlare = null!, visibleFlare = null!;
     private FlowLayoutPanel navigation = null!;
     private readonly List<TextBox> formFields = [];
     private readonly List<CheckBox> formChecks = [];
@@ -33,7 +33,7 @@ internal sealed partial class MainForm : Form
     private readonly bool preview;
 
     private string T(string ru, string en) => settings.Language == "en" ? en : ru;
-    public MainForm(bool background, LauncherSettings? previewSettings = null)
+    public MainForm(bool background, LauncherSettings? previewSettings = null, string? captureDirectory = null)
     {
         preview = previewSettings != null;
         settings = previewSettings ?? LauncherSettings.Load(ServerHost.SettingsPath);
@@ -42,27 +42,33 @@ internal sealed partial class MainForm : Form
         Text = "PackageFlow for Windows";
         DoubleBuffered = true;
         SetStyle(ControlStyles.ResizeRedraw | ControlStyles.AllPaintingInWmPaint, true);
-        Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath!) ?? SystemIcons.Application;
+        Icon = GlassStyle.BrandIcon();
         tray.Icon = Icon;
-        ClientSize = new Size(1180, 780); MinimumSize = new Size(980, 760);
+        ClientSize = new Size(1180, 780); MinimumSize = new Size(800, 580);
         WindowState = FormWindowState.Maximized;
         StartPosition = FormStartPosition.CenterScreen; AutoScaleMode = AutoScaleMode.Dpi;
         Font = new Font("Segoe UI", 10);
-        BackColor = Color.FromArgb(19, 19, 31); ForeColor = Color.FromArgb(239, 239, 249);
+        BackColor = Theme.Background; ForeColor = Color.FromArgb(239, 239, 249);
         host = new(settings, http) { Status = message => { Report(TranslateStatus(message)); if (message.EndsWith("ready")) _ = RefreshHealth(); } };
         host.DownloadPercent = percent => { progress.Value = percent; progress.Invalidate(); status.Text = T($"Загрузка компонента: {percent}%", $"Downloading component: {percent}%"); };
         Build();
         if (preview) { tray.Visible = false; return; }
         tray.DoubleClick += (_, _) => ShowWindow();
-        FormClosing += (_, e) => { if (!exiting && e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); } };
+        FormClosing += (_, e) => { if (!exiting && e.CloseReason == CloseReason.UserClosing) { if(preparingDesktop){exiting=true;}else{e.Cancel = true;Hide();} } };
         Shown += async (_, _) =>
         {
+            if(!await InitializeDesktop())return;
             _ = Listen(); _ = RefreshGithub();
             if (background && settings.SetupComplete) Hide();
+            if (!settings.WizardComplete) {
+                healthTimer.Start(); return;
+            }
+            if(settings.LegacyMigrationRequired){healthTimer.Start();return;}
             await RefreshHealth();
             healthTimer.Start();
-            if (settings.AutomaticSetupPending && settings.Mode == "native") await Act(PrepareFirstRun, T("Первая настройка: подготавливаем компоненты", "First setup: preparing components"));
+            if (settings.AutomaticSetupPending) await Act(DesktopResumePreparation, T("Первая настройка: подготавливаем компоненты", "First setup: preparing components"));
             else if (settings.SetupComplete || settings.ManagedQbittorrent) await Act(() => host.Start(lifetime.Token), T("Запуск PackageFlow", "Starting PackageFlow"));
+            if(captureDirectory!=null)await CaptureDesktop(captureDirectory);
         };
     }
 
@@ -79,10 +85,10 @@ internal sealed partial class MainForm : Form
         foreach (var page in oldPages) page.Dispose();
         foreach (var surface in oldSurfaces) surface.Dispose();
         tabs.BackColor = BackColor;
-        navigation = new BufferedFlow { Dock = DockStyle.Left, Width = 205, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(14, 22, 14, 0), BackColor = Color.FromArgb(23, 23, 38) };
+        navigation = new BufferedFlow { Dock = DockStyle.Left, Width = 205, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(14, 22, 14, 0), BackColor = Theme.Navigation };
         var header = BuildHeader();
         Controls.Add(tabs); Controls.Add(navigation); Controls.Add(BuildHealthStrip()); Controls.Add(header); Controls.Add(BuildActivity());
-        InstallationPage(); ConnectionPage(); SearchPage(); TorrentPage(); UpdatePage();
+        InstallationPage(); ConnectionPage(); SearchPage(); UpdatePage(); SupportPage();
         for (var i = 0; i < Math.Min(drafts.Length, formFields.Count); i++) formFields[i].Text = drafts[i];
         for (var i = 0; i < Math.Min(checks.Length, formChecks.Count); i++) formChecks[i].Checked = checks[i];
         for (var i = 0; i < Math.Min(choices.Length, formChoices.Count); i++) {
@@ -91,11 +97,19 @@ internal sealed partial class MainForm : Form
         tabs.SelectedIndex = Math.Max(0, selectedPage);
         tabs.SelectedIndexChanged -= HighlightNavigation; tabs.SelectedIndexChanged += HighlightNavigation;
         HighlightNavigation(null, EventArgs.Empty);
-        var menu = new ContextMenuStrip();
+        GlassStyle.TransparentLabels(this);
+        var menu = new ContextMenuStrip { BackColor = Theme.Card, ForeColor = Color.White, ShowImageMargin = false };
+        menu.Renderer = new ToolStripProfessionalRenderer(new GlassMenuColors());
         menu.Items.Add(T("Открыть PackageFlow", "Open PackageFlow"), null, (_, _) => OpenWeb());
         menu.Items.Add(T("Управление и настройка", "Manage and configure"), null, (_, _) => ShowWindow());
         menu.Items.Add(T("Запустить сервер", "Start server"), null, async (_, _) => await Act(() => host.Start(lifetime.Token)));
-        menu.Items.Add(T("Остановить сервер", "Stop server"), null, async (_, _) => await Act(() => host.Stop(lifetime.Token)));
+        var startWindows = new ToolStripMenuItem(T("Автозапуск с Windows", "Start with Windows")) { Checked = settings.AutoStart, CheckOnClick = false };
+        startWindows.Click += async (_, _) => {
+            try { SetAutoStart(!settings.AutoStart); settings.AutoStart = !settings.AutoStart; autoStart.Checked = settings.AutoStart; settings.Save(ServerHost.SettingsPath); startWindows.Checked = settings.AutoStart; }
+            catch (Exception error) { await DesktopNotice(FriendlyError(error)); }
+        };
+        menu.Items.Add(startWindows); menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(T("Остановить сервер", "Stop server"), null, async (_, _) => await Act(StopFromTray));
         menu.Items.Add(T("Открыть папку данных", "Open data folder"), null, (_, _) => { Directory.CreateDirectory(ServerHost.DataDirectory); ProcessRunner.Open(ServerHost.DataDirectory); });
         menu.Items.Add(T("Выйти и остановить", "Exit and stop"), null, async (_, _) => await Act(Exit));
         var previous = tray.ContextMenuStrip; tray.ContextMenuStrip = menu; previous?.Dispose();
@@ -105,40 +119,39 @@ internal sealed partial class MainForm : Form
 
     private void SaveLanguage()
     {
-        // An unconfigured Compose selection can lack a LAN IP; save language without
-        // applying half-completed form fields.
+        // Language changes do not apply unfinished form fields.
         settings.Save(ServerHost.SettingsPath);
     }
 
     private void HighlightNavigation(object? sender, EventArgs e)
     {
         foreach (Button button in navigation.Controls)
-            button.BackColor = (int)button.Tag! == tabs.SelectedIndex ? Color.FromArgb(75, 58, 113) : Color.FromArgb(23, 23, 38);
+            button.BackColor = (int)button.Tag! == tabs.SelectedIndex ? Theme.Accent : Theme.Navigation;
     }
     private sealed record PageLayout(TableLayoutPanel Footer, int Columns);
     private FlowLayoutPanel Page(string name, string description, int columns = 2)
     {
         var index = tabs.TabPages.Count;
-        var nav = new RoundedButton { Glyph = index, Text = index == 2 ? T("3. Поиск", "3. Search") : name, Tag = index, Width = 175, Height = 52, FlatStyle = FlatStyle.Flat, ForeColor = ForeColor,
+        var nav = new RoundedButton { WrapText=true, Glyph = index, Text = index == 2 ? T("Поиск", "Search") : name, Tag = index, Width = 175, Height = 52, FlatStyle = FlatStyle.Flat, ForeColor = ForeColor,
             TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(14, 0, 0, 0), Margin = new Padding(0, 0, 0, 8) };
         nav.FlatAppearance.BorderSize = 0; nav.Click += (_, _) => tabs.SelectedIndex = index; navigation.Controls.Add(nav);
         var page = new BufferedPanel { Dock = DockStyle.Fill, BackColor = BackColor, ForeColor = ForeColor, Padding = new Padding(18, 10, 18, 12) };
-        var heading = new BufferedTable { Dock = DockStyle.Top, Height = 87, ColumnCount = 1, RowCount = 2 };
-        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 41)); heading.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        heading.Controls.Add(new Label { Text = name, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 22, FontStyle.Bold) });
+        var heading = new BufferedTable { Dock = DockStyle.Top, Height = 100, ColumnCount = 1, RowCount = 2 };
+        heading.RowStyles.Add(new RowStyle(SizeType.Absolute, 52)); heading.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        heading.Controls.Add(new Label { Text = name, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 27, FontStyle.Bold) });
         var subtitle = new Label { Text = description, Dock = DockStyle.Fill, ForeColor = Theme.Muted, Padding = new Padding(0, 5, 0, 0) };
         heading.Controls.Add(subtitle);
         heading.SizeChanged += (_, _) => {
             if (heading.ClientSize.Width < 200) return;
-            var desired = 45 + subtitle.GetPreferredSize(new Size(heading.ClientSize.Width - 8, 0)).Height;
+            var desired = 56 + subtitle.GetPreferredSize(new Size(heading.ClientSize.Width - 8, 0)).Height;
             if (heading.Height != desired) heading.Height = desired;
         };
-        var footer = new BufferedTable { Dock = DockStyle.Bottom, Height = 70, RowCount = 1, ColumnCount = 0, Padding = new Padding(4, 8, 4, 4), BackColor = Color.FromArgb(23, 23, 38) };
+        var footer = new BufferedTable { Dock = DockStyle.Bottom, Height = 70, RowCount = 1, ColumnCount = 0, Padding = new Padding(4, 8, 4, 4), BackColor = Theme.Navigation };
         footer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         var flow = new CardFlow { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, AutoScroll = true, Tag = new PageLayout(footer, columns) };
         void ResizeFields() {
             var width = Math.Max(120, (flow.ClientSize.Width - 14) / columns - 10);
-            foreach (Control item in flow.Controls) item.Width = width;
+            foreach (Control item in flow.Controls) item.Width = item.Tag as string == "full" ? Math.Max(120, flow.ClientSize.Width - 24) : width;
         }
         flow.SizeChanged += (_, _) => ResizeFields(); page.SizeChanged += (_, _) => ResizeFields();
         page.Controls.Add(flow); page.Controls.Add(heading); page.Controls.Add(footer); tabs.TabPages.Add(page);
@@ -146,14 +159,14 @@ internal sealed partial class MainForm : Form
     }
     private Panel FieldCard(FlowLayoutPanel parent, string label)
     {
-        var card = new RoundedPanel { Width = Math.Max(120, (parent.ClientSize.Width - 14) / ((PageLayout)parent.Tag!).Columns - 10), Height = 80, Padding = new Padding(12, 8, 12, 8), Margin = new Padding(0, 0, 10, 8), BackColor = Color.FromArgb(30, 29, 46) };
+        var card = new RoundedPanel { Width = Math.Max(120, (parent.ClientSize.Width - 14) / ((PageLayout)parent.Tag!).Columns - 10), Height = 80, Padding = new Padding(12, 8, 12, 8), Margin = new Padding(0, 0, 10, 8), BackColor = Theme.Card };
         card.Controls.Add(new Label { Text = label, Dock = DockStyle.Top, Height = 32, Font = new Font("Segoe UI", 9), ForeColor = Color.FromArgb(180, 179, 201) });
         parent.Controls.Add(card); return card;
     }
     private TextBox Field(FlowLayoutPanel parent, string label, string value = "", bool secret = false)
     {
         var card = FieldCard(parent, label);
-        var field = new TextBox { Text = value, UseSystemPasswordChar = secret, BorderStyle = BorderStyle.None, Dock = DockStyle.Bottom, BackColor = Color.FromArgb(37, 36, 55), ForeColor = Color.White };
+        var field = new TextBox { Text = value, UseSystemPasswordChar = secret, BorderStyle = BorderStyle.None, Dock = DockStyle.Bottom, BackColor = Theme.Input, ForeColor = Color.White };
         card.Controls.Add(field); formFields.Add(field);
         if (secret) {
             var title = card.Controls.OfType<Label>().Single(); card.Controls.Remove(title);
@@ -168,7 +181,7 @@ internal sealed partial class MainForm : Form
     private DarkChoice Choice(FlowLayoutPanel parent, string label, IEnumerable<string> values, int selected)
     {
         var card = FieldCard(parent, label);
-        var choice = new DarkChoice { Dock = DockStyle.Bottom, BackColor = Color.FromArgb(37, 36, 55), ForeColor = Color.White };
+        var choice = new DarkChoice { Dock = DockStyle.Bottom, BackColor = Theme.Input, ForeColor = Color.White };
         choice.Items.AddRange(values.Cast<object>().ToArray()); choice.SelectedIndex = selected;
         card.Controls.Add(choice); formChoices.Add(choice); return choice;
     }
@@ -190,7 +203,8 @@ internal sealed partial class MainForm : Form
         var footer = ((PageLayout)parent.Tag!).Footer;
         foreach (var item in items)
         {
-            var button = new RoundedButton { WrapText = true, Text = item.Label, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 9), FlatStyle = FlatStyle.Flat, BackColor = Theme.Accent, ForeColor = Color.White, Padding = new Padding(4), Margin = new Padding(4) };
+            desktopActions[item.Label] = item.Action;
+            var button = new RoundedButton { Glyph = ActionIcon(item.Label), WrapText = true, Text = item.Label, Dock = DockStyle.Fill, Font = new Font("Segoe UI", 9), FlatStyle = FlatStyle.Flat, BackColor = Theme.Accent, ForeColor = Color.White, Padding = new Padding(4), Margin = new Padding(4) };
             button.FlatAppearance.BorderSize = 0;
             button.Click += async (_, _) => {
                 if (lockInterface) { await Act(item.Action, item.Label); return; }
@@ -198,18 +212,25 @@ internal sealed partial class MainForm : Form
                 button.Enabled = false;
                 try { await item.Action(); }
                 catch (OperationCanceledException) { }
-                catch (Exception error) { if (!IsDisposed) MessageBox.Show(this, FriendlyError(error), "PackageFlow", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+                catch (Exception error) { if (!IsDisposed) await DesktopNotice(FriendlyError(error)); }
                 finally { if (!IsDisposed) button.Enabled = true; }
             };
-            footer.ColumnCount++; footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 1));
-            footer.Controls.Add(button, footer.ColumnCount - 1, 0); actionButtons.Add(button);
+            if (footer.ColumnCount == 0) {
+                footer.ColumnCount = 4; footer.RowStyles.Clear();
+                for (var i = 0; i < 4; i++) footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
+            }
+            var slot = footer.Controls.Count;
+            var row = slot / 4;
+            if (footer.RowStyles.Count <= row) footer.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+            footer.RowCount = row + 1; footer.Height = footer.RowCount * 48 + 16;
+            footer.Controls.Add(button, slot % 4, row); actionButtons.Add(button);
         }
     }
 
     private async Task Act(Func<Task> action, string? operation = null)
     {
         if (busy) return;
-        busy = true; UseWaitCursor = true;
+        busy = true; UseWaitCursor = false;
         foreach (var button in actionButtons) button.Enabled = false;
         foreach (Control input in formFields.Cast<Control>().Concat(formChoices).Concat(formChecks)) input.Enabled = false;
         language.Enabled = false;
@@ -218,12 +239,12 @@ internal sealed partial class MainForm : Form
         catch (Exception error)
         {
             Report(T("Действие не завершено: ", "Action did not complete: ") + operation);
-            MessageBox.Show(this, FriendlyError(error), "PackageFlow", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            await DesktopNotice(FriendlyError(error));
         }
         finally
         {
             busy = false; UseWaitCursor = false;
-            if (!IsDisposed) { foreach (var button in actionButtons) button.Enabled = true; foreach (Control input in formFields.Cast<Control>().Concat(formChoices).Concat(formChecks)) input.Enabled = true; language.Enabled = true; await healthWork; await RefreshHealth(); }
+            if (!IsDisposed) { PushDesktopState(); foreach (var button in actionButtons) button.Enabled = true; foreach (Control input in formFields.Cast<Control>().Concat(formChoices).Concat(formChecks)) input.Enabled = true; language.Enabled = true; await healthWork; if(!preview)await RefreshHealth(); }
         }
     }
 
@@ -248,7 +269,6 @@ internal sealed partial class MainForm : Form
         "Starting qBittorrent…" => "Запускаем qBittorrent и ожидаем Web UI…",
         "Connecting qBittorrent to WEB…" => "Подключаем qBittorrent к WEB…",
         "qBittorrent ready" => "qBittorrent подключён",
-        "Checking Docker Desktop…" => "Проверяем Docker Desktop…",
         "Downloading and starting containers…" => "Подготавливаем и запускаем контейнеры…",
         "WEB ready" => "WEB работает, запускаем дополнительные компоненты…",
         "PackageFlow ready" => "PackageFlow работает",
@@ -269,7 +289,6 @@ internal sealed partial class MainForm : Form
                 return T("Индексатор не прошёл проверку Prowlarr. Откройте Prowlarr → индексатор → Test и журнал: проверьте доступ к трекеру, авторизацию и назначенный прокси. Настройки поиска WEB не изменены.", "The indexer failed the Prowlarr test. Open Prowlarr → indexer → Test and its log: check tracker access, authentication and the assigned proxy. WEB search settings were not changed.");
         }
         if (settings.Language != "ru") return error.Message;
-        if (error is System.ComponentModel.Win32Exception && settings.Mode == "compose") return "Не удалось запустить Docker. Установите Docker Desktop, включите Linux-контейнеры и запустите его.";
         if (error is System.ComponentModel.Win32Exception { NativeErrorCode: 1223 }) return "Запрос администратора Windows отменён. Нажмите «Подготовить компоненты», чтобы повторить установку qBittorrent.";
         if (error.Message.StartsWith("Prowlarr (")) return "Prowlarr не принял запрос. Проверьте API-ключ, логин и пароль трекера. Подробности доступны через «Открыть Prowlarr» → тест индексатора.";
         return error.Message switch
@@ -278,7 +297,6 @@ internal sealed partial class MainForm : Form
             "RuTracker is already configured. Select the existing indexer to preserve its settings." => "RuTracker уже настроен. Выберите его в списке существующих индексаторов и подключите к WEB.",
             "Enter the RuTracker username and password." => "Введите логин и пароль RuTracker.",
             "Choose the computer's LAN IPv4 address." => "Выберите LAN IPv4 компьютера.",
-            "Docker Compose requires the computer's LAN IPv4 address." => "Для Compose выберите LAN IPv4 компьютера.",
             "Invalid server ports." => "Укажите разные порты WEB и обратного подключения в диапазоне 1024–65535.",
             "Choose different WEB, PS4 and qBittorrent ports." => "Порты WEB, обратного подключения PS4 и qBittorrent должны различаться.",
             "The saved qBittorrent connection is unavailable. Check its settings in Downloads." => "Сохранённое подключение qBittorrent недоступно. Проверьте его настройки в «Загрузках».",
@@ -294,9 +312,9 @@ internal sealed partial class MainForm : Form
     }
     private void InstallationPage()
     {
-        var page = Page(T("1. Установка", "1. Installation"), T("Выберите способ запуска. Папки и сетевые подключения добавляются в WEB → Хранилище. Закрытие этого окна оставляет сервер работающим. Для Compose сначала установите и запустите Docker Desktop.", "Choose a launch mode. Add folders and network connections in WEB → Storage. Closing this window keeps the server running. For Compose, install and start Docker Desktop first."), columns: 3);
-        mode = Choice(page, T("Способ запуска", "Launch mode"), ["Windows", "Docker Compose"], settings.Mode == "compose" ? 1 : 0);
-        // Preserve the existing Compose bind/default download directory internally.
+        var page = Page(T("Главная", "Home"), T("Библиотека и управление PS4 / PS5. Закрытие окна сворачивает PackageFlow в трей.", "Library and PS4 / PS5 management. Closing the window minimizes PackageFlow to the tray."), columns: 3);
+        HomeHero(page);
+        // Keep the user-selected library path.
         games = new TextBox { Text = settings.GamesDirectory };
         var addresses = ServerHost.LanAddresses();
         var selected = Array.IndexOf(addresses, settings.HostIp);
@@ -304,15 +322,20 @@ internal sealed partial class MainForm : Form
         port = Field(page, T("Порт WEB", "WEB port"), settings.Port.ToString());
         payloadPort = Field(page, T("Порт PS4 → WEB", "PS4 callback port"), settings.PayloadPort.ToString());
         autoStart = Check(page, T("Запускать при входе в Windows", "Start at Windows sign-in"), settings.AutoStart);
-        composeProwlarr = Check(page, T("В Compose добавить Prowlarr для поиска", "Include Prowlarr search in Compose"), settings.ManagedProwlarr);
         visibleFlare = Check(page, T("Cloudflare: видимый браузер (Windows)", "Cloudflare: visible FlareSolverr browser (Windows)"), settings.FlareSolverrVisibleBrowser);
+        var advancedCards = page.Controls.Cast<Control>().Where(c => c.Tag as string != "full").ToArray();
+        foreach (var card in advancedCards) card.Visible = false;
+        var settingsCard = FieldCard(page, T("Параметры сервера", "Server settings")); settingsCard.Tag = "full"; settingsCard.Height = 82;
+        var advanced = new RoundedButton { Text = T("Открыть параметры сервера", "Open server settings"), Glyph = 6, Dock = DockStyle.Bottom, Height = 38, BackColor = Theme.Card, ForeColor = Color.White };
+        var expanded = false;
+        advanced.Click += (_, _) => { expanded = !expanded; foreach (var card in advancedCards) card.Visible = expanded; advanced.Text = expanded ? T("Скрыть параметры", "Hide settings") : T("Открыть параметры сервера", "Open server settings"); };
+        settingsCard.Controls.Add(advanced);
         Buttons(page,
             (T("Применить", "Apply"), ApplyInstallation),
             (T("Хранилище в WEB", "Storage in WEB"), () => { OpenStorage(); return Task.CompletedTask; }),
-            (T("Остановить", "Stop"), () => host.Stop(lifetime.Token)),
+            (T("Остановить", "Stop"), StopFromTray),
             (T("Разрешить доступ приставкам", "Allow console access"), Firewall));
-        Buttons(page, (T("Скачать Docker Desktop", "Download Docker Desktop"), () => { ProcessRunner.Open("https://docs.docker.com/desktop/setup/install/windows-install/"); return Task.CompletedTask; }));
-        Buttons(page, (T("Подготовить компоненты", "Prepare components"), PrepareFirstRun));
+        Buttons(page, (T("Мастер настройки", "Setup wizard"), RunFirstLaunchWizard));
     }
     private LauncherSettings JsonSerializerClone(LauncherSettings source) => System.Text.Json.JsonSerializer.Deserialize<LauncherSettings>(System.Text.Json.JsonSerializer.Serialize(source))!;
     private void Restore(LauncherSettings previous)
@@ -346,7 +369,7 @@ internal sealed partial class MainForm : Form
 
     private void ConnectionPage()
     {
-        var page = Page(T("2. Приставки", "2. Consoles"), T("Добавленные приставки и их состояние. Выберите строку для работы; новые PS4 и PS5 добавляются через «Найти / подключить».", "Saved consoles and their status. Select a row to manage it; add PS4 and PS5 with Find / connect."), columns: 1);
+        var page = Page(T("Приставки", "Consoles"), T("Добавленные приставки и их состояние. Выберите строку для работы; новые PS4 и PS5 добавляются через «Найти / подключить».", "Saved consoles and their status. Select a row to manage it; add PS4 and PS5 with Find / connect."), columns: 1);
         psIp = new TextBox { Text = settings.PsIp, ReadOnly = true };
         var card = FieldCard(page, T("Добавленные приставки PS4 / PS5", "Saved PS4 / PS5 consoles"));
         card.Controls.OfType<Label>().Single().Height = 24;
@@ -356,18 +379,31 @@ internal sealed partial class MainForm : Form
         card.Controls.Add(consoleSetupStatus);
         void FitTable() => card.Height = Math.Max(240, page.ClientSize.Height - 18);
         page.SizeChanged += (_, _) => FitTable(); FitTable();
-        consoleGrid.CellDoubleClick += async (_, e) => { if(e.RowIndex >= 0) await Act(SelectSavedConsole); };
+        consoleGrid.CellClick += async (_, e) => {
+            if(e.RowIndex < 0 || e.ColumnIndex <= 0 || refreshingConsoles || busy || preview)return;
+            try { await SelectSavedConsole(); }
+            catch(OperationCanceledException) { }
+            catch(Exception error) { Report(FriendlyError(error)); }
+        };
         Buttons(page, false,
             (T("Найти / подключить", "Find / connect"), FindConsoles),
             (T("Обновить", "Refresh"), () => RefreshSavedConsoles(true)),
-            (T("Выбрать", "Select"), SelectSavedConsole),
-            (T("Хранилище в WEB", "Storage in WEB"), () => { EnsureStarted(); OpenStorage(); return Task.CompletedTask; }),
+            (T("Установить обновления", "Install updates"), UpdateSavedConsoles),
             (T("Позже / к поиску", "Later / search"), () => { tabs.SelectedIndex = 2; return Task.CompletedTask; }));
     }
 
     private void SearchPage()
     {
-        var page = Page(T("3. Поиск RuTracker", "3. RuTracker search"), T("Можно установить Prowlarr или подключить существующий. Логин и пароль передаются в Prowlarr; сохранённый пароль защищён вашей учётной записью Windows. Этот шаг можно пропустить.", "Install Prowlarr or connect an existing instance. Credentials go to Prowlarr; the saved password is protected by your Windows account. You can skip this step."));
+        var page = Page(T("Поиск", "Search"), T("Подключите Prowlarr и RuTracker. Сохранённый пароль защищён вашей учётной записью Windows.", "Connect Prowlarr and RuTracker. Saved passwords are protected by your Windows account."));
+        void CompactSearch() {
+            const int columns=2;
+            foreach(Control card in page.Controls) {
+                card.Width=card.Tag as string=="full"?Math.Max(120,page.ClientSize.Width-24):Math.Max(120,(page.ClientSize.Width-14)/columns-10);
+                if(card.Tag as string!="full")card.Height=84;
+                if(card.Tag as string!="full")foreach(var label in card.Controls.OfType<Label>())label.Height=24;
+            }
+        }
+        page.SizeChanged += (_,_)=>CompactSearch();
         installFlare = Check(page, T("Установить FlareSolverr при настройке нового RuTracker", "Install FlareSolverr when setting up a new RuTracker indexer"), true);
         prowlarrUrl = Field(page, T("Адрес Prowlarr", "Prowlarr address"), settings.ProwlarrUrl);
         prowlarrKey = Field(page, T("API-ключ Prowlarr", "Prowlarr API key"), LocalSecrets.Read(settings.ProtectedProwlarrKey), secret: true);
@@ -375,11 +411,7 @@ internal sealed partial class MainForm : Form
             (T("Установить Prowlarr", "Install Prowlarr"), async () =>
             {
                 EnsureStarted();
-                if (settings.Mode == "compose")
-                {
-                    if (!settings.ManagedProwlarr) throw new InvalidOperationException(T("Включите Prowlarr на вкладке установки и перезапустите Compose.", "Enable Prowlarr on the installation tab and restart Compose."));
-                }
-                else await host.InstallProwlarr(DownloadProgress("Prowlarr"), lifetime.Token);
+                await host.InstallProwlarr(DownloadProgress("Prowlarr"), lifetime.Token);
                 prowlarrUrl.Text = settings.ProwlarrUrl; await LoadIndexers();
                 if (installFlare.Checked) await SetupFlareSolverr(Client());
             }),
@@ -401,7 +433,7 @@ internal sealed partial class MainForm : Form
             int id;
             // Reuse the proxy prepared on first launch. Re-testing the proxy here
             // opens unrelated challenge browsers before every login attempt.
-            var address = settings.Mode == "compose" && settings.ManagedProwlarr ? "http://flaresolverr:8191/" : "http://127.0.0.1:8191/";
+            var address = "http://127.0.0.1:8191/";
             int? tag = null;
             if (installFlare.Checked)
             {
@@ -433,18 +465,21 @@ internal sealed partial class MainForm : Form
                 SaveProwlarr();
                 await ConnectIndexer(client, item.Id);
             }),
-            (T("Настроить позже", "Set up later"), () => { tabs.SelectedIndex = 3; return Task.CompletedTask; }));
+            (T("Настроить позже", "Set up later"), () => { tabs.SelectedIndex = 0; return Task.CompletedTask; }));
+        TorrentFields(page);
+        ArrangeSearchCards(page);
+        CompactSearch();
     }
     private async Task<int> SetupFlareSolverr(ProwlarrClient client, bool showNotice = true)
     {
         if (!new Uri(prowlarrUrl.Text).IsLoopback)
             throw new InvalidOperationException(T("Для удалённого Prowlarr настройте адрес FlareSolverr в его интерфейсе. Автоматическая установка предназначена для этого компьютера.", "For remote Prowlarr configure the FlareSolverr address in its interface. Automatic setup is for this computer."));
         await host.InstallFlareSolverr(DownloadProgress("FlareSolverr"), lifetime.Token);
-        var address = settings.Mode == "compose" && settings.ManagedProwlarr ? "http://flaresolverr:8191/" : "http://127.0.0.1:8191/";
+        var address = "http://127.0.0.1:8191/";
         Report(T("FlareSolverr: проверяем доступ к RuTracker и сохраняем прокси…", "FlareSolverr: checking RuTracker access and saving proxy…"));
         var tag = await client.ConfigureFlareSolverr(address, lifetime.Token, "http://127.0.0.1:8191/");
         if (client.UsedTrackerFallback && showNotice)
-            MessageBox.Show(this, T("Cloudflare блокирует проверочный сайт Prowlarr. Главная страница RuTracker открывается через FlareSolverr, прокси сохранён. Далее требуется проверка входа и поиска: на этих страницах может появиться отдельная проверка Cloudflare.", "Cloudflare blocks the Prowlarr test site. The RuTracker homepage opens through FlareSolverr and the proxy has been saved. Authentication and search still need to be tested: those pages may require a separate Cloudflare challenge."), "PackageFlow", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            await DesktopNotice(T("Cloudflare блокирует проверочный сайт Prowlarr. Главная страница RuTracker открывается через FlareSolverr, прокси сохранён. Далее требуется проверка входа и поиска: на этих страницах может появиться отдельная проверка Cloudflare.", "Cloudflare blocks the Prowlarr test site. The RuTracker homepage opens through FlareSolverr and the proxy has been saved. Authentication and search still need to be tested: those pages may require a separate Cloudflare challenge."));
         else if (client.UsedTrackerFallback) Report(T("FlareSolverr: RuTracker доступен, прокси сохранён; проверочный сайт Prowlarr заблокирован.", "FlareSolverr: RuTracker is reachable and the proxy is saved; Prowlarr's test site is blocked."));
         return tag;
     }
@@ -476,30 +511,28 @@ internal sealed partial class MainForm : Form
     private async Task ConnectIndexer(ProwlarrClient client, int id)
     {
         var uri = new Uri(settings.ProwlarrUrl);
-        var serverAddress = settings.Mode == "compose" && settings.ManagedProwlarr && uri.IsLoopback ? "http://prowlarr:9696" : settings.Mode == "compose" && uri.IsLoopback ? new UriBuilder(uri) { Host = "host.docker.internal" }.Uri.ToString() : settings.ProwlarrUrl;
+        var serverAddress = settings.ProwlarrUrl;
         var connection = client.Connection(id, serverAddress);
         await host.Api("/api/search/settings", new { name = "RuTracker / Torznab", endpoint = connection.Endpoint, apiKey = connection.ApiKey, categories = "1180" }, lifetime.Token);
         Report(T("Поиск: проверяем результаты через WEB…", "Search: checking results through WEB…"));
         await host.Api("/api/search?q=PS4&offset=0&limit=1", ct: lifetime.Token);
-        MessageBox.Show(this, T("Поиск подключён. Результаты доступны в PackageFlow.", "Search connected. Results are available in PackageFlow."), "PackageFlow");
+        Report(T("Поиск подключён. Результаты доступны в PackageFlow.", "Search connected. Results are available in PackageFlow."));
     }
 
-    private void TorrentPage()
+    private void TorrentFields(FlowLayoutPanel page)
     {
-        var page = Page(T("4. Загрузки", "4. Downloads"), T("Подключите qBittorrent с включённым Web UI. Можно использовать уже установленный клиент или установить его с официального сайта. Для первого теста загрузки необязательны.", "Connect qBittorrent with Web UI enabled. Use your existing client or install it from the official website. Downloads are optional for the first test."));
-        var address = torrentAddress = Field(page, T("Адрес Web UI", "Web UI address"), "http://127.0.0.1:8080");
+        var address = torrentAddress = Field(page, "qBittorrent · " + T("Адрес Web UI", "Web UI address"), "http://127.0.0.1:8080");
         var user = torrentUser = Field(page, T("Логин Web UI", "Web UI username"));
         var password = torrentPassword = Field(page, T("Пароль Web UI", "Web UI password"), secret: true);
         var remote = torrentFolder = Field(page, T("Папка загрузок, как её видит qBittorrent", "Download folder as seen by qBittorrent"), settings.GamesDirectory);
         Buttons(page,
-            (T("Применить", "Apply"), async () =>
+            (T("Подключить qBittorrent", "Connect qBittorrent"), async () =>
             {
                 EnsureStarted();
                 var baseUrl = ProwlarrClient.ValidateAddress(address.Text).ToString().TrimEnd('/');
-                if (settings.Mode == "compose" && new Uri(baseUrl).IsLoopback) baseUrl = new UriBuilder(baseUrl) { Host = "host.docker.internal" }.Uri.ToString().TrimEnd('/');
-                await host.Api("/api/torrents/settings", new { baseUrl, username = user.Text.Trim(), password = password.Text, downloadPath = settings.Mode == "compose" ? "/games" : settings.GamesDirectory, remotePath = remote.Text }, lifetime.Token);
+                await host.Api("/api/torrents/settings", new { baseUrl, username = user.Text.Trim(), password = password.Text, downloadPath = settings.GamesDirectory, remotePath = remote.Text }, lifetime.Token);
             }),
-            (T("Скачать qBittorrent", "Download qBittorrent"), () => { ProcessRunner.Open("https://www.qbittorrent.org/download"); return Task.CompletedTask; }),
+            (T("Настроить торренты", "Set up torrents"), EnableTorrentSetup),
             (T("Завершить настройку", "Finish setup"), () =>
             {
                 EnsureStarted(); settings.SetupComplete = true; settings.Save(ServerHost.SettingsPath); OpenWeb(); Hide(); return Task.CompletedTask;
@@ -508,27 +541,39 @@ internal sealed partial class MainForm : Form
 
     private void UpdatePage()
     {
-        var page = Page(T("Обновление", "Updates"), T("Обновление Windows-приложения проверяется в GitHub Releases. Настройки и библиотека сохраняются. Активные или непроверенные операции блокируют остановку. Обновление службы PS4 остаётся в WEB и на приставке.", "Windows updates are checked in GitHub Releases. Settings and library are preserved. Active or unverified operations prevent stopping. PS4 service updates remain in WEB and on the console."));
-        page.Controls.Add(new Label { Text = T("Версия Windows-приложения: ", "Windows application version: ") + CurrentVersion(), AutoSize = true });
+        var page = Page(T("Обновления", "Updates"), T("Обновление Windows-приложения проверяется в GitHub Releases. Настройки и библиотека сохраняются. Обновление приставок проверяет службу и приложение на добавленных PS4 и PS5.", "Windows updates are checked in GitHub Releases. Settings and library are preserved. Console updates check the service and application on saved PS4 and PS5 consoles."));
+        var versionCard = FieldCard(page, "PackageFlow · Windows");
+        versionCard.Controls.Add(new Label { Text = T("Установленная версия: ", "Installed version: ") + CurrentVersion().ToString(3), Dock = DockStyle.Bottom, Height = 28, ForeColor = Color.White });
+        var consolesCard = FieldCard(page, T("PS4 и PS5", "PS4 and PS5")); consolesCard.Height=114;
+        consolesCard.Controls.Add(new Label { Text = T("Служба и приложение · все добавленные приставки", "Service and app · all saved consoles"), Dock = DockStyle.Bottom, Height = 44, ForeColor = Color.White });
+        var updateState = new Label { Text = T("Нажмите «Проверить обновления»", "Click Check updates"), Dock = DockStyle.Bottom, Height = 26, ForeColor = Theme.Muted };
+        versionCard.Height = 110; versionCard.Controls.Add(updateState); updateState.BringToFront();
+        ReleaseAsset? available = null;
         Buttons(page,
-            (T("Проверить обновления", "Check updates"), async () =>
-            {
-                var release = await ReleaseDownloads.LatestWindows(http, lifetime.Token);
-                if (release == null) { MessageBox.Show(this, T("Windows-установщик пока не опубликован в стабильных релизах.", "Stable releases do not contain a Windows installer yet."), "PackageFlow"); return; }
-                if (!ReleaseDownloads.IsNewerWindows(release, CurrentVersion()))
-                { MessageBox.Show(this, T("Новая версия не найдена.", "No newer version available."), "PackageFlow"); return; }
-                if (MessageBox.Show(this, T($"Доступна {release.Version}. Скачать и установить?", $"{release.Version} is available. Download and install?"), "PackageFlow", MessageBoxButtons.YesNo) != DialogResult.Yes) return;
-                var destination = Path.Combine(Program.UserDirectory, "downloads", release.Name);
-                await ReleaseDownloads.Download(http, release, destination, DownloadProgress(T("Обновление", "Update")), lifetime.Token);
-                await host.Stop(lifetime.Token);
-                ProcessRunner.Open(destination);
-                // The installer requests shutdown through the local pipe before replacing files.
+            (T("Проверить обновления", "Check updates"), async () => {
+                available = await ReleaseDownloads.LatestWindows(http, lifetime.Token);
+                updateState.Text = available == null ? T("Установщик ещё не опубликован", "Installer has not been published yet")
+                    : ReleaseDownloads.IsNewerWindows(available, CurrentVersion()) ? T("Доступна версия ", "Version available: ") + available.Version : T("Установлена актуальная версия", "The installed version is up to date");
+                applicationSummary = updateState.Text;
             }),
+            (T("Обновить Windows-приложение", "Update Windows app"), async () => {
+                available ??= await ReleaseDownloads.LatestWindows(http, lifetime.Token);
+                if (available == null || !ReleaseDownloads.IsNewerWindows(available, CurrentVersion())) {
+                    applicationSummary = T("Новых обновлений Windows нет", "No newer Windows update available"); return;
+                }
+                var destination = Path.Combine(Program.UserDirectory, "downloads", available.Name);
+                await ReleaseDownloads.Download(http, available, destination, DownloadProgress(T("Обновление", "Update")), lifetime.Token);
+                // Updating retains the conservative drain: it never forcibly
+                // interrupts a console job to replace the application files.
+                await host.Stop(lifetime.Token); ProcessRunner.Open(destination);
+            }),
+            (T("Проверить приставки", "Check consoles"), async () => { if(!host.Started)await ApplyInstallation(); await RefreshSavedConsoles(true); }),
+            (T("Установить обновления PS4 / PS5", "Install PS4 / PS5 updates"), async () => { if(!host.Started)await ApplyInstallation(); await UpdateSavedConsoles(); }),
             (T("Открыть папку данных", "Open data folder"), () => { Directory.CreateDirectory(ServerHost.DataDirectory); ProcessRunner.Open(ServerHost.DataDirectory); return Task.CompletedTask; }));
     }
     private Version CurrentVersion() => Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 1, 0);
     private void EnsureStarted() { if (!host.Started) throw new InvalidOperationException(T("Сначала запустите PackageFlow на вкладке установки.", "Start PackageFlow on the installation tab first.")); }
-    private async Task Exit() { await host.Stop(lifetime.Token); exiting = true; lifetime.Cancel(); tray.Visible = false; Close(); }
+    private async Task Exit() { if (!await ConfirmedStop(true)) return; exiting = true; lifetime.Cancel(); tray.Visible = false; Close(); }
     private void ShowWindow() { Show(); if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Maximized; Activate(); }
 
     private async Task Listen()
@@ -556,7 +601,7 @@ internal sealed partial class MainForm : Form
     }
     protected override void Dispose(bool disposing)
     {
-        if (disposing) { healthTimer.Dispose(); lifetime.Cancel(); tray.Dispose(); tips.Dispose(); http.Dispose(); lifetime.Dispose(); }
+        if (disposing && !resourcesDisposed) { resourcesDisposed = true; healthTimer.Dispose(); lifetime.Cancel(); tray.Dispose(); tips.Dispose(); http.Dispose(); lifetime.Dispose(); }
         base.Dispose(disposing);
     }
 }

@@ -1,4 +1,5 @@
 import { assertNoConsoleSpeedTest } from './console-speed-lock'
+import { ps5PkgQueueSupported } from '../../shared/device-eligibility'
 import { existsSync, readFileSync } from 'node:fs'
 import { createError } from 'h3'
 import { dataPath } from './data-path'
@@ -24,6 +25,7 @@ function validItems(value: unknown): value is Ps5Item[] {
     (item.alreadyPresent === undefined || typeof item.alreadyPresent === 'boolean') && (item.overwriteApproved === undefined || typeof item.overwriteApproved === 'boolean') &&
     (item.imagePublishedAt === undefined || Number.isSafeInteger(item.imagePublishedAt) && item.imagePublishedAt > 0) &&
     (item.folderPublishedAt === undefined || Number.isSafeInteger(item.folderPublishedAt) && item.folderPublishedAt > 0) &&
+    (item.observationStoppedAt === undefined || Number.isSafeInteger(item.observationStoppedAt) && item.observationStoppedAt > 0 && item.installDispatched === true && item.state === 'failed') &&
     (item.progressPhase === undefined || ['source-check','transfer','device-check'].includes(item.progressPhase)) && (item.bytesChecked === undefined || Number.isSafeInteger(item.bytesChecked) && item.bytesChecked >= 0 && item.bytesChecked <= item.size) &&
     (item.confirmation === undefined || ['user','service-registration','service-existing','recorded-existing'].includes(item.confirmation) && Number.isSafeInteger(item.confirmedAt) && item.confirmedAt > 0 && item.state === 'installed') &&
     typeof item.branch === 'string' && typeof item.title === 'string' && typeof item.fileName === 'string' && typeof item.detail === 'string' && Number.isSafeInteger(item.size) && item.size > 0 && Number.isSafeInteger(item.bytesSent) && item.bytesSent >= 0 && item.bytesSent <= item.size && Number.isInteger(item.order) && item.order >= 0)
@@ -68,7 +70,7 @@ export function getPs5PendingSpaceItems(id: string): Ps5SpaceItem[] {
 export function getPs5SetupAttempt(id: string, queueId: string, packageId: string) {
   const q = runner(id).queue
   const item = [q.items, ...q.history].flat().find(item => (item.queueId || (q.items.includes(item) ? q.id : undefined)) === queueId && item.packageId === packageId)
-  return item ? { state: item.state } : undefined
+  return item ? { state: item.state, confirmation: item.confirmation, alreadyPresent: item.alreadyPresent } : undefined
 }
 export function ps5TaskPackageId(id: string, queueId: string, taskId: string) {
   const q = runner(id).queue, item = q.items.find(item => item.transferId === taskId || item.packageId === taskId)
@@ -106,7 +108,7 @@ export async function startPs5Queue(input: { consoleId: string; packageIds?: unk
   // Validate the WHOLE batch before persisting or transferring any bytes.
   for (const item of items) {
     const platform = contentPlatform(item), format = contentFormat(item)
-    if (!contentForConsole(item,'ps5') || !snapshot.capabilities.formats.includes(format) || !['pkg','folder','ufs2','exfat','pfs','ffpfsc'].includes(format) || (format === 'folder' || isPs5ImageFormat(format)) && (platform !== 'ps5' || item.installOrder !== 0) || !(platform === 'ps4' ? snapshot.capabilities.installPs4 : snapshot.capabilities.installPs5))
+    if (!contentForConsole(item,'ps5') || (!snapshot.capabilities.formats.includes(format) || !(platform === 'ps4' ? snapshot.capabilities.installPs4 : snapshot.capabilities.installPs5)) && !ps5PkgQueueSupported(snapshot,item) || !['pkg','folder','ufs2','exfat','pfs','ffpfsc'].includes(format) || (format === 'folder' || isPs5ImageFormat(format)) && (platform !== 'ps5' || item.installOrder !== 0))
       throw createError({ statusCode: 409, message: `Сервис PS5 ещё не подтвердил установку ${platform.toUpperCase()} / ${format.toUpperCase()}. Очередь не отправлена` })
     if (platform === 'ps5') {
       const firmware = await assessPs5SourceFirmware(snapshot.firmware, item)
@@ -127,6 +129,10 @@ export function confirmPs5Installation(id: string, queueId: string, packageId: s
   catch (error) { if (error instanceof Ps5QueueFailure) throw createError({statusCode:409,message:error.message}); throw error }
 }
 export function clearPs5Tasks(id: string) { runner(id).clear(); return getPs5Queue(id) }
+export function stopPs5Waiting(id: string, queueId: string, packageId: string) {
+  try { runner(id).stopWaiting(queueId, packageId); return getPs5Queue(id) }
+  catch (error) { if (error instanceof Ps5QueueFailure) throw createError({ statusCode: 409, message: error.message }); throw error }
+}
 export function removePs5Tasks(id:string,queueId:string,packageIds?:string[],branches?:string[]){
   const r=runner(id),q=r.queue
   const targets=[q.items,...q.history].flatMap((items,index)=>items.filter(item=>(item.queueId || (index===0?q.id:`history-${index}`))===queueId && (packageIds?.includes(item.packageId)||branches?.includes(item.branch))))
@@ -156,7 +162,8 @@ export function getPs5Tasks(id: string, query: { categories?: unknown; page?: un
     const base = groups.get(item.branch)
     const { hash: _, sourceStamp: __, transferId: ___, installDispatched: ____, ...metadata } = item
     tasks.push({ ...metadata, ...r.transferTelemetry(item), id: item.transferId, queueId: item.queueId || (index === 0 ? q.id || '' : `history-${index}`), psIp: q.psIp,
-      canConfirm: item.installDispatched === true && !!item.serviceJobId && item.bytesSent === item.size && ['installing','unconfirmed','failed'].includes(item.state),
+      canConfirm: !item.observationStoppedAt && item.installDispatched === true && !!item.serviceJobId && item.bytesSent === item.size && ['installing','unconfirmed','failed'].includes(item.state),
+      canStopWaiting: item.state === 'unconfirmed' && item.installDispatched === true && (item.queueId || q.id) === q.id,
       canDismiss: ['installed','failed','skipped','cancelled'].includes(item.state),
       consolePlatform: 'ps5', category: installationTaskCategory(item.state), groupTitle: base?.title || item.title, groupIconId: base?.iconSize ? base.id : undefined,
       createdAt: item.createdAt || q.createdAt, transport: 'service', canCancel: index === 0 && ['running','paused'].includes(q.status) && ps5CanCancel(item), cancelRequested: !!item.cancelRequested })

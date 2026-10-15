@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 2,
+  "fileName": "MicrosoftEdgeWebview2Setup.exe",
+  "url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/9712cd13-5db8-48a4-8252-116d1e072184/MicrosoftEdgeWebview2Setup.exe",
+  "officialLink": "https://go.microsoft.com/fwlink/p/?LinkId=2124703",
+  "size": 1860304,
+  "sha256": "baa78c71c5615533a1ee0c4d2ca2ea3fd24dae01965f9033ac530a61b5aa93a0",
+  "distribution": "Evergreen Bootstrapper, downloaded only when a suitable Runtime is absent",
+  "minimumVersion": "120.0.0.0",
+  "retrievedAt": "2026-10-14"
+}

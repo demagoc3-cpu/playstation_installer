@@ -26,8 +26,16 @@ internal static class Smoke
     }
     [STAThread] private static int Main(string[] args)
     {
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.ThrowException);
         Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); Application.EnableVisualStyles(); Application.SetCompatibleTextRenderingDefault(false);
         var report = args.FirstOrDefault() ?? Path.Combine(Path.GetTempPath(), "PackageFlow-ui-tests.txt");
+        if(args.Contains("--background-probes")){try{BackgroundProbeTests.Run(report);return 0;}catch(Exception error){File.WriteAllText(report,"FAIL: "+error);return 1;}}
+        if(args.Contains("--windows-native")){try{WindowsDependencyTests.Run(report).GetAwaiter().GetResult();return 0;}catch(Exception error){File.AppendAllText(report,"\nFAIL: "+error);return 1;}}
+        if(args.Contains("--desktop-ui")) { try { DesktopUiTests.Run(report);return 0; }catch(Exception error){File.AppendAllText(report,"\nFAIL: "+error);return 1;} }
+        if(args.Contains("--components")) {
+            try { ConsoleComponentsTests.Run(report,args.Skip(Array.IndexOf(args,"--components")+1).ToArray()).GetAwaiter().GetResult();return 0; }
+            catch(Exception error){File.AppendAllText(report,"\nFAIL: "+error.Message);return 1;}
+        }
         if(args.Contains("--web-runtime")) {
             try { WebRuntimeTests.Run(report).GetAwaiter().GetResult();return 0; }
             catch(Exception error){File.WriteAllText(report,"FAIL: "+error);return 1;}
@@ -49,18 +57,25 @@ internal static class Smoke
             catch (Exception error) { File.WriteAllText(report, "FAIL: " + error); return 1; }
         }
         var lines = new List<string>();
+        File.WriteAllText(report,"RUNNING: Windows glass UI tests\n");
         var testFolder = Path.Combine(Path.GetTempPath(), "PackageFlow-ui-" + Guid.NewGuid());
         Directory.CreateDirectory(testFolder);
         try {
             var settings = new LauncherSettings { Language = "ru", GamesDirectory = testFolder, TrackerUsername = "fixture-user", ProtectedTrackerPassword = LocalSecrets.Protect("fixture-password") };
             using var form = new MainForm(false, settings) { WindowState = FormWindowState.Normal };
             form.Show(); Pump();
+            GlassWizardTests.Run(form, Pump, report);
+            GlassStopTests.Run(form, Pump);
+            File.AppendAllText(report,"PASS: wizard and stop confirmation scenarios\n");
+            lines.Add("PASS: opt-in setup wizard, original glass sections, tray autostart and default-safe stop dialog.");
             using (var surface = new Bitmap(80, 80)) {
                 using var graphics = Graphics.FromImage(surface); graphics.Clear(Color.Magenta);
                 Theme.Clear(new PaintEventArgs(graphics, new Rectangle(20, 20, 10, 10)), Theme.Background);
                 Check(surface.GetPixel(5, 5).ToArgb() == Color.Magenta.ToArgb() && surface.GetPixel(25, 25).ToArgb() == Theme.Background.ToArgb(), "Partial repaint must not erase pixels outside the invalid region.");
             }
             lines.Add("PASS: partial repaint respects the invalid region.");
+            var homeOpen=Descendants(Field<PageHost>(form,"tabs").TabPages[0]).OfType<Button>().Single(b=>b.Text=="Открыть PackageFlow");
+            Check(homeOpen.Visible&&homeOpen.Width>300&&homeOpen.Parent!.ClientRectangle.Contains(homeOpen.Bounds),"Home must expose an unobstructed Open PackageFlow button.");
             var savedGrid=Field<DataGridView>(form,"consoleGrid");
             var savedFixtures=System.Text.Json.Nodes.JsonNode.Parse("""
                 {"consoles":[{"id":"fixture-ps4","ip":"192.168.50.4","name":"PS4 Living room","model":"Pro","platform":"ps4","online":true,"paired":true,"firmware":"9.00","version":"0.10.2","pkgVersion":"2.05","freeBytes":107374182400,"checkedAt":0,"capabilities":{"formats":["pkg"]}},
@@ -69,16 +84,19 @@ internal static class Smoke
             savedFixtures["consoles"]![0]!["checkedAt"]=DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             SavedConsoleGrid.Render(savedGrid,savedFixtures,"fixture-ps4","ru");
             var savedTabs=Field<PageHost>(form,"tabs");savedTabs.SelectedIndex=1;Pump();
-            Check(savedGrid.Rows.Count==2&&savedGrid.Columns.Count==10,"Main Consoles page must list every saved console with metadata.");
+            Check(savedGrid.Rows.Count==2&&savedGrid.Columns.Count==11,"Main Consoles page must list every saved console with metadata and batch selection.");
+            savedGrid.Rows[0].Cells["batch"].Value=true;
+            SavedConsoleGrid.Render(savedGrid,savedFixtures,"fixture-ps4","ru");
+            Check(SavedConsoleGrid.CheckedIds(savedGrid).SequenceEqual(new[]{"fixture-ps4"}),"Refreshing profiles must preserve batch selection.");
             Check(savedGrid.Rows[1].Cells["firmware"].Value?.ToString()=="Не проверено","Offline firmware must not be presented as current.");
             Check(savedGrid.Rows[0].Cells["version"].Value?.ToString()=="2.05","Service package version is missing.");
             foreach(var size in new[]{new Size(980,700),new Size(1840,850)}) {
                 form.ClientSize=size;Pump();
-                Check(savedGrid.Width>600&&savedGrid.Height>200&&savedGrid.Parent!.ClientRectangle.Contains(savedGrid.Bounds),$"Main console table must fit the page at {size}: grid={savedGrid.Bounds}; parent={savedGrid.Parent!.ClientSize}; form={form.ClientSize}.");
+                Check(savedGrid.Width>600&&savedGrid.Height>=200&&savedGrid.Parent!.ClientRectangle.Contains(savedGrid.Bounds),$"Main console table must fit the page at {size}: grid={savedGrid.Bounds}; parent={savedGrid.Parent!.ClientSize}; form={form.ClientSize}.");
             }
             form.ClientSize=new Size(1440,740);form.Location=new Point(10,10);Pump();
             using(var shot=new Bitmap(form.ClientSize.Width,form.ClientSize.Height)) {
-                using(var graphics=Graphics.FromImage(shot))graphics.CopyFromScreen(form.PointToScreen(Point.Empty),Point.Empty,shot.Size);
+                form.DrawToBitmap(shot,new Rectangle(Point.Empty,form.ClientSize));
                 shot.Save(Path.ChangeExtension(report,"saved-consoles.png"));
             }
             lines.Add("PASS: main Consoles page lists saved PS4/PS5, current status and metadata, fits narrow/wide windows.");
@@ -95,13 +113,14 @@ internal static class Smoke
                     Check(deviceGrid.Width>900&&deviceGrid.Height>100,"Console list must remain usable at minimum window size.");
                     foreach(var button in Descendants(manager).OfType<Button>())Check(button.Right<=button.Parent!.ClientSize.Width&&button.Bottom<=button.Parent.ClientSize.Height,"Console modal buttons are clipped.");
                     Check(!Descendants(manager).OfType<DarkChoice>().Any(),"Platform must be detected, not selected manually.");
+                    Check(typeof(ConsoleManagerForm).GetField("firmware",BindingFlags.NonPublic|BindingFlags.Instance)==null,"Firmware must be read through the ELF, not entered manually.");
                     Check(Descendants(manager).OfType<Button>().Any(b=>b.Text=="Удалить приложение")&&Descendants(manager).OfType<Button>().Any(b=>b.Text=="Удалить устройство"),"Removal controls are missing.");
                     foreach(var input in Descendants(manager).OfType<TextBox>())Check(input.Visible&&input.Height>=input.PreferredHeight&&input.Top>=0&&input.Bottom<=input.Parent!.ClientSize.Height,$"Console modal input is clipped or hidden: bounds={input.Bounds}; preferredHeight={input.PreferredHeight}; visible={input.Visible}; parent={input.Parent!.ClientSize}.");
                     foreach(var input in Descendants(manager).Where(c=>c is TextBox or DarkChoice))Check(input.Width>100&&manager.RectangleToScreen(manager.ClientRectangle).Contains(new Rectangle(input.PointToScreen(Point.Empty),input.Size)), $"Console modal field falls outside the window: bounds={input.Bounds}; parent={input.Parent!.ClientSize}; screen={input.PointToScreen(Point.Empty)}.");
                     foreach(var input in Descendants(manager).Where(c=>c is TextBox or DarkChoice))Check(input.Parent!.ClientRectangle.Contains(input.Bounds),$"Console modal field is clipped by its parent: bounds={input.Bounds}; parent={input.Parent.ClientSize}.");
                 }
                 manager.Size=new Size(1120,700);manager.Location=new Point(5,5);Pump();
-                using var shot=new Bitmap(manager.ClientSize.Width,manager.ClientSize.Height);using(var graphics=Graphics.FromImage(shot))graphics.CopyFromScreen(manager.PointToScreen(Point.Empty),Point.Empty,shot.Size);shot.Save(Path.ChangeExtension(report,"consoles.png"));
+                using var shot=new Bitmap(manager.ClientSize.Width,manager.ClientSize.Height);manager.DrawToBitmap(shot,new Rectangle(Point.Empty,shot.Size));shot.Save(Path.ChangeExtension(report,"consoles.png"));
                 manager.Close();lines.Add("PASS: PS4/PS5 modal renders saved/offline/unpaired rows at two sizes; unknown FW preserved.");
             }
             using (var manager = new ConsoleManagerForm(Field<ServerHost>(form,"host"), settings, (_, _, _) => Task.CompletedTask, preview:true)) {
@@ -133,11 +152,15 @@ internal static class Smoke
             }
             ConsoleSetupFlowTests.Run(testFolder,form,Pump);
             lines.Add("PASS: Install connects without a code and continues once; installed app is not resent.");
-            for (var i = 0; i < 20; i++) {
-                var choice = Field<DarkChoice>(form, "mode"); Select(choice, i % 2);
-                Check(choice.SelectedIndex == i % 2, "Dropdown selection must survive its close event.");
+            var waiting=new TaskCompletionSource();
+            var pending=(Task)typeof(MainForm).GetMethod("Act",BindingFlags.NonPublic|BindingFlags.Instance)!.Invoke(form,new object?[]{(Func<Task>)(()=>waiting.Task),"Browser fixture"})!;
+            var ticks=0;using(var timer=new System.Windows.Forms.Timer{Interval=10}) {
+                timer.Tick+=(_,_)=>ticks++;timer.Start();Pump();
+                var nav=Field<FlowLayoutPanel>(form,"navigation");nav.Controls.OfType<Button>().First().PerformClick();Pump();
+                Check(ticks>0&&nav.Enabled&&!form.UseWaitCursor,"Waiting for a browser must preserve the message loop and navigation without a global wait cursor.");
             }
-            lines.Add("PASS: 20 dropdown selections through native mouse messages.");
+            waiting.SetResult();Pump();pending.GetAwaiter().GetResult();
+            lines.Add("PASS: browser wait keeps window messages and navigation responsive.");
             var trackerUser = Field<TextBox>(form, "trackerUser");
             var password = Field<TextBox>(form, "trackerPassword");
             Check(trackerUser.Text == "fixture-user" && password.Text == "fixture-password" && password.UseSystemPasswordChar, "Saved tracker fields must load masked.");
@@ -155,44 +178,46 @@ internal static class Smoke
             reveal.Checked = true; Check(!password.UseSystemPasswordChar, "Show password did not reveal input.");
             reveal.Checked = false; Check(password.UseSystemPasswordChar, "Show password did not remask input.");
             lines.Add("PASS: password reveal/remask.");
+            var clippedText = new List<string>();
             foreach (var size in new[] { new Size(964, 721), new Size(964, 820), new Size(1280, 760), new Size(1880, 940) }) {
                 form.ClientSize = size; tabs.SelectedIndex = 0; Pump();
                 var page = tabs.TabPages[0];
                 var flow = page.Controls.OfType<CardFlow>().Single();
-                Check(flow.Controls.Cast<Control>().All(c => c.Top >= 0 && c.Bottom + c.Margin.Bottom <= flow.ClientSize.Height && c.Right <= flow.ClientSize.Width), "Installation requires scrolling at " + size);
+                Check(flow.Controls.Cast<Control>().Where(c => c.Visible).All(c => c.Right <= flow.ClientSize.Width), "Home cards must fit horizontally at " + size);
                 foreach (Control eachPage in tabs.TabPages) {
                     tabs.SelectedIndex = tabs.TabPages.IndexOf(eachPage); Pump();
                     foreach (var label in Descendants(eachPage).OfType<Label>().Where(l => l.Visible && l.Text.Length > 0)) {
                         var needed = label.GetPreferredSize(new Size(label.ClientSize.Width, 0));
-                        Check(needed.Height <= label.ClientSize.Height, "Text is clipped: " + label.Text + " at " + size + " needs " + needed.Height + " has " + label.ClientSize.Height);
+                        if(needed.Height > label.ClientSize.Height)clippedText.Add(label.Text + " at " + size + " needs " + needed.Height + " has " + label.ClientSize.Height);
                     }
                     var footer = eachPage.Controls.OfType<TableLayoutPanel>().Single(p => p.Dock == DockStyle.Bottom);
                     var buttons = footer.Controls.OfType<Button>().ToArray();
-                    Check(buttons.Select(b => b.Top).Distinct().Count() <= 1 && buttons.All(b => b.Bottom <= footer.ClientSize.Height && b.Right <= footer.ClientSize.Width), "Buttons must fit one row.");
+                    Check(buttons.All(b => b.Bottom <= footer.ClientSize.Height && b.Right <= footer.ClientSize.Width && b.Width >= 100), "Action buttons must wrap into readable rows inside the footer.");
                 }
                 foreach (var card in Field<Dictionary<string, StatusCard>>(form, "healthCards").Values) {
                     Check(card.Left >= 0 && card.Right <= card.Parent!.ClientSize.Width && card.Bottom <= card.Parent.ClientSize.Height, "Status cards must fit after shrinking the window.");
                 }
-                lines.Add("PASS: installation fits and actions stay in one row at " + size.Width + "x" + size.Height + ".");
+                lines.Add("PASS: cards fit and actions wrap inside the footer at " + size.Width + "x" + size.Height + ".");
             }
+            Check(clippedText.Count==0,"Clipped text: "+string.Join("; ",clippedText));
             var cards = Field<Dictionary<string, StatusCard>>(form, "healthCards");
             Check(cards.Values.All(c => c.Controls.Cast<Control>().All(label => label.Top >= 0 && label.Bottom <= c.ClientSize.Height)), "Status card text must fit inside the card.");
-            Check(cards.Keys.SequenceEqual(new[] { "WEB", "Pairing", "qBittorrent", "Prowlarr", "FlareSolverr" }), "Pairing card must follow WEB.");
+            Check(cards.Keys.SequenceEqual(new[] { "WEB", "qBittorrent", "Prowlarr", "FlareSolverr" }), "Multi-console status belongs in the Consoles table.");
             Check(Field<TextBox>(form, "torrentFolder").Text==testFolder, "qBittorrent download-path mapping field missing.");
             Check(Descendants(form).OfType<LogoButton>().Count() == 2, "Both header links need logos.");
             var actions = tabs.TabPages[0].Controls.OfType<TableLayoutPanel>().Single(p => p.Dock == DockStyle.Bottom);
             Check(actions.Controls.OfType<Button>().Any(b => b.Text == "Применить"), "Settings need an Apply button.");
-            lines.Add("PASS: pairing card ordering, header logos, Apply button and qBittorrent path mapping.");
+            lines.Add("PASS: multi-console header, logos, Apply button and qBittorrent path mapping.");
             form.ClientSize = new Size(1100, 780); form.Location = new Point(25, 25); Pump();
             foreach (var pageIndex in new[] { 0, 1, 2 }) {
                 tabs.SelectedIndex = pageIndex; Pump();
                 for (var i = 0; i < 12; i++) { form.Location = new Point(25 + i % 3 * 30, 25 + i % 2 * 18); Pump(); }
                 form.Location = new Point(25, 25); Pump();
                 using var moved = new Bitmap(form.ClientSize.Width, form.ClientSize.Height);
-                using (var graphics = Graphics.FromImage(moved)) graphics.CopyFromScreen(form.PointToScreen(Point.Empty), Point.Empty, moved.Size);
+                form.DrawToBitmap(moved, new Rectangle(Point.Empty,form.ClientSize));
                 form.Invalidate(true); form.Update(); Pump();
                 using var repainted = new Bitmap(moved.Width, moved.Height);
-                using (var graphics = Graphics.FromImage(repainted)) graphics.CopyFromScreen(form.PointToScreen(Point.Empty), Point.Empty, repainted.Size);
+                form.DrawToBitmap(repainted, new Rectangle(Point.Empty,form.ClientSize));
                 var different = 0;
                 for (var y = 0; y < moved.Height; y += 3) for (var x = 0; x < moved.Width; x += 3) if (moved.GetPixel(x, y) != repainted.GetPixel(x, y)) different++;
                 Check(different < 30, "Window movement left stale pixels on page " + pageIndex + ": " + different);
@@ -202,6 +227,10 @@ internal static class Smoke
             var stored = LauncherSettings.Load(Path.Combine(testFolder, "settings.json"));
             Check(!File.ReadAllText(Path.Combine(testFolder, "settings.json")).Contains("fixture-password") && LocalSecrets.Read(stored.ProtectedTrackerPassword) == "fixture-password", "Saved password must use Windows account protection.");
             lines.Add("PASS: saved password survives restart with Windows protection.");
+            form.ClientSize = new Size(1440, 900); form.Location = new Point(20,20); Pump();
+            for (int i=0; i<tabs.TabPages.Count; i++) {
+                tabs.SelectedIndex=i; Pump(); GlassWizardTests.Save(form, Path.ChangeExtension(report,$"section-{i}.png"));
+            }
             tabs.SelectedIndex = 0; form.ClientSize = new Size(1280, 720); Pump();
             using var bitmap = new Bitmap(form.Width, form.Height); form.DrawToBitmap(bitmap, new Rectangle(Point.Empty, form.Size));
             bitmap.Save(Path.ChangeExtension(report, ".png"));

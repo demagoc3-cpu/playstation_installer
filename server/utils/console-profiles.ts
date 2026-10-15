@@ -17,9 +17,9 @@ import type { ConsoleProfile, ConsoleProfiles, ConsoleCapabilities, ConsolePlatf
 const profilePath = () => dataPath('console-profiles.json')
 const keyPath = () => dataPath('ps5-service-keys.json')
 const emptyCapabilities = (): ConsoleCapabilities => ({ formats: [], installPs4: false, installPs5: false, background: false })
-type StoredProfile = Omit<ConsoleProfile, 'online' | 'paired' | 'capabilities' | 'freeBytes' | 'checkedAt'>
+type StoredProfile = Omit<ConsoleProfile, 'online' | 'paired' | 'pairingConfigured' | 'capabilities' | 'freeBytes' | 'checkedAt' | 'transferFreeBytes' | 'totalBytes' | 'henName' | 'henVersion' | 'henSdk' | 'servicePid' | 'serviceBuild' | 'capabilitiesDeferred'>
 interface Store { version: 1; activeId: string | null; consoles: StoredProfile[] }
-const snapshots = new Map<string, Pick<ConsoleProfile, 'online' | 'paired' | 'capabilities' | 'freeBytes' | 'checkedAt'>>()
+const snapshots = new Map<string, Pick<ConsoleProfile, 'online' | 'paired' | 'capabilities' | 'freeBytes' | 'checkedAt' | 'transferFreeBytes' | 'totalBytes' | 'henName' | 'henVersion' | 'henSdk' | 'servicePid' | 'serviceBuild' | 'capabilitiesDeferred'>>()
 
 function store(): Store {
   captureLegacyConsole()
@@ -108,6 +108,7 @@ export async function ps5SaveChunk(consoleId: string, headers: Record<string, st
 function publicProfile(item: StoredProfile): ConsoleProfile {
   const snapshot = snapshots.get(item.id)
   return { ...item, paired: false, capabilities: emptyCapabilities(), ...snapshot,
+    pairingConfigured: item.platform === 'ps5' ? !!ps5Token(item.ip) : serviceKeyConfigured(item.ip),
     online: !!snapshot?.online && Date.now() - (snapshot.checkedAt || 0) < 60000 }
 }
 export function getConsoleProfiles(): ConsoleProfiles { const saved = store(); return { activeId: saved.activeId, consoles: saved.consoles.map(publicProfile) } }
@@ -162,29 +163,53 @@ export async function ps5ServiceRequest(ip: string, path: '/health' | '/api/v1/c
     if (!token) throw createError({ statusCode: 409, message: 'Подключите PS5 в разделе «Устройства»' })
     headers.Authorization = `Bearer ${token}`
   }
-  const response = await fetch(`http://${ip}:8095${path}`, { method: path === '/api/v1/pair' ? 'POST' : 'GET', headers, redirect: 'error', signal: AbortSignal.timeout(3500) })
+  let response: Response
+  try {
+    // Readiness includes synchronous installer/ShadowMount checks. Give an
+    // explicit preflight the operation deadline; keep basic status probes quick.
+    response = await fetch(`http://${ip}:8095${path}`, { method: path === '/api/v1/pair' ? 'POST' : 'GET', headers, redirect: 'error', signal: AbortSignal.timeout(path === '/api/v1/install/readiness' ? 15000 : 3500) })
+  } catch (error: any) {
+    // Preserve the transport cause: update/bootstrap must distinguish a refused
+    // listener from a timeout before deciding whether another ELF may be sent.
+    throw createError({ statusCode: 503, message: `Нагрузка PackageFlow на PS5 ${ip}:8095 не отвечает. Проверьте сеть и состояние нагрузки. Сохранённый ключ подключения не удалён.`, cause: error?.cause || error })
+  }
   if (!response.body) throw new Error('Empty service response')
   const reader = response.body.getReader(); let size = 0; const chunks: Uint8Array[] = []
   try {
     for (;;) { const part = await reader.read(); if (part.done) break; size += part.value.length; if (size > 16384) throw new Error('Response too large'); chunks.push(part.value) }
+  } catch {
+    throw createError({ statusCode: 503, message: 'Ответ нагрузки PS5 прервался. Проверьте связь и подключитесь снова. Сохранённый ключ подключения не удалён.' })
   } finally { await reader.cancel().catch(() => {}) }
-  return { status: response.status, body: JSON.parse(Buffer.concat(chunks).toString('utf8')) }
+  try { return { status: response.status, body: JSON.parse(Buffer.concat(chunks).toString('utf8')) } }
+  catch { throw createError({ statusCode: 502, message: 'Нагрузка PS5 вернула некорректный ответ. Проверьте состояние PackageFlow на приставке.' }) }
 }
 
-export async function probeConsoleProfile(id: unknown) {
+/** The polling path must not run the installer's synchronous hello while data
+ * occupies the PS5's single HTTP handler. Explicit preflight remains fresh. */
+function ps5TransferInProgress(id: string) {
+  const path = dataPath('consoles', id, 'ps5-installation-queue.json')
+  if (!existsSync(path)) return false
+  const queue = readJsonFile<any>(path, null)
+  if (!queue || !Array.isArray(queue.items)) return true
+  return queue.status === 'running' && queue.items.some((item: any) =>
+    item.state === 'sending' || item.state === 'receiving' ||
+    item.format === 'folder' && item.state === 'verifying' && item.bytesSent < item.size)
+}
+export async function probeConsoleProfile(id: unknown, background = false) {
   const profile = getConsoleProfile(id)
+  const previous = snapshots.get(profile.id)
   let online = false, paired = false, verified = false, version: string | undefined, pkgVersion: string | undefined, firmware: string | undefined
   let capabilities = emptyCapabilities()
-  let freeBytes: number | undefined
+  let freeBytes: number | undefined, totalBytes: number | undefined, transferFreeBytes: number | undefined
+  let model=profile.model, henName: string | undefined, henVersion: string | undefined, henSdk: string | undefined
+  let servicePid: number | undefined, serviceBuild: string | undefined, capabilitiesDeferred = false
   try {
     if (profile.platform === 'ps4' && profile.transport === 'payload') {
       online = (await getGoldHenStatus(profile.ip)).ready
       capabilities = { formats: online ? ['pkg'] : [], installPs4:online, installPs5:false, background:false }
-      if(serviceKeyConfigured(profile.ip)){
-        const status=await getServiceInstallerStatus(profile.ip),system=await getPs4SystemSnapshot(profile.ip)
-        paired=status.paired===true;firmware=system.system?.firmware || undefined
-        freeBytes=system.storage?.find(volume=>volume.available&&volume.path==='/user')?.availableBytes ?? undefined
-      }
+      // PyLoader has no storage API. A stored service key must not make
+      // this transport wait on the service's disk/system probe.
+      firmware=profile.firmware
     } else if (profile.platform === 'ps4') {
       const ping = await readPs4Service(profile.ip, '/ping')
       if (ping.status !== 200 || (ping.body as any)?.service !== 'PackegeFlowService' || (ping.body as any)?.status !== 'ok') throw new Error('Unexpected service')
@@ -195,50 +220,67 @@ export async function probeConsoleProfile(id: unknown) {
       const system = await getPs4SystemSnapshot(profile.ip)
       pkgVersion = system.pkgVersion || undefined
       firmware = system.system?.firmware || undefined
-      freeBytes = system.storage?.find(volume => volume.available && volume.path === '/user')?.availableBytes ?? undefined
+      model = system.system?.model || model
+      henName = system.system?.henName || undefined; henVersion = system.system?.henVersion || undefined; henSdk = system.system?.henSdk || undefined
+      servicePid = system.runtime?.processId ?? undefined
+      const storage = system.storage?.find(volume => volume.available && volume.path === '/user')
+      freeBytes = storage?.availableBytes ?? undefined; totalBytes = storage?.totalBytes ?? undefined
     } else {
       const health = await ps5ServiceRequest(profile.ip, '/health'), report = health.body?.serviceReport
       if (health.status !== 200 || health.body?.apiVersion !== 'v1' || report?.service !== 'PackageFlowService-PS5' || (report.platform && report.platform !== 'ps5') || report.consoleVerified !== true) throw new Error('Unexpected service')
       online = verified = true; version = String(report.version || '')
+      servicePid = Number.isSafeInteger(health.body.pid) && health.body.pid > 0 ? health.body.pid : undefined
+      serviceBuild = typeof report.buildId === 'string' ? report.buildId : undefined
       const raw = /^0x([0-9a-f]{2})([0-9a-f]{2})[0-9a-f]{4}$/i.exec(health.body.firmwareRaw || '')
       if (health.body.firmwareRead && raw && /^\d{2}$/.test(raw[1]) && /^\d{2}$/.test(raw[2])) firmware = `${Number(raw[1])}.${raw[2]}`
       if (ps5Token(profile.ip)) {
         const response = await ps5ServiceRequest(profile.ip, '/api/v1/capabilities')
         paired = response.status === 200 && response.body?.service === 'PackageFlowService-PS5'
         if (paired) {
-          try {
-            const readiness = await ps5ServiceRequest(profile.ip, '/api/v1/install/readiness')
-            capabilities = ps5InstallCapabilities(readiness.status, readiness.body, firmware)
-          } catch { capabilities = ps5InstallCapabilities(503, null, firmware) }
+          capabilitiesDeferred = background && ps5TransferInProgress(profile.id)
+          if (capabilitiesDeferred) {
+            // A replaced process never inherits a previous process's readiness.
+            if (servicePid !== undefined && serviceBuild && previous?.online && previous.paired &&
+                previous.servicePid === servicePid && previous.serviceBuild === serviceBuild)
+              capabilities = structuredClone(previous.capabilities)
+          } else {
+            try {
+              const readiness = await ps5ServiceRequest(profile.ip, '/api/v1/install/readiness')
+              capabilities = ps5InstallCapabilities(readiness.status, readiness.body, firmware)
+            } catch { capabilities = ps5InstallCapabilities(503, null, firmware) }
+          }
           capabilities.background = response.body.capabilities?.backgroundService === true
           const system = await ps5ServiceRequest(profile.ip,'/api/v1/system')
-          if (system.status === 200 && system.body?.service === 'PackageFlowService-PS5' && system.body.storageRead === true && Number.isSafeInteger(system.body.freeBytes) && system.body.freeBytes >= 0 && Number.isSafeInteger(system.body.totalBytes) && system.body.totalBytes > 0 && system.body.freeBytes <= system.body.totalBytes) freeBytes=system.body.freeBytes
+          if (system.status === 200 && system.body?.service === 'PackageFlowService-PS5' && system.body.storageRead === true && Number.isSafeInteger(system.body.freeBytes) && system.body.freeBytes >= 0 && Number.isSafeInteger(system.body.totalBytes) && system.body.totalBytes > 0 && system.body.freeBytes <= system.body.totalBytes) { freeBytes=system.body.freeBytes; totalBytes=system.body.totalBytes }
+          if (system.status === 200 && system.body?.service === 'PackageFlowService-PS5' && system.body.transferStorageRead === true && Number.isSafeInteger(system.body.transferFreeBytes) && system.body.transferFreeBytes >= 0) transferFreeBytes=system.body.transferFreeBytes
         }
       }
     }
   } catch { /* A stored token is not proof that the current service accepts it. */ }
   const latest = store(), current = latest.consoles.find(item => item.id === profile.id)
   if (!current || current.ip !== profile.ip || current.platform !== profile.platform) return getConsoleProfiles()
-  if (verified) { current.verified = true; current.version = version; current.pkgVersion = pkgVersion; current.firmware = firmware; writeJsonFile(profilePath(), latest) }
-  snapshots.set(profile.id, { online, paired, capabilities, freeBytes, checkedAt: Date.now() })
+  if (verified) { current.verified = true; current.model = model; current.version = version; current.pkgVersion = pkgVersion; current.firmware = firmware; writeJsonFile(profilePath(), latest) }
+  snapshots.set(profile.id, { online, paired, capabilities, freeBytes, totalBytes, transferFreeBytes, henName, henVersion, henSdk, checkedAt: Date.now(), servicePid, serviceBuild, capabilitiesDeferred })
   return getConsoleProfiles()
 }
 
 const probes = new Map<string, Promise<ConsoleProfiles>>()
-export function refreshConsoleProfile(id: string, force = false) {
+export function refreshConsoleProfile(id: string, force = false, background = false) {
   const snapshot = snapshots.get(id)
-  if (!force && snapshot?.checkedAt && Date.now() - snapshot.checkedAt < 15000) return Promise.resolve(getConsoleProfiles())
-  const existing = probes.get(id)
+  if (!force && snapshot?.checkedAt && Date.now() - snapshot.checkedAt < 15000 &&
+      (background || !snapshot.capabilitiesDeferred)) return Promise.resolve(getConsoleProfiles())
+  const probeKey = `${id}:${background ? 'background' : 'full'}`
+  const existing = probes.get(probeKey)
   if (existing) return existing
-  const pending = probeConsoleProfile(id).finally(() => probes.delete(id))
-  probes.set(id, pending); return pending
+  const pending = probeConsoleProfile(id, background).finally(() => probes.delete(probeKey))
+  probes.set(probeKey, pending); return pending
 }
 /** No device-count limit; bound the number of simultaneous network probes. */
 export async function refreshConsoleProfiles() {
   const ids = getConsoleProfiles().consoles.map(item => item.id)
   let next = 0
   await Promise.all(Array.from({ length: Math.min(8, ids.length) }, async () => {
-    while (next < ids.length) { const id = ids[next++]!; await refreshConsoleProfile(id).catch(() => {}) }
+    while (next < ids.length) { const id = ids[next++]!; await refreshConsoleProfile(id, false, true).catch(() => {}) }
   }))
   return getConsoleProfiles()
 }

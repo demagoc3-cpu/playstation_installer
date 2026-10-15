@@ -64,6 +64,9 @@ const hash = (value: string) => createHash('sha256').update(value).digest('hex')
 const cacheDirectory = (root: string) => dataPath('package-cache', hash(root))
 const cachePath = (root: string) => join(cacheDirectory(root), 'index.json')
 const coversDirectory = (root: string) => join(cacheDirectory(root), 'covers')
+// A mapped Windows drive may expose its protected volume directories. They
+// contain no library sources; entering them aborts a strict NAS scan at root.
+const excludedScanDirectory = (name: string) => ['.packageflow', '$recycle.bin', 'system volume information', 'recycler', 'recycled'].includes(name.toLowerCase())
 
 // Delivery progress lives in memory: the PS4 fires many Range requests per
 // package and persisting each one made Windows fail on locked files.
@@ -298,7 +301,8 @@ function retainSourceIds(previous: StoredPackage[], remaining: StoredPackage[]) 
   return remaining
 }
 
-async function walk(directory: string, root: string, cache: FolderCache, found: StoredPackage[], oldItems: Map<string, StoredPackage>, strict = false): Promise<void> {
+async function walk(directory: string, root: string, cache: FolderCache, found: StoredPackage[], oldItems: Map<string, StoredPackage>, strict = false, progress?: (packages: number) => void): Promise<void> {
+  progress?.(found.length)
   const probe = async (file: string) => Boolean(await stat(file).catch(error => { if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') scanReadError(error, strict); return undefined }))
   if (await probe(join(directory, 'sce_sys', 'param.json')) && await probe(join(directory, 'eboot.bin'))) {
     try {
@@ -310,14 +314,14 @@ async function walk(directory: string, root: string, cache: FolderCache, found: 
   }
   let entries
   try { entries = await readdir(directory, { withFileTypes: true }) } catch (error) {
-    if (strict) throw createError({ statusCode: 503, message: 'Не удалось прочитать всё хранилище. Предыдущий индекс сохранён' })
+    if (strict) throw createError({ statusCode: 503, message: `Не удалось прочитать папку ${directory} (${(error as NodeJS.ErrnoException)?.code || 'I/O'}). Предыдущий индекс сохранён` })
     if (directory === root) throw createError({ statusCode: 403, message: `Нет доступа к содержимому папки ${root}. Проверьте права чтения и подключение папки к контейнеру.` })
     logEvent('warn', `Пропущена недоступная папка ${directory}`, error)
     return
   }
   for (const entry of entries) {
     const path = resolve(directory, entry.name)
-    if (entry.isDirectory()) { if (entry.name !== '.packageflow') await walk(path, root, cache, found, oldItems, strict); continue }
+    if (entry.isDirectory()) { if (!excludedScanDirectory(entry.name)) await walk(path, root, cache, found, oldItems, strict, progress); continue }
     if (!entry.isFile() || !/\.(pkg|fpkg|ffpkg|ufs2|exfat|pfs|ffpfs|ffpfsc)$/i.test(entry.name)) continue
     const info = await stat(path).catch(() => undefined)
     if (!info) { if (strict) throw createError({ statusCode: 503, message: 'Файл хранилища недоступен. Предыдущий индекс сохранён' }); continue }
@@ -342,11 +346,12 @@ async function walk(directory: string, root: string, cache: FolderCache, found: 
     if (previous && packageKey(previous) === packageKey(item)) item.installedAt = previous.installedAt
     cache.packages[key] = { size: info.size, modifiedAt: info.mtimeMs, item }
     found.push(item)
+    progress?.(found.length)
     if (found.length % 12 === 0) await new Promise<void>((done) => setImmediate(done))
   }
 }
 
-export async function scanPackageFolder(directory: string, onlyTitleId?: string, options: { force?: boolean; replaceRoot?: boolean; strict?: boolean } = {}) {
+export async function scanPackageFolder(directory: string, onlyTitleId?: string, options: { force?: boolean; replaceRoot?: boolean; strict?: boolean; onProgress?: (packages: number) => void } = {}) {
   if (!directory?.trim()) throw createError({ statusCode: 400, message: 'Укажите путь к папке с пакетами' })
   const root = resolve(directory.trim())
   const rootInfo = await stat(root).catch(() => undefined)
@@ -356,7 +361,7 @@ export async function scanPackageFolder(directory: string, onlyTitleId?: string,
   const siteLibrary = readLibrary()
   const oldItems = new Map(siteLibrary.packages.map((item) => [item.id, item]))
   const found: StoredPackage[] = []
-  await walk(root, root, cache, found, oldItems, options.strict)
+  await walk(root, root, cache, found, oldItems, options.strict, options.onProgress)
   writeJson(cachePath(root), cache)
   // Re-read after asynchronous scanning so concurrent install confirmations
   // are preserved. Replacing entries in place keeps canonical IDs stable.
@@ -495,6 +500,7 @@ export async function readPackageIcon(id: string) {
 const blockedDeliveries = new Set<string>()
 const activeTransfers = new Map<string, Set<() => void>>()
 export function activePackageTransfers() { return [...activeTransfers.values()].some(transfers => transfers.size > 0) }
+export function isPackageTransferActive(id: string) { return !!activeTransfers.get(consoleDeliveryKey(id))?.size }
 
 /** Registers a running HTTP transfer so a cancel can cut it; returns an unregister function. */
 export function registerActiveTransfer(id: string, abort: () => void) {
@@ -648,7 +654,10 @@ function settleDelivery(item: StoredPackage, delivery: DeliveryStatus) {
   if (delivery.completedAt && !delivery.partial) return false
   const end = requiredEnd(item)
   const ps4Pkg = contentPlatform(item) === 'ps4' && contentFormat(item) === 'pkg'
-  if (covers(delivery.ranges, ps4Pkg ? Math.min(BOOTSTRAP_BYTES, end - 1) : 0, end - 1) || delivery.bytesSent >= item.size) {
+  // Small PKGs fit in the bootstrap region. A tail/header probe is not their
+  // body: require coverage from zero instead of accepting their last byte.
+  const from = ps4Pkg && end > BOOTSTRAP_BYTES ? BOOTSTRAP_BYTES : 0
+  if (covers(delivery.ranges, from, end - 1) || delivery.bytesSent >= item.size) {
     delivery.completedAt = Date.now()
     delete delivery.partial
     return true

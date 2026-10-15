@@ -14,6 +14,8 @@ public static class ConsoleArtifacts
         if (!File.Exists(manifest)) return; // PS4 installations still work without PS5 binaries.
         var json = JsonNode.Parse(File.ReadAllText(manifest)) ?? throw new InvalidDataException("Invalid console manifest.");
         if (json["schemaVersion"]?.GetValue<int>() != 1) throw new InvalidDataException("Unsupported console manifest.");
+        var elfEntry=json["elf"];
+        if(elfEntry?["firmware"]?.GetValue<string>()!="13.60" || !Regex.IsMatch(elfEntry?["version"]?.GetValue<string>() ?? "",@"^\d+\.\d+\.\d+(?:-dev)?$") || !Regex.IsMatch(elfEntry?["buildId"]?.GetValue<string>() ?? "", "^[a-z0-9-]{1,64}$"))throw new InvalidDataException("Invalid ELF release identity.");
         var files = new List<(string Source, string Target)>();
         foreach (var role in json["ps4"] == null ? new[] { "elf", "app" } : new[] { "elf", "app", "ps4" }) {
             var entry = json[role] ?? throw new InvalidDataException("Incomplete PS5 release bundle.");
@@ -35,5 +37,17 @@ public static class ConsoleArtifacts
         }
         File.WriteAllText(Path.Combine(destination, "manifest.json.tmp"), json.ToJsonString());
         File.Move(Path.Combine(destination, "manifest.json.tmp"), Path.Combine(destination, "manifest.json"), true);
+        // A running ELF uses the same verified bundled candidate as first setup.
+        var elf=json["elf"]!;
+        var updates=Path.Combine(Path.GetDirectoryName(destination)!,"ps5-service-updates");Directory.CreateDirectory(updates);
+        var elfTarget=Path.Combine(updates,"PackageFlowService-PS5.elf");
+        File.Copy(Path.Combine(bundle,elf["fileName"]!.GetValue<string>()),elfTarget+".tmp",true);File.Move(elfTarget+".tmp",elfTarget,true);
+        var release=new JsonObject {
+            ["service"]="PackageFlowService-PS5",["fileName"]="PackageFlowService-PS5.elf",
+            ["version"]=elf["version"]!.DeepClone(),["buildId"]=elf["buildId"]!.DeepClone(),
+            ["sha256"]=elf["sha256"]!.DeepClone(),["firmware"]=elf["firmware"]!.DeepClone()
+        };
+        File.WriteAllText(Path.Combine(updates,"release.json.tmp"),release.ToJsonString());
+        File.Move(Path.Combine(updates,"release.json.tmp"),Path.Combine(updates,"release.json"),true);
     }
 }

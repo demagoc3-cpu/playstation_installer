@@ -1,6 +1,0 @@
-**
-!server/
-!server/.output/
-!server/.output/**
-!compose/
-!compose/Dockerfile

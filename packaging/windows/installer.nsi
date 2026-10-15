@@ -4,7 +4,7 @@ Unicode true
 !include "LogicLib.nsh"
 
 !ifndef VERSION
-  !define VERSION "1.10.7"
+  !define VERSION "1.10.15"
 !endif
 !ifndef PAYLOAD
   !define PAYLOAD "../../dist/windows/payload"
@@ -85,7 +85,12 @@ FunctionEnd
 
 Section "PackageFlow" Main
   ${If} ${FileExists} "$INSTDIR\PackageFlow.exe"
-    ExecWait '"$INSTDIR\PackageFlow.exe" --prepare-update' $0
+    ; Use the new verified launcher for the safety check: an older executable
+    ; may crash before its guard runs (the 1.10.9 assembly mismatch).
+    InitPluginsDir
+    SetOutPath "$PLUGINSDIR"
+    File /oname=PackageFlow-update-guard.exe "${PAYLOAD}\PackageFlow.exe"
+    ExecWait '"$PLUGINSDIR\PackageFlow-update-guard.exe" --prepare-update' $0
     ${If} $0 != 0
       SetErrorLevel 2
       IfSilent +2
@@ -93,6 +98,17 @@ Section "PackageFlow" Main
       Abort
     ${EndIf}
     Sleep 1000
+  ${EndIf}
+  InitPluginsDir
+  SetOutPath "$PLUGINSDIR"
+  File "cleanup-legacy-files.ps1"
+  File "legacy-distributed-files.json"
+  ExecWait 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PLUGINSDIR\cleanup-legacy-files.ps1" -InstallDirectory "$INSTDIR"' $0
+  ${If} $0 != 0
+    SetErrorLevel 4
+    IfSilent +2
+    MessageBox MB_ICONEXCLAMATION "A legacy PackageFlow file differs from its known release. It was preserved; setup stopped. Review the old runtime/compose files and retry."
+    Abort
   ${EndIf}
   SetOutPath "$INSTDIR"
   File /r /x "*.pdb" "${PAYLOAD}\*"
@@ -132,9 +148,12 @@ Section "Uninstall"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\PackageFlow"
   DeleteRegValue HKCU "Software\PackageFlow" "InstallDirectory"
   ; Persistent data and user-selected game folders are deliberately retained.
+  RMDir /r "$INSTDIR\Desktop"
+  Delete "$INSTDIR\desktop-manifest.json"
   RMDir /r "$INSTDIR\runtime"
   RMDir /r "$INSTDIR\server"
-  RMDir /r "$INSTDIR\compose"
+  ; Former deployment files are removed only by the verified upgrade cleanup.
+  RMDir /r "$INSTDIR\console-setup"
   Delete "$INSTDIR\PackageFlow.exe"
   Delete "$INSTDIR\PackageFlow.pdb"
   Delete "$INSTDIR\PackageFlow.Core.pdb"

@@ -6,17 +6,16 @@ internal sealed partial class MainForm
 {
     private async Task ApplyInstallation()
     {
+        host.EnsureDataMigrationReady();
         if (games.Text.Length == 0) games.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "PackageFlow");
         Directory.CreateDirectory(games.Text);
         if (!int.TryParse(port.Text, out var webPort) || !int.TryParse(payloadPort.Text, out var callbackPort)) throw new ArgumentException(T("Укажите номера портов.", "Enter port numbers."));
         var candidate = JsonSerializerClone(settings);
-        candidate.Mode = mode.SelectedIndex == 1 ? "compose" : "native";
         candidate.GamesDirectory = Path.GetFullPath(games.Text);
         candidate.HostIp = lan.SelectedItem?.ToString() ?? "";
         candidate.Port = webPort; candidate.PayloadPort = callbackPort;
         candidate.AutoStart = autoStart.Checked;
         candidate.FlareSolverrVisibleBrowser = visibleFlare.Checked;
-        if (candidate.Mode == "compose") candidate.ManagedProwlarr = composeProwlarr.Checked;
         candidate.PendingWebAddress = settings.PendingWebAddress || candidate.HostIp != settings.HostIp || candidate.Port != settings.Port;
         candidate.Validate();
         var restart = settings.RequiresRestart(candidate);

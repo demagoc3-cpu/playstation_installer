@@ -41,3 +41,9 @@ export function ps5InstallMessage(capabilities: ConsoleCapabilities) {
   return capabilities.installation?.ready ? 'Установка PKG доступна. Подтверждение точной установленной версии пока недоступно' :
     ps5InstallReasons[capabilities.installation?.reason || ''] || 'Просмотр библиотеки доступен. Готовность установки ещё не проверена'
 }
+
+/** A PKG rejection must describe its own route, never the independent image backend. */
+export function ps5PkgInstallMessage(capabilities: ConsoleCapabilities) {
+  return capabilities.installation?.ready ? 'Установка PKG доступна' :
+    ps5InstallReasons[capabilities.installation?.reason || ''] || 'Не удалось проверить готовность установки PKG на PS5'
+}

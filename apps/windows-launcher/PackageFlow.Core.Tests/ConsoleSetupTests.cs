@@ -25,8 +25,9 @@ internal static class ConsoleSetupTests
         var source=Path.Combine(directory,"console-bundle");var dest=Path.Combine(directory,"console-stage");Directory.CreateDirectory(source);
         JsonObject Artifact(string file,int size){var bytes=new byte[size];File.WriteAllBytes(Path.Combine(source,file),bytes);return new(){["fileName"]=file,["size"]=size,["sha256"]=Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()};}
         var manifest=new JsonObject{["schemaVersion"]=1,["elf"]=Artifact("service.elf",4096),["app"]=Artifact("PackageFlow.ffpkg",8192)};
+        manifest["elf"]!["firmware"]="13.60";manifest["elf"]!["version"]="0.1.25-dev";manifest["elf"]!["buildId"]="fixture";
         File.WriteAllText(Path.Combine(source,"manifest.json"),manifest.ToJsonString());ConsoleArtifacts.Stage(source,dest);
-        Check(File.Exists(Path.Combine(dest,"manifest.json")),"Both native and Compose must stage the bundle beside WEB data.");
+        Check(File.Exists(Path.Combine(dest,"manifest.json")),"The native launcher must stage the bundle beside WEB data.");
         File.WriteAllBytes(Path.Combine(source,"service.elf"),new byte[]{1});
         try{ConsoleArtifacts.Stage(source,dest);throw new Exception("Changed artifacts accepted.");}catch(InvalidDataException){}
         manifest["elf"]!["fileName"]="../service.elf";File.WriteAllText(Path.Combine(source,"manifest.json"),manifest.ToJsonString());

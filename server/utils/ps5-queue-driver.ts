@@ -12,7 +12,7 @@ import { seedPs5SourceHashHistory } from './ps5-source-hash-history'
 import { getPackage } from './package-library'
 import { ps5OperationRequest, Ps5OperationValidationError } from './console-profiles'
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core'
-import { ps5InstallCapabilities, ps5InstallMessage } from '../../shared/ps5-install-readiness'
+import { ps5InstallCapabilities, ps5PkgInstallMessage } from '../../shared/ps5-install-readiness'
 import { getConsoleProfile } from './console-profiles'
 import { checkPs5InstalledPackage } from './installed-package-check'
 import { checkPs5SourceFirmware } from './ps5-installation-firmware'
@@ -157,7 +157,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       // above does not depend on current admission and never resubmits them.
       const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal)
       const capabilities = ps5InstallCapabilities(readiness.status, readiness.body, getConsoleProfile(consoleId).firmware)
-      if (!capabilities.installation?.ready || !capabilities.formats.includes('pkg')) return { state: 'waiting', detail: ps5InstallMessage(capabilities) }
+      if (!capabilities.installation?.ready || !capabilities.formats.includes('pkg')) return { state: 'waiting', detail: ps5PkgInstallMessage(capabilities) }
       if (!(item.platform === 'ps4' ? capabilities.installPs4 : item.platform === 'ps5' && capabilities.installPs5)) throw new Ps5QueueFailure('Этот маршрут установки не проверен для платформы пакета')
       if (item.platform === 'ps5') { const denied = await firmwareGate(source, signal); if (denied) return denied }
       const present = await installedGate(item, signal); if (present) return present

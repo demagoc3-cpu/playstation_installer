@@ -30,6 +30,8 @@ export function desktopActivity() {
   const queues = [...scoped, ...(!scoped.some(queue => queue.psIp === old.psIp) ? [old] : [])]
   if (queues.some(queue => ['running', 'cancelling'].includes(queue.status))) reasons.push('installation')
   if (activePackageTransfers()) reasons.push('transfer')
+  const storage = ledger('storage-sources.json', { sources: [] })
+  if (storage.sources?.some((source: any) => source.enabled && ['connecting', 'indexing'].includes(source.state))) reasons.push('storage-indexing')
   const maintenance = ledger('console-maintenance.json', {})
   if (Object.values(maintenance).some((r: any) => !['completed', 'failed'].includes(r?.state))) reasons.push('maintenance')
   const removals = ledger('ps4-remove-operations.json', { operations: [] })
