@@ -1,0 +1,25 @@
+{
+  "version": "1.10.22",
+  "installer": {
+    "path": "/home/developer/projects/web/playstation_installer/dist/windows/PackageFlowSetup-1.10.22-x64.exe",
+    "bytes": 105774299,
+    "sha256": "4d6bbfd7767e06e6dd3c8efb3b23c122607152df19fbafc56dbb741b1d3a8c6e"
+  },
+  "launcherSha256": "523eef9b43507166fa28cdc8e6f08ea0ce2ef103ac7a59b5b93965a8c38a2034",
+  "web": {
+    "file": "BlvL7caW.js",
+    "bytes": 713016,
+    "sha256": "3b6c42ad23b4f60692fc8cb66832516458282c0b1ba7e0aa2c13aa31c6af0df5"
+  },
+  "consoleBundleUnchanged": true,
+  "tests": {
+    "ps5Admission": true,
+    "modal": true,
+    "selection": true,
+    "readiness": true,
+    "speed": true,
+    "productionWeb": true,
+    "windowsBuild": true
+  },
+  "consoleInstallTestsRun": false
+}
