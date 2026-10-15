@@ -1,0 +1,46 @@
+{
+  "version": "1.10.23",
+  "sourceCommit": "91c3c5b3d841ea503e67ef340ac275badb5c3969",
+  "installer": {
+    "path": "PackageFlowSetup-1.10.23-x64.exe",
+    "bytes": 105754567,
+    "sha256": "3c009edcb03130c44bd5fdfa83896640a19c8bb4d53f158694988b605562dde2"
+  },
+  "launcherSha256": "75f13b3eb9b2679600a7152b6dfd7b8ba1f855de44bac98ecf36de1d0083368d",
+  "assemblyVersion": "1.10.23.0",
+  "consoleBundleUnchanged": true,
+  "onlyStandardServiceElfIncluded": true,
+  "checks": {
+    "buildExitCode": 0,
+    "coreTests": true,
+    "bundleCheck": true,
+    "nodeOfficialChecksum": true,
+    "payload": true,
+    "packagedWebHostSmoke": true,
+    "releaseOverlayFormatting": true
+  },
+  "upstreamHostTestReport": {
+    "passed": 341,
+    "failed": 0,
+    "skipped": 0,
+    "source": "handoff for exact source commit; not rerun by Windows chat"
+  },
+  "windowsInstalled": false,
+  "windowsExeLaunched": false,
+  "consoleInstallTestsRun": false,
+  "overlayFiles": [
+    "scripts/check-windows-payload.mjs",
+    "packaging/windows/console-bundle-1.10.23.json"
+  ],
+  "windowsCopy": {
+    "Bytes": 105754567,
+    "Sha256": "3c009edcb03130c44bd5fdfa83896640a19c8bb4d53f158694988b605562dde2",
+    "sizeMatches": true,
+    "sha256Matches": true,
+    "copied": true,
+    "installerExecuted": false,
+    "applicationRestarted": false,
+    "consoleServicesRestarted": false,
+    "verifiedAtUtc": "2026-10-15T14:13:35.577195+00:00"
+  }
+}
