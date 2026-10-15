@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "observedAtUtc": "2026-10-15T16:28:26.6652164Z",
+  "status": "pkg-companion-restored-source-check-required",
+  "problem": "PS5 PKG reinstall waited for unavailable installer; before restoration the same queue failed with source-library availability error",
+  "companion": {
+    "size": 132488,
+    "sha256": "c0d208f2b340266bb0177622e60b1685ce9c7941ad51f95d808d764f50748f93",
+    "localAndWindowsPinMatched": true,
+    "rebuilt": false,
+    "fileName": "PackageFlowInstaller-PS5.elf"
+  },
+  "route": {
+    "managerVersion": "0.6.0",
+    "uploadCount": 1,
+    "uploadMethod": "POST",
+    "uploadEndpoint": "/manage:upload?filename=PackageFlowInstaller-PS5.elf&mode=new",
+    "uploadStatus": 200,
+    "uploadBody": "OK",
+    "launchCount": 1,
+    "launchMethod": "POST",
+    "launchEndpoint": "/loadpayload:/data/pldmgr/payloads/local/packageflowinstaller/PackageFlowInstaller-PS5.elf",
+    "launchStatus": 200,
+    "launchBody": "OK",
+    "slot": "local/packageflowinstaller",
+    "filename": "PackageFlowInstaller-PS5.elf",
+    "consolePath": "/data/pldmgr/payloads/local/packageflowinstaller/PackageFlowInstaller-PS5.elf",
+    "permanentSlotRetained": true,
+    "managerLogUploadBytes": 132488,
+    "managerLogUploadError": 0,
+    "managerLogLoaderBytes": 132488,
+    "launchRetried": false
+  },
+  "verification": {
+    "hello": {
+      "ok": true,
+      "version": "1.4.0",
+      "fw": "13",
+      "state": "ready",
+      "init_rc": 0,
+      "escalated": true
+    },
+    "installerPid": 97,
+    "processName": "payload.elf",
+    "pkgReady": true,
+    "pkgFormats": [
+      "pkg"
+    ],
+    "pkgPlatforms": [
+      "ps4",
+      "ps5"
+    ],
+    "exactVersionReceipt": false,
+    "hashVerificationLimit": "Local and Windows source pin verified; PLDMGR v0.6.0 storage_copy compares destination SHA256/size to uploaded temporary file internally. Public list/check exposes no independent readback digest."
+  },
+  "preservation": {
+    "rootPid": 94,
+    "rootVersion": "0.1.27-dev",
+    "rootBuildId": "ps5-service-registration-handoff-027-sse2",
+    "firmwareRaw": "0x13600007",
+    "authStatus": 200,
+    "shadowMountPid": 87,
+    "kstuffPid": 86,
+    "loaderPid": 82,
+    "configAndAutoloadUnchanged": true,
+    "otherSlotsUnchanged": true,
+    "slotCountBefore": 10,
+    "slotCountAfter": 11,
+    "changedOtherSlots": []
+  },
+  "queue": {
+    "status": "failed",
+    "items": [
+      {
+        "packageId": "69baf7aef452dee1aa8ae6ea8ec4a0c5",
+        "titleId": "PPSA01325",
+        "state": "failed",
+        "bytesSent": 0,
+        "transferId": "7a028a8f2f23000c77ab58faafe46113",
+        "overwriteApproved": true,
+        "installDispatched": null,
+        "installerJob": null,
+        "detail": "Пакет больше не доступен в библиотеке"
+      }
+    ]
+  },
+  "otherReadiness": {
+    "folderReady": false,
+    "imagesReady": false,
+    "alreadyFalseBeforeUpload": true
+  },
+  "windows": {
+    "installedVersionDuringAudit": "1.10.24.0",
+    "stableCardFixInstaller": "1.10.25",
+    "stableCardFixInstalled": false,
+    "installerEvidence": "../windows-1.10.25/report.json",
+    "layoutEvidence": "../stable-transfer-card-20261015/report.json",
+    "layoutFixSourceCommit": "9370769e7a22dee87689dccb7c8d3e21c57b4457"
+  },
+  "limits": [
+    "Companion restoration is confirmed, not ASTRO installation completion",
+    "Existing ASTRO queue remains failed/zero bytes with source-library error; no auto-resume or new attempt was sent",
+    "No direct on-console digest is exposed by PLDMGR local list/check. Source pin and successful upload plus internal backend SHA256/size readback chain were used as authorized",
+    "Folder/image readiness was already false before this operation and was not modified/restored"
+  ],
+  "notPerformed": [
+    "root upgrade or rename",
+    "other slot changes",
+    "config/autoload changes",
+    "service kill/restart",
+    "FTP/new services",
+    "pairing changes",
+    "queue submit/batch/resume/cancel",
+    "Windows1.10.25 installation",
+    "rebuild",
+    "push/release"
+  ],
+  "libraryAudit": {
+    "observedAtUtc": "2026-10-15T16:29:49.0333624Z",
+    "installedWindowsVersion": "1.10.24.0",
+    "runtimePidAndDataDirUnchanged": true,
+    "indexedAstroPresent": true,
+    "publicApiAstroPresent": true,
+    "packageCount": 45,
+    "recentIndexReplacementEvidence": false,
+    "sourceDrive": "Y:",
+    "sourceFileName": "IP9100-PPSA01325_00-PREINMASTER00000-Ver 1.600.pkg",
+    "expectedBytes": 11016536064,
+    "smbMappingStatusInSsh": "Unavailable",
+    "uncReadErrorInSsh": "Отказано в доступе",
+    "nodeSessionId": 1,
+    "sshSessionId": 0,
+    "physicalDeletionProven": false,
+    "readabilityInNodeSession": "not directly established",
+    "queueFailedAtAmsterdam": "2026-10-15T18:07:23.471000+02:00",
+    "ps4QueuePreserved": "completed/delivered",
+    "windowsModified": false,
+    "nextStep": "Verify original indexed PKG in existing interactive Windows session. Restore source access if necessary without replacing the index. Failed queue was not retried."
+  }
+}
