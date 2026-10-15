@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "observedAtUtc": "2026-10-15T16:28:26.6652164Z",
-  "status": "pkg-companion-restored-source-check-required",
+  "status": "pkg-companion-ready-indexed-source-currently-exists",
   "problem": "PS5 PKG reinstall waited for unavailable installer; before restoration the same queue failed with source-library availability error",
   "companion": {
     "size": 132488,
@@ -136,5 +136,35 @@
     "ps4QueuePreserved": "completed/delivered",
     "windowsModified": false,
     "nextStep": "Verify original indexed PKG in existing interactive Windows session. Restore source access if necessary without replacing the index. Failed queue was not retried."
+  },
+  "sourceFollowup": {
+    "observedAtAmsterdam": "2026-10-15T18:40:39.607592+02:00",
+    "indexedSourceDrive": "Y:",
+    "shownCopyDrive": "D:",
+    "indexedSourceExistsInRunningNode": true,
+    "fullIndexedFileReadValidated": false,
+    "queueAndLibraryDeliveryUnchangedByProbe": true,
+    "shownCopySizeMatches": true,
+    "shownCopyHeaderBytesRead": 512,
+    "shownCopyHeaderIsPs5": true,
+    "copiesByteIdentityEstablished": false,
+    "activePs5TaskCount": 0,
+    "newQueueObserved": false,
+    "installer": {
+      "ok": true,
+      "version": "1.4.0",
+      "fw": "13",
+      "state": "ready",
+      "init_rc": 0,
+      "escalated": true
+    },
+    "pkgReady": true,
+    "folderReady": false,
+    "imagesReady": false,
+    "libraryRepairOrImportPerformed": false,
+    "installationRetrySent": false,
+    "historicalFailureCause": "not recorded; current existence does not prove the exact historical filesystem cause",
+    "storageIndexTimestampChangedDuringAudit": true,
+    "storageIndexChangeInitiatedByAudit": false
   }
 }
