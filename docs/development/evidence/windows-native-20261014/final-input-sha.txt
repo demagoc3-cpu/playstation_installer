@@ -1,0 +1,4 @@
+999ec2c65276bde266877537b99c644d316341f3655c94c5d0be7212ec79f05d  server/api/consoles/probe.post.ts
+e35a58478003aebcf05c10105d7c69d1ad114d9cbbf0c851a24d797b02e0edd0  server/utils/console-profiles.ts
+332bec3afe2d64c3d676ce2661031ba640b8861bb79c2e4976ba56caf5385897  apps/windows-launcher/PackageFlow.Windows/MainForm.Activity.cs
+68b3654710f149c5f234f2bd84e7e08a09cc3c4adfb538010a442dee49d01d02  apps/windows-launcher/PackageFlow.Windows/MainForm.ConsoleSetup.cs

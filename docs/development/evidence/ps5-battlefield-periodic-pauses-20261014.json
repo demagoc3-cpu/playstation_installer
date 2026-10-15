@@ -1,0 +1,367 @@
+{
+  "date": "2026-10-14",
+  "source": "Battlefield V PS4 PKG / CUSA08670",
+  "sourceBytes": 33958526976,
+  "scope": "Windows to PS5 / 128 MiB HTTP batches; own fixtures never dispatched for installation",
+  "rootCause": {
+    "endpoint": "/api/v1/install/readiness",
+    "serialHttpHandler": true,
+    "tracedSlowMs": [
+      6010.102,
+      7720.832,
+      5883.485
+    ],
+    "abortedProbeHeaderWaitMs": [
+      1995.165,
+      2000.306,
+      2000.322
+    ],
+    "timerSeconds": 15
+  },
+  "diskOnly": {
+    "bytesRead": 33958526976,
+    "blocks": 254,
+    "maxBlockReadMs": 780.5301
+  },
+  "realPrefix8GiB": {
+    "verified": true,
+    "blocks": 64,
+    "maxRequestMs": 8778.338899999973,
+    "requestsOver3s": 14,
+    "psElapsedMinMs": 1266.031,
+    "psElapsedMaxMs": 1463.674,
+    "hashMinMs": 345.611,
+    "hashMaxMs": 382.746,
+    "hashMeanMs": 361.657125,
+    "fsyncMaxMs": 3.37,
+    "allStreamingHash": true,
+    "allNoReplay": true
+  },
+  "comparisons4GiB": [
+    {
+      "mode": "fetch",
+      "blocks": 32,
+      "totalRequestSeconds": 71.25969700000005,
+      "maxRequestMs": 8942.788199999995,
+      "requestsOver3s": 6,
+      "verified": true,
+      "errors": []
+    },
+    {
+      "mode": "fetch-activity",
+      "blocks": 32,
+      "totalRequestSeconds": 65.15980280000001,
+      "maxRequestMs": 7336.338400000001,
+      "requestsOver3s": 4,
+      "verified": true,
+      "errors": []
+    },
+    {
+      "mode": "fetch-quiet",
+      "blocks": 32,
+      "totalRequestSeconds": 44.4715346,
+      "maxRequestMs": 1416.3427999999985,
+      "requestsOver3s": 0,
+      "verified": true,
+      "errors": []
+    },
+    {
+      "mode": "fetch-refresh",
+      "blocks": 32,
+      "totalRequestSeconds": 59.6631953,
+      "maxRequestMs": 7355.8727,
+      "requestsOver3s": 4,
+      "verified": true,
+      "errors": []
+    },
+    {
+      "mode": "fetch-trace",
+      "blocks": 32,
+      "totalRequestSeconds": 70.6998499,
+      "maxRequestMs": 9042.415100000006,
+      "requestsOver3s": 6,
+      "verified": true,
+      "errors": []
+    },
+    {
+      "mode": "http",
+      "blocks": 32,
+      "totalRequestSeconds": 58.779277400000005,
+      "maxRequestMs": 7334.1397,
+      "requestsOver3s": 4,
+      "verified": true,
+      "errors": []
+    }
+  ],
+  "hostVerification": {
+    "targetedTestsPassed": 7,
+    "includes": [
+      "background probe skips readiness during active sending",
+      "explicit probe remains fresh",
+      "process PID or build changes invalidate cached readiness",
+      "concurrent background callers coalesce",
+      "PS5 queue/admission tests",
+      "desktop console flow",
+      "HTTP transport"
+    ],
+    "windowsTimerExplicitTestPassed": true,
+    "onDemandBootstrapperSHA256AuthenticodePassed": true
+  },
+  "stableServiceRestored": {
+    "state": "confirmed",
+    "oldPid": 225,
+    "path": "/data/pldmgr/payloads/PackageFlow026FTest/PackageFlow026FTest.elf",
+    "sha256": "2441b7ebe3aa6b265cb186512b5dd94f62666d40e16a71685d930c5b232a7732",
+    "managerStatus": 200,
+    "pid": 226,
+    "buildId": "ps5-service-launch-preparation-026f-sse2"
+  },
+  "cleanup": {
+    "fixtures": 7,
+    "bytesFreed": 34359738368,
+    "filesDeleted": 14,
+    "userCancelledTransferPreserved": true,
+    "liveTestPartialFilesRemoved": true,
+    "liveReceiverConfirmations": [
+      {
+        "run": "v2",
+        "bytesAtReceiverBeforeCancel": 8589934592,
+        "cancelConfirmed": true,
+        "partialAndPackageAbsent": true
+      },
+      {
+        "run": "v3",
+        "bytesAtReceiverBeforeCancel": 8724152320,
+        "cancelConfirmed": true,
+        "partialAndPackageAbsent": true
+      },
+      {
+        "run": "v4",
+        "bytesAtReceiverBeforeCancel": 4429185024,
+        "cancelConfirmed": true,
+        "partialAndPackageAbsent": true
+      }
+    ],
+    "diagnosticWindowsScheduledTasksRemoved": 9
+  },
+  "hardwareAfterFix": {
+    "status": "completed",
+    "runs": [
+      {
+        "run": "v2",
+        "service": "026f",
+        "bytesAtCancel": 8589934592,
+        "blocks": 64,
+        "durationBetweenFirstAndLastAckSeconds": 103.92,
+        "mibPerSecExcludingFirstBlock": 77.59815242494226,
+        "medianAckIntervalMs": 1400,
+        "maxAckIntervalMs": 4799,
+        "intervalsOver3Seconds": 5,
+        "intervalsOver5Seconds": 0,
+        "background": [
+          {
+            "at": 1791957110950,
+            "status": 200,
+            "ms": 1979,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          },
+          {
+            "at": 1791957124119,
+            "status": 200,
+            "ms": 92,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          },
+          {
+            "at": 1791957141325,
+            "status": 200,
+            "ms": 2281,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          },
+          {
+            "at": 1791957159310,
+            "status": 200,
+            "ms": 5179,
+            "online": false,
+            "paired": false,
+            "deferred": false
+          },
+          {
+            "at": 1791957170768,
+            "status": 200,
+            "ms": 1582,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          },
+          {
+            "at": 1791957186023,
+            "status": 200,
+            "ms": 1776,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          },
+          {
+            "at": 1791957201243,
+            "status": 200,
+            "ms": 1884,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          }
+        ],
+        "errors": [],
+        "cancelConfirmed": true,
+        "installerDispatched": false
+      },
+      {
+        "run": "v3",
+        "service": "026g temporary timings only",
+        "bytesAtCancel": 8589934592,
+        "blocks": 64,
+        "durationBetweenFirstAndLastAckSeconds": 88.03,
+        "mibPerSecExcludingFirstBlock": 91.60513461320005,
+        "medianAckIntervalMs": 1389,
+        "maxAckIntervalMs": 1490,
+        "intervalsOver3Seconds": 0,
+        "intervalsOver5Seconds": 0,
+        "background": [
+          {
+            "at": 1791957772514,
+            "status": 200,
+            "ms": 2358,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          },
+          {
+            "at": 1791957786917,
+            "status": 200,
+            "ms": 1567,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          },
+          {
+            "at": 1791957802451,
+            "status": 200,
+            "ms": 2068,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          },
+          {
+            "at": 1791957817744,
+            "status": 200,
+            "ms": 2181,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          },
+          {
+            "at": 1791957832883,
+            "status": 200,
+            "ms": 2311,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          }
+        ],
+        "errors": [],
+        "cancelConfirmed": true,
+        "installerDispatched": false
+      },
+      {
+        "run": "v4",
+        "service": "026f",
+        "bytesAtCancel": 4294967296,
+        "blocks": 32,
+        "durationBetweenFirstAndLastAckSeconds": 45.321,
+        "mibPerSecExcludingFirstBlock": 87.55323139383509,
+        "medianAckIntervalMs": 1424,
+        "maxAckIntervalMs": 2438,
+        "intervalsOver3Seconds": 0,
+        "intervalsOver5Seconds": 0,
+        "background": [
+          {
+            "at": 1791958365351,
+            "status": 200,
+            "ms": 1591,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          },
+          {
+            "at": 1791958381946,
+            "status": 200,
+            "ms": 3135,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          },
+          {
+            "at": 1791958396383,
+            "status": 200,
+            "ms": 2512,
+            "online": true,
+            "paired": true,
+            "deferred": true
+          }
+        ],
+        "errors": [],
+        "cancelConfirmed": true,
+        "installerDispatched": false
+      }
+    ],
+    "allTestsCancelledBeforeInstallation": true,
+    "firstRunCaveat": "One background probe temporarily reported offline; maximum ACK interval4.799s. Subsequent8GiB and4GiB runs recorded online throughout; no claim that every possible future latency spike is removed.",
+    "additionalTraceCollectorLimitation": "The v3 collector read general status instead of local-only UI status and collected no request traces. v3/v4 conclusions use durable ACK timestamps and batch profile, not a claimed new trace diagnosis."
+  },
+  "productionBuild": {
+    "windowsVersion": "1.10.15",
+    "installerBytes": 105756999,
+    "installerSHA256": "ef0b42e5d6f6c24675dc3c36ee42aa03ce400b28907eaf6308186a08fd7a9c75",
+    "nuxtBuildPassed": true,
+    "noOfflineRuntime": true,
+    "status": "final candidate installed on GAMEPAD-PC, NSIS0, tray/IPC passed",
+    "installedWebFilesVerified": 1514,
+    "dataAndKeysPreserved": true,
+    "nodePid": 8276,
+    "launcherPid": 12832
+  },
+  "userAuthorization": {
+    "installerVersion": "1.10.15",
+    "target": "GAMEPAD-PC",
+    "copyAndInstall": true
+  },
+  "fullPreflightTimeout": {
+    "previousMs": 3500,
+    "readinessObservedMs": 3888.570663,
+    "readinessReady": true,
+    "newMs": 15000,
+    "basicStatusMs": 3500,
+    "initialLiveAttempt": "stopped at preview; no game dispatch",
+    "regressionTestsPassed": 7
+  },
+  "windowsSmallJournalProbe": {
+    "writes": 12,
+    "maxTotalMs": 4.109,
+    "maxFsyncMs": 2.481,
+    "ownFilesRemoved": true
+  },
+  "finalState": {
+    "windowsVersion": "1.10.15.0",
+    "windowsNodePid": 8276,
+    "windowsLauncherPid": 12832,
+    "windowsQueue": "cancelled",
+    "ps5ServiceBuild": "ps5-service-launch-preparation-026f-sse2",
+    "ps5ServicePid": 226,
+    "diagnosticServiceActive": false
+  }
+}

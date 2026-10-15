@@ -1,0 +1,67 @@
+﻿{
+    "InstallerExitCode":  0,
+    "InstallerSha256":  "4e4102f9914d68b1629a29ea47aa38cbd808d1e6f268f482aba0bf7ddb59398f",
+    "InstalledVersion":  "1.10.15.0",
+    "InstalledSha256":  "1b9506e5a35f067ad05fc0b24ef24990e39ec5d8369c6613f34ce4ce5078b1e5",
+    "RegistryVersion":  "1.10.15",
+    "SettingsPreserved":  {
+                              "AutoStart":  true,
+                              "ProtectedTrackerPassword":  true,
+                              "ProtectedProwlarrKey":  true,
+                              "TorrentSetupSelected":  true,
+                              "GamesDirectory":  true,
+                              "ProtectedQbittorrentPassword":  true,
+                              "PayloadPort":  true,
+                              "AutomaticSetupPending":  true,
+                              "HostIp":  true,
+                              "ConsoleId":  true,
+                              "ProtectedLauncherKey":  true,
+                              "WizardComplete":  true,
+                              "ConsolePlatform":  true,
+                              "Mode":  true,
+                              "PsIp":  true,
+                              "Language":  true,
+                              "Port":  true,
+                              "SetupComplete":  true
+                          },
+    "DataHashesPreserved":  {
+                                "ps5-service-keys.json":  true,
+                                "console-profiles.json":  true,
+                                "storage-sources.json":  true,
+                                "package-library.json":  true
+                            },
+    "DesktopFilesVerified":  26,
+    "LegacyRuntimeRemoved":  true,
+    "ComposeRemoved":  true,
+    "ConsoleBundle":  {
+                          "schemaVersion":  1,
+                          "elf":  {
+                                      "fileName":  "PackageFlowService-PS5.elf",
+                                      "size":  4094328,
+                                      "sha256":  "2441b7ebe3aa6b265cb186512b5dd94f62666d40e16a71685d930c5b232a7732",
+                                      "version":  "0.1.26-dev",
+                                      "buildId":  "ps5-service-launch-preparation-026f-sse2",
+                                      "firmware":  "13.60"
+                                  },
+                          "app":  {
+                                      "fileName":  "PPSA95001-01.000.044.ffpkg",
+                                      "size":  22020096,
+                                      "sha256":  "18f64a693842d9136d7703377cd368a1a067fe760d87626b8ba949945e6806e6",
+                                      "name":  "PackageFlow",
+                                      "titleId":  "PPSA95001",
+                                      "contentId":  "IV0000-PPSA95001_00-PACKAGEFLOWUI001",
+                                      "version":  "01.000.044",
+                                      "format":  "ufs2",
+                                      "buildId":  "5122c1f"
+                                  },
+                          "ps4":  {
+                                      "fileName":  "PackageFlowService-2.14.pkg",
+                                      "size":  6619136,
+                                      "sha256":  "83995a02c90e8dc6fb775243f911573dc3e2b0acd390e0f3d2d591c1dc554abf",
+                                      "name":  "PackageFlow",
+                                      "titleId":  "PFLS00001",
+                                      "version":  "2.14"
+                                  }
+                      },
+    "CaptureDirectory":  "C:\\Users\\gamepad\\Downloads\\PackageFlow-11015-20261014\\installed-ui"
+}

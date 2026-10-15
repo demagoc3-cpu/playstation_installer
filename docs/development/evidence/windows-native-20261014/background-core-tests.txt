@@ -1,0 +1,1 @@
+Windows core tests passed: Runtime resolver/download/journal, Native migration, Prowlarr onboarding, credential handling, verified downloads and archive safety.

@@ -1,0 +1,15 @@
+RUNNING: Windows WebView2, isolated fixtures
+
+FAIL: System.InvalidOperationException: CoreWebView2Controller members can only be accessed from the UI thread.
+ ---> System.InvalidCastException: Unable to cast COM object of type 'System.__ComObject' to interface type 'Microsoft.Web.WebView2.Core.Raw.ICoreWebView2Controller'. This operation failed because the QueryInterface call on the COM component for the interface with IID '{4D00C0D1-9434-4EB6-8078-8697A560334F}' failed due to the following error: Интерфейс не поддерживается (0x80004002 (E_NOINTERFACE)).
+   at System.StubHelpers.StubHelpers.GetCOMIPFromRCW(Object objSrc, IntPtr pCPCMD, IntPtr& ppTarget, Boolean& pfNeedsRelease)
+   at Microsoft.Web.WebView2.Core.Raw.ICoreWebView2Controller.set_IsVisible(Int32 IsVisible)
+   at Microsoft.Web.WebView2.Core.CoreWebView2Controller.set_IsVisible(Boolean value)
+   --- End of inner exception stack trace ---
+   at Microsoft.Web.WebView2.Core.CoreWebView2Controller.set_IsVisible(Boolean value)
+   at Microsoft.Web.WebView2.WinForms.WebView2.OnVisibleChanged(EventArgs e)
+   at System.Windows.Forms.Control.SetVisibleCore(Boolean value)
+   at PackageFlow.Windows.MainForm.InitializeDesktop()
+   at DesktopUiTests.Wait(Task t)
+   at DesktopUiTests.Run(String report)
+   at Smoke.Main(String[] args)

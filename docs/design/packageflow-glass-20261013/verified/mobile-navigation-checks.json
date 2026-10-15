@@ -1,0 +1,142 @@
+[
+  {
+    "active": "▦Библиотека",
+    "heading": [
+      "Библиотека"
+    ],
+    "menuOpen": "false",
+    "name": "Библиотека",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "▤Пресеты",
+    "heading": [
+      "Пресеты"
+    ],
+    "menuOpen": "false",
+    "name": "Пресеты",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "▣На консоли",
+    "heading": [
+      "На консоли"
+    ],
+    "menuOpen": "false",
+    "name": "На консоли",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "▤Сохранения",
+    "heading": [
+      "Сохранения · PS5"
+    ],
+    "menuOpen": "false",
+    "name": "Сохранения",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "active": "⇣Загрузки",
+    "heading": [
+      "Загрузки torrent"
+    ],
+    "menuOpen": "false",
+    "name": "Загрузки",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "⌕Поиск",
+    "heading": [
+      "Поиск torrent"
+    ],
+    "menuOpen": "false",
+    "name": "Поиск",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "☰Журнал4",
+    "heading": [
+      "Журнал"
+    ],
+    "menuOpen": "false",
+    "name": "Журнал",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "☷Задания",
+    "heading": [
+      "Задания"
+    ],
+    "menuOpen": "false",
+    "name": "Задания",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "▰Хранилище",
+    "heading": [
+      "Хранилище"
+    ],
+    "menuOpen": "false",
+    "name": "Хранилище",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "▣Устройства",
+    "heading": [
+      "Устройства"
+    ],
+    "menuOpen": "false",
+    "name": "Устройства",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "⚙Настройки",
+    "heading": [
+      "Настройки"
+    ],
+    "menuOpen": "false",
+    "name": "Настройки",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "⇅Файлы",
+    "heading": [
+      "PS5 Жека"
+    ],
+    "menuOpen": "false",
+    "name": "Файлы",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "ⓘО системе",
+    "heading": [
+      "PS5 Жека"
+    ],
+    "menuOpen": "false",
+    "name": "О системе",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "active": "♥Поддержать",
+    "heading": [
+      "Поддержать PackageFlow"
+    ],
+    "menuOpen": "false",
+    "name": "Поддержать",
+    "scroll": 375,
+    "width": 390
+  }
+]

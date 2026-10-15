@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-15",
+  "changes": [
+    "Accumulate selected package IDs across searches, empty results, page size, pagination and platform filters",
+    "Review selection via header button: thumbnail, package name, size, total size, deselect row and explicit clear",
+    "Installation review receives the entire selected list independent of the visible result page",
+    "Unrelated selections remain after single-package queue submission"
+  ],
+  "checks": {
+    "realApplicationSetupRegressionTests": 3,
+    "deviceInstallModalTestsPassed": true,
+    "glassWorkspaceTestsPassed": true,
+    "libraryPaginationAndLocalizationTestsPassed": true,
+    "vueCompilePassed": true,
+    "browserDeleteRowPassed": true,
+    "browserTabWrapAndEscapePassed": true,
+    "browserClearAllFocusAndEmptyStatePassed": true,
+    "browserCoverFallbackPassed": true
+  },
+  "preview": {
+    "testData": true,
+    "screenshot": "ui/selected-desktop.jpg"
+  },
+  "consolePackagesChanged": false,
+  "gitPushPerformed": false,
+  "installedBrowserChecks": {
+    "realLibraryUsed": true,
+    "selectedAcrossSearches": [
+      "ASTRO's PLAYROOM",
+      "Battlefield™ V"
+    ],
+    "platformFilterPreservedSelection": true,
+    "offPageRemovalUpdatedCountAndSize": true,
+    "reviewClosePreservedSelection": true,
+    "screenshot": "ui/selected-installed.jpg",
+    "gameInstallationDispatched": false
+  },
+  "installedWindowsVersion": "1.10.21.0",
+  "servedUiVerified": true,
+  "libraryAndSettingsPreserved": true,
+  "temporaryTaskRemoved": true
+}

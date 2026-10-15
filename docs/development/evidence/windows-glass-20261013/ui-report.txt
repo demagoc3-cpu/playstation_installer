@@ -1,0 +1,18 @@
+PASS: opt-in setup wizard, original glass sections, tray autostart and default-safe stop dialog.
+PASS: partial repaint respects the invalid region.
+PASS: main Consoles page lists saved PS4/PS5, current status and metadata, fits narrow/wide windows.
+PASS: PS4/PS5 modal renders saved/offline/unpaired rows at two sizes; unknown FW preserved.
+PASS: stalled discovery keeps selection/input responsive; Stop search cancels and restores controls.
+PASS: pending operation leaves Close available and closes without replaying a command.
+PASS: Install connects without a code and continues once; installed app is not resent.
+PASS: browser wait keeps window messages and navigation responsive.
+PASS: 20 dropdown selections through native mouse messages.
+PASS: language menu rebuild preserves entered tracker fields.
+PASS: password reveal/remask.
+PASS: cards fit and actions wrap inside the footer at 964x721.
+PASS: cards fit and actions wrap inside the footer at 964x820.
+PASS: cards fit and actions wrap inside the footer at 1280x760.
+PASS: cards fit and actions wrap inside the footer at 1880x940.
+PASS: multi-console header, logos, Apply button and qBittorrent path mapping.
+PASS: moved windows match a full repaint on Installation, PS4 and Search.
+PASS: saved password survives restart with Windows protection.

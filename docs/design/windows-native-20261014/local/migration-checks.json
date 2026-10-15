@@ -1,0 +1,24 @@
+[
+  {
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "horizontal": false,
+    "hasModeSelector": false,
+    "migrationVisible": true,
+    "launchHidden": true
+  },
+  {
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "horizontal": false,
+    "hasModeSelector": false,
+    "migrationVisible": true,
+    "launchHidden": true
+  }
+]

@@ -1,0 +1,2045 @@
+{
+  "schemaVersion": 1,
+  "elfSha256": "06e793702bcfc22d4293fe4877b5f8d9bbee99fc49c0629aa0f225a9c7b4ade5",
+  "controlledRuns": [
+    {
+      "queueId": "ba227950-7ae3-4edb-8d4e-45dcd9b4e10c",
+      "priorStatus": "paused",
+      "sourcePath": "D:\\test2\\Astrobot\\IP9100-PPSA01325_00-PREINMASTER00000-Ver 1.600.pkg",
+      "startedAt": 1791839143212,
+      "fixtures": [
+        {
+          "id": "6a6ea2981def9fe8539faca42a0017bb",
+          "size": 536870912,
+          "hash": "3f47f9cd41850f712d91bc318d57f703b502580b26d4d4976a404d1f25285359",
+          "verified": true,
+          "cleaned": true
+        },
+        {
+          "id": "b7c160032cbbf79c5bd3efac7d05fad2",
+          "size": 536870912,
+          "hash": "dc03467bfbd7974db96c41a6e35a22b71d9e405b4a20a808381c5b921aa59646",
+          "verified": true,
+          "cleaned": true
+        },
+        {
+          "id": "c9f448d82557990d0b123de81f61f3dc",
+          "size": 536870912,
+          "hash": "3f47f9cd41850f712d91bc318d57f703b502580b26d4d4976a404d1f25285359",
+          "verified": true,
+          "cleaned": true
+        },
+        {
+          "id": "2c86117265e8d75f7266bdb8ac5775ac",
+          "size": 536870912,
+          "hash": "3f47f9cd41850f712d91bc318d57f703b502580b26d4d4976a404d1f25285359",
+          "verified": true,
+          "cleaned": true
+        },
+        {
+          "id": "6cde58b76f71812effd879ea7d3e903c",
+          "size": 536870912,
+          "hash": "dc03467bfbd7974db96c41a6e35a22b71d9e405b4a20a808381c5b921aa59646",
+          "verified": true,
+          "cleaned": true
+        },
+        {
+          "id": "251655cc25be6722d1c5aae93448be20",
+          "size": 536870912,
+          "hash": "3f47f9cd41850f712d91bc318d57f703b502580b26d4d4976a404d1f25285359",
+          "verified": true,
+          "cleaned": true
+        }
+      ],
+      "runs": [
+        {
+          "kind": "ram",
+          "chunkMiB": 128,
+          "readMs": 81.21510000000126,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 134217728,
+              "requestMs": 2065.7139999999995,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 134217728,
+                "elapsedMs": 1964.079,
+                "receiveWaitMs": 698.277,
+                "writeMs": 762.846,
+                "hashMs": 452.302,
+                "syncMs": 1.804,
+                "checkpointMs": 33.955,
+                "stateMs": 13.076,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 134217728,
+              "requestMs": 1961.4699999999993,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 134217728,
+                "elapsedMs": 1860.29,
+                "receiveWaitMs": 587.844,
+                "writeMs": 759.561,
+                "hashMs": 450.765,
+                "syncMs": 1.854,
+                "checkpointMs": 43.246,
+                "stateMs": 16.121,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 134217728,
+              "requestMs": 1908.0685999999996,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 134217728,
+                "elapsedMs": 1807.298,
+                "receiveWaitMs": 588.493,
+                "writeMs": 713.729,
+                "hashMs": 462.936,
+                "syncMs": 3.007,
+                "checkpointMs": 20.832,
+                "stateMs": 16.539,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 134217728,
+              "requestMs": 1946.3852000000006,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 134217728,
+                "elapsedMs": 1851.684,
+                "receiveWaitMs": 584.328,
+                "writeMs": 755.694,
+                "hashMs": 454.717,
+                "syncMs": 1.258,
+                "checkpointMs": 37.173,
+                "stateMs": 16.073,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839145327,
+          "elapsedMs": 7968.549899999999,
+          "mibPerSecond": 64.25259381258314
+        },
+        {
+          "kind": "file",
+          "chunkMiB": 128,
+          "readMs": 376.4691000000021,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 134217728,
+              "requestMs": 1951.3737,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 134217728,
+                "elapsedMs": 1835.04,
+                "receiveWaitMs": 612.878,
+                "writeMs": 733.42,
+                "hashMs": 431.315,
+                "syncMs": 2.17,
+                "checkpointMs": 33.016,
+                "stateMs": 20.388,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 134217728,
+              "requestMs": 1983.5869000000002,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 134217728,
+                "elapsedMs": 1872.209,
+                "receiveWaitMs": 611.706,
+                "writeMs": 743.69,
+                "hashMs": 459.289,
+                "syncMs": 4.193,
+                "checkpointMs": 38.045,
+                "stateMs": 14.247,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 134217728,
+              "requestMs": 2015.142200000002,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 134217728,
+                "elapsedMs": 1886.208,
+                "receiveWaitMs": 650.412,
+                "writeMs": 743.219,
+                "hashMs": 449.622,
+                "syncMs": 0.708,
+                "checkpointMs": 22.373,
+                "stateMs": 17.949,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 134217728,
+              "requestMs": 1961.0004999999983,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 134217728,
+                "elapsedMs": 1849.593,
+                "receiveWaitMs": 585.455,
+                "writeMs": 747.658,
+                "hashMs": 453.504,
+                "syncMs": 8.912,
+                "checkpointMs": 36.77,
+                "stateMs": 15.886,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839154851,
+          "elapsedMs": 7971.773599999999,
+          "mibPerSecond": 64.22661075071174
+        },
+        {
+          "kind": "ram",
+          "chunkMiB": 64,
+          "readMs": 69.63490000000093,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 67108864,
+              "requestMs": 1013.523000000001,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 67108864,
+                "elapsedMs": 929.767,
+                "receiveWaitMs": 307.391,
+                "writeMs": 376.788,
+                "hashMs": 215.289,
+                "syncMs": 0.883,
+                "checkpointMs": 13.618,
+                "stateMs": 14.192,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 67108864,
+              "bytes": 67108864,
+              "requestMs": 1006.1334999999999,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 67108864,
+                "bytes": 67108864,
+                "elapsedMs": 944.964,
+                "receiveWaitMs": 295.155,
+                "writeMs": 374.19,
+                "hashMs": 237.744,
+                "syncMs": 0.884,
+                "checkpointMs": 17.346,
+                "stateMs": 18.325,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 67108864,
+              "requestMs": 976.9143000000004,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 67108864,
+                "elapsedMs": 906.399,
+                "receiveWaitMs": 308.42,
+                "writeMs": 351.905,
+                "hashMs": 212.367,
+                "syncMs": 0.733,
+                "checkpointMs": 15.791,
+                "stateMs": 15.938,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 201326592,
+              "bytes": 67108864,
+              "requestMs": 1043.6545000000006,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 201326592,
+                "bytes": 67108864,
+                "elapsedMs": 971.633,
+                "receiveWaitMs": 351.592,
+                "writeMs": 354.314,
+                "hashMs": 227.324,
+                "syncMs": 1.268,
+                "checkpointMs": 19.101,
+                "stateMs": 16.976,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 67108864,
+              "requestMs": 1004.9985000000015,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 67108864,
+                "elapsedMs": 937.465,
+                "receiveWaitMs": 296.367,
+                "writeMs": 363.009,
+                "hashMs": 238.077,
+                "syncMs": 0.714,
+                "checkpointMs": 19.96,
+                "stateMs": 18.58,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 335544320,
+              "bytes": 67108864,
+              "requestMs": 1039.8763,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 335544320,
+                "bytes": 67108864,
+                "elapsedMs": 978.753,
+                "receiveWaitMs": 317.093,
+                "writeMs": 389.608,
+                "hashMs": 231.539,
+                "syncMs": 1.158,
+                "checkpointMs": 19.952,
+                "stateMs": 18.633,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 67108864,
+              "requestMs": 989.5123000000021,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 67108864,
+                "elapsedMs": 930.607,
+                "receiveWaitMs": 307.214,
+                "writeMs": 362.24,
+                "hashMs": 221.498,
+                "syncMs": 1.215,
+                "checkpointMs": 21.835,
+                "stateMs": 15.583,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 469762048,
+              "bytes": 67108864,
+              "requestMs": 1020.614999999998,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 469762048,
+                "bytes": 67108864,
+                "elapsedMs": 948.999,
+                "receiveWaitMs": 309.702,
+                "writeMs": 369.951,
+                "hashMs": 221.568,
+                "syncMs": 1.356,
+                "checkpointMs": 30.531,
+                "stateMs": 14.993,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839164057,
+          "elapsedMs": 8174.571400000001,
+          "mibPerSecond": 62.63325316358482
+        },
+        {
+          "kind": "ram",
+          "chunkMiB": 64,
+          "readMs": 73.4651999999951,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 67108864,
+              "requestMs": 1037.0218999999997,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 67108864,
+                "elapsedMs": 968.501,
+                "receiveWaitMs": 304.716,
+                "writeMs": 394.14,
+                "hashMs": 237.733,
+                "syncMs": 0.781,
+                "checkpointMs": 13.536,
+                "stateMs": 16.357,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 67108864,
+              "bytes": 67108864,
+              "requestMs": 1044.4262000000017,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 67108864,
+                "bytes": 67108864,
+                "elapsedMs": 993.929,
+                "receiveWaitMs": 341.568,
+                "writeMs": 394.876,
+                "hashMs": 215.773,
+                "syncMs": 0.723,
+                "checkpointMs": 22.325,
+                "stateMs": 17.57,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 67108864,
+              "requestMs": 987.3741000000009,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 67108864,
+                "elapsedMs": 923.094,
+                "receiveWaitMs": 312.532,
+                "writeMs": 355.726,
+                "hashMs": 218.266,
+                "syncMs": 1.962,
+                "checkpointMs": 17.634,
+                "stateMs": 15.692,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 201326592,
+              "bytes": 67108864,
+              "requestMs": 963.1343999999954,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 201326592,
+                "bytes": 67108864,
+                "elapsedMs": 907.869,
+                "receiveWaitMs": 297.488,
+                "writeMs": 356.596,
+                "hashMs": 215.331,
+                "syncMs": 1.452,
+                "checkpointMs": 19.969,
+                "stateMs": 15.165,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 67108864,
+              "requestMs": 1022.0100999999995,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 67108864,
+                "elapsedMs": 961.569,
+                "receiveWaitMs": 313.762,
+                "writeMs": 388.26,
+                "hashMs": 220.927,
+                "syncMs": 0.858,
+                "checkpointMs": 20.361,
+                "stateMs": 16.302,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 335544320,
+              "bytes": 67108864,
+              "requestMs": 981.0126999999993,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 335544320,
+                "bytes": 67108864,
+                "elapsedMs": 917.807,
+                "receiveWaitMs": 301.278,
+                "writeMs": 361.688,
+                "hashMs": 217.912,
+                "syncMs": 1.742,
+                "checkpointMs": 19.154,
+                "stateMs": 15.185,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 67108864,
+              "requestMs": 1036.6569999999992,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 67108864,
+                "elapsedMs": 971.955,
+                "receiveWaitMs": 340.439,
+                "writeMs": 374.998,
+                "hashMs": 221.244,
+                "syncMs": 0.946,
+                "checkpointMs": 17.539,
+                "stateMs": 15.863,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 469762048,
+              "bytes": 67108864,
+              "requestMs": 1012.657100000004,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 469762048,
+                "bytes": 67108864,
+                "elapsedMs": 954.664,
+                "receiveWaitMs": 292.248,
+                "writeMs": 396.816,
+                "hashMs": 232.396,
+                "syncMs": 0.592,
+                "checkpointMs": 15.654,
+                "stateMs": 16.268,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839173494,
+          "elapsedMs": 8167.537100000001,
+          "mibPerSecond": 62.6871961193785
+        },
+        {
+          "kind": "file",
+          "chunkMiB": 128,
+          "readMs": 326.4374000000025,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 134217728,
+              "requestMs": 1944.8966,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 134217728,
+                "elapsedMs": 1836.389,
+                "receiveWaitMs": 571.083,
+                "writeMs": 774.252,
+                "hashMs": 435.083,
+                "syncMs": 2.883,
+                "checkpointMs": 36.023,
+                "stateMs": 15.849,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 134217728,
+              "requestMs": 2044.9140000000043,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 134217728,
+                "elapsedMs": 1925.177,
+                "receiveWaitMs": 621.919,
+                "writeMs": 790.389,
+                "hashMs": 448.79,
+                "syncMs": 1.364,
+                "checkpointMs": 44.574,
+                "stateMs": 16.9,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 134217728,
+              "requestMs": 2002.1834000000017,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 134217728,
+                "elapsedMs": 1854.863,
+                "receiveWaitMs": 578.925,
+                "writeMs": 759.011,
+                "hashMs": 454.279,
+                "syncMs": 1.049,
+                "checkpointMs": 44.404,
+                "stateMs": 14.825,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 134217728,
+              "requestMs": 2039.7644,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 134217728,
+                "elapsedMs": 1915.403,
+                "receiveWaitMs": 638.72,
+                "writeMs": 784.156,
+                "hashMs": 452.684,
+                "syncMs": 1.594,
+                "checkpointMs": 19.856,
+                "stateMs": 17.333,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839183183,
+          "elapsedMs": 8097.530500000001,
+          "mibPerSecond": 63.22915362899837
+        },
+        {
+          "kind": "ram",
+          "chunkMiB": 128,
+          "readMs": 57.54510000001028,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 134217728,
+              "requestMs": 2011.0342000000019,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 134217728,
+                "elapsedMs": 1863.987,
+                "receiveWaitMs": 604.898,
+                "writeMs": 743.402,
+                "hashMs": 459.155,
+                "syncMs": 1.306,
+                "checkpointMs": 36.469,
+                "stateMs": 16.313,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 134217728,
+              "requestMs": 1936.7737000000052,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 134217728,
+                "elapsedMs": 1844.998,
+                "receiveWaitMs": 618.332,
+                "writeMs": 714.695,
+                "hashMs": 459.523,
+                "syncMs": 0.759,
+                "checkpointMs": 34.554,
+                "stateMs": 15.992,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 134217728,
+              "requestMs": 1974.9312999999966,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 134217728,
+                "elapsedMs": 1851.981,
+                "receiveWaitMs": 592.688,
+                "writeMs": 751.793,
+                "hashMs": 441.667,
+                "syncMs": 1.213,
+                "checkpointMs": 46.017,
+                "stateMs": 16.382,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 134217728,
+              "requestMs": 1974.9872999999934,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 134217728,
+                "elapsedMs": 1836.458,
+                "receiveWaitMs": 582.978,
+                "writeMs": 782.664,
+                "hashMs": 430.701,
+                "syncMs": 0.741,
+                "checkpointMs": 19.046,
+                "stateMs": 15.96,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839192553,
+          "elapsedMs": 7960.364400000006,
+          "mibPerSecond": 64.31866360288728
+        }
+      ],
+      "pid": 224,
+      "buildId": "ps5-service-transfer-stability-025-sse2",
+      "sourceRead": {
+        "bytes": 2147483648,
+        "elapsedMs": 607.4821,
+        "mibPerSecond": 3371.292750848132
+      },
+      "completed": true,
+      "finishedAt": 1791839200738
+    },
+    {
+      "queueId": "ba227950-7ae3-4edb-8d4e-45dcd9b4e10c",
+      "priorStatus": "paused",
+      "sourcePath": "D:\\test2\\Astrobot\\IP9100-PPSA01325_00-PREINMASTER00000-Ver 1.600.pkg",
+      "startedAt": 1791839266542,
+      "fixtures": [
+        {
+          "id": "968b3132e9149e140e69da4bded72528",
+          "size": 536870912,
+          "hash": "3f47f9cd41850f712d91bc318d57f703b502580b26d4d4976a404d1f25285359",
+          "verified": true,
+          "cleaned": true
+        },
+        {
+          "id": "e48829b8f7ff55fc425d9a89e716ac4d",
+          "size": 536870912,
+          "hash": "dc03467bfbd7974db96c41a6e35a22b71d9e405b4a20a808381c5b921aa59646",
+          "verified": true,
+          "cleaned": true
+        },
+        {
+          "id": "dd37c9c34c6a711aef4b5ff14e2abc9f",
+          "size": 536870912,
+          "hash": "3f47f9cd41850f712d91bc318d57f703b502580b26d4d4976a404d1f25285359",
+          "verified": true,
+          "cleaned": true
+        },
+        {
+          "id": "cc030db6586afcaddc369b58c7997f54",
+          "size": 536870912,
+          "hash": "3f47f9cd41850f712d91bc318d57f703b502580b26d4d4976a404d1f25285359",
+          "verified": true,
+          "cleaned": true
+        },
+        {
+          "id": "deffb993609fa51d40965a8dd5fc0a0d",
+          "size": 536870912,
+          "hash": "dc03467bfbd7974db96c41a6e35a22b71d9e405b4a20a808381c5b921aa59646",
+          "verified": true,
+          "cleaned": true
+        },
+        {
+          "id": "f5bd6ce35c296b00370eba211b00468d",
+          "size": 536870912,
+          "hash": "3f47f9cd41850f712d91bc318d57f703b502580b26d4d4976a404d1f25285359",
+          "verified": true,
+          "cleaned": true
+        }
+      ],
+      "runs": [
+        {
+          "kind": "ram",
+          "chunkMiB": 128,
+          "readMs": 86.70859999999948,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 134217728,
+              "requestMs": 1867.984,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 134217728,
+                "elapsedMs": 1765.203,
+                "receiveWaitMs": 552.137,
+                "writeMs": 731.808,
+                "hashMs": 443.541,
+                "syncMs": 1.079,
+                "checkpointMs": 17.973,
+                "stateMs": 16.968,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 134217728,
+              "requestMs": 1932.5441,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 134217728,
+                "elapsedMs": 1829.104,
+                "receiveWaitMs": 570.441,
+                "writeMs": 759.477,
+                "hashMs": 429.161,
+                "syncMs": 1.283,
+                "checkpointMs": 48.345,
+                "stateMs": 18.937,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 134217728,
+              "requestMs": 1925.3333000000002,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 134217728,
+                "elapsedMs": 1826.698,
+                "receiveWaitMs": 540.066,
+                "writeMs": 776.155,
+                "hashMs": 448.154,
+                "syncMs": 1.619,
+                "checkpointMs": 44.166,
+                "stateMs": 15.143,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 134217728,
+              "requestMs": 1944.7387999999992,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 134217728,
+                "elapsedMs": 1823.466,
+                "receiveWaitMs": 554.416,
+                "writeMs": 750.985,
+                "hashMs": 474.543,
+                "syncMs": 1.126,
+                "checkpointMs": 24.376,
+                "stateMs": 16.721,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839268705,
+          "elapsedMs": 7763.103200000001,
+          "mibPerSecond": 65.95300703976213
+        },
+        {
+          "kind": "file",
+          "chunkMiB": 128,
+          "readMs": 401.39930000000095,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 134217728,
+              "requestMs": 1928.4851999999992,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 134217728,
+                "elapsedMs": 1799.454,
+                "receiveWaitMs": 518.937,
+                "writeMs": 758.39,
+                "hashMs": 465.715,
+                "syncMs": 3.631,
+                "checkpointMs": 34.261,
+                "stateMs": 16.05,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 134217728,
+              "requestMs": 1931.7325,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 134217728,
+                "elapsedMs": 1811.985,
+                "receiveWaitMs": 552.796,
+                "writeMs": 767.124,
+                "hashMs": 455.25,
+                "syncMs": 0.974,
+                "checkpointMs": 20.709,
+                "stateMs": 13.822,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 134217728,
+              "requestMs": 2004.9111000000012,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 134217728,
+                "elapsedMs": 1889.793,
+                "receiveWaitMs": 583.95,
+                "writeMs": 788.087,
+                "hashMs": 460.911,
+                "syncMs": 1.882,
+                "checkpointMs": 40.474,
+                "stateMs": 13.496,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 134217728,
+              "requestMs": 1881.1117999999988,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 134217728,
+                "elapsedMs": 1773.94,
+                "receiveWaitMs": 523.269,
+                "writeMs": 760.475,
+                "hashMs": 450.911,
+                "syncMs": 0.783,
+                "checkpointMs": 19.718,
+                "stateMs": 17.609,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839277888,
+          "elapsedMs": 7806.9396000000015,
+          "mibPerSecond": 65.5826772375695
+        },
+        {
+          "kind": "ram",
+          "chunkMiB": 64,
+          "readMs": 73.23310000000856,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 67108864,
+              "requestMs": 1018.0285000000003,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 67108864,
+                "elapsedMs": 918.955,
+                "receiveWaitMs": 271.506,
+                "writeMs": 395.527,
+                "hashMs": 216.719,
+                "syncMs": 0.929,
+                "checkpointMs": 17.194,
+                "stateMs": 16.017,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 67108864,
+              "bytes": 67108864,
+              "requestMs": 969.9038,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 67108864,
+                "bytes": 67108864,
+                "elapsedMs": 907.777,
+                "receiveWaitMs": 286.395,
+                "writeMs": 368.072,
+                "hashMs": 213.008,
+                "syncMs": 3.165,
+                "checkpointMs": 20.499,
+                "stateMs": 15.089,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 67108864,
+              "requestMs": 993.0763999999981,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 67108864,
+                "elapsedMs": 940.318,
+                "receiveWaitMs": 304.34,
+                "writeMs": 376.823,
+                "hashMs": 219.16,
+                "syncMs": 0.684,
+                "checkpointMs": 17.849,
+                "stateMs": 20.451,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 201326592,
+              "bytes": 67108864,
+              "requestMs": 1015.3931000000011,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 201326592,
+                "bytes": 67108864,
+                "elapsedMs": 959.942,
+                "receiveWaitMs": 317.756,
+                "writeMs": 373.733,
+                "hashMs": 231.044,
+                "syncMs": 0.986,
+                "checkpointMs": 19.686,
+                "stateMs": 15.947,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 67108864,
+              "requestMs": 1006.2200000000012,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 67108864,
+                "elapsedMs": 930.928,
+                "receiveWaitMs": 296.73,
+                "writeMs": 352.577,
+                "hashMs": 237.739,
+                "syncMs": 1.737,
+                "checkpointMs": 23.944,
+                "stateMs": 17.246,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 335544320,
+              "bytes": 67108864,
+              "requestMs": 1013.959899999998,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 335544320,
+                "bytes": 67108864,
+                "elapsedMs": 957.363,
+                "receiveWaitMs": 323.179,
+                "writeMs": 377.993,
+                "hashMs": 218.641,
+                "syncMs": 1,
+                "checkpointMs": 20.177,
+                "stateMs": 15.431,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 67108864,
+              "requestMs": 1022.7752999999975,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 67108864,
+                "elapsedMs": 956.9,
+                "receiveWaitMs": 322.909,
+                "writeMs": 374.066,
+                "hashMs": 224.859,
+                "syncMs": 0.693,
+                "checkpointMs": 17.55,
+                "stateMs": 15.945,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 469762048,
+              "bytes": 67108864,
+              "requestMs": 985.9283000000032,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 469762048,
+                "bytes": 67108864,
+                "elapsedMs": 928.547,
+                "receiveWaitMs": 309.762,
+                "writeMs": 352.11,
+                "hashMs": 223.058,
+                "syncMs": 1.575,
+                "checkpointMs": 16.033,
+                "stateMs": 24.729,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839287059,
+          "elapsedMs": 8108.644699999997,
+          "mibPerSecond": 63.14248791786378
+        },
+        {
+          "kind": "ram",
+          "chunkMiB": 64,
+          "readMs": 70.38609999999608,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 67108864,
+              "requestMs": 1056.1025999999983,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 67108864,
+                "elapsedMs": 987.421,
+                "receiveWaitMs": 331.959,
+                "writeMs": 405.193,
+                "hashMs": 218.554,
+                "syncMs": 0.574,
+                "checkpointMs": 12.001,
+                "stateMs": 18.325,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 67108864,
+              "bytes": 67108864,
+              "requestMs": 1039.1077000000005,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 67108864,
+                "bytes": 67108864,
+                "elapsedMs": 982.592,
+                "receiveWaitMs": 333.678,
+                "writeMs": 373.835,
+                "hashMs": 234.7,
+                "syncMs": 2.022,
+                "checkpointMs": 18.259,
+                "stateMs": 18.788,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 67108864,
+              "requestMs": 960.8318000000036,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 67108864,
+                "elapsedMs": 903.465,
+                "receiveWaitMs": 250.674,
+                "writeMs": 374.579,
+                "hashMs": 239.267,
+                "syncMs": 1.699,
+                "checkpointMs": 19.446,
+                "stateMs": 16.692,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 201326592,
+              "bytes": 67108864,
+              "requestMs": 1015.9441999999981,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 201326592,
+                "bytes": 67108864,
+                "elapsedMs": 957.499,
+                "receiveWaitMs": 315.397,
+                "writeMs": 385.826,
+                "hashMs": 222.629,
+                "syncMs": 0.575,
+                "checkpointMs": 15.841,
+                "stateMs": 16.018,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 67108864,
+              "requestMs": 1012.9328999999998,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 67108864,
+                "elapsedMs": 950.125,
+                "receiveWaitMs": 313.299,
+                "writeMs": 377.797,
+                "hashMs": 221.943,
+                "syncMs": 0.624,
+                "checkpointMs": 17.54,
+                "stateMs": 17.303,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 335544320,
+              "bytes": 67108864,
+              "requestMs": 1030.1828999999998,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 335544320,
+                "bytes": 67108864,
+                "elapsedMs": 965.386,
+                "receiveWaitMs": 346.111,
+                "writeMs": 360.157,
+                "hashMs": 220.02,
+                "syncMs": 0.689,
+                "checkpointMs": 19.768,
+                "stateMs": 16.637,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 67108864,
+              "requestMs": 976.9307000000044,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 67108864,
+                "elapsedMs": 915.514,
+                "receiveWaitMs": 287.313,
+                "writeMs": 367.518,
+                "hashMs": 224.48,
+                "syncMs": 0.653,
+                "checkpointMs": 16.398,
+                "stateMs": 18.338,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 469762048,
+              "bytes": 67108864,
+              "requestMs": 1031.701000000001,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 469762048,
+                "bytes": 67108864,
+                "elapsedMs": 972.266,
+                "receiveWaitMs": 317.646,
+                "writeMs": 381.467,
+                "hashMs": 232.553,
+                "syncMs": 0.66,
+                "checkpointMs": 18.478,
+                "stateMs": 20.547,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839296447,
+          "elapsedMs": 8204.389600000002,
+          "mibPerSecond": 62.40561759768208
+        },
+        {
+          "kind": "file",
+          "chunkMiB": 128,
+          "readMs": 413.33969999998953,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 134217728,
+              "requestMs": 2032.4387999999963,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 134217728,
+                "elapsedMs": 1919.213,
+                "receiveWaitMs": 647.993,
+                "writeMs": 752.996,
+                "hashMs": 462.793,
+                "syncMs": 1.185,
+                "checkpointMs": 32.42,
+                "stateMs": 20.159,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 134217728,
+              "requestMs": 1959.6880999999994,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 134217728,
+                "elapsedMs": 1837.7,
+                "receiveWaitMs": 568.357,
+                "writeMs": 773.697,
+                "hashMs": 436.702,
+                "syncMs": 1.258,
+                "checkpointMs": 40.357,
+                "stateMs": 15.446,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 134217728,
+              "requestMs": 2022.9837000000043,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 134217728,
+                "elapsedMs": 1882.875,
+                "receiveWaitMs": 610.438,
+                "writeMs": 734.009,
+                "hashMs": 466.144,
+                "syncMs": 3.689,
+                "checkpointMs": 51.488,
+                "stateMs": 15.606,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 134217728,
+              "requestMs": 1957.563900000001,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 134217728,
+                "elapsedMs": 1838.55,
+                "receiveWaitMs": 587.883,
+                "writeMs": 745.414,
+                "hashMs": 447.544,
+                "syncMs": 1.225,
+                "checkpointMs": 41.44,
+                "stateMs": 13.782,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839306068,
+          "elapsedMs": 8031.828800000003,
+          "mibPerSecond": 63.746378657871766
+        },
+        {
+          "kind": "ram",
+          "chunkMiB": 128,
+          "readMs": 81.40720000000874,
+          "acknowledged": 536870912,
+          "blocks": [
+            {
+              "offset": 0,
+              "bytes": 134217728,
+              "requestMs": 1986.2683000000034,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 0,
+                "bytes": 134217728,
+                "elapsedMs": 1871.871,
+                "receiveWaitMs": 577.532,
+                "writeMs": 780.862,
+                "hashMs": 462.944,
+                "syncMs": 0.85,
+                "checkpointMs": 35.229,
+                "stateMs": 13.127,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 134217728,
+              "bytes": 134217728,
+              "requestMs": 1926.0679999999993,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 134217728,
+                "bytes": 134217728,
+                "elapsedMs": 1828.805,
+                "receiveWaitMs": 578.985,
+                "writeMs": 749.741,
+                "hashMs": 443.041,
+                "syncMs": 2.041,
+                "checkpointMs": 39.759,
+                "stateMs": 13.61,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 268435456,
+              "bytes": 134217728,
+              "requestMs": 2035.4523999999947,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 268435456,
+                "bytes": 134217728,
+                "elapsedMs": 1912.213,
+                "receiveWaitMs": 602.166,
+                "writeMs": 766.772,
+                "hashMs": 458.763,
+                "syncMs": 2.425,
+                "checkpointMs": 48.05,
+                "stateMs": 32.244,
+                "replay": false,
+                "streamingHash": true
+              }
+            },
+            {
+              "offset": 402653184,
+              "bytes": 134217728,
+              "requestMs": 2031.2885000000024,
+              "profile": {
+                "schemaVersion": 1,
+                "hashMode": "sse2",
+                "offset": 402653184,
+                "bytes": 134217728,
+                "elapsedMs": 1915.314,
+                "receiveWaitMs": 637.799,
+                "writeMs": 746.453,
+                "hashMs": 470.438,
+                "syncMs": 1.105,
+                "checkpointMs": 43.286,
+                "stateMs": 15.184,
+                "replay": false,
+                "streamingHash": true
+              }
+            }
+          ],
+          "startedAt": 1791839315369,
+          "elapsedMs": 8065.3505000000005,
+          "mibPerSecond": 63.48143208407372
+        }
+      ],
+      "pid": 225,
+      "buildId": "ps5-service-transfer-stability-025-sse2",
+      "sourceRead": {
+        "bytes": 2147483648,
+        "elapsedMs": 599.0054,
+        "mibPerSecond": 3419.0008971538487
+      },
+      "completed": true,
+      "finishedAt": 1791839323663
+    }
+  ],
+  "loaderComparison": {
+    "queueId": "ba227950-7ae3-4edb-8d4e-45dcd9b4e10c",
+    "bytesBefore": 10737418240,
+    "buildId": "ps5-service-transfer-stability-025-sse2",
+    "newPid": 225,
+    "state": "completed",
+    "sha256": "06e793702bcfc22d4293fe4877b5f8d9bbee99fc49c0629aa0f225a9c7b4ade5",
+    "oldPid": 224,
+    "queuePreserved": true,
+    "batchMax": 134217728
+  },
+  "webLedger": {
+    "size": 12472,
+    "count": 24,
+    "medianMs": 3.227249999999998,
+    "minMs": 3.0204999999999984,
+    "maxMs": 8.517799999999994,
+    "samples": [
+      3.0204999999999984,
+      3.092399999999998,
+      3.0927000000000078,
+      3.1115000000000066,
+      3.120199999999997,
+      3.129800000000003,
+      3.1387,
+      3.1738,
+      3.175299999999993,
+      3.2042000000000144,
+      3.2094000000000165,
+      3.2235000000000014,
+      3.2309999999999945,
+      3.235900000000001,
+      3.290999999999997,
+      3.3958999999999975,
+      3.406499999999994,
+      3.409099999999995,
+      3.4202999999999975,
+      3.5057000000000187,
+      3.5892000000000053,
+      3.9243999999999915,
+      4.029899999999998,
+      8.517799999999994
+    ],
+    "queueUntouched": true,
+    "cleanup": true
+  },
+  "initialDiagnostic": {
+    "queueId": "ba227950-7ae3-4edb-8d4e-45dcd9b4e10c",
+    "priorStatus": "paused",
+    "sourcePath": "D:\\test2\\Astrobot\\IP9100-PPSA01325_00-PREINMASTER00000-Ver 1.600.pkg",
+    "startedAt": 1791839014319,
+    "fixtures": [
+      {
+        "id": "bc6c701440ca96ad8c26761aeeb9f305",
+        "size": 536870912,
+        "hash": "3f47f9cd41850f712d91bc318d57f703b502580b26d4d4976a404d1f25285359",
+        "verified": true,
+        "cleaned": true
+      },
+      {
+        "id": "ae9655b7dbdb31bfb153ca6036d6ee09",
+        "size": 536870912,
+        "hash": "dc03467bfbd7974db96c41a6e35a22b71d9e405b4a20a808381c5b921aa59646",
+        "verified": true,
+        "cleaned": true
+      },
+      {
+        "id": "c561e7bfb32194b31249a4f6cf9c9c17",
+        "size": 536870912,
+        "hash": "3f47f9cd41850f712d91bc318d57f703b502580b26d4d4976a404d1f25285359",
+        "verified": false,
+        "cleaned": true
+      }
+    ],
+    "runs": [
+      {
+        "kind": "ram",
+        "chunkMiB": 128,
+        "readMs": 135.32979999999952,
+        "acknowledged": 536870912,
+        "blocks": [
+          {
+            "offset": 0,
+            "bytes": 134217728,
+            "requestMs": 2123.806699999999,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 0,
+              "bytes": 134217728,
+              "elapsedMs": 1948.566,
+              "receiveWaitMs": 676.646,
+              "writeMs": 756.129,
+              "hashMs": 455.327,
+              "syncMs": 1.16,
+              "checkpointMs": 42.234,
+              "stateMs": 15.011,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 134217728,
+            "bytes": 134217728,
+            "requestMs": 1988.3479000000007,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 134217728,
+              "bytes": 134217728,
+              "elapsedMs": 1849.708,
+              "receiveWaitMs": 581.206,
+              "writeMs": 751.708,
+              "hashMs": 468.594,
+              "syncMs": 0.69,
+              "checkpointMs": 28.652,
+              "stateMs": 17.906,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 268435456,
+            "bytes": 134217728,
+            "requestMs": 1934.0973999999987,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 268435456,
+              "bytes": 134217728,
+              "elapsedMs": 1813.57,
+              "receiveWaitMs": 569.356,
+              "writeMs": 731.224,
+              "hashMs": 455.274,
+              "syncMs": 1.289,
+              "checkpointMs": 40.753,
+              "stateMs": 14.378,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 402653184,
+            "bytes": 134217728,
+            "requestMs": 1962.0030000000006,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 402653184,
+              "bytes": 134217728,
+              "elapsedMs": 1845.328,
+              "receiveWaitMs": 510.028,
+              "writeMs": 821.591,
+              "hashMs": 445.342,
+              "syncMs": 1.287,
+              "checkpointMs": 49.045,
+              "stateMs": 16.569,
+              "replay": false,
+              "streamingHash": true
+            }
+          }
+        ],
+        "startedAt": 1791839026804,
+        "elapsedMs": 8151.2103000000025,
+        "mibPerSecond": 62.812758002330014
+      },
+      {
+        "kind": "file",
+        "chunkMiB": 128,
+        "readMs": 429.96550000000934,
+        "acknowledged": 536870912,
+        "blocks": [
+          {
+            "offset": 0,
+            "bytes": 134217728,
+            "requestMs": 2010.3536999999997,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 0,
+              "bytes": 134217728,
+              "elapsedMs": 1879.855,
+              "receiveWaitMs": 644.68,
+              "writeMs": 767.52,
+              "hashMs": 436.547,
+              "syncMs": 0.704,
+              "checkpointMs": 14.593,
+              "stateMs": 13.948,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 134217728,
+            "bytes": 134217728,
+            "requestMs": 1956.1432999999997,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 134217728,
+              "bytes": 134217728,
+              "elapsedMs": 1828.53,
+              "receiveWaitMs": 564.118,
+              "writeMs": 773.637,
+              "hashMs": 450.235,
+              "syncMs": 1.23,
+              "checkpointMs": 22.442,
+              "stateMs": 15.876,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 268435456,
+            "bytes": 134217728,
+            "requestMs": 1984.8032999999996,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 268435456,
+              "bytes": 134217728,
+              "elapsedMs": 1860.512,
+              "receiveWaitMs": 595.275,
+              "writeMs": 750.647,
+              "hashMs": 452.609,
+              "syncMs": 1.328,
+              "checkpointMs": 41.515,
+              "stateMs": 18.119,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 402653184,
+            "bytes": 134217728,
+            "requestMs": 1969.8617000000013,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 402653184,
+              "bytes": 134217728,
+              "elapsedMs": 1833.122,
+              "receiveWaitMs": 560.609,
+              "writeMs": 755.264,
+              "hashMs": 456.06,
+              "syncMs": 1.669,
+              "checkpointMs": 36.363,
+              "stateMs": 20.173,
+              "replay": false,
+              "streamingHash": true
+            }
+          }
+        ],
+        "startedAt": 1791839036395,
+        "elapsedMs": 7991.096600000001,
+        "mibPerSecond": 64.071306558852
+      },
+      {
+        "kind": "ram",
+        "chunkMiB": 64,
+        "readMs": 72.72509999999966,
+        "acknowledged": 536870912,
+        "blocks": [
+          {
+            "offset": 0,
+            "bytes": 67108864,
+            "requestMs": 989.0115000000005,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 0,
+              "bytes": 67108864,
+              "elapsedMs": 904.817,
+              "receiveWaitMs": 267.335,
+              "writeMs": 378.072,
+              "hashMs": 229.736,
+              "syncMs": 0.864,
+              "checkpointMs": 12.609,
+              "stateMs": 15.45,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 67108864,
+            "bytes": 67108864,
+            "requestMs": 1004.7073999999957,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 67108864,
+              "bytes": 67108864,
+              "elapsedMs": 941.84,
+              "receiveWaitMs": 303.854,
+              "writeMs": 372.231,
+              "hashMs": 222.024,
+              "syncMs": 0.916,
+              "checkpointMs": 25.334,
+              "stateMs": 16.695,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 134217728,
+            "bytes": 67108864,
+            "requestMs": 1112.731399999997,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 134217728,
+              "bytes": 67108864,
+              "elapsedMs": 1045.296,
+              "receiveWaitMs": 351.274,
+              "writeMs": 405.981,
+              "hashMs": 247.388,
+              "syncMs": 1.919,
+              "checkpointMs": 22.14,
+              "stateMs": 15.561,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 201326592,
+            "bytes": 67108864,
+            "requestMs": 1001.9011000000028,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 201326592,
+              "bytes": 67108864,
+              "elapsedMs": 948.884,
+              "receiveWaitMs": 316.221,
+              "writeMs": 369.596,
+              "hashMs": 223.6,
+              "syncMs": 0.808,
+              "checkpointMs": 17.206,
+              "stateMs": 19.882,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 268435456,
+            "bytes": 67108864,
+            "requestMs": 972.6261000000013,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 268435456,
+              "bytes": 67108864,
+              "elapsedMs": 921.749,
+              "receiveWaitMs": 294.07,
+              "writeMs": 378.198,
+              "hashMs": 209.706,
+              "syncMs": 1.002,
+              "checkpointMs": 20.199,
+              "stateMs": 17.182,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 335544320,
+            "bytes": 67108864,
+            "requestMs": 1025.680100000005,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 335544320,
+              "bytes": 67108864,
+              "elapsedMs": 958.369,
+              "receiveWaitMs": 300.943,
+              "writeMs": 393.533,
+              "hashMs": 228.137,
+              "syncMs": 1.094,
+              "checkpointMs": 17.616,
+              "stateMs": 16.223,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 402653184,
+            "bytes": 67108864,
+            "requestMs": 1023.1964999999982,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 402653184,
+              "bytes": 67108864,
+              "elapsedMs": 961.984,
+              "receiveWaitMs": 341.33,
+              "writeMs": 364.524,
+              "hashMs": 218.803,
+              "syncMs": 0.785,
+              "checkpointMs": 19.487,
+              "stateMs": 15.067,
+              "replay": false,
+              "streamingHash": true
+            }
+          },
+          {
+            "offset": 469762048,
+            "bytes": 67108864,
+            "requestMs": 1092.1380000000063,
+            "profile": {
+              "schemaVersion": 1,
+              "hashMode": "sse2",
+              "offset": 469762048,
+              "bytes": 67108864,
+              "elapsedMs": 1025.876,
+              "receiveWaitMs": 405.232,
+              "writeMs": 361.345,
+              "hashMs": 227.158,
+              "syncMs": 0.725,
+              "checkpointMs": 16.259,
+              "stateMs": 13.964,
+              "replay": false,
+              "streamingHash": true
+            }
+          }
+        ],
+        "startedAt": 1791839045625,
+        "elapsedMs": 8304.698999999997,
+        "mibPerSecond": 61.65184313122007
+      }
+    ],
+    "pid": 224,
+    "buildId": "ps5-service-transfer-stability-025-sse2",
+    "sourceRead": {
+      "bytes": 2147483648,
+      "elapsedMs": 10948.3182,
+      "mibPerSecond": 187.06069394292908
+    },
+    "error": "Final BLAKE3 unconfirmed"
+  },
+  "finalState": {
+    "size": 11016536064,
+    "pid": 225,
+    "bytesDurable": 10871635968,
+    "buildId": "ps5-service-transfer-stability-025-sse2",
+    "gameId": "899e3849363b893598cb7487b6f04fb3",
+    "bytesSaved": 10737418240,
+    "benchmarkReady": true,
+    "queueId": "ba227950-7ae3-4edb-8d4e-45dcd9b4e10c",
+    "nativeRunning": false,
+    "batchMax": 134217728,
+    "system": {
+      "service": "PackageFlowService-PS5",
+      "storageRead": true,
+      "freeBytes": 371375669248,
+      "totalBytes": 937048866816,
+      "transferStorageRead": true,
+      "transferFreeBytes": 371375669248
+    },
+    "queueStatus": "paused",
+    "ownProcesses": 1
+  },
+  "finalBenchmark": {
+    "id": "6d77f3bd-159e-4ba4-affa-9faa92e8c93a",
+    "consoleId": "d319d1d5-8b09-4b31-9911-4431ecc0dcff",
+    "ip": "192.168.0.127",
+    "state": "completed",
+    "size": 268435456,
+    "startedAt": 1791839456614,
+    "results": [
+      {
+        "mode": "latency",
+        "bytes": 0,
+        "elapsedMs": 28.520299999974668,
+        "latencyMinMs": 2.7543000001460314,
+        "latencyMedianMs": 3.4246999999741092,
+        "latencyMaxMs": 4.9627000000327826
+      },
+      {
+        "mode": "upload",
+        "bytes": 268435456,
+        "elapsedMs": 2534.6350000000093,
+        "bytesPerSecond": 105906947.54866046,
+        "writeMs": 0,
+        "syncMs": 0,
+        "cleanup": true,
+        "receivePipeline": false
+      },
+      {
+        "mode": "download",
+        "bytes": 268435456,
+        "elapsedMs": 2575.4157999998424,
+        "bytesPerSecond": 104229948.42231551
+      },
+      {
+        "mode": "disk",
+        "bytes": 268435456,
+        "elapsedMs": 3296.9543999999296,
+        "bytesPerSecond": 81419220.11417742,
+        "writeMs": 1548.679,
+        "syncMs": 25.954,
+        "cleanup": true,
+        "receivePipeline": true
+      }
+    ],
+    "finishedAt": 1791839465053
+  }
+}

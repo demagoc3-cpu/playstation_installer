@@ -1,0 +1,64 @@
+{
+  "results": [
+    {
+      "Id": "08b2652d-a6c8-4eae-be72-610e8594c520",
+      "Name": "PS5",
+      "Complete": false,
+      "Message": "WEB 409 {\n  \u0022error\u0022: true,\n  \u0022url\u0022: \u0022http://127.0.0.1:3000/api/desktop/console-setup\u0022,\n  \u0022statusCode\u0022: 409,\n  \u0022statusMessage\u0022: \u0022Server Error\u0022,\n  \u0022message\u0022: \u0022\u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u0435 PS5 \u0438 \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 ShadowMount\u002B. \u0423\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0430 \u044D\u0442\u043E\u0433\u043E \u0444\u043E\u0440\u043C\u0430\u0442\u0430 \u0434\u043E\u043B\u0436\u043D\u0430 \u0431\u044B\u0442\u044C \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0430 \u0441\u043B\u0443\u0436\u0431\u043E\u0439\u0022\n}"
+    }
+  ],
+  "calls": [
+    {
+      "path": "/api/consoles",
+      "method": "GET",
+      "at": "2026-10-15T08:36:12.2324924+00:00"
+    },
+    {
+      "path": "/api/desktop/console-setup?consoleId=08b2652d-a6c8-4eae-be72-610e8594c520",
+      "method": "GET",
+      "at": "2026-10-15T08:36:12.310954+00:00"
+    },
+    {
+      "path": "/api/consoles/probe",
+      "method": "POST",
+      "at": "2026-10-15T08:36:12.4169461+00:00"
+    },
+    {
+      "path": "/api/consoles/service-update?consoleId=08b2652d-a6c8-4eae-be72-610e8594c520",
+      "method": "GET",
+      "at": "2026-10-15T08:36:12.487742+00:00"
+    },
+    {
+      "path": "/api/consoles/service-update",
+      "method": "POST",
+      "at": "2026-10-15T08:36:12.4960612+00:00"
+    },
+    {
+      "path": "/api/consoles/service-update?consoleId=08b2652d-a6c8-4eae-be72-610e8594c520",
+      "method": "GET",
+      "at": "2026-10-15T08:36:14.156735+00:00"
+    },
+    {
+      "path": "/api/consoles/service-update?consoleId=08b2652d-a6c8-4eae-be72-610e8594c520",
+      "method": "GET",
+      "at": "2026-10-15T08:36:17.7202421+00:00"
+    },
+    {
+      "path": "/api/consoles/probe",
+      "method": "POST",
+      "at": "2026-10-15T08:36:17.7282671+00:00"
+    },
+    {
+      "path": "/api/desktop/console-setup",
+      "method": "POST",
+      "at": "2026-10-15T08:36:17.8106729+00:00"
+    }
+  ],
+  "progress": [
+    "PS5: \u041F\u0440\u043E\u0432\u0435\u0440\u044F\u0435\u043C \u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u044B\u2026",
+    "PS5: \u041F\u0440\u043E\u0432\u0435\u0440\u044F\u0435\u043C \u0433\u043E\u0442\u043E\u0432\u043D\u043E\u0441\u0442\u044C \u0441\u043B\u0443\u0436\u0431\u044B PS5",
+    "PS5: \u041E\u0441\u0442\u0430\u043D\u0430\u0432\u043B\u0438\u0432\u0430\u0435\u043C \u0442\u043E\u043B\u044C\u043A\u043E \u0444\u043E\u043D\u043E\u0432\u0443\u044E \u0441\u043B\u0443\u0436\u0431\u0443 PackageFlow",
+    "PS5: \u041E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u043E: \u0441\u0435\u0440\u0432\u0438\u0441 0.1.28-dev",
+    "PS5: WEB 409 {\n  \u0022error\u0022: true,\n  \u0022url\u0022: \u0022http://127.0.0.1:3000/api/desktop/console-setup\u0022,\n  \u0022statusCode\u0022: 409,\n  \u0022statusMessage\u0022: \u0022Server Error\u0022,\n  \u0022message\u0022: \u0022\u041F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u0435 PS5 \u0438 \u0437\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 ShadowMount\u002B. \u0423\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0430 \u044D\u0442\u043E\u0433\u043E \u0444\u043E\u0440\u043C\u0430\u0442\u0430 \u0434\u043E\u043B\u0436\u043D\u0430 \u0431\u044B\u0442\u044C \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0430 \u0441\u043B\u0443\u0436\u0431\u043E\u0439\u0022\n}"
+  ]
+}

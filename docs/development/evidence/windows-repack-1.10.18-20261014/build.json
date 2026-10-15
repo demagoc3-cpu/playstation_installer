@@ -1,0 +1,52 @@
+{
+  "version": "1.10.18",
+  "installer": {
+    "path": "/home/developer/projects/web/playstation_installer/dist/windows/PackageFlowSetup-1.10.18-x64.exe",
+    "bytes": 105763369,
+    "sha256": "1e303ef3c7b3f2681ad6cf040c349793e76b7a7e12ade225147f2e07c22f7a14"
+  },
+  "ps5AppSource": "PackageFlowService-PS5/experiments/native-ui/dist/candidates/01.000.044-6c32b25",
+  "consoleBundle": {
+    "schemaVersion": 1,
+    "elf": {
+      "fileName": "PackageFlowService-PS5.elf",
+      "size": 4094528,
+      "sha256": "920e5580b6ad765f8526196947eec7ae5c3f803c239884361d72b7ee6e4ee37a",
+      "version": "0.1.27-dev",
+      "buildId": "ps5-service-registration-handoff-027-sse2",
+      "firmware": "13.60"
+    },
+    "app": {
+      "fileName": "PPSA95001-01.000.044.ffpkg",
+      "size": 22020096,
+      "sha256": "7ecf378d3c49c30dfdbf6a692432cf2e276fd340ce98d6bf6b31c15e046b3612",
+      "name": "PackageFlow",
+      "titleId": "PPSA95001",
+      "contentId": "IV0000-PPSA95001_00-PACKAGEFLOWUI001",
+      "version": "01.000.044",
+      "format": "ufs2",
+      "buildId": "6c32b25"
+    },
+    "ps4": {
+      "fileName": "PackageFlowService-2.14.pkg",
+      "size": 6619136,
+      "sha256": "83995a02c90e8dc6fb775243f911573dc3e2b0acd390e0f3d2d591c1dc554abf",
+      "name": "PackageFlow",
+      "titleId": "PFLS00001",
+      "version": "2.14"
+    }
+  },
+  "checks": {
+    "build": "PASS, Nuxt/Desktop/Core/native publish/BundleCheck/NSIS",
+    "artifactRuntime": "PASS, actual UFS2 read through consoleSetupBundle and PARAM identity matches",
+    "desktopManifest": "PASS, 26 files",
+    "payloadAudit": "PASS: Windows 1.10.18, 1566 files / 214397108 bytes; no offline Runtime, bootstrapper binary, Docker or Compose; PS4 2.14 / PS5 0.1.27-dev / app044 6c32b25 exact hashes.",
+    "previousInstaller17Preserved": true,
+    "newNativeImageRoundtrip": "PASS, six files original/stage/unpacked hashes",
+    "pyloaderAndQueueFixesRetained": true,
+    "windowsMenuRefreshRetained": true
+  },
+  "consoleTransferred": false,
+  "windowsInstalled": false,
+  "gitPublished": false
+}

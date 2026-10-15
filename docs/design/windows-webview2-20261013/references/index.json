@@ -1,0 +1,11 @@
+{
+  "note": "Approved visual targets and screenshots of defects. Latest user text overrides outdated labels, Home console cards and example data in mockups.",
+  "images": {
+    "wizard-target.png": "/tmp/codex-clipboard-b30e4a41-aec9-4585-80f0-daaca849dfaf.png",
+    "current-wizard-and-home-problems.png": "/tmp/codex-clipboard-6ab46378-ef4a-4e83-899d-09689ed23f57.png",
+    "current-search-layout-problems.png": "/tmp/codex-clipboard-6b287608-55a3-4484-84ac-70793c961628.png",
+    "approved-wizard-all-steps.png": "/home/developer/projects/web/playstation_installer/docs/design/windows-glass-20261013/01-wizard.png",
+    "approved-main-sections.png": "/home/developer/projects/web/playstation_installer/docs/design/windows-glass-20261013/02-launcher-sections.png",
+    "approved-tray-and-exit.png": "/home/developer/projects/web/playstation_installer/docs/design/windows-glass-20261013/03-tray-exit.png"
+  }
+}

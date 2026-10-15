@@ -1,0 +1,296 @@
+{
+  "state": "observed",
+  "buildId": "5122c1f",
+  "version": "01.000.044",
+  "files": {
+    "assets/atmosphere-blur.pfbm": {
+      "sha256": "5cb7249dda6689d8b2fc374d122ceca9dae425a431c797e5d832f850116ceeaf",
+      "verified": true
+    },
+    "assets/atmosphere.pfbm": {
+      "sha256": "b319b118661a4e821355677af88856460e96dad3e923b97b24e329d850e6262e",
+      "verified": true
+    },
+    "eboot.bin": {
+      "sha256": "0f4f64cfb7a8111e16a1c20d2d1398a442945da9942128d3187d016686c6906b",
+      "verified": true
+    },
+    "sce_module/libc.prx": {
+      "sha256": "e6ff45d16adf687855cc3b33b0c8a4132b6504360b221e0a34c7e99fb3ba0036",
+      "verified": true
+    },
+    "sce_sys/icon0.png": {
+      "sha256": "cf4f3121612d1ae4bf1f6d4fa942c32e1bc190f15982ae6fe72ea0dc9951a5b8",
+      "verified": true
+    },
+    "sce_sys/param.json": {
+      "sha256": "3d71188f1e3e40b2de54bc5bf75c2f55ad7b2cb404a8131426e19100418fa46e",
+      "verified": true
+    }
+  },
+  "param": {
+    "ageLevel": {
+      "default": 0
+    },
+    "applicationCategoryType": 0,
+    "applicationDrmType": "free",
+    "attribute": 0,
+    "attribute2": 0,
+    "attribute3": 0,
+    "conceptId": "95001",
+    "contentBadgeType": 1,
+    "contentId": "IV0000-PPSA95001_00-PACKAGEFLOWUI001",
+    "contentVersion": "01.000.044",
+    "downloadDataSize": 256,
+    "gameIntent": {
+      "permittedIntents": [
+        {
+          "intentType": "launchActivity"
+        }
+      ]
+    },
+    "localizedParameters": {
+      "defaultLanguage": "en-US",
+      "en-US": {
+        "titleName": "PackageFlow"
+      },
+      "ru-RU": {
+        "titleName": "PackageFlow"
+      }
+    },
+    "masterVersion": "01.00",
+    "pubtools": {
+      "creationDate": "2026-08-22 00:00:00",
+      "loudnessSnd0": "-28.00",
+      "toolVersion": "2.00"
+    },
+    "requiredSystemSoftwareVersion": "0x0000000000000000",
+    "sdkVersion": "0x0000000000000000",
+    "titleId": "PPSA95001",
+    "versionFileUri": ""
+  },
+  "requestId": "8bbdf7f54a17f0af066b639f2cfb2c8c",
+  "receipt": {
+    "requestId": "8bbdf7f54a17f0af066b639f2cfb2c8c",
+    "titleId": "PPSA95001",
+    "action": "launch",
+    "state": "accepted",
+    "result": {
+      "code": 16408,
+      "running": true
+    }
+  },
+  "samples": [
+    {
+      "second": 1,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 2,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 3,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 4,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 5,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 6,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 7,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 8,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 9,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 10,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 11,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 12,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 13,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 14,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 15,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 16,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 17,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 18,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 19,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 20,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 21,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 22,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 23,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 24,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 25,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 26,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 27,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 28,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 29,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    },
+    {
+      "second": 30,
+      "complete": true,
+      "running": true,
+      "appId": 16408,
+      "titleId": "PPSA95001"
+    }
+  ],
+  "launchConfirmed": true
+}

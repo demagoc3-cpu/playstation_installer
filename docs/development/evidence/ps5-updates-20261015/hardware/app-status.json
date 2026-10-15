@@ -1,0 +1,42 @@
+﻿{
+    "app-update":  {
+                       "consoleId":  "08b2652d-a6c8-4eae-be72-610e8594c520",
+                       "current":  "01.000.044",
+                       "currentBuildId":  "6c32b25",
+                       "installed":  true,
+                       "release":  {
+                                       "titleId":  "PPSA95001",
+                                       "version":  "01.000.044",
+                                       "buildId":  "6c32b25",
+                                       "sha256":  "7ecf378d3c49c30dfdbf6a692432cf2e276fd340ce98d6bf6b31c15e046b3612",
+                                       "format":  "ufs2",
+                                       "size":  22020096
+                                   },
+                       "updateAvailable":  false,
+                       "canUpdate":  false,
+                       "serviceReady":  true,
+                       "message":  "Ð£ÑÑÐ°Ð½Ð¾Ð²Ð»ÐµÐ½Ð° ÑÐ±Ð¾ÑÐºÐ° Ð¿ÑÐ¸Ð»Ð¾Ð¶ÐµÐ½Ð¸Ñ Ð¸Ð· ÑÑÐ¾Ð³Ð¾ ÐºÐ¾Ð¼Ð¿Ð»ÐµÐºÑÐ°",
+                       "flow":  {
+                                    "requestId":  "ac6f06a4d77abaf16ac3c005c0b1163a",
+                                    "state":  "completed",
+                                    "message":  "Ð£ÑÑÐ°Ð½Ð¾Ð²Ð»ÐµÐ½Ð° ÑÐ±Ð¾ÑÐºÐ° Ð¿ÑÐ¸Ð»Ð¾Ð¶ÐµÐ½Ð¸Ñ Ð¸Ð· ÑÑÐ¾Ð³Ð¾ ÐºÐ¾Ð¼Ð¿Ð»ÐµÐºÑÐ°",
+                                    "progress":  100
+                                }
+                   },
+    "installation":  {
+                         "status":  "completed",
+                         "id":  "277eab1b379e073c0bb2bb31d1464fd8",
+                         "items":  [
+                                       {
+                                           "packageId":  "caf60907d2648c45e77d1d25fadf5697",
+                                           "title":  "PackageFlow",
+                                           "state":  "installed",
+                                           "confirmation":  "service-registration",
+                                           "alreadyPresent":  null,
+                                           "bytesSent":  22020096,
+                                           "size":  22020096,
+                                           "detail":  "PS5 Ð¿Ð¾Ð´ÑÐ²ÐµÑÐ´Ð¸Ð»Ð° ÑÐ¸ÑÑÐµÐ¼Ð½ÑÑ ÑÐµÐ³Ð¸ÑÑÑÐ°ÑÐ¸Ñ Ð¾Ð±ÑÐ°Ð·Ð°, Ð²ÐµÑÑÐ¸Ñ 01.000.044"
+                                       }
+                                   ]
+                     }
+}

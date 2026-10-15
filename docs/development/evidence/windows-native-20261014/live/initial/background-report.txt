@@ -1,0 +1,1 @@
+PASS: actual health timer sends background:true; explicit refresh omits background; transport is isolated, no real WEB/console requests.

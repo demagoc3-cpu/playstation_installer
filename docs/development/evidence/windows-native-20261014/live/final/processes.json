@@ -1,0 +1,16 @@
+﻿[
+    {
+        "ProcessId":  12832,
+        "ParentProcessId":  11036,
+        "SessionId":  1,
+        "ExecutablePath":  "C:\\Users\\gamepad\\AppData\\Local\\Programs\\PackageFlow\\PackageFlow.exe",
+        "CommandLine":  "\"C:\\Users\\gamepad\\AppData\\Local\\Programs\\PackageFlow\\PackageFlow.exe\" --capture-ui=\"C:\\Users\\gamepad\\Downloads\\PackageFlow-11015-readiness-20261014\\installed-ui\" "
+    },
+    {
+        "ProcessId":  8276,
+        "ParentProcessId":  12832,
+        "SessionId":  1,
+        "ExecutablePath":  "C:\\Users\\gamepad\\AppData\\Local\\Programs\\PackageFlow\\runtime\\node.exe",
+        "CommandLine":  "\"C:\\Users\\gamepad\\AppData\\Local\\Programs\\PackageFlow\\runtime\\node.exe\" C:\\Users\\gamepad\\AppData\\Local\\Programs\\PackageFlow\\server\\.output\\server\\index.mjs"
+    }
+]

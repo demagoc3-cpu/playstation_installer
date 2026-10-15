@@ -1,0 +1,1178 @@
+[
+  {
+    "section": "home",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 705.03125
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 812.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 897.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 940.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 982
+      }
+    ],
+    "actions": [
+      {
+        "text": "Применить и запустить",
+        "visible": true
+      },
+      {
+        "text": "Остановить",
+        "visible": true
+      },
+      {
+        "text": "Хранилище в WEB",
+        "visible": true
+      },
+      {
+        "text": "Доступ приставкам",
+        "visible": true
+      },
+      {
+        "text": "Мастер настройки",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "consoles",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 705.03125
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 812.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 897.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 940.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 982
+      }
+    ],
+    "actions": [
+      {
+        "text": "Найти",
+        "visible": true
+      },
+      {
+        "text": "Проверить",
+        "visible": true
+      },
+      {
+        "text": "Установить / обновить",
+        "visible": true
+      },
+      {
+        "text": "Найти и установить",
+        "visible": true
+      },
+      {
+        "text": "Удалить приложение",
+        "visible": true
+      },
+      {
+        "text": "Удалить профиль",
+        "visible": true
+      },
+      {
+        "text": "⟳",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "search",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 705.03125
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 812.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 897.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 940.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 982
+      }
+    ],
+    "actions": [
+      {
+        "text": "Настроить торренты",
+        "visible": true
+      },
+      {
+        "text": "Открыть WEB",
+        "visible": true
+      },
+      {
+        "text": "Дополнительные параметры",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "updates",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 705.03125
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 812.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 897.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 940.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 982
+      }
+    ],
+    "actions": [
+      {
+        "text": "⟳ Проверить обновления",
+        "visible": true
+      },
+      {
+        "text": "↓ Установить обновления",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "support",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 705.03125
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 812.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 897.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 940.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 982
+      }
+    ],
+    "actions": []
+  },
+  {
+    "section": "wizard",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 733.03125
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 834.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 913.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 946.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 982
+      }
+    ],
+    "actions": []
+  },
+  {
+    "section": "home",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 963.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1078.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1171.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1214.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1256
+      }
+    ],
+    "actions": [
+      {
+        "text": "Применить и запустить",
+        "visible": true
+      },
+      {
+        "text": "Остановить",
+        "visible": true
+      },
+      {
+        "text": "Хранилище в WEB",
+        "visible": true
+      },
+      {
+        "text": "Доступ приставкам",
+        "visible": true
+      },
+      {
+        "text": "Мастер настройки",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "consoles",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 963.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1078.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1171.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1214.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1256
+      }
+    ],
+    "actions": [
+      {
+        "text": "Найти",
+        "visible": true
+      },
+      {
+        "text": "Проверить",
+        "visible": true
+      },
+      {
+        "text": "Установить / обновить",
+        "visible": true
+      },
+      {
+        "text": "Найти и установить",
+        "visible": true
+      },
+      {
+        "text": "Удалить приложение",
+        "visible": true
+      },
+      {
+        "text": "Удалить профиль",
+        "visible": true
+      },
+      {
+        "text": "⟳",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "search",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 963.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1078.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1171.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1214.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1256
+      }
+    ],
+    "actions": [
+      {
+        "text": "Настроить торренты",
+        "visible": true
+      },
+      {
+        "text": "Открыть WEB",
+        "visible": true
+      },
+      {
+        "text": "Дополнительные параметры",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "updates",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 963.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1078.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1171.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1214.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1256
+      }
+    ],
+    "actions": [
+      {
+        "text": "⟳ Проверить обновления",
+        "visible": true
+      },
+      {
+        "text": "↓ Установить обновления",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "support",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 963.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1078.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1171.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1214.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1256
+      }
+    ],
+    "actions": []
+  },
+  {
+    "section": "wizard",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 963.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1078.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1171.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1212.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1256
+      }
+    ],
+    "actions": []
+  },
+  {
+    "section": "home",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 1603.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1718.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1811.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1854.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1896
+      }
+    ],
+    "actions": [
+      {
+        "text": "Применить и запустить",
+        "visible": true
+      },
+      {
+        "text": "Остановить",
+        "visible": true
+      },
+      {
+        "text": "Хранилище в WEB",
+        "visible": true
+      },
+      {
+        "text": "Доступ приставкам",
+        "visible": true
+      },
+      {
+        "text": "Мастер настройки",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "consoles",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 1603.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1718.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1811.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1854.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1896
+      }
+    ],
+    "actions": [
+      {
+        "text": "Найти",
+        "visible": true
+      },
+      {
+        "text": "Проверить",
+        "visible": true
+      },
+      {
+        "text": "Установить / обновить",
+        "visible": true
+      },
+      {
+        "text": "Найти и установить",
+        "visible": true
+      },
+      {
+        "text": "Удалить приложение",
+        "visible": true
+      },
+      {
+        "text": "Удалить профиль",
+        "visible": true
+      },
+      {
+        "text": "⟳",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "search",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 1603.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1718.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1811.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1854.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1896
+      }
+    ],
+    "actions": [
+      {
+        "text": "Настроить торренты",
+        "visible": true
+      },
+      {
+        "text": "Открыть WEB",
+        "visible": true
+      },
+      {
+        "text": "Дополнительные параметры",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "updates",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 1603.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1718.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1811.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1854.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1896
+      }
+    ],
+    "actions": [
+      {
+        "text": "⟳ Проверить обновления",
+        "visible": true
+      },
+      {
+        "text": "↓ Установить обновления",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "support",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 1603.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1718.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1811.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1854.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1896
+      }
+    ],
+    "actions": []
+  },
+  {
+    "section": "wizard",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 1603.515625
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 1718.296875
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 1811.296875
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 1852.890625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 1896
+      }
+    ],
+    "actions": []
+  },
+  {
+    "section": "home",
+    "size": [
+      800,
+      580
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 546.359375
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 646.625
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 724.625
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 754.515625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 782
+      }
+    ],
+    "actions": [
+      {
+        "text": "Применить и запустить",
+        "visible": true
+      },
+      {
+        "text": "Остановить",
+        "visible": true
+      },
+      {
+        "text": "Хранилище в WEB",
+        "visible": true
+      },
+      {
+        "text": "Доступ приставкам",
+        "visible": true
+      },
+      {
+        "text": "Мастер настройки",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "consoles",
+    "size": [
+      800,
+      580
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 546.359375
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 646.625
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 724.625
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 754.515625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 782
+      }
+    ],
+    "actions": [
+      {
+        "text": "Найти",
+        "visible": true
+      },
+      {
+        "text": "Проверить",
+        "visible": true
+      },
+      {
+        "text": "Установить / обновить",
+        "visible": true
+      },
+      {
+        "text": "Найти и установить",
+        "visible": true
+      },
+      {
+        "text": "Удалить приложение",
+        "visible": true
+      },
+      {
+        "text": "Удалить профиль",
+        "visible": true
+      },
+      {
+        "text": "⟳",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "search",
+    "size": [
+      800,
+      580
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 546.359375
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 646.625
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 724.625
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 754.515625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 782
+      }
+    ],
+    "actions": [
+      {
+        "text": "Настроить торренты",
+        "visible": true
+      },
+      {
+        "text": "Открыть WEB",
+        "visible": true
+      },
+      {
+        "text": "Дополнительные параметры",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "updates",
+    "size": [
+      800,
+      580
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 546.359375
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 646.625
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 724.625
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 754.515625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 782
+      }
+    ],
+    "actions": [
+      {
+        "text": "⟳ Проверить обновления",
+        "visible": true
+      },
+      {
+        "text": "↓ Установить обновления",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "support",
+    "size": [
+      800,
+      580
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 546.359375
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 646.625
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 724.625
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 754.515625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 782
+      }
+    ],
+    "actions": []
+  },
+  {
+    "section": "wizard",
+    "size": [
+      800,
+      580
+    ],
+    "errors": [],
+    "overflow": false,
+    "header": [
+      {
+        "text": "Discord",
+        "visible": true,
+        "right": 550.359375
+      },
+      {
+        "text": "GitHub",
+        "visible": true,
+        "right": 648.625
+      },
+      {
+        "text": "4PDA",
+        "visible": true,
+        "right": 724.625
+      },
+      {
+        "text": "RU",
+        "visible": true,
+        "right": 752.515625
+      },
+      {
+        "text": "EN",
+        "visible": true,
+        "right": 782
+      }
+    ],
+    "actions": []
+  }
+]

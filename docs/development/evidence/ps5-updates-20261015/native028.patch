@@ -1,0 +1,116 @@
+--- a/src/core/console-games.inc
++++ b/src/core/console-games.inc
+@@ -94,6 +94,16 @@
+ static int game_active(char title[16],int *id){game_title_error=0;*id=sceSystemServiceGetAppIdOfRunningBigApp();title[0]=0;if(*id==-1)return game_registered_active(title,id);if(*id<0)return 503;if(!*id)return 200;game_title_error=sceLncUtilGetAppTitleId((uint32_t)*id,title);title[15]=0;if(game_title_error||!titlevalid(title))return 503;return 200;}
+ static int game_activity(char *out,size_t cap){char title[16];int id,rc=game_active(title,&id);if(rc!=200){snprintf(out,cap,"{\"error\":\"activity_unavailable\",\"complete\":false,\"appId\":%d,\"titleLookupCode\":%d,\"titleId\":\"%.9s\",\"stage\":\"%s\"}",id,game_title_error,strlen(title)==9?title:"",id<0?"running_app_id":"running_app_title");return rc;}int n=snprintf(out,cap,"{\"complete\":true,\"running\":%s,\"appId\":%d,\"titleId\":\"%s\"}",id>0?"true":"false",id,title);return n>0&&(size_t)n<cap?200:500;}
+ static int game_launch(const char *title){(void)sceUserServiceInitialize(NULL);game_launch_context c={0};int rc=sceUserServiceGetForegroundUser(&c.user);if(rc<0)return rc;if(!c.user||c.user==UINT32_MAX)return -1;c.size=sizeof(c);char *args[]={NULL};return sceSystemServiceLaunchApp(title,args,&c);}
++/* A deleted own image may leave its app.db registration after ShadowMount
++ * forgets the source. Only PackageFlow's exact identity may clear that orphan;
++ * system/user applications retain their explicit can_uninstall requirement. */
++static bool game_own_orphan_uninstall(const char *title,const char *info){
++ char content[128],installed[8],source[8];
++ return !strcmp(title,"PPSA95001")&&
++  game_json_field(info,"$.content_id",content,sizeof(content))==200&&!strcmp(content,"IV0000-PPSA95001_00-PACKAGEFLOWUI001")&&
++  game_json_field(info,"$.installed",installed,sizeof(installed))==200&&!strcmp(installed,"1")&&
++  game_json_field(info,"$.source_available",source,sizeof(source))==200&&!strcmp(source,"0");
++}
+ static int game_command(const char *request,char *out,size_t cap){
+ #ifdef PF_PS5_NATIVE
+ if(!pf_management_ready())return 503;
+@@ -107,7 +117,7 @@
+ char actual[65];if(game_identity(info,actual)!=200||strcmp(expected,actual))return 409;
+ if(!strcmp(action,"delete")||!strcmp(action,"uninstall")){char confirm[10];if(!pf_api_header(request,"X-PackageFlow-Confirm-Title",confirm,sizeof(confirm))||strcmp(confirm,title))return 400;}
+ int active=sceSystemServiceGetAppId(title);if(strcmp(action,"launch")&&strcmp(action,"stop")&&active>0)return 409;
+-if(!strcmp(action,"uninstall")){if(game_json_field(info,"$.can_uninstall",field,sizeof(field))!=200||strcmp(field,"1"))return 409;}
++if(!strcmp(action,"uninstall")){if((game_json_field(info,"$.can_uninstall",field,sizeof(field))!=200||strcmp(field,"1"))&&!game_own_orphan_uninstall(title,info))return 409;}
+ else if(strcmp(action,"launch")&&strcmp(action,"stop")){if(game_json_field(info,"$.can_manage_source",field,sizeof(field))!=200||strcmp(field,"1"))return 409;}
+ char record[32768],response[16384];snprintf(record,sizeof(record),"%s{\"requestId\":\"%s\",\"titleId\":\"%s\",\"action\":\"%s\",\"state\":\"unconfirmed\"}",identity_text,id,title,action);if((rc=restore_store(path,record))!=200)return rc;
+ if(!strcmp(action,"launch")){char current[16];int app;rc=game_active(current,&app);if(rc!=200)snprintf(response,sizeof(response),"{\"error\":\"activity_unavailable\"}");else if(app>0){snprintf(response,sizeof(response),"{\"error\":\"app_running\",\"appId\":%d,\"titleId\":\"%s\"}",app,current);rc=409;}else{int code=game_launch(title);snprintf(response,sizeof(response),"{\"code\":%d,\"running\":%s}",code,sceSystemServiceGetAppId(title)>0?"true":"false");rc=code<0?409:200;}}
+--- a/tests/console_games_test.c
++++ b/tests/console_games_test.c
+@@ -11,19 +11,57 @@
+ #include <string.h>
+ #include <unistd.h>
+ const char *pf_test_home,*pf_test_state,*pf_test_transfers,*pf_test_appdb,*pf_test_marker;
+-static int calls,mutations,running,fail,wrong_title,legacy_shape,info_missing,launch_code,other_app,big_override,app_error;
++static int uninstall_calls,calls,mutations,running,fail,wrong_title,legacy_shape,info_missing,launch_code,other_app,big_override,app_error;
++static const char *test_title="PPSA00001",*override_info;
+ static const char info[]="{\"status\":0,\"title_id\":\"PPSA00001\",\"path\":\"/data/homebrew/PPSA00001\",\"source_type\":\"folder\",\"image_type\":\"\",\"version\":\"01.000.000\",\"content_id\":\"EP0000-PPSA00001_00-TEST\",\"can_uninstall\":true,\"can_manage_source\":true}";
+ int pf_shadow_available(void){return !fail;}
+-int pf_shadow_management_call(const char *route,const char *body,char *out,size_t cap){calls++;assert(strncmp(route,"/api/v1/games",13)==0);if(!strcmp(route,"/api/v1/games/info")){assert(strstr(body,"PPSA00001"));if(info_missing){snprintf(out,cap,"{\"error\":\"not found\"}");return 2;}snprintf(out,cap,"%s",legacy_shape?"{\"status\":0,\"title_id\":\"PPSA00001\",\"path\":\"/data/homebrew/PPSA00001\",\"source_type\":\"folder\",\"image_type\":\"\",\"content_id\":\"EP0000-PPSA00001_00-TEST\",\"installed\":true,\"managed\":true,\"source_available\":true}":info);return 1;}if(!strcmp(route,"/api/v1/games")){snprintf(out,cap,"{\"status\":0,\"games\":[%s]}",info);return 1;}if(!strcmp(route,"/api/v1/games/mount"))assert(!strstr(body,"mode"));mutations++;if(fail)return 0;snprintf(out,cap,"{\"status\":0,\"job_id\":\"fixture\"}");return 1;}
++int pf_shadow_management_call(const char *route,const char *body,char *out,size_t cap){calls++;assert(strncmp(route,"/api/v1/games",13)==0);if(!strcmp(route,"/api/v1/games/info")){assert(strstr(body,test_title));if(info_missing){snprintf(out,cap,"{\"error\":\"not found\"}");return 2;}if(override_info){snprintf(out,cap,"%s",override_info);return 1;}snprintf(out,cap,"%s",legacy_shape?"{\"status\":0,\"title_id\":\"PPSA00001\",\"path\":\"/data/homebrew/PPSA00001\",\"source_type\":\"folder\",\"image_type\":\"\",\"content_id\":\"EP0000-PPSA00001_00-TEST\",\"installed\":true,\"managed\":true,\"source_available\":true}":info);return 1;}if(!strcmp(route,"/api/v1/games")){snprintf(out,cap,"{\"status\":0,\"games\":[%s]}",info);return 1;}if(!strcmp(route,"/api/v1/games/mount"))assert(!strstr(body,"mode"));if(!strcmp(route,"/api/v1/games/uninstall")){assert(strstr(body,test_title));uninstall_calls++;}mutations++;if(fail)return 0;snprintf(out,cap,"{\"status\":0,\"job_id\":\"fixture\"}");return 1;}
+ int sceSystemServiceGetAppIdOfRunningBigApp(void){return big_override?big_override:other_app?43:running?42:0;}
+-int sceSystemServiceGetAppId(const char *title){assert(!strcmp(title,"PPSA00001"));return app_error?app_error:running?42:0;}
++int sceSystemServiceGetAppId(const char *title){assert(!strcmp(title,test_title));return app_error?app_error:running?42:0;}
+ int sceUserServiceInitialize(void *v){assert(!v);return 0;}
+ int sceUserServiceGetForegroundUser(uint32_t *user){*user=1;return 0;}
+ int sceSystemServiceLaunchApp(const char *title,char **args,void *context){assert(!strcmp(title,"PPSA00001")&&args&&!args[0]&&context);uint32_t *fields=context;assert(fields[0]==32&&fields[1]==1&&fields[2]==0);mutations++;if(launch_code<0)return launch_code;running=1;return launch_code;}
+ int sceLncUtilGetAppTitleId(uint32_t id,char *title){assert(id==42||id==43);strcpy(title,id==43?"PPSA99998":wrong_title?"PPSA99999":"PPSA00001");return 0;}
+ int sceSystemServiceKillApp(int id,int a,int b,int c){assert(id==42&&a==-1&&!b&&!c);mutations++;running=0;return 0;}
+ static char req[2048],out[65536],hash[65];
+-static void request(const char *id,const char *action,const char *expected){snprintf(req,sizeof(req),"POST / HTTP/1.1\r\nX-PackageFlow-Request-Id: %s\r\nX-PackageFlow-Title: PPSA00001\r\nX-PackageFlow-Action: %s\r\nX-PackageFlow-Source-Identity: %s\r\nX-PackageFlow-Confirm-Title: PPSA00001\r\n\r\n",id,action,expected);}
++static void request(const char *id,const char *action,const char *expected){snprintf(req,sizeof(req),"POST / HTTP/1.1\r\nX-PackageFlow-Request-Id: %s\r\nX-PackageFlow-Title: %s\r\nX-PackageFlow-Action: %s\r\nX-PackageFlow-Source-Identity: %s\r\nX-PackageFlow-Confirm-Title: %s\r\n\r\n",id,test_title,action,expected,test_title);}
++static void read_identity(void){
++ snprintf(req,sizeof(req),"GET / HTTP/1.1\r\nX-PackageFlow-Title: %s\r\n\r\n",test_title);
++ assert(pf_management_handle(PF_API_CONSOLE_INFO,req,out,sizeof(out))==200);
++ char *p=strstr(out,"\"sourceIdentity\":\"");assert(p);memcpy(hash,p+18,64);hash[64]=0;
++}
++static void own_orphan_uninstall(const char *dbpath){
++ sqlite3 *db=NULL;assert(sqlite3_open(dbpath,&db)==SQLITE_OK);
++ assert(sqlite3_exec(db,"INSERT INTO tbl_contentinfo VALUES('PPSA95001','IV0000-PPSA95001_00-PACKAGEFLOWUI001','{\"TITLE\":\"PackageFlow\",\"CONTENT_VERSION\":\"01.000.042\"}')",NULL,NULL,NULL)==SQLITE_OK);sqlite3_close(db);
++ const int before=mutations;test_title="PPSA95001";info_missing=1;
++ read_identity();assert(strstr(out,"\"can_uninstall\":false")&&strstr(out,"\"source_available\":false"));
++ request("a1000000000000000000000000000001","uninstall",hash);running=1;
++ assert(pf_management_handle(PF_API_CONSOLE_COMMAND,req,out,sizeof(out))==409&&mutations==before);running=0;
++ request("a1000000000000000000000000000001","uninstall","ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
++ assert(pf_management_handle(PF_API_CONSOLE_COMMAND,req,out,sizeof(out))==409&&mutations==before);
++ request("a1000000000000000000000000000001","uninstall",hash);
++ char *confirm=strstr(req,"X-PackageFlow-Confirm-Title: PPSA95001");assert(confirm);memcpy(confirm+strlen("X-PackageFlow-Confirm-Title: "),"PPSA00001",9);
++ assert(pf_management_handle(PF_API_CONSOLE_COMMAND,req,out,sizeof(out))==400&&mutations==before);
++ request("a1000000000000000000000000000001","uninstall",hash);
++ assert(pf_management_handle(PF_API_CONSOLE_COMMAND,req,out,sizeof(out))==200&&mutations==before+1&&uninstall_calls==1&&strstr(out,"\"state\":\"accepted\""));
++ int reads=calls;assert(pf_management_handle(PF_API_CONSOLE_COMMAND,req,out,sizeof(out))==200&&mutations==before+1&&calls==reads);
++ assert(pf_management_handle(PF_API_CONSOLE_COMMAND_STATUS,req,out,sizeof(out))==200&&strstr(out,"\"state\":\"accepted\""));
++ test_title="PPSA00001";read_identity();request("a1000000000000000000000000000002","uninstall",hash);
++ assert(pf_management_handle(PF_API_CONSOLE_COMMAND,req,out,sizeof(out))==409&&mutations==before+1);
++ test_title="PPSA95001";assert(sqlite3_open(dbpath,&db)==SQLITE_OK);
++ assert(sqlite3_exec(db,"UPDATE tbl_contentinfo SET contentId='IV0000-PPSA95001_00-FOREIGNCONTENT01' WHERE titleId='PPSA95001'",NULL,NULL,NULL)==SQLITE_OK);sqlite3_close(db);
++ read_identity();request("a1000000000000000000000000000003","uninstall",hash);
++ assert(pf_management_handle(PF_API_CONSOLE_COMMAND,req,out,sizeof(out))==409&&mutations==before+1);
++ info_missing=0;
++ override_info="{\"status\":0,\"title_id\":\"PPSA95001\",\"path\":\"/data/homebrew/PPSA95001.ffpkg\",\"source_type\":\"image\",\"image_type\":\"ufs2\",\"version\":\"01.000.042\",\"content_id\":\"IV0000-PPSA95001_00-PACKAGEFLOWUI001\",\"installed\":true,\"source_available\":true,\"can_uninstall\":false}";
++ read_identity();request("a1000000000000000000000000000004","uninstall",hash);
++ assert(pf_management_handle(PF_API_CONSOLE_COMMAND,req,out,sizeof(out))==409&&mutations==before+1);
++ override_info="{\"status\":0,\"title_id\":\"PPSA95001\",\"path\":\"\",\"source_type\":\"unknown\",\"image_type\":\"\",\"version\":\"01.000.042\",\"content_id\":\"IV0000-PPSA95001_00-PACKAGEFLOWUI001\",\"installed\":false,\"source_available\":false,\"can_uninstall\":false}";
++ read_identity();request("a1000000000000000000000000000005","uninstall",hash);
++ assert(pf_management_handle(PF_API_CONSOLE_COMMAND,req,out,sizeof(out))==409&&mutations==before+1);
++ test_title="PPSA00001";override_info=NULL;info_missing=0;
++ puts("Own PackageFlow orphan uninstall: exact identity allowed; foreign title/content, present source, uninstalled, active/stale/confirmation mismatch denied; receipt replay PASS");
++}
+ int main(void){char root[]="/tmp/pf-games-XXXXXX";assert(mkdtemp(root));pf_test_home=root;pf_test_state=root;pf_test_transfers=root;char dbpath[512];snprintf(dbpath,sizeof(dbpath),"%s/app.db",root);pf_test_appdb=dbpath;
+ char markerpath[512],gamepath[512],activitypath[512];snprintf(markerpath,sizeof(markerpath),"%s/management",root);pf_test_marker=markerpath;snprintf(gamepath,sizeof(gamepath),"%s/console-games-tested-v1",root);snprintf(activitypath,sizeof(activitypath),"%s/console-activity-tested-v2",root);
+ FILE *mark=fopen(markerpath,"w");assert(mark);fputs("PFMANAGEMENT1 13.60 management014 catalog saves backup\n",mark);fclose(mark);mark=fopen(gamepath,"w");assert(mark);fputs("PFGAMES1 13.60 management015 catalog launch stop delete sources\n",mark);fclose(mark);
+@@ -51,5 +89,6 @@
+ wrong_title=1;assert(pf_management_handle(PF_API_CONSOLE_ACTIVITY,req,out,sizeof(out))==503);wrong_title=0;running=0;big_override=-42;
+ assert(pf_management_handle(PF_API_CONSOLE_ACTIVITY,req,out,sizeof(out))==503);big_override=0;
+ int mount_before=mutations;request("99999999999999999999999999999998","mount",hash);assert(pf_management_handle(PF_API_CONSOLE_COMMAND,req,out,sizeof(out))==200&&strstr(out,"accepted")&&mutations==mount_before+1);assert(pf_management_handle(PF_API_CONSOLE_COMMAND,req,out,sizeof(out))==200&&mutations==mount_before+1);
++own_orphan_uninstall(dbpath);
+ fail=1;
+ char dir[512],image[512];snprintf(dir,sizeof(dir),"%s/PPSA00001",root);assert(!mkdir(dir,0700));assert(strlen(dir)+11<sizeof(image));strcpy(image,dir);strcat(image,"/icon0.png");int fd=open(image,O_WRONLY|O_CREAT|O_EXCL,0600);const unsigned char png[]={137,80,78,71,13,10,26,10,1,2,3};assert(fd>=0&&write(fd,png,sizeof(png))==(ssize_t)sizeof(png));close(fd);strcpy(req,"GET / HTTP/1.1\r\nX-PackageFlow-Title: PPSA00001\r\n\r\n");size_t bytes;assert(pf_management_icon(req,out,sizeof(out),&bytes)==200&&bytes==sizeof(png)&&!memcmp(out,png,sizeof(png)));assert(pf_management_icon(req,out,8,&bytes)==422&&bytes==0);assert(!unlink(image));assert(!symlink("/etc/passwd",image));assert(pf_management_icon(req,out,sizeof(out),&bytes)==404&&bytes==0);unlink(image);rmdir(dir);DIR *d=opendir(root);assert(d);struct dirent *e;while((e=readdir(d)))if(e->d_name[0]!='.'){char path[512];snprintf(path,sizeof(path),"%s/%s",root,e->d_name);assert(!unlink(path));}closedir(d);assert(!rmdir(root));puts("Console games: JSON catalog, pinned backend, source identity, active-game guard, stop title binding and no mutation replay PASS");}
+--- a/include/packageflow/version.h
++++ b/include/packageflow/version.h
+@@ -2,11 +2,11 @@
+ #define PACKAGEFLOW_VERSION_H
+ #define PF_VERSION "0.1.3-dev"
+ #ifdef PF_SERVICE_BUILD
+-#define PF_REPORT_VERSION "0.1.27-dev"
++#define PF_REPORT_VERSION "0.1.28-dev"
+ #ifdef PF_BLAKE3_SSE2
+-#define PF_REPORT_BUILD "ps5-service-registration-handoff-027-sse2"
++#define PF_REPORT_BUILD "ps5-service-own-app-update-028-sse2"
+ #else
+-#define PF_REPORT_BUILD "ps5-service-registration-handoff-027-portable"
++#define PF_REPORT_BUILD "ps5-service-own-app-update-028-portable"
+ #endif
+ #else
+ #define PF_REPORT_VERSION PF_VERSION

@@ -1,0 +1,487 @@
+{
+  "date": "2026-10-14",
+  "scope": "PS4 installation via PyLoader and PackageFlowService only",
+  "ps5_installation_changed": false,
+  "published_web": false,
+  "changes": [
+    "PyLoader preview and dispatch no longer require service inventory, firmware or storage APIs",
+    "PS4 settings glass card: verifyPkgBeforeSend defaults to false; PARAM/SDK checks remain optional",
+    "Tiny PKG <=64KiB requires byte coverage from zero: a tail probe alone is incomplete",
+    "PyLoader manifest/HEAD-only idle observation becomes unconfirmed after 30s; active streams are preserved",
+    "Explicit package rejection 400/422 and missing never-dispatched ordinary sources release the next queued item",
+    "Lost accepted service replies and missing GET receipts keep the same request ID and never replay POST",
+    "Current PS4 queue index is saved before asynchronous preflight; early sender failures correctly become failed instead of ghost sending tasks"
+  ],
+  "regression_tests": {
+    "queue_scenarios": 46,
+    "queue_passed": 46,
+    "details": [
+      {
+        "scenario": "payload-early-failure",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PyLoader: очередь установки, пакетов 1\nPASS: payload-early-failure\n[PackageFlow] Очередь установки остановлена: Не удалось передать очередь установщику Error: PyLoader offline before command send\n    at startInstaller (file:///home/developer/projects/web/playstation_installer/server/utils/ps4-installer.ts:2:133)\n    at runQueue (file:///home/developer/projects/web/playstation_installer/server/utils/installation-queue.ts:566:15)\n    at file:///home/developer/projects/web/playstation_installer/server/utils/installation-queue.ts:654:52\n"
+      },
+      {
+        "scenario": "payload-small-chain",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PyLoader: очередь установки, пакетов 3\n[PackageFlow] «Small package 0» (Игра): PS4 скачала пакет полностью; установка идёт на приставке\n[PackageFlow] «Small package 1» (Игра): PS4 скачала пакет полностью; установка идёт на приставке\n[PackageFlow] «Small package 2» (Игра): PS4 скачала пакет полностью; установка идёт на приставке\n[PackageFlow] Все пакеты переданы PlayStation по очереди: игра → патчи/бэкпорты → DLC. Финальный результат проверьте на PS4.\nPASS: payload-small-chain\n"
+      },
+      {
+        "scenario": "payload-manifest-timeout",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PyLoader: очередь установки, пакетов 3\n[PackageFlow] «Small package 1» (Игра): PS4 скачала пакет полностью; установка идёт на приставке\n[PackageFlow] «Small package 2» (Игра): PS4 скачала пакет полностью; установка идёт на приставке\nPASS: payload-manifest-timeout\n[PackageFlow] Очередь отправлена; для 1 пак. скачивание не подтверждено. Проверьте загрузки PS4.\n"
+      },
+      {
+        "scenario": "service-small-chain",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 3\n[PackageFlow] PackageFlowService подтвердил установку «Small package 0» (задание PS4 43)\n[PackageFlow] PackageFlowService подтвердил установку «Small package 2» (задание PS4 43)\nPASS: service-small-chain\n[PackageFlow] PackageFlowService не установил «Small package 1»: Ошибка установки на PS4: 0x80990077. Очередь продолжена.\n[PackageFlow] Очередь завершена: PS4 подтвердила 2 пак., с ошибкой — 1, отменено — 0, без подтверждения — 0, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "service-rejected-chain",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 3\n[PackageFlow] PackageFlowService подтвердил установку «Small package 1» (задание PS4 43)\n[PackageFlow] PackageFlowService подтвердил установку «Small package 2» (задание PS4 43)\nPASS: service-rejected-chain\n[PackageFlow] PackageFlowService отклонил «Small package 0»: Сервис 1.17 принимает только базовую игру, без патча или DLC. Очередь продолжена.\n[PackageFlow] Очередь завершена: PS4 подтвердила 2 пак., с ошибкой — 1, отменено — 0, без подтверждения — 0, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "service-lost-receipt",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 3\n[PackageFlow] PackageFlowService подтвердил установку «Small package 0» (задание PS4 43)\n[PackageFlow] PackageFlowService подтвердил установку «Small package 1» (задание PS4 43)\n[PackageFlow] PackageFlowService подтвердил установку «Small package 2» (задание PS4 43)\n[PackageFlow] PS4 подтвердила установку всех пакетов очереди.\nPASS: service-lost-receipt\n"
+      },
+      {
+        "scenario": "missing-source-chain",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 3\n[PackageFlow] PackageFlowService подтвердил установку «Small package 0» (задание PS4 43)\n[PackageFlow] PackageFlowService подтвердил установку «Small package 2» (задание PS4 43)\nPASS: missing-source-chain\n[PackageFlow] Очередь завершена: PS4 подтвердила 2 пак., с ошибкой — 1, отменено — 0, без подтверждения — 0, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "service-speed",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\n[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\n[PackageFlow] PS4 подтвердила установку всех пакетов очереди.\nPASS: service-speed\n"
+      },
+      {
+        "scenario": "payload-speed",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PyLoader: очередь установки, пакетов 1\n[PackageFlow] Очередь установки отменена пользователем\nPASS: payload-speed\n"
+      },
+      {
+        "scenario": "task-clear",
+        "exit": 0,
+        "pass": true,
+        "output": "PASS: task-clear\n"
+      },
+      {
+        "scenario": "task-remove-pending",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] Очередь установки отменена пользователем\nPASS: task-remove-pending\n"
+      },
+      {
+        "scenario": "task-cancel-payload-race",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PyLoader: очередь установки, пакетов 2\n[PackageFlow] Очередь установки отменена пользователем\nPASS: task-cancel-payload-race\n"
+      },
+      {
+        "scenario": "task-history",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PyLoader: очередь установки, пакетов 1\n[PackageFlow] Очередь установки отменена пользователем\nPASS: task-history\n"
+      },
+      {
+        "scenario": "task-cancel-service",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService подтвердил установку «Next package» (задание PS4 43)\nPASS: task-cancel-service\n[PackageFlow] Очередь завершена: PS4 подтвердила 1 пак., с ошибкой — 0, отменено — 1, без подтверждения — 0, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "removed-job",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService подтвердил установку «Second Game» (задание PS4 43)\nPASS: removed-job\n[PackageFlow] PackageFlowService не установил «Test Game»: Системное задание удалено на PS4; установка не подтверждена. Очередь продолжена.\n[PackageFlow] Очередь завершена: PS4 подтвердила 1 пак., с ошибкой — 0, отменено — 0, без подтверждения — 1, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "preference",
+        "exit": 0,
+        "pass": true,
+        "output": "PASS: preference\n"
+      },
+      {
+        "scenario": "payload",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PyLoader: очередь установки, пакетов 1\n[PackageFlow] Очередь установки отменена пользователем\n[PackageFlow] PyLoader: очередь установки, пакетов 1\n[PackageFlow] Очередь установки отменена пользователем\nPASS: payload\n"
+      },
+      {
+        "scenario": "payload-firmware",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PyLoader: очередь установки, пакетов 2\n[PackageFlow] Очередь установки отменена пользователем\nPASS: payload-firmware\n"
+      },
+      {
+        "scenario": "payload-firmware-unavailable",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PyLoader: очередь установки, пакетов 2\n[PackageFlow] Очередь установки отменена пользователем\nPASS: payload-firmware-unavailable\n"
+      },
+      {
+        "scenario": "append",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] К текущей очереди добавлено пакетов: 1\n[PackageFlow] Очередь установки отменена пользователем\nPASS: append\n"
+      },
+      {
+        "scenario": "space",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\nPASS: space\n[PackageFlow] «Test Game»: Недостаточно места на PS4: доступно 0.0 ГиБ, для PKG нужно около 8.5 ГиБ с резервом.\n"
+      },
+      {
+        "scenario": "busy-wait",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\n[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\n[PackageFlow] PS4 подтвердила установку всех пакетов очереди.\nPASS: busy-wait\n"
+      },
+      {
+        "scenario": "busy-restart",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\n[PackageFlow] PS4 подтвердила установку всех пакетов очереди.\nPASS: busy-restart\n"
+      },
+      {
+        "scenario": "resume-tail",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\n[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\n[PackageFlow] PS4 подтвердила установку всех пакетов очереди.\nPASS: resume-tail\n"
+      },
+      {
+        "scenario": "firmware",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 2\n[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\nPASS: firmware\n[PackageFlow] «Too New»: Пропущен: SYSTEM_VER 13.00 и SDK 13.00 выше прошивки PS4 12.50\n[PackageFlow] Очередь завершена: PS4 подтвердила 1 пак., с ошибкой — 0, отменено — 0, без подтверждения — 0, пропущено — 1. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "firmware-unverified",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\nPASS: firmware-unverified\n[PackageFlow] «Test Game»: Пропущен: в PARAM нет читаемых требований прошивки и SDK; совместимость с PS4 не подтверждена\n[PackageFlow] Очередь завершена: PS4 подтвердила 0 пак., с ошибкой — 0, отменено — 0, без подтверждения — 0, пропущено — 1. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "legacy",
+        "exit": 0,
+        "pass": true,
+        "output": "PASS: legacy\n[PackageFlow] PS4 не запросила «Test Game» за 20 с — результат не подтверждён\n[PackageFlow] Очередь отправлена; для 1 пак. скачивание не подтверждено. Проверьте загрузки PS4.\n"
+      },
+      {
+        "scenario": "service",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\n[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\n[PackageFlow] PS4 подтвердила установку всех пакетов очереди.\nPASS: service\n"
+      },
+      {
+        "scenario": "icon",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\n[PackageFlow] PS4 подтвердила установку всех пакетов очереди.\nPASS: icon\n"
+      },
+      {
+        "scenario": "interruption",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\n[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\n[PackageFlow] PS4 подтвердила установку всех пакетов очереди.\nPASS: interruption\n"
+      },
+      {
+        "scenario": "restart",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\n[PackageFlow] PS4 подтвердила установку всех пакетов очереди.\nPASS: restart\n"
+      },
+      {
+        "scenario": "terminal-failure",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService подтвердил установку «Next Package» (задание PS4 43)\nPASS: terminal-failure\n[PackageFlow] PackageFlowService не установил «Test Game»: Ошибка установки на PS4: 0x80990077. Очередь продолжена.\n[PackageFlow] Очередь завершена: PS4 подтвердила 1 пак., с ошибкой — 1, отменено — 0, без подтверждения — 0, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "silent-stall",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService подтвердил установку «Next Package» (задание PS4 43)\nPASS: silent-stall\n[PackageFlow] Очередь завершена: PS4 подтвердила 1 пак., с ошибкой — 0, отменено — 0, без подтверждения — 1, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "already-installed",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 2\n[PackageFlow] PackageFlowService подтвердил установку «Next Package» (задание PS4 43)\nPASS: already-installed\n[PackageFlow] PackageFlowService пропустил «Test Game»: Компонент уже установлен на PS4. Очередь продолжена.\n[PackageFlow] Очередь завершена: PS4 подтвердила 1 пак., с ошибкой — 0, отменено — 0, без подтверждения — 0, пропущено — 1. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "inventory-installed",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 2\n[PackageFlow] PackageFlowService подтвердил установку «New DLC» (задание PS4 43)\nPASS: inventory-installed\n[PackageFlow] Очередь завершена: PS4 подтвердила 1 пак., с ошибкой — 0, отменено — 0, без подтверждения — 0, пропущено — 1. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "busy-rejection",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 2\n[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\n[PackageFlow] PackageFlowService подтвердил установку «Next Package» (задание PS4 43)\n[PackageFlow] PS4 подтвердила установку всех пакетов очереди.\nPASS: busy-rejection\n"
+      },
+      {
+        "scenario": "cancel",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\nPASS: cancel\n"
+      },
+      {
+        "scenario": "cancel-removed",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\nPASS: cancel-removed\n"
+      },
+      {
+        "scenario": "cancel-stuck",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\nPASS: cancel-stuck\n[PackageFlow] Ожидание отмены очереди 5e9439e0-bdde-4195-82d5-4aec6275a607 снято вручную; результат установки не подтверждён\n"
+      },
+      {
+        "scenario": "cancel-one",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService подтвердил установку «Next package» (задание PS4 43)\nPASS: cancel-one\n[PackageFlow] Очередь завершена: PS4 подтвердила 1 пак., с ошибкой — 0, отменено — 1, без подтверждения — 0, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "cancel-one-before-dispatch",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 2\n[PackageFlow] PackageFlowService подтвердил установку «Next package» (задание PS4 43)\nPASS: cancel-one-before-dispatch\n[PackageFlow] Очередь завершена: PS4 подтвердила 1 пак., с ошибкой — 0, отменено — 1, без подтверждения — 0, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "cancel-game",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\nPASS: cancel-game\n[PackageFlow] Очередь завершена: PS4 подтвердила 2 пак., с ошибкой — 0, отменено — 2, без подтверждения — 0, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "cancel-selected",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\nPASS: cancel-selected\n[PackageFlow] Очередь завершена: PS4 подтвердила 2 пак., с ошибкой — 0, отменено — 2, без подтверждения — 0, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "cancel-branches",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService подтвердил установку «Test Game» (задание PS4 43)\nPASS: cancel-branches\n[PackageFlow] Очередь завершена: PS4 подтвердила 2 пак., с ошибкой — 0, отменено — 2, без подтверждения — 0, пропущено — 0. Причины указаны у пакетов.\n"
+      },
+      {
+        "scenario": "mini-app",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\n[PackageFlow] PackageFlowService подтвердил установку «GameBaTo» (задание PS4 43)\n[PackageFlow] PS4 подтвердила установку всех пакетов очереди.\nPASS: mini-app\n"
+      },
+      {
+        "scenario": "mini-app-old-service",
+        "exit": 0,
+        "pass": true,
+        "output": "[PackageFlow] PackageFlowService: очередь установки, пакетов 1\nPASS: mini-app-old-service\n"
+      }
+    ],
+    "bootstrap_scenarios": 8,
+    "bootstrap_passed": 8,
+    "ui_settings_preview_review": "passed",
+    "tcp_payload_and_http_range": "passed",
+    "transport_space_firmware_ps5_boundary": "passed",
+    "localization": "passed",
+    "web_build": "passed"
+  },
+  "tiny_file_before_after": [
+    {
+      "code": "before",
+      "fileBytes": 32768,
+      "probeBytes": 16,
+      "wronglyCompleted": true
+    },
+    {
+      "code": "after",
+      "fileBytes": 32768,
+      "probeBytes": 16,
+      "wronglyCompleted": false
+    }
+  ],
+  "hardware": {
+    "console": "192.168.0.89",
+    "transport": "payload",
+    "service_12801_available": false,
+    "isolated_from_main_queue": true,
+    "result": {
+      "status": "completed",
+      "message": "Все пакеты скачаны PS4; итог установки проверьте на приставке",
+      "elapsedSeconds": 5,
+      "queueId": "3617e7fd-8bbd-4a85-9022-af1495dadead",
+      "items": [
+        {
+          "id": "b558daf702f546dfaeb9af65e51f6244",
+          "title": "Little Nightmares III - Dark Six Costumes Set",
+          "state": "delivered",
+          "detail": "PS4 скачала пакет полностью; итог установки проверьте на приставке",
+          "bytesSent": 1048576,
+          "dispatchedAt": 1792010853563
+        },
+        {
+          "id": "458b26a5a4f2327dedf9206369eb00a7",
+          "title": "Little Nightmares III - Ferryman Costumes Set",
+          "state": "delivered",
+          "detail": "PS4 скачала пакет полностью; итог установки проверьте на приставке",
+          "bytesSent": 1048576,
+          "dispatchedAt": 1792010855090
+        },
+        {
+          "id": "6c3a5b36dfe5017432aaf3f92621bb5c",
+          "title": "Little Nightmares III - Klonoa Costumes Set",
+          "state": "delivered",
+          "detail": "PS4 скачала пакет полностью; итог установки проверьте на приставке",
+          "bytesSent": 1048576,
+          "dispatchedAt": 1792010856617
+        }
+      ]
+    },
+    "progress": {
+      "elapsedSeconds": 5,
+      "status": "completed",
+      "items": [
+        {
+          "id": "b558daf702f546dfaeb9af65e51f6244",
+          "title": "Little Nightmares III - Dark Six Costumes Set",
+          "state": "delivered",
+          "detail": "PS4 скачала пакет полностью; итог установки проверьте на приставке",
+          "bytesSent": 1048576,
+          "dispatchedAt": 1792010853563,
+          "delivery": {
+            "requests": 5,
+            "bytesSent": 1048576,
+            "ranges": [
+              {
+                "start": 0,
+                "end": 1048575
+              }
+            ],
+            "startup": {
+              "capturedFromStart": true,
+              "manifestRequestedAt": 1792010853574,
+              "manifestPreparedMs": 0.3487999999999829,
+              "dataRequestedAt": 1792010853585,
+              "firstBlockReadAt": 1792010853589,
+              "firstBlockReadMs": 3.920099999999991
+            },
+            "startedAt": 1792010853575,
+            "lastActivityAt": 1792010854193,
+            "completedAt": 1792010853788,
+            "size": 1048576,
+            "requiredSize": 1048576
+          }
+        },
+        {
+          "id": "458b26a5a4f2327dedf9206369eb00a7",
+          "title": "Little Nightmares III - Ferryman Costumes Set",
+          "state": "delivered",
+          "detail": "PS4 скачала пакет полностью; итог установки проверьте на приставке",
+          "bytesSent": 1048576,
+          "dispatchedAt": 1792010855090,
+          "delivery": {
+            "requests": 5,
+            "bytesSent": 1048576,
+            "ranges": [
+              {
+                "start": 0,
+                "end": 1048575
+              }
+            ],
+            "startup": {
+              "capturedFromStart": true,
+              "manifestRequestedAt": 1792010855097,
+              "manifestPreparedMs": 0.3894000000000233,
+              "dataRequestedAt": 1792010855101,
+              "firstBlockReadAt": 1792010855122,
+              "firstBlockReadMs": 20.582599999999957
+            },
+            "startedAt": 1792010855097,
+            "lastActivityAt": 1792010855711,
+            "completedAt": 1792010855318,
+            "size": 1048576,
+            "requiredSize": 1048576
+          }
+        },
+        {
+          "id": "6c3a5b36dfe5017432aaf3f92621bb5c",
+          "title": "Little Nightmares III - Klonoa Costumes Set",
+          "state": "delivered",
+          "detail": "PS4 скачала пакет полностью; итог установки проверьте на приставке",
+          "bytesSent": 1048576,
+          "dispatchedAt": 1792010856617,
+          "delivery": {
+            "requests": 5,
+            "bytesSent": 1048576,
+            "ranges": [
+              {
+                "start": 0,
+                "end": 1048575
+              }
+            ],
+            "startup": {
+              "capturedFromStart": true,
+              "manifestRequestedAt": 1792010856623,
+              "manifestPreparedMs": 0.4796000000001186,
+              "dataRequestedAt": 1792010856629,
+              "firstBlockReadAt": 1792010856640,
+              "firstBlockReadMs": 10.769700000000284
+            },
+            "startedAt": 1792010856624,
+            "lastActivityAt": 1792010857241,
+            "completedAt": 1792010856834,
+            "size": 1048576,
+            "requiredSize": 1048576
+          }
+        }
+      ]
+    },
+    "installation_confirmation": "User cannot inspect console notifications now; confirms later. Only complete HTTP delivery and queue completion are proven.",
+    "temporary_task_removed": true,
+    "diagnostic_port_3004_closed": true
+  },
+  "windows_candidate": {
+    "version": "1.10.17",
+    "path": "dist/windows/PackageFlowSetup-1.10.17-x64.exe",
+    "sha256": "fb78e21566deeb981bb0c9b32215551547df4e8bb2e49eeb453a70664b8d1cae",
+    "audit": "PASS: Windows 1.10.17, 1566 files / 214396463 bytes; no offline Runtime, bootstrapper binary, Docker or Compose; PS4 2.14 / PS5 0.1.27-dev / app044 exact hashes.",
+    "installed_by_this_turn": false,
+    "size_bytes": 105759549,
+    "build": "Nuxt WEB, Windows core tests, assemblies and pinned console bundles passed; NSIS build completed",
+    "compiled_last_fix_verified": true,
+    "other_chat_changes_included": {
+      "source_report": "windows-menu-refresh-20261014/build.json",
+      "packaged_desktop_files_verified": 26,
+      "hash_mismatches": 0,
+      "public_assets_match_source": true,
+      "features": [
+        "SVG menu icons",
+        "Discord and enlarged GitHub/4PDA",
+        "Library folder field removed; saved path retained",
+        "Service/application/firmware/ELF/PID/HEN/storage details",
+        "Installed app version read via explicit Check"
+      ],
+      "versioned_checksum_updated": true
+    }
+  },
+  "git_comparison": {
+    "old_payload_without_mandatory_service_preflight": "d344dfc",
+    "queue_before_this_task_matches_git_commit": "75e765a",
+    "ps5_installation_changes": "none"
+  }
+}

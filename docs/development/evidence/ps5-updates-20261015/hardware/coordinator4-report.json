@@ -1,0 +1,41 @@
+{
+  "results": [
+    {
+      "Id": "08b2652d-a6c8-4eae-be72-610e8594c520",
+      "Name": "PS5",
+      "Complete": true,
+      "Message": "\u041A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u044B PackageFlow \u0430\u043A\u0442\u0443\u0430\u043B\u044C\u043D\u044B"
+    }
+  ],
+  "calls": [
+    {
+      "path": "/api/consoles",
+      "method": "GET",
+      "at": "2026-10-15T08:46:02.9258056+00:00"
+    },
+    {
+      "path": "/api/desktop/console-setup?consoleId=08b2652d-a6c8-4eae-be72-610e8594c520",
+      "method": "GET",
+      "at": "2026-10-15T08:46:02.9935566+00:00"
+    },
+    {
+      "path": "/api/consoles/probe",
+      "method": "POST",
+      "at": "2026-10-15T08:46:03.0830006+00:00"
+    },
+    {
+      "path": "/api/consoles/service-update?consoleId=08b2652d-a6c8-4eae-be72-610e8594c520",
+      "method": "GET",
+      "at": "2026-10-15T08:46:03.1430441+00:00"
+    },
+    {
+      "path": "/api/desktop/console-setup",
+      "method": "POST",
+      "at": "2026-10-15T08:46:03.1579549+00:00"
+    }
+  ],
+  "progress": [
+    "PS5: \u041F\u0440\u043E\u0432\u0435\u0440\u044F\u0435\u043C \u043A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u044B\u2026",
+    "PS5: \u041A\u043E\u043C\u043F\u043E\u043D\u0435\u043D\u0442\u044B PackageFlow \u0430\u043A\u0442\u0443\u0430\u043B\u044C\u043D\u044B"
+  ]
+}

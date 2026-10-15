@@ -1,0 +1,38 @@
+[
+  {
+    "menuOpen": "false",
+    "page": "Поиск",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "menuOpen": "false",
+    "page": "Журнал",
+    "scroll": 390,
+    "width": 390
+  },
+  {
+    "menuOpen": "false",
+    "page": "Сохранения",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "menuOpen": "false",
+    "page": "На консоли",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "menuOpen": "false",
+    "page": "Задания",
+    "scroll": 375,
+    "width": 390
+  },
+  {
+    "menuOpen": "false",
+    "page": "Загрузки",
+    "scroll": 375,
+    "width": 390
+  }
+]

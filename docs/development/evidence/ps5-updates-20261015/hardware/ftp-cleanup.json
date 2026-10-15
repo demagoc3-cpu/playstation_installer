@@ -1,0 +1,19 @@
+﻿{
+    "pid":  109,
+    "processes":  [
+                      {
+                          "pid":  111,
+                          "name":  "PackageFlow.elf"
+                      },
+                      {
+                          "pid":  86,
+                          "name":  "shadowmountplus.elf"
+                      },
+                      {
+                          "pid":  85,
+                          "name":  "kstuff.elf"
+                      }
+                  ],
+    "at":  "2026-10-15T08:51:24.1718774Z",
+    "state":  "stopped"
+}

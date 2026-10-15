@@ -1,0 +1,10 @@
+﻿{
+    "Version":  "1.10.14.0",
+    "Busy":  false,
+    "DataHashes":  {
+                       "ps5-service-keys.json":  "31740b7f79cb50c3c566d7d6a849674466ad5e9edcb3eeef170532fd85c3b824",
+                       "console-profiles.json":  "65db867a7905d3eb6cc673cacab7f90e27c27d36e4d303f2bb1249ae9a19a43d",
+                       "storage-sources.json":  "c60289e8cf2b2f801412c3fafae9e0e92b02bea5fbc657134d9eab2a3a5fdf47",
+                       "package-library.json":  "06791090481fb307d30a480cac2afc2830c03aa1568bb6fad119d407622d7488"
+                   }
+}

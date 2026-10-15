@@ -1,0 +1,8 @@
+RUNNING: Windows dependency signature + Native migration fixtures; installed Runtime is never removed
+PASS: real SDK finds installed Runtime; zero dependency downloads and zero installer dispatches
+PASS: actual HTTPS Microsoft bootstrapper SHA256 + Authenticode Valid/Microsoft verified; unsigned junk rejected; Microsoft installer never executed
+
+FAIL: System.Exception: Expected guarded operation to fail
+   at WindowsDependencyTests.Reject(Func`1 action)
+   at WindowsDependencyTests.Run(String report)
+   at Smoke.Main(String[] args)

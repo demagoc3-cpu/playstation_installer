@@ -1,0 +1,6 @@
+{
+  "tool": "built-in image_gen",
+  "asset": "public/backgrounds/astro-night-v1.png",
+  "prompt": "Wide 16:9 cinematic illustration for a dark blue glass website: Astro Bot waving in the upper right, a blue moon and floating islands; quiet dark navy space on the left and bottom for readable interface text. Cobalt/cyan light with violet accents. No text, logos, watermark or drawn UI.",
+  "preview": "implemented/astro-background-desktop.jpg"
+}

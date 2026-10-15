@@ -1,0 +1,92 @@
+{
+  "windowsVersion": "1.10.21",
+  "installer": {
+    "path": "/home/developer/projects/web/playstation_installer/dist/windows/PackageFlowSetup-1.10.21-x64.exe",
+    "size": 105770350,
+    "sha256": "d4f7548eded9099ef062bac5274e3e6ef81675a6eed5553d3dba250f105d093c"
+  },
+  "applicationExe": {
+    "path": "/home/developer/projects/web/playstation_installer/dist/windows/payload/PackageFlow.exe",
+    "size": 74324389,
+    "sha256": "ab8570e7f36ad5480055672f87fcf9c3afb18189a970016f0722dd24e8ab5049"
+  },
+  "frontendModules": [
+    {
+      "path": "/home/developer/projects/web/playstation_installer/dist/windows/payload/server/.output/public/_nuxt/II2zQh8k.js",
+      "size": 712904,
+      "sha256": "5acbe47666b9634cc32f6f5ed8dfbaf1ff7e8a5c70fb3ca53c1e630e57c9e059",
+      "url": "/_nuxt/II2zQh8k.js"
+    }
+  ],
+  "previousInstallerPreserved": {
+    "path": "/home/developer/projects/web/playstation_installer/dist/windows/PackageFlowSetup-1.10.20-x64.exe",
+    "size": 105771364,
+    "sha256": "da96edd5f0894bcf73968d0ea38a4d45134cf222be5b10f55c78a57ef88e9845"
+  },
+  "consoleBundle": {
+    "schemaVersion": 1,
+    "elf": {
+      "fileName": "PackageFlowService-PS5.elf",
+      "size": 4094576,
+      "sha256": "2e478b29ac7f62c21207155fcf6acdbb0a6531a29f05397f7ec9575a665559fe",
+      "version": "0.1.28-dev",
+      "buildId": "ps5-service-own-app-update-028b-sse2",
+      "firmware": "13.60"
+    },
+    "app": {
+      "fileName": "PPSA95001-01.000.044.ffpkg",
+      "size": 22020096,
+      "sha256": "7ecf378d3c49c30dfdbf6a692432cf2e276fd340ce98d6bf6b31c15e046b3612",
+      "name": "PackageFlow",
+      "titleId": "PPSA95001",
+      "contentId": "IV0000-PPSA95001_00-PACKAGEFLOWUI001",
+      "version": "01.000.044",
+      "format": "ufs2",
+      "buildId": "6c32b25"
+    },
+    "ps4": {
+      "fileName": "PackageFlowService-2.14.pkg",
+      "size": 6619136,
+      "sha256": "83995a02c90e8dc6fb775243f911573dc3e2b0acd390e0f3d2d591c1dc554abf",
+      "name": "PackageFlow",
+      "titleId": "PFLS00001",
+      "version": "2.14"
+    }
+  },
+  "tests": [
+    {
+      "suite": "device-install-modal",
+      "tests": 1,
+      "passed": true
+    },
+    {
+      "suite": "glass-workspaces",
+      "tests": 2,
+      "passed": true
+    },
+    {
+      "suite": "library-selection",
+      "tests": 3,
+      "passed": true
+    }
+  ],
+  "checks": {
+    "webBuild": true,
+    "desktopBuild": true,
+    "coreTests": true,
+    "windowsAssemblyVersion": "1.10.21.0",
+    "nodeChecksum": true,
+    "payloadHashes": true,
+    "finalNsisExitCode": 0
+  },
+  "packagingTemporaryStorage": "Build-only tmpfile adapter redirects NSIS temporary mmap backing files to workspace SSD; no runtime files changed.",
+  "initial21InstallerPreserved": {
+    "path": "/home/developer/projects/web/playstation_installer/dist/windows/PackageFlowSetup-1.10.21-initial-595f26e3-x64.exe",
+    "size": 105772400,
+    "sha256": "595f26e33ddb55b4cb01070c63a65d64e56ba5e897fcfcdc1d8eea8f1a230422"
+  },
+  "finalWebReseal": true,
+  "nativeExecutableAndConsoleBundleUnchanged": true,
+  "finalWebBuildLog": "/home/developer/projects/web/playstation_installer/docs/development/evidence/library-selection-20261015/reseal-021-final.log",
+  "finalNsisLog": "/home/developer/projects/web/playstation_installer/docs/development/evidence/library-selection-20261015/nsis-021-final.log"
+}

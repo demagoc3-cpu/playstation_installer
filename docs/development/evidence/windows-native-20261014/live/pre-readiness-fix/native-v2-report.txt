@@ -1,0 +1,5 @@
+RUNNING: Windows dependency signature + Native migration fixtures; installed Runtime is never removed
+PASS: real SDK finds installed Runtime; zero dependency downloads and zero installer dispatches
+PASS: actual HTTPS Microsoft bootstrapper SHA256 + Authenticode Valid/Microsoft verified; unsigned junk rejected; Microsoft installer never executed
+PASS: old profile cannot start/adopt/stop an external server; occupied-port prepare-update refuses without network/process commands; selected data copied separately, pairs/DPAPI/library/torrent choice preserved
+NOTE: missing Runtime installation branches use Core resolver/transport/process integration fixtures. No clean Windows VM was available; no real missing-Runtime installation is claimed.

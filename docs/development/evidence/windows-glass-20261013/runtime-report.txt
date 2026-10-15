@@ -1,0 +1,1 @@
+PASS: packaged Windows Node + WEB starts with isolated data, new PS4/PS5 catalog, launcher authorization and orderly shutdown.

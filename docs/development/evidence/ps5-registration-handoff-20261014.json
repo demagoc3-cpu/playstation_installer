@@ -1,0 +1,99 @@
+{
+  "date": "2026-10-14",
+  "firmware": "13.60",
+  "backend": "ShadowMountPlus-1.7-beta5fix1",
+  "rootBuild": "ps5-service-registration-handoff-027-sse2",
+  "rootSha256": "920e5580b6ad765f8526196947eec7ae5c3f803c239884361d72b7ee6e4ee37a",
+  "hostTests": "PASS",
+  "sdkBuild": "PASS",
+  "webTests": 40,
+  "formats": [
+    {
+      "format": "folder",
+      "titleId": "PPSA95071",
+      "bytes": 3808340,
+      "registered": true,
+      "confirmation": "service-registration",
+      "version": "01.000.042",
+      "sourceType": "folder",
+      "publicationPosts": 1
+    },
+    {
+      "format": "ufs2",
+      "titleId": "PPSA95072",
+      "bytes": 6094848,
+      "registered": true,
+      "confirmation": "service-registration",
+      "version": "01.000.042",
+      "sourceType": "image",
+      "publicationPosts": 1
+    },
+    {
+      "format": "exfat",
+      "titleId": "PPSA95073",
+      "bytes": 4521984,
+      "registered": true,
+      "confirmation": "service-registration",
+      "version": "01.000.042",
+      "sourceType": "image",
+      "publicationPosts": 1
+    },
+    {
+      "format": "pfs",
+      "titleId": "PPSA95074",
+      "bytes": 4521984,
+      "registered": true,
+      "confirmation": "service-registration",
+      "version": "01.000.042",
+      "sourceType": "image",
+      "publicationPosts": 1
+    },
+    {
+      "format": "ffpfsc",
+      "titleId": "PPSA95075",
+      "bytes": 1376256,
+      "registered": true,
+      "confirmation": "service-registration",
+      "version": "01.000.042",
+      "sourceType": "image",
+      "publicationPosts": 1
+    }
+  ],
+  "busyTest": {
+    "activeTitle": "PPSA95071",
+    "newTitle": "PPSA95076",
+    "blockedExplained": true,
+    "installedAfterAppClosed": true
+  },
+  "ownFixturesDeleted": true,
+  "gameplayAndFps": "Not measured",
+  "installer": {
+    "version": "1.10.16",
+    "sha256": "e0ba0c1e290cb3562ffb44a0111fece5c01fea0aae5a4fa83170e38ed5a21571",
+    "bytes": 105759429
+  },
+  "windowsInstalled": {
+    "version": "1.10.16.0",
+    "registryVersion": "1.10.16",
+    "installerExitCode": 0,
+    "allSettingsPreserved": true,
+    "allDataHashesPreserved": true,
+    "desktopFilesVerified": 26,
+    "rootBundleSha256": "920e5580b6ad765f8526196947eec7ae5c3f803c239884361d72b7ee6e4ee37a",
+    "temporaryInstallerTaskRemoved": true
+  },
+  "ownRegistrationsRemoved": true,
+  "ownManualPathsRemoved": true,
+  "rootImplementationCommit": "b59d5ce",
+  "rootDocumentationCommit": "26b46cf",
+  "ownRawImageTransfersRemoved": 4,
+  "temporaryFtpStopped": true,
+  "finalRootPid": 103,
+  "RE2Preserved": {
+    "titleId": "PPSA04288",
+    "version": "01.000.003",
+    "contentId": "UP0102-PPSA04288_00-BH2R000000000001",
+    "installed": true,
+    "sourceAvailable": true
+  }
+}

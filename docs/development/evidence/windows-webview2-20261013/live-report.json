@@ -1,0 +1,55 @@
+﻿{
+    "Version":  "1.10.14.0",
+    "PackageFlowPid":  9172,
+    "Session":  1,
+    "CloseRequest":  true,
+    "CloseMessage":  "WM_SYSCOMMAND/SC_CLOSE (user close)",
+    "CloseHidesToTray":  true,
+    "ReopenExitCode":  0,
+    "WindowRestored":  true,
+    "NodePidsPreserved":  true,
+    "NodePids":  [
+                     5368
+                 ],
+    "SettingsAfterStartupPreserved":  {
+                                          "AutoStart":  true,
+                                          "ProtectedTrackerPassword":  true,
+                                          "ProtectedProwlarrKey":  true,
+                                          "GamesDirectory":  true,
+                                          "ProtectedQbittorrentPassword":  true,
+                                          "PayloadPort":  true,
+                                          "HostIp":  true,
+                                          "ProtectedLauncherKey":  true,
+                                          "WizardComplete":  true,
+                                          "Mode":  true,
+                                          "Language":  true,
+                                          "Port":  true,
+                                          "TorrentSetupSelected":  true
+                                      },
+    "ApiApplication":  "PackageFlow",
+    "Busy":  false,
+    "TorrentSetupSelected":  false,
+    "AutomaticSetupPending":  false,
+    "CapturedPages":  [
+                          {
+                              "Name":  "consoles.png",
+                              "Length":  674987
+                          },
+                          {
+                              "Name":  "home.png",
+                              "Length":  651245
+                          },
+                          {
+                              "Name":  "search.png",
+                              "Length":  691709
+                          },
+                          {
+                              "Name":  "support.png",
+                              "Length":  701821
+                          },
+                          {
+                              "Name":  "updates.png",
+                              "Length":  694820
+                          }
+                      ]
+}

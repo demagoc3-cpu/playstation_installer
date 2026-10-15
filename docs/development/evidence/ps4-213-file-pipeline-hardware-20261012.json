@@ -1,0 +1,6666 @@
+{
+  "file": {
+    "at": "2026-10-12T15:48:45.318Z",
+    "ip": "10.1.10.32",
+    "size": 33554432,
+    "runs": [
+      {
+        "mode": "sync",
+        "repeat": 1,
+        "id": "a05048c2-ab74-4351-8d9e-ace04e4d3311",
+        "path": "/data/packageflow-speed-a05048c2-ab74-4351-8d9e-ace04e4d3311/fixture.bin",
+        "settings": {
+          "loopWait": "short",
+          "bgftStart": "int",
+          "putWriter": "sync"
+        },
+        "cleanup": true,
+        "blocks": [
+          {
+            "offset": 0,
+            "ms": 59.197746999999964
+          },
+          {
+            "offset": 4194304,
+            "ms": 79.00250399999999
+          },
+          {
+            "offset": 8388608,
+            "ms": 49.044610999999975
+          },
+          {
+            "offset": 12582912,
+            "ms": 50.24868699999996
+          },
+          {
+            "offset": 16777216,
+            "ms": 48.53646900000001
+          },
+          {
+            "offset": 20971520,
+            "ms": 65.829633
+          },
+          {
+            "offset": 25165824,
+            "ms": 51.725464999999986
+          },
+          {
+            "offset": 29360128,
+            "ms": 52.83372399999996
+          }
+        ],
+        "readRuns": [
+          {
+            "ms": 613.0022030000001,
+            "MiBps": 52.20209624597384,
+            "verified": true,
+            "clients": 1,
+            "diagnostics": {
+              "service": "PackegeFlowService",
+              "protocol": "speed-test-v1",
+              "benchmarkApi": 1,
+              "ready": true,
+              "busy": false,
+              "maxBytes": 268435456,
+              "modes": [
+                "latency",
+                "upload",
+                "download",
+                "disk"
+              ],
+              "diagnosticsVersion": 1,
+              "profiles": [
+                "baseline",
+                "sleep500",
+                "polls16",
+                "sockbuf256k",
+                "sockbuf1m",
+                "sockbuf2m",
+                "ring2m",
+                "ring4m",
+                "sockbuf512k",
+                "sockbuf512k-sleep500",
+                "write256k",
+                "ring4m-write256k",
+                "sockbuf512k-write256k",
+                "default"
+              ],
+              "loop": {
+                "idleSleepRequestedUs": 1000,
+                "idleSleepActualUs": 1964,
+                "testSleepUs": 2000,
+                "testPollsPerLoop": 4
+              },
+              "netPool": {
+                "bytes": 262144,
+                "requestedBytes": 262144
+              },
+              "busyReason": null,
+              "serviceSockets": {
+                "requestedBytes": 524288,
+                "tuned": 16,
+                "applied": 16,
+                "getErrors": 0,
+                "setErrors": 0,
+                "lastBytes": 524288,
+                "lastError": 0
+              },
+              "fileTransfers": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 44.32,
+                  "calls": 46,
+                  "wouldBlock": 22,
+                  "bytesPerCallAvg": 174762,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 43.916,
+                  "loopSleepMs": 41.011,
+                  "writer": "none",
+                  "readMs": 5.76
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 48.334,
+                  "calls": 52,
+                  "wouldBlock": 23,
+                  "bytesPerCallAvg": 144631,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 45.84,
+                  "loopSleepMs": 44.984,
+                  "writer": "none",
+                  "readMs": 5.666
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 64.128,
+                  "calls": 70,
+                  "wouldBlock": 32,
+                  "bytesPerCallAvg": 110376,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 63.558,
+                  "loopSleepMs": 60.509,
+                  "writer": "none",
+                  "readMs": 5.776
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 85.245,
+                  "calls": 93,
+                  "wouldBlock": 45,
+                  "bytesPerCallAvg": 87381,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 84.78,
+                  "loopSleepMs": 81.756,
+                  "writer": "none",
+                  "readMs": 5.853
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 65.118,
+                  "calls": 66,
+                  "wouldBlock": 32,
+                  "bytesPerCallAvg": 123361,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 64.038,
+                  "loopSleepMs": 61.466,
+                  "writer": "none",
+                  "readMs": 5.923
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 58.187,
+                  "calls": 61,
+                  "wouldBlock": 29,
+                  "bytesPerCallAvg": 131072,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 57.728,
+                  "loopSleepMs": 54.942,
+                  "writer": "none",
+                  "readMs": 5.723
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 48.138,
+                  "calls": 54,
+                  "wouldBlock": 24,
+                  "bytesPerCallAvg": 139810,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 47.64,
+                  "loopSleepMs": 44.776,
+                  "writer": "none",
+                  "readMs": 5.859
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 41.944,
+                  "calls": 47,
+                  "wouldBlock": 21,
+                  "bytesPerCallAvg": 161319,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 41.361,
+                  "loopSleepMs": 38.675,
+                  "writer": "none",
+                  "readMs": 6.05
+                }
+              ],
+              "requests": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 22,
+                  "handleUs": 5809,
+                  "replyUs": 44282,
+                  "totalUs": 50113
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 25,
+                  "handleUs": 5715,
+                  "replyUs": 48296,
+                  "totalUs": 54036
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 24,
+                  "handleUs": 5842,
+                  "replyUs": 64073,
+                  "totalUs": 69939
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 23,
+                  "handleUs": 5901,
+                  "replyUs": 85208,
+                  "totalUs": 91132
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 24,
+                  "handleUs": 5973,
+                  "replyUs": 65079,
+                  "totalUs": 71076
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 30,
+                  "handleUs": 5774,
+                  "replyUs": 58147,
+                  "totalUs": 63951
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 1953,
+                  "handleUs": 5935,
+                  "replyUs": 48074,
+                  "totalUs": 55962
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 21,
+                  "handleUs": 6098,
+                  "replyUs": 41907,
+                  "totalUs": 48026
+                },
+                {
+                  "kind": "json",
+                  "complete": true,
+                  "headersUs": 21,
+                  "handleUs": 195,
+                  "replyUs": 24,
+                  "totalUs": 240
+                },
+                {
+                  "kind": "json",
+                  "complete": true,
+                  "headersUs": 28,
+                  "handleUs": 32153,
+                  "replyUs": 53,
+                  "totalUs": 32234
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 215,
+                  "handleUs": 0,
+                  "replyUs": 44617,
+                  "totalUs": 44832
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 245,
+                  "handleUs": 0,
+                  "replyUs": 44092,
+                  "totalUs": 44337
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 216,
+                  "handleUs": 0,
+                  "replyUs": 58223,
+                  "totalUs": 58439
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 214,
+                  "handleUs": 0,
+                  "replyUs": 41468,
+                  "totalUs": 41682
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 2143,
+                  "handleUs": 0,
+                  "replyUs": 42525,
+                  "totalUs": 44668
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 373,
+                  "handleUs": 0,
+                  "replyUs": 41378,
+                  "totalUs": 41751
+                }
+              ],
+              "settings": {
+                "loopWait": "short"
+              },
+              "lastTest": {
+                "mode": "disk",
+                "bytes": 268435456,
+                "size": 268435456,
+                "status": 200,
+                "elapsedMs": 3088.971,
+                "diagnostics": {
+                  "version": 1,
+                  "profile": "default",
+                  "profileApplied": true,
+                  "socket": {
+                    "option": "SO_RCVBUF",
+                    "bufferBytes": 524288,
+                    "originalBytes": 66608,
+                    "requestedBytes": 524288,
+                    "getError": 0,
+                    "setError": 0
+                  },
+                  "calls": {
+                    "poll": 2132,
+                    "io": 3852,
+                    "wouldBlock": 1831,
+                    "bytesPerCallAvg": 132823,
+                    "bytesPerCallMax": 609608,
+                    "ringFull": 238
+                  },
+                  "sleep": {
+                    "requestedUs": 2000,
+                    "count": 987,
+                    "actualUsTotal": 2679325,
+                    "actualUsMax": 5003
+                  },
+                  "pollsPerLoop": 4,
+                  "ring": {
+                    "blockBytes": 1048576,
+                    "blocks": 8,
+                    "writeChunkBytes": 1048576
+                  },
+                  "netPoolBytes": 262144,
+                  "disk": {
+                    "writes": 256,
+                    "writeUsMax": 149538,
+                    "slowWrites": 10,
+                    "slowWriteUs": 50000,
+                    "writerWaitUs": 141361,
+                    "freeBytesBefore": 66874171392,
+                    "freeBytesAfter": 66874171392,
+                    "freeError": 0
+                  },
+                  "link": {
+                    "deviceRaw": 0,
+                    "linkRaw": 1,
+                    "mtu": 1500,
+                    "speedMbps": null,
+                    "error": 0
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "sha256": "80bd27402c5ffbc45ee7dc16f1dbcb93db8e56560840f1fe6c43ec0843eb51dd",
+        "putMs": 457.64978300000007,
+        "finishMs": 36.23145299999999,
+        "putMiBps": 64.79290498900427,
+        "putDiagnostics": {
+          "service": "PackegeFlowService",
+          "protocol": "speed-test-v1",
+          "benchmarkApi": 1,
+          "ready": true,
+          "busy": false,
+          "maxBytes": 268435456,
+          "modes": [
+            "latency",
+            "upload",
+            "download",
+            "disk"
+          ],
+          "diagnosticsVersion": 1,
+          "profiles": [
+            "baseline",
+            "sleep500",
+            "polls16",
+            "sockbuf256k",
+            "sockbuf1m",
+            "sockbuf2m",
+            "ring2m",
+            "ring4m",
+            "sockbuf512k",
+            "sockbuf512k-sleep500",
+            "write256k",
+            "ring4m-write256k",
+            "sockbuf512k-write256k",
+            "default"
+          ],
+          "loop": {
+            "idleSleepRequestedUs": 1000,
+            "idleSleepActualUs": 1942,
+            "testSleepUs": 2000,
+            "testPollsPerLoop": 4
+          },
+          "netPool": {
+            "bytes": 262144,
+            "requestedBytes": 262144
+          },
+          "busyReason": null,
+          "serviceSockets": {
+            "requestedBytes": 524288,
+            "tuned": 8,
+            "applied": 8,
+            "getErrors": 0,
+            "setErrors": 0,
+            "lastBytes": 524288,
+            "lastError": 0
+          },
+          "fileTransfers": [
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 44.478,
+              "calls": 71,
+              "wouldBlock": 2,
+              "bytesPerCallAvg": 60787,
+              "writeMs": 8.31,
+              "writeUsMax": 587,
+              "slowWrites": 0,
+              "fsyncMs": 4.623,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 26.591,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 43.954,
+              "calls": 69,
+              "wouldBlock": 1,
+              "bytesPerCallAvg": 61680,
+              "writeMs": 9.456,
+              "writeUsMax": 395,
+              "slowWrites": 0,
+              "fsyncMs": 3.978,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 24.994,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 58.073,
+              "calls": 69,
+              "wouldBlock": 1,
+              "bytesPerCallAvg": 61680,
+              "writeMs": 10.375,
+              "writeUsMax": 1138,
+              "slowWrites": 0,
+              "fsyncMs": 17.076,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 24.982,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 41.313,
+              "calls": 68,
+              "wouldBlock": 1,
+              "bytesPerCallAvg": 62601,
+              "writeMs": 8.162,
+              "writeUsMax": 410,
+              "slowWrites": 0,
+              "fsyncMs": 2.57,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 25.382,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 42.386,
+              "calls": 67,
+              "wouldBlock": 1,
+              "bytesPerCallAvg": 63550,
+              "writeMs": 8.252,
+              "writeUsMax": 384,
+              "slowWrites": 0,
+              "fsyncMs": 5.009,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 23.361,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 41.244,
+              "calls": 71,
+              "wouldBlock": 1,
+              "bytesPerCallAvg": 59918,
+              "writeMs": 7.782,
+              "writeUsMax": 321,
+              "slowWrites": 0,
+              "fsyncMs": 4.202,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 24.742,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 68.806,
+              "calls": 69,
+              "wouldBlock": 0,
+              "bytesPerCallAvg": 60787,
+              "writeMs": 30.833,
+              "writeUsMax": 5240,
+              "slowWrites": 0,
+              "fsyncMs": 9.734,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 23.249,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 50.42,
+              "calls": 71,
+              "wouldBlock": 2,
+              "bytesPerCallAvg": 60787,
+              "writeMs": 12.227,
+              "writeUsMax": 3795,
+              "slowWrites": 0,
+              "fsyncMs": 6.635,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 26.354,
+              "writer": "sync",
+              "readMs": 0
+            }
+          ],
+          "requests": [
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 28,
+              "handleUs": 32153,
+              "replyUs": 53,
+              "totalUs": 32234
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 215,
+              "handleUs": 0,
+              "replyUs": 44617,
+              "totalUs": 44832
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 245,
+              "handleUs": 0,
+              "replyUs": 44092,
+              "totalUs": 44337
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 216,
+              "handleUs": 0,
+              "replyUs": 58223,
+              "totalUs": 58439
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 214,
+              "handleUs": 0,
+              "replyUs": 41468,
+              "totalUs": 41682
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 2143,
+              "handleUs": 0,
+              "replyUs": 42525,
+              "totalUs": 44668
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 373,
+              "handleUs": 0,
+              "replyUs": 41378,
+              "totalUs": 41751
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 211,
+              "handleUs": 0,
+              "replyUs": 68947,
+              "totalUs": 69158
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 2248,
+              "handleUs": 0,
+              "replyUs": 50565,
+              "totalUs": 52813
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 22,
+              "handleUs": 271,
+              "replyUs": 25,
+              "totalUs": 318
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 27,
+              "handleUs": 311,
+              "replyUs": 45,
+              "totalUs": 383
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 17,
+              "handleUs": 36,
+              "replyUs": 14,
+              "totalUs": 67
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 20,
+              "handleUs": 230,
+              "replyUs": 34,
+              "totalUs": 284
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 27,
+              "handleUs": 66,
+              "replyUs": 40,
+              "totalUs": 133
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 2012,
+              "handleUs": 60,
+              "replyUs": 29,
+              "totalUs": 2101
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 15,
+              "handleUs": 1564,
+              "replyUs": 41,
+              "totalUs": 1620
+            }
+          ],
+          "settings": {
+            "loopWait": "short"
+          },
+          "lastTest": {
+            "mode": "disk",
+            "bytes": 268435456,
+            "size": 268435456,
+            "status": 200,
+            "elapsedMs": 3088.971,
+            "diagnostics": {
+              "version": 1,
+              "profile": "default",
+              "profileApplied": true,
+              "socket": {
+                "option": "SO_RCVBUF",
+                "bufferBytes": 524288,
+                "originalBytes": 66608,
+                "requestedBytes": 524288,
+                "getError": 0,
+                "setError": 0
+              },
+              "calls": {
+                "poll": 2132,
+                "io": 3852,
+                "wouldBlock": 1831,
+                "bytesPerCallAvg": 132823,
+                "bytesPerCallMax": 609608,
+                "ringFull": 238
+              },
+              "sleep": {
+                "requestedUs": 2000,
+                "count": 987,
+                "actualUsTotal": 2679325,
+                "actualUsMax": 5003
+              },
+              "pollsPerLoop": 4,
+              "ring": {
+                "blockBytes": 1048576,
+                "blocks": 8,
+                "writeChunkBytes": 1048576
+              },
+              "netPoolBytes": 262144,
+              "disk": {
+                "writes": 256,
+                "writeUsMax": 149538,
+                "slowWrites": 10,
+                "slowWriteUs": 50000,
+                "writerWaitUs": 141361,
+                "freeBytesBefore": 66874171392,
+                "freeBytesAfter": 66874171392,
+                "freeError": 0
+              },
+              "link": {
+                "deviceRaw": 0,
+                "linkRaw": 1,
+                "mtu": 1500,
+                "speedMbps": null,
+                "error": 0
+              }
+            }
+          }
+        },
+        "complete": true,
+        "fileDeleted": true,
+        "directoryDeleted": true
+      },
+      {
+        "mode": "async",
+        "repeat": 1,
+        "id": "60529efd-43ed-4006-8d1c-ae8a8f33b7b5",
+        "path": "/data/packageflow-speed-60529efd-43ed-4006-8d1c-ae8a8f33b7b5/fixture.bin",
+        "settings": {
+          "loopWait": "short",
+          "bgftStart": "int",
+          "putWriter": "async"
+        },
+        "cleanup": true,
+        "blocks": [
+          {
+            "offset": 0,
+            "ms": 49.15774400000009
+          },
+          {
+            "offset": 4194304,
+            "ms": 49.60283900000013
+          },
+          {
+            "offset": 8388608,
+            "ms": 167.02842899999996
+          },
+          {
+            "offset": 12582912,
+            "ms": 52.4272840000001
+          },
+          {
+            "offset": 16777216,
+            "ms": 58.90954099999999
+          },
+          {
+            "offset": 20971520,
+            "ms": 51.83399200000008
+          },
+          {
+            "offset": 25165824,
+            "ms": 67.07748500000002
+          },
+          {
+            "offset": 29360128,
+            "ms": 59.83811000000014
+          }
+        ],
+        "readRuns": [
+          {
+            "ms": 647.8702959999998,
+            "MiBps": 49.39260249708996,
+            "verified": true,
+            "clients": 1,
+            "diagnostics": {
+              "service": "PackegeFlowService",
+              "protocol": "speed-test-v1",
+              "benchmarkApi": 1,
+              "ready": true,
+              "busy": false,
+              "maxBytes": 268435456,
+              "modes": [
+                "latency",
+                "upload",
+                "download",
+                "disk"
+              ],
+              "diagnosticsVersion": 1,
+              "profiles": [
+                "baseline",
+                "sleep500",
+                "polls16",
+                "sockbuf256k",
+                "sockbuf1m",
+                "sockbuf2m",
+                "ring2m",
+                "ring4m",
+                "sockbuf512k",
+                "sockbuf512k-sleep500",
+                "write256k",
+                "ring4m-write256k",
+                "sockbuf512k-write256k",
+                "default"
+              ],
+              "loop": {
+                "idleSleepRequestedUs": 1000,
+                "idleSleepActualUs": 1944,
+                "testSleepUs": 2000,
+                "testPollsPerLoop": 4
+              },
+              "netPool": {
+                "bytes": 262144,
+                "requestedBytes": 262144
+              },
+              "busyReason": null,
+              "serviceSockets": {
+                "requestedBytes": 524288,
+                "tuned": 32,
+                "applied": 32,
+                "getErrors": 0,
+                "setErrors": 0,
+                "lastBytes": 524288,
+                "lastError": 0
+              },
+              "fileTransfers": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 84.644,
+                  "calls": 91,
+                  "wouldBlock": 44,
+                  "bytesPerCallAvg": 89240,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 84.165,
+                  "loopSleepMs": 81.103,
+                  "writer": "none",
+                  "readMs": 6.38
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 39.266,
+                  "calls": 43,
+                  "wouldBlock": 20,
+                  "bytesPerCallAvg": 182361,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 38.729,
+                  "loopSleepMs": 35.65,
+                  "writer": "none",
+                  "readMs": 5.802
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 57.803,
+                  "calls": 63,
+                  "wouldBlock": 28,
+                  "bytesPerCallAvg": 119837,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 55.337,
+                  "loopSleepMs": 54.35,
+                  "writer": "none",
+                  "readMs": 6.133
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 82.708,
+                  "calls": 86,
+                  "wouldBlock": 42,
+                  "bytesPerCallAvg": 95325,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 82.266,
+                  "loopSleepMs": 79.065,
+                  "writer": "none",
+                  "readMs": 6.301
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 55.383,
+                  "calls": 63,
+                  "wouldBlock": 28,
+                  "bytesPerCallAvg": 119837,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 54.92,
+                  "loopSleepMs": 52.198,
+                  "writer": "none",
+                  "readMs": 5.772
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 73.337,
+                  "calls": 77,
+                  "wouldBlock": 37,
+                  "bytesPerCallAvg": 104857,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 72.892,
+                  "loopSleepMs": 69.496,
+                  "writer": "none",
+                  "readMs": 5.77
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 54.208,
+                  "calls": 56,
+                  "wouldBlock": 27,
+                  "bytesPerCallAvg": 144631,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 53.446,
+                  "loopSleepMs": 50.716,
+                  "writer": "none",
+                  "readMs": 5.877
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 41.921,
+                  "calls": 47,
+                  "wouldBlock": 22,
+                  "bytesPerCallAvg": 167772,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 41.473,
+                  "loopSleepMs": 38.159,
+                  "writer": "none",
+                  "readMs": 6.078
+                }
+              ],
+              "requests": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 22,
+                  "handleUs": 6430,
+                  "replyUs": 84605,
+                  "totalUs": 91057
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 24,
+                  "handleUs": 5854,
+                  "replyUs": 39225,
+                  "totalUs": 45103
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 23,
+                  "handleUs": 6183,
+                  "replyUs": 57765,
+                  "totalUs": 63971
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 22,
+                  "handleUs": 6352,
+                  "replyUs": 82668,
+                  "totalUs": 89042
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 27,
+                  "handleUs": 5821,
+                  "replyUs": 55345,
+                  "totalUs": 61193
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 25,
+                  "handleUs": 5819,
+                  "replyUs": 73300,
+                  "totalUs": 79144
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 22,
+                  "handleUs": 6142,
+                  "replyUs": 53954,
+                  "totalUs": 60118
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 22,
+                  "handleUs": 6140,
+                  "replyUs": 41870,
+                  "totalUs": 48032
+                },
+                {
+                  "kind": "json",
+                  "complete": true,
+                  "headersUs": 14,
+                  "handleUs": 165,
+                  "replyUs": 18,
+                  "totalUs": 197
+                },
+                {
+                  "kind": "json",
+                  "complete": true,
+                  "headersUs": 26,
+                  "handleUs": 1071,
+                  "replyUs": 40,
+                  "totalUs": 1137
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 340,
+                  "handleUs": 0,
+                  "replyUs": 50857,
+                  "totalUs": 51197
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 363,
+                  "handleUs": 0,
+                  "replyUs": 58821,
+                  "totalUs": 59184
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 605,
+                  "handleUs": 0,
+                  "replyUs": 45546,
+                  "totalUs": 46151
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 329,
+                  "handleUs": 0,
+                  "replyUs": 49835,
+                  "totalUs": 50164
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 2415,
+                  "handleUs": 0,
+                  "replyUs": 44737,
+                  "totalUs": 47152
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 333,
+                  "handleUs": 0,
+                  "replyUs": 161824,
+                  "totalUs": 162157
+                }
+              ],
+              "settings": {
+                "loopWait": "short"
+              },
+              "lastTest": {
+                "mode": "disk",
+                "bytes": 268435456,
+                "size": 268435456,
+                "status": 200,
+                "elapsedMs": 3088.971,
+                "diagnostics": {
+                  "version": 1,
+                  "profile": "default",
+                  "profileApplied": true,
+                  "socket": {
+                    "option": "SO_RCVBUF",
+                    "bufferBytes": 524288,
+                    "originalBytes": 66608,
+                    "requestedBytes": 524288,
+                    "getError": 0,
+                    "setError": 0
+                  },
+                  "calls": {
+                    "poll": 2132,
+                    "io": 3852,
+                    "wouldBlock": 1831,
+                    "bytesPerCallAvg": 132823,
+                    "bytesPerCallMax": 609608,
+                    "ringFull": 238
+                  },
+                  "sleep": {
+                    "requestedUs": 2000,
+                    "count": 987,
+                    "actualUsTotal": 2679325,
+                    "actualUsMax": 5003
+                  },
+                  "pollsPerLoop": 4,
+                  "ring": {
+                    "blockBytes": 1048576,
+                    "blocks": 8,
+                    "writeChunkBytes": 1048576
+                  },
+                  "netPoolBytes": 262144,
+                  "disk": {
+                    "writes": 256,
+                    "writeUsMax": 149538,
+                    "slowWrites": 10,
+                    "slowWriteUs": 50000,
+                    "writerWaitUs": 141361,
+                    "freeBytesBefore": 66874171392,
+                    "freeBytesAfter": 66874171392,
+                    "freeError": 0
+                  },
+                  "link": {
+                    "deviceRaw": 0,
+                    "linkRaw": 1,
+                    "mtu": 1500,
+                    "speedMbps": null,
+                    "error": 0
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "sha256": "80bd27402c5ffbc45ee7dc16f1dbcb93db8e56560840f1fe6c43ec0843eb51dd",
+        "putMs": 556.733723,
+        "finishMs": 4.248348000000078,
+        "putMiBps": 57.04282124909478,
+        "putDiagnostics": {
+          "service": "PackegeFlowService",
+          "protocol": "speed-test-v1",
+          "benchmarkApi": 1,
+          "ready": true,
+          "busy": false,
+          "maxBytes": 268435456,
+          "modes": [
+            "latency",
+            "upload",
+            "download",
+            "disk"
+          ],
+          "diagnosticsVersion": 1,
+          "profiles": [
+            "baseline",
+            "sleep500",
+            "polls16",
+            "sockbuf256k",
+            "sockbuf1m",
+            "sockbuf2m",
+            "ring2m",
+            "ring4m",
+            "sockbuf512k",
+            "sockbuf512k-sleep500",
+            "write256k",
+            "ring4m-write256k",
+            "sockbuf512k-write256k",
+            "default"
+          ],
+          "loop": {
+            "idleSleepRequestedUs": 1000,
+            "idleSleepActualUs": 1790,
+            "testSleepUs": 2000,
+            "testPollsPerLoop": 4
+          },
+          "netPool": {
+            "bytes": 262144,
+            "requestedBytes": 262144
+          },
+          "busyReason": null,
+          "serviceSockets": {
+            "requestedBytes": 524288,
+            "tuned": 24,
+            "applied": 24,
+            "getErrors": 0,
+            "setErrors": 0,
+            "lastBytes": 524288,
+            "lastError": 0
+          },
+          "fileTransfers": [
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 50.744,
+              "calls": 56,
+              "wouldBlock": 18,
+              "bytesPerCallAvg": 110376,
+              "writeMs": 8.173,
+              "writeUsMax": 822,
+              "slowWrites": 0,
+              "fsyncMs": 11.761,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 44.872,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 58.688,
+              "calls": 56,
+              "wouldBlock": 17,
+              "bytesPerCallAvg": 107546,
+              "writeMs": 8.633,
+              "writeUsMax": 1740,
+              "slowWrites": 0,
+              "fsyncMs": 19.262,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 52.419,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 45.437,
+              "calls": 63,
+              "wouldBlock": 15,
+              "bytesPerCallAvg": 87381,
+              "writeMs": 7.585,
+              "writeUsMax": 801,
+              "slowWrites": 0,
+              "fsyncMs": 5.794,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 39.268,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 49.725,
+              "calls": 63,
+              "wouldBlock": 20,
+              "bytesPerCallAvg": 97541,
+              "writeMs": 8.782,
+              "writeUsMax": 1112,
+              "slowWrites": 0,
+              "fsyncMs": 5.188,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 43.479,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 44.626,
+              "calls": 55,
+              "wouldBlock": 16,
+              "bytesPerCallAvg": 107546,
+              "writeMs": 8.562,
+              "writeUsMax": 1033,
+              "slowWrites": 0,
+              "fsyncMs": 7.109,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 37.588,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 161.716,
+              "calls": 43,
+              "wouldBlock": 10,
+              "bytesPerCallAvg": 127100,
+              "writeMs": 144.752,
+              "writeUsMax": 77798,
+              "slowWrites": 1,
+              "fsyncMs": 6.534,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 153.912,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 44.696,
+              "calls": 57,
+              "wouldBlock": 15,
+              "bytesPerCallAvg": 99864,
+              "writeMs": 5.845,
+              "writeUsMax": 584,
+              "slowWrites": 0,
+              "fsyncMs": 6.146,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 38.555,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 43.831,
+              "calls": 56,
+              "wouldBlock": 16,
+              "bytesPerCallAvg": 104857,
+              "writeMs": 5.215,
+              "writeUsMax": 765,
+              "slowWrites": 0,
+              "fsyncMs": 5.523,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 38.035,
+              "writer": "async",
+              "readMs": 0
+            }
+          ],
+          "requests": [
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 26,
+              "handleUs": 1071,
+              "replyUs": 40,
+              "totalUs": 1137
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 340,
+              "handleUs": 0,
+              "replyUs": 50857,
+              "totalUs": 51197
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 363,
+              "handleUs": 0,
+              "replyUs": 58821,
+              "totalUs": 59184
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 605,
+              "handleUs": 0,
+              "replyUs": 45546,
+              "totalUs": 46151
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 329,
+              "handleUs": 0,
+              "replyUs": 49835,
+              "totalUs": 50164
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 2415,
+              "handleUs": 0,
+              "replyUs": 44737,
+              "totalUs": 47152
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 333,
+              "handleUs": 0,
+              "replyUs": 161824,
+              "totalUs": 162157
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 339,
+              "handleUs": 0,
+              "replyUs": 44804,
+              "totalUs": 45143
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 275,
+              "handleUs": 0,
+              "replyUs": 43985,
+              "totalUs": 44260
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 24,
+              "handleUs": 223,
+              "replyUs": 34,
+              "totalUs": 281
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 1684,
+              "handleUs": 282,
+              "replyUs": 36,
+              "totalUs": 2002
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 27,
+              "handleUs": 65,
+              "replyUs": 41,
+              "totalUs": 133
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 18,
+              "handleUs": 194,
+              "replyUs": 33,
+              "totalUs": 245
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 15,
+              "handleUs": 187,
+              "replyUs": 14,
+              "totalUs": 216
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 25,
+              "handleUs": 189,
+              "replyUs": 39,
+              "totalUs": 253
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 32,
+              "handleUs": 191,
+              "replyUs": 46,
+              "totalUs": 269
+            }
+          ],
+          "settings": {
+            "loopWait": "short"
+          },
+          "lastTest": {
+            "mode": "disk",
+            "bytes": 268435456,
+            "size": 268435456,
+            "status": 200,
+            "elapsedMs": 3088.971,
+            "diagnostics": {
+              "version": 1,
+              "profile": "default",
+              "profileApplied": true,
+              "socket": {
+                "option": "SO_RCVBUF",
+                "bufferBytes": 524288,
+                "originalBytes": 66608,
+                "requestedBytes": 524288,
+                "getError": 0,
+                "setError": 0
+              },
+              "calls": {
+                "poll": 2132,
+                "io": 3852,
+                "wouldBlock": 1831,
+                "bytesPerCallAvg": 132823,
+                "bytesPerCallMax": 609608,
+                "ringFull": 238
+              },
+              "sleep": {
+                "requestedUs": 2000,
+                "count": 987,
+                "actualUsTotal": 2679325,
+                "actualUsMax": 5003
+              },
+              "pollsPerLoop": 4,
+              "ring": {
+                "blockBytes": 1048576,
+                "blocks": 8,
+                "writeChunkBytes": 1048576
+              },
+              "netPoolBytes": 262144,
+              "disk": {
+                "writes": 256,
+                "writeUsMax": 149538,
+                "slowWrites": 10,
+                "slowWriteUs": 50000,
+                "writerWaitUs": 141361,
+                "freeBytesBefore": 66874171392,
+                "freeBytesAfter": 66874171392,
+                "freeError": 0
+              },
+              "link": {
+                "deviceRaw": 0,
+                "linkRaw": 1,
+                "mtu": 1500,
+                "speedMbps": null,
+                "error": 0
+              }
+            }
+          }
+        },
+        "complete": true,
+        "fileDeleted": true,
+        "directoryDeleted": true
+      },
+      {
+        "mode": "async",
+        "repeat": 2,
+        "id": "e9b83b5b-bdb4-4a9d-8013-07898fedf989",
+        "path": "/data/packageflow-speed-e9b83b5b-bdb4-4a9d-8013-07898fedf989/fixture.bin",
+        "settings": {
+          "loopWait": "short",
+          "bgftStart": "int",
+          "putWriter": "async"
+        },
+        "cleanup": true,
+        "blocks": [
+          {
+            "offset": 0,
+            "ms": 56.30466699999988
+          },
+          {
+            "offset": 4194304,
+            "ms": 84.77792899999986
+          },
+          {
+            "offset": 8388608,
+            "ms": 50.878499000000375
+          },
+          {
+            "offset": 12582912,
+            "ms": 57.313282999999956
+          },
+          {
+            "offset": 16777216,
+            "ms": 54.391478000000006
+          },
+          {
+            "offset": 20971520,
+            "ms": 58.23164600000018
+          },
+          {
+            "offset": 25165824,
+            "ms": 56.182282000000214
+          },
+          {
+            "offset": 29360128,
+            "ms": 53.35413100000005
+          }
+        ],
+        "readRuns": [
+          {
+            "ms": 722.5323710000002,
+            "MiBps": 44.28867312299284,
+            "verified": true,
+            "clients": 1,
+            "diagnostics": {
+              "service": "PackegeFlowService",
+              "protocol": "speed-test-v1",
+              "benchmarkApi": 1,
+              "ready": true,
+              "busy": false,
+              "maxBytes": 268435456,
+              "modes": [
+                "latency",
+                "upload",
+                "download",
+                "disk"
+              ],
+              "diagnosticsVersion": 1,
+              "profiles": [
+                "baseline",
+                "sleep500",
+                "polls16",
+                "sockbuf256k",
+                "sockbuf1m",
+                "sockbuf2m",
+                "ring2m",
+                "ring4m",
+                "sockbuf512k",
+                "sockbuf512k-sleep500",
+                "write256k",
+                "ring4m-write256k",
+                "sockbuf512k-write256k",
+                "default"
+              ],
+              "loop": {
+                "idleSleepRequestedUs": 1000,
+                "idleSleepActualUs": 1948,
+                "testSleepUs": 2000,
+                "testPollsPerLoop": 4
+              },
+              "netPool": {
+                "bytes": 262144,
+                "requestedBytes": 262144
+              },
+              "busyReason": null,
+              "serviceSockets": {
+                "requestedBytes": 524288,
+                "tuned": 48,
+                "applied": 48,
+                "getErrors": 0,
+                "setErrors": 0,
+                "lastBytes": 524288,
+                "lastError": 0
+              },
+              "fileTransfers": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 82.574,
+                  "calls": 84,
+                  "wouldBlock": 41,
+                  "bytesPerCallAvg": 97541,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 82.119,
+                  "loopSleepMs": 78.734,
+                  "writer": "none",
+                  "readMs": 5.809
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 71.504,
+                  "calls": 75,
+                  "wouldBlock": 36,
+                  "bytesPerCallAvg": 107546,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 71.052,
+                  "loopSleepMs": 68.119,
+                  "writer": "none",
+                  "readMs": 6.455
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 97.267,
+                  "calls": 102,
+                  "wouldBlock": 50,
+                  "bytesPerCallAvg": 80659,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 96.802,
+                  "loopSleepMs": 93.541,
+                  "writer": "none",
+                  "readMs": 5.724
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 60.172,
+                  "calls": 63,
+                  "wouldBlock": 30,
+                  "bytesPerCallAvg": 127100,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 59.511,
+                  "loopSleepMs": 56.653,
+                  "writer": "none",
+                  "readMs": 5.811
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 42.767,
+                  "calls": 48,
+                  "wouldBlock": 22,
+                  "bytesPerCallAvg": 161319,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 42.323,
+                  "loopSleepMs": 39.413,
+                  "writer": "none",
+                  "readMs": 6.254
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 37.044,
+                  "calls": 43,
+                  "wouldBlock": 18,
+                  "bytesPerCallAvg": 167772,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 36.604,
+                  "loopSleepMs": 33.766,
+                  "writer": "none",
+                  "readMs": 5.804
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 80.009,
+                  "calls": 83,
+                  "wouldBlock": 40,
+                  "bytesPerCallAvg": 97541,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 79.588,
+                  "loopSleepMs": 76.662,
+                  "writer": "none",
+                  "readMs": 5.961
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 83.61,
+                  "calls": 89,
+                  "wouldBlock": 43,
+                  "bytesPerCallAvg": 91180,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 83.166,
+                  "loopSleepMs": 80.065,
+                  "writer": "none",
+                  "readMs": 6.408
+                }
+              ],
+              "requests": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 20,
+                  "handleUs": 5858,
+                  "replyUs": 82536,
+                  "totalUs": 88414
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 23,
+                  "handleUs": 6503,
+                  "replyUs": 71467,
+                  "totalUs": 77993
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 22,
+                  "handleUs": 5774,
+                  "replyUs": 97229,
+                  "totalUs": 103025
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 20,
+                  "handleUs": 5867,
+                  "replyUs": 60128,
+                  "totalUs": 66015
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 25,
+                  "handleUs": 6303,
+                  "replyUs": 42729,
+                  "totalUs": 49057
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 2004,
+                  "handleUs": 5851,
+                  "replyUs": 37009,
+                  "totalUs": 44864
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 24,
+                  "handleUs": 6011,
+                  "replyUs": 79970,
+                  "totalUs": 86005
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 31,
+                  "handleUs": 6457,
+                  "replyUs": 83573,
+                  "totalUs": 90061
+                },
+                {
+                  "kind": "json",
+                  "complete": true,
+                  "headersUs": 21,
+                  "handleUs": 189,
+                  "replyUs": 26,
+                  "totalUs": 236
+                },
+                {
+                  "kind": "json",
+                  "complete": true,
+                  "headersUs": 25,
+                  "handleUs": 39503,
+                  "replyUs": 50,
+                  "totalUs": 39578
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 2322,
+                  "handleUs": 0,
+                  "replyUs": 46697,
+                  "totalUs": 49019
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 2431,
+                  "handleUs": 0,
+                  "replyUs": 45759,
+                  "totalUs": 48190
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 360,
+                  "handleUs": 0,
+                  "replyUs": 49912,
+                  "totalUs": 50272
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 418,
+                  "handleUs": 0,
+                  "replyUs": 47706,
+                  "totalUs": 48124
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 327,
+                  "handleUs": 0,
+                  "replyUs": 48880,
+                  "totalUs": 49207
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 343,
+                  "handleUs": 0,
+                  "replyUs": 45918,
+                  "totalUs": 46261
+                }
+              ],
+              "settings": {
+                "loopWait": "short"
+              },
+              "lastTest": {
+                "mode": "disk",
+                "bytes": 268435456,
+                "size": 268435456,
+                "status": 200,
+                "elapsedMs": 3088.971,
+                "diagnostics": {
+                  "version": 1,
+                  "profile": "default",
+                  "profileApplied": true,
+                  "socket": {
+                    "option": "SO_RCVBUF",
+                    "bufferBytes": 524288,
+                    "originalBytes": 66608,
+                    "requestedBytes": 524288,
+                    "getError": 0,
+                    "setError": 0
+                  },
+                  "calls": {
+                    "poll": 2132,
+                    "io": 3852,
+                    "wouldBlock": 1831,
+                    "bytesPerCallAvg": 132823,
+                    "bytesPerCallMax": 609608,
+                    "ringFull": 238
+                  },
+                  "sleep": {
+                    "requestedUs": 2000,
+                    "count": 987,
+                    "actualUsTotal": 2679325,
+                    "actualUsMax": 5003
+                  },
+                  "pollsPerLoop": 4,
+                  "ring": {
+                    "blockBytes": 1048576,
+                    "blocks": 8,
+                    "writeChunkBytes": 1048576
+                  },
+                  "netPoolBytes": 262144,
+                  "disk": {
+                    "writes": 256,
+                    "writeUsMax": 149538,
+                    "slowWrites": 10,
+                    "slowWriteUs": 50000,
+                    "writerWaitUs": 141361,
+                    "freeBytesBefore": 66874171392,
+                    "freeBytesAfter": 66874171392,
+                    "freeError": 0
+                  },
+                  "link": {
+                    "deviceRaw": 0,
+                    "linkRaw": 1,
+                    "mtu": 1500,
+                    "speedMbps": null,
+                    "error": 0
+                  }
+                }
+              }
+            }
+          },
+          {
+            "clients": 2,
+            "ms": 866.6411980000003,
+            "aggregateMiBps": 73.8483240211712,
+            "perClient": [
+              {
+                "ms": 816.0987019999998,
+                "MiBps": 39.21094338414964,
+                "verified": true
+              },
+              {
+                "ms": 866.3906429999997,
+                "MiBps": 36.9348402577335,
+                "verified": true
+              }
+            ],
+            "diagnostics": {
+              "service": "PackegeFlowService",
+              "protocol": "speed-test-v1",
+              "benchmarkApi": 1,
+              "ready": true,
+              "busy": false,
+              "maxBytes": 268435456,
+              "modes": [
+                "latency",
+                "upload",
+                "download",
+                "disk"
+              ],
+              "diagnosticsVersion": 1,
+              "profiles": [
+                "baseline",
+                "sleep500",
+                "polls16",
+                "sockbuf256k",
+                "sockbuf1m",
+                "sockbuf2m",
+                "ring2m",
+                "ring4m",
+                "sockbuf512k",
+                "sockbuf512k-sleep500",
+                "write256k",
+                "ring4m-write256k",
+                "sockbuf512k-write256k",
+                "default"
+              ],
+              "loop": {
+                "idleSleepRequestedUs": 1000,
+                "idleSleepActualUs": 2005,
+                "testSleepUs": 2000,
+                "testPollsPerLoop": 4
+              },
+              "netPool": {
+                "bytes": 262144,
+                "requestedBytes": 262144
+              },
+              "busyReason": null,
+              "serviceSockets": {
+                "requestedBytes": 524288,
+                "tuned": 64,
+                "applied": 64,
+                "getErrors": 0,
+                "setErrors": 0,
+                "lastBytes": 524288,
+                "lastError": 0
+              },
+              "fileTransfers": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 96.286,
+                  "calls": 100,
+                  "wouldBlock": 49,
+                  "bytesPerCallAvg": 82241,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 95.759,
+                  "loopSleepMs": 89.763,
+                  "writer": "none",
+                  "readMs": 3.691
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 91.108,
+                  "calls": 86,
+                  "wouldBlock": 43,
+                  "bytesPerCallAvg": 97541,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 90.423,
+                  "loopSleepMs": 79.681,
+                  "writer": "none",
+                  "readMs": 7.013
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 70.038,
+                  "calls": 62,
+                  "wouldBlock": 31,
+                  "bytesPerCallAvg": 135300,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 69.656,
+                  "loopSleepMs": 56.446,
+                  "writer": "none",
+                  "readMs": 3.419
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 81.747,
+                  "calls": 80,
+                  "wouldBlock": 39,
+                  "bytesPerCallAvg": 102300,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 81.247,
+                  "loopSleepMs": 70.755,
+                  "writer": "none",
+                  "readMs": 6.754
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 64.548,
+                  "calls": 63,
+                  "wouldBlock": 29,
+                  "bytesPerCallAvg": 123361,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 64.153,
+                  "loopSleepMs": 51.949,
+                  "writer": "none",
+                  "readMs": 3.401
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 77.473,
+                  "calls": 76,
+                  "wouldBlock": 39,
+                  "bytesPerCallAvg": 113359,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 77.045,
+                  "loopSleepMs": 67.305,
+                  "writer": "none",
+                  "readMs": 6.626
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 74.302,
+                  "calls": 70,
+                  "wouldBlock": 34,
+                  "bytesPerCallAvg": 116508,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 73.683,
+                  "loopSleepMs": 60.771,
+                  "writer": "none",
+                  "readMs": 3.935
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 79.848,
+                  "calls": 77,
+                  "wouldBlock": 38,
+                  "bytesPerCallAvg": 107546,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 79.439,
+                  "loopSleepMs": 69.138,
+                  "writer": "none",
+                  "readMs": 6.017
+                }
+              ],
+              "requests": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 2060,
+                  "handleUs": 3745,
+                  "replyUs": 96244,
+                  "totalUs": 102049
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 21,
+                  "handleUs": 7073,
+                  "replyUs": 91061,
+                  "totalUs": 98155
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 79,
+                  "handleUs": 3471,
+                  "replyUs": 69998,
+                  "totalUs": 73548
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 20,
+                  "handleUs": 6804,
+                  "replyUs": 81710,
+                  "totalUs": 88534
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 58,
+                  "handleUs": 3454,
+                  "replyUs": 64507,
+                  "totalUs": 68019
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 22,
+                  "handleUs": 6681,
+                  "replyUs": 77431,
+                  "totalUs": 84134
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 90,
+                  "handleUs": 3992,
+                  "replyUs": 74258,
+                  "totalUs": 78340
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 25,
+                  "handleUs": 6068,
+                  "replyUs": 79809,
+                  "totalUs": 85902
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 2306,
+                  "handleUs": 4718,
+                  "replyUs": 88507,
+                  "totalUs": 95531
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 25,
+                  "handleUs": 6072,
+                  "replyUs": 59997,
+                  "totalUs": 66094
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 49,
+                  "handleUs": 3524,
+                  "replyUs": 141401,
+                  "totalUs": 144974
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 25,
+                  "handleUs": 6527,
+                  "replyUs": 117608,
+                  "totalUs": 124160
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 62,
+                  "handleUs": 4134,
+                  "replyUs": 73874,
+                  "totalUs": 78070
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 22,
+                  "handleUs": 6500,
+                  "replyUs": 84534,
+                  "totalUs": 91056
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 6767,
+                  "handleUs": 4901,
+                  "replyUs": 90417,
+                  "totalUs": 102085
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 1968,
+                  "handleUs": 6387,
+                  "replyUs": 55702,
+                  "totalUs": 64057
+                }
+              ],
+              "settings": {
+                "loopWait": "short"
+              },
+              "lastTest": {
+                "mode": "disk",
+                "bytes": 268435456,
+                "size": 268435456,
+                "status": 200,
+                "elapsedMs": 3088.971,
+                "diagnostics": {
+                  "version": 1,
+                  "profile": "default",
+                  "profileApplied": true,
+                  "socket": {
+                    "option": "SO_RCVBUF",
+                    "bufferBytes": 524288,
+                    "originalBytes": 66608,
+                    "requestedBytes": 524288,
+                    "getError": 0,
+                    "setError": 0
+                  },
+                  "calls": {
+                    "poll": 2132,
+                    "io": 3852,
+                    "wouldBlock": 1831,
+                    "bytesPerCallAvg": 132823,
+                    "bytesPerCallMax": 609608,
+                    "ringFull": 238
+                  },
+                  "sleep": {
+                    "requestedUs": 2000,
+                    "count": 987,
+                    "actualUsTotal": 2679325,
+                    "actualUsMax": 5003
+                  },
+                  "pollsPerLoop": 4,
+                  "ring": {
+                    "blockBytes": 1048576,
+                    "blocks": 8,
+                    "writeChunkBytes": 1048576
+                  },
+                  "netPoolBytes": 262144,
+                  "disk": {
+                    "writes": 256,
+                    "writeUsMax": 149538,
+                    "slowWrites": 10,
+                    "slowWriteUs": 50000,
+                    "writerWaitUs": 141361,
+                    "freeBytesBefore": 66874171392,
+                    "freeBytesAfter": 66874171392,
+                    "freeError": 0
+                  },
+                  "link": {
+                    "deviceRaw": 0,
+                    "linkRaw": 1,
+                    "mtu": 1500,
+                    "speedMbps": null,
+                    "error": 0
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "sha256": "80bd27402c5ffbc45ee7dc16f1dbcb93db8e56560840f1fe6c43ec0843eb51dd",
+        "putMs": 472.35979899999984,
+        "finishMs": 43.386435999999776,
+        "putMiBps": 62.04601765052153,
+        "putDiagnostics": {
+          "service": "PackegeFlowService",
+          "protocol": "speed-test-v1",
+          "benchmarkApi": 1,
+          "ready": true,
+          "busy": false,
+          "maxBytes": 268435456,
+          "modes": [
+            "latency",
+            "upload",
+            "download",
+            "disk"
+          ],
+          "diagnosticsVersion": 1,
+          "profiles": [
+            "baseline",
+            "sleep500",
+            "polls16",
+            "sockbuf256k",
+            "sockbuf1m",
+            "sockbuf2m",
+            "ring2m",
+            "ring4m",
+            "sockbuf512k",
+            "sockbuf512k-sleep500",
+            "write256k",
+            "ring4m-write256k",
+            "sockbuf512k-write256k",
+            "default"
+          ],
+          "loop": {
+            "idleSleepRequestedUs": 1000,
+            "idleSleepActualUs": 1885,
+            "testSleepUs": 2000,
+            "testPollsPerLoop": 4
+          },
+          "netPool": {
+            "bytes": 262144,
+            "requestedBytes": 262144
+          },
+          "busyReason": null,
+          "serviceSockets": {
+            "requestedBytes": 524288,
+            "tuned": 40,
+            "applied": 40,
+            "getErrors": 0,
+            "setErrors": 0,
+            "lastBytes": 524288,
+            "lastError": 0
+          },
+          "fileTransfers": [
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 46.563,
+              "calls": 59,
+              "wouldBlock": 20,
+              "bytesPerCallAvg": 107546,
+              "writeMs": 7.733,
+              "writeUsMax": 1113,
+              "slowWrites": 0,
+              "fsyncMs": 5.335,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 41.279,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 45.632,
+              "calls": 55,
+              "wouldBlock": 18,
+              "bytesPerCallAvg": 113359,
+              "writeMs": 8.614,
+              "writeUsMax": 894,
+              "slowWrites": 0,
+              "fsyncMs": 7.117,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 38.877,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 49.754,
+              "calls": 55,
+              "wouldBlock": 19,
+              "bytesPerCallAvg": 116508,
+              "writeMs": 8.579,
+              "writeUsMax": 1455,
+              "slowWrites": 0,
+              "fsyncMs": 9.195,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 44.192,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 47.564,
+              "calls": 62,
+              "wouldBlock": 17,
+              "bytesPerCallAvg": 93206,
+              "writeMs": 8.085,
+              "writeUsMax": 806,
+              "slowWrites": 0,
+              "fsyncMs": 6.903,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 41.202,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 48.754,
+              "calls": 55,
+              "wouldBlock": 18,
+              "bytesPerCallAvg": 113359,
+              "writeMs": 8.982,
+              "writeUsMax": 1423,
+              "slowWrites": 0,
+              "fsyncMs": 7.089,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 41.919,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 45.76,
+              "calls": 53,
+              "wouldBlock": 18,
+              "bytesPerCallAvg": 119837,
+              "writeMs": 9.022,
+              "writeUsMax": 834,
+              "slowWrites": 0,
+              "fsyncMs": 5.745,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 39.818,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 79.697,
+              "calls": 41,
+              "wouldBlock": 6,
+              "bytesPerCallAvg": 119837,
+              "writeMs": 51.056,
+              "writeUsMax": 10932,
+              "slowWrites": 0,
+              "fsyncMs": 17.408,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 72.483,
+              "writer": "async",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 46.718,
+              "calls": 52,
+              "wouldBlock": 14,
+              "bytesPerCallAvg": 110376,
+              "writeMs": 23.366,
+              "writeUsMax": 6420,
+              "slowWrites": 0,
+              "fsyncMs": 7.769,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 40.06,
+              "writer": "async",
+              "readMs": 0
+            }
+          ],
+          "requests": [
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 25,
+              "handleUs": 39503,
+              "replyUs": 50,
+              "totalUs": 39578
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 2322,
+              "handleUs": 0,
+              "replyUs": 46697,
+              "totalUs": 49019
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 2431,
+              "handleUs": 0,
+              "replyUs": 45759,
+              "totalUs": 48190
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 360,
+              "handleUs": 0,
+              "replyUs": 49912,
+              "totalUs": 50272
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 418,
+              "handleUs": 0,
+              "replyUs": 47706,
+              "totalUs": 48124
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 327,
+              "handleUs": 0,
+              "replyUs": 48880,
+              "totalUs": 49207
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 343,
+              "handleUs": 0,
+              "replyUs": 45918,
+              "totalUs": 46261
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 377,
+              "handleUs": 0,
+              "replyUs": 79837,
+              "totalUs": 80214
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 2312,
+              "handleUs": 0,
+              "replyUs": 46873,
+              "totalUs": 49185
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 23,
+              "handleUs": 238,
+              "replyUs": 30,
+              "totalUs": 291
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 22,
+              "handleUs": 288,
+              "replyUs": 26,
+              "totalUs": 336
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 1912,
+              "handleUs": 71,
+              "replyUs": 28,
+              "totalUs": 2011
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 17,
+              "handleUs": 171,
+              "replyUs": 27,
+              "totalUs": 215
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 22,
+              "handleUs": 237,
+              "replyUs": 26,
+              "totalUs": 285
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 23,
+              "handleUs": 138,
+              "replyUs": 20,
+              "totalUs": 181
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 23,
+              "handleUs": 180,
+              "replyUs": 22,
+              "totalUs": 225
+            }
+          ],
+          "settings": {
+            "loopWait": "short"
+          },
+          "lastTest": {
+            "mode": "disk",
+            "bytes": 268435456,
+            "size": 268435456,
+            "status": 200,
+            "elapsedMs": 3088.971,
+            "diagnostics": {
+              "version": 1,
+              "profile": "default",
+              "profileApplied": true,
+              "socket": {
+                "option": "SO_RCVBUF",
+                "bufferBytes": 524288,
+                "originalBytes": 66608,
+                "requestedBytes": 524288,
+                "getError": 0,
+                "setError": 0
+              },
+              "calls": {
+                "poll": 2132,
+                "io": 3852,
+                "wouldBlock": 1831,
+                "bytesPerCallAvg": 132823,
+                "bytesPerCallMax": 609608,
+                "ringFull": 238
+              },
+              "sleep": {
+                "requestedUs": 2000,
+                "count": 987,
+                "actualUsTotal": 2679325,
+                "actualUsMax": 5003
+              },
+              "pollsPerLoop": 4,
+              "ring": {
+                "blockBytes": 1048576,
+                "blocks": 8,
+                "writeChunkBytes": 1048576
+              },
+              "netPoolBytes": 262144,
+              "disk": {
+                "writes": 256,
+                "writeUsMax": 149538,
+                "slowWrites": 10,
+                "slowWriteUs": 50000,
+                "writerWaitUs": 141361,
+                "freeBytesBefore": 66874171392,
+                "freeBytesAfter": 66874171392,
+                "freeError": 0
+              },
+              "link": {
+                "deviceRaw": 0,
+                "linkRaw": 1,
+                "mtu": 1500,
+                "speedMbps": null,
+                "error": 0
+              }
+            }
+          }
+        },
+        "complete": true,
+        "fileDeleted": true,
+        "directoryDeleted": true
+      },
+      {
+        "mode": "sync",
+        "repeat": 2,
+        "id": "6800c715-5c66-4f39-b3c5-30023ac782d0",
+        "path": "/data/packageflow-speed-6800c715-5c66-4f39-b3c5-30023ac782d0/fixture.bin",
+        "settings": {
+          "loopWait": "short",
+          "bgftStart": "int",
+          "putWriter": "sync"
+        },
+        "cleanup": true,
+        "blocks": [
+          {
+            "offset": 0,
+            "ms": 50.321954000000005
+          },
+          {
+            "offset": 4194304,
+            "ms": 45.19106699999975
+          },
+          {
+            "offset": 8388608,
+            "ms": 46.13892399999986
+          },
+          {
+            "offset": 12582912,
+            "ms": 49.89761699999963
+          },
+          {
+            "offset": 16777216,
+            "ms": 67.26697999999942
+          },
+          {
+            "offset": 20971520,
+            "ms": 52.45993299999918
+          },
+          {
+            "offset": 25165824,
+            "ms": 48.272869999999784
+          },
+          {
+            "offset": 29360128,
+            "ms": 47.65260600000056
+          }
+        ],
+        "readRuns": [
+          {
+            "ms": 629.3653020000002,
+            "MiBps": 50.84487482597188,
+            "verified": true,
+            "clients": 1,
+            "diagnostics": {
+              "service": "PackegeFlowService",
+              "protocol": "speed-test-v1",
+              "benchmarkApi": 1,
+              "ready": true,
+              "busy": false,
+              "maxBytes": 268435456,
+              "modes": [
+                "latency",
+                "upload",
+                "download",
+                "disk"
+              ],
+              "diagnosticsVersion": 1,
+              "profiles": [
+                "baseline",
+                "sleep500",
+                "polls16",
+                "sockbuf256k",
+                "sockbuf1m",
+                "sockbuf2m",
+                "ring2m",
+                "ring4m",
+                "sockbuf512k",
+                "sockbuf512k-sleep500",
+                "write256k",
+                "ring4m-write256k",
+                "sockbuf512k-write256k",
+                "default"
+              ],
+              "loop": {
+                "idleSleepRequestedUs": 1000,
+                "idleSleepActualUs": 1995,
+                "testSleepUs": 2000,
+                "testPollsPerLoop": 4
+              },
+              "netPool": {
+                "bytes": 262144,
+                "requestedBytes": 262144
+              },
+              "busyReason": null,
+              "serviceSockets": {
+                "requestedBytes": 524288,
+                "tuned": 80,
+                "applied": 80,
+                "getErrors": 0,
+                "setErrors": 0,
+                "lastBytes": 524288,
+                "lastError": 0
+              },
+              "fileTransfers": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 68.159,
+                  "calls": 73,
+                  "wouldBlock": 35,
+                  "bytesPerCallAvg": 110376,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 67.721,
+                  "loopSleepMs": 64.928,
+                  "writer": "none",
+                  "readMs": 5.755
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 67.844,
+                  "calls": 70,
+                  "wouldBlock": 34,
+                  "bytesPerCallAvg": 116508,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 67.425,
+                  "loopSleepMs": 64.363,
+                  "writer": "none",
+                  "readMs": 5.79
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 52.528,
+                  "calls": 58,
+                  "wouldBlock": 26,
+                  "bytesPerCallAvg": 131072,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 50.172,
+                  "loopSleepMs": 49.399,
+                  "writer": "none",
+                  "readMs": 6.47
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 52.161,
+                  "calls": 56,
+                  "wouldBlock": 26,
+                  "bytesPerCallAvg": 139810,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 51.751,
+                  "loopSleepMs": 48.601,
+                  "writer": "none",
+                  "readMs": 6.291
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 57.388,
+                  "calls": 62,
+                  "wouldBlock": 30,
+                  "bytesPerCallAvg": 131072,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 56.967,
+                  "loopSleepMs": 54.132,
+                  "writer": "none",
+                  "readMs": 5.719
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 65.297,
+                  "calls": 70,
+                  "wouldBlock": 34,
+                  "bytesPerCallAvg": 116508,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 64.872,
+                  "loopSleepMs": 62.051,
+                  "writer": "none",
+                  "readMs": 5.73
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 75.527,
+                  "calls": 78,
+                  "wouldBlock": 38,
+                  "bytesPerCallAvg": 104857,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 75.086,
+                  "loopSleepMs": 72.211,
+                  "writer": "none",
+                  "readMs": 6.493
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 47.485,
+                  "calls": 51,
+                  "wouldBlock": 24,
+                  "bytesPerCallAvg": 155344,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 47.057,
+                  "loopSleepMs": 43.848,
+                  "writer": "none",
+                  "readMs": 6.856
+                }
+              ],
+              "requests": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 30,
+                  "handleUs": 5805,
+                  "replyUs": 68121,
+                  "totalUs": 73956
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 26,
+                  "handleUs": 5840,
+                  "replyUs": 67804,
+                  "totalUs": 73670
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 22,
+                  "handleUs": 6520,
+                  "replyUs": 52490,
+                  "totalUs": 59032
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 25,
+                  "handleUs": 6339,
+                  "replyUs": 52125,
+                  "totalUs": 58489
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 23,
+                  "handleUs": 5768,
+                  "replyUs": 57350,
+                  "totalUs": 63141
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 22,
+                  "handleUs": 5781,
+                  "replyUs": 65258,
+                  "totalUs": 71061
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 23,
+                  "handleUs": 6542,
+                  "replyUs": 75489,
+                  "totalUs": 82054
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 15,
+                  "handleUs": 6902,
+                  "replyUs": 47448,
+                  "totalUs": 54365
+                },
+                {
+                  "kind": "json",
+                  "complete": true,
+                  "headersUs": 27,
+                  "handleUs": 58,
+                  "replyUs": 40,
+                  "totalUs": 125
+                },
+                {
+                  "kind": "json",
+                  "complete": true,
+                  "headersUs": 21,
+                  "handleUs": 207,
+                  "replyUs": 29,
+                  "totalUs": 257
+                },
+                {
+                  "kind": "json",
+                  "complete": true,
+                  "headersUs": 23,
+                  "handleUs": 15282,
+                  "replyUs": 47,
+                  "totalUs": 15352
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 182,
+                  "handleUs": 0,
+                  "replyUs": 42483,
+                  "totalUs": 42665
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 192,
+                  "handleUs": 0,
+                  "replyUs": 42505,
+                  "totalUs": 42697
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 2420,
+                  "handleUs": 0,
+                  "replyUs": 43042,
+                  "totalUs": 45462
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 294,
+                  "handleUs": 0,
+                  "replyUs": 58509,
+                  "totalUs": 58803
+                },
+                {
+                  "kind": "put",
+                  "complete": true,
+                  "headersUs": 192,
+                  "handleUs": 0,
+                  "replyUs": 42352,
+                  "totalUs": 42544
+                }
+              ],
+              "settings": {
+                "loopWait": "short"
+              },
+              "lastTest": {
+                "mode": "disk",
+                "bytes": 268435456,
+                "size": 268435456,
+                "status": 200,
+                "elapsedMs": 3088.971,
+                "diagnostics": {
+                  "version": 1,
+                  "profile": "default",
+                  "profileApplied": true,
+                  "socket": {
+                    "option": "SO_RCVBUF",
+                    "bufferBytes": 524288,
+                    "originalBytes": 66608,
+                    "requestedBytes": 524288,
+                    "getError": 0,
+                    "setError": 0
+                  },
+                  "calls": {
+                    "poll": 2132,
+                    "io": 3852,
+                    "wouldBlock": 1831,
+                    "bytesPerCallAvg": 132823,
+                    "bytesPerCallMax": 609608,
+                    "ringFull": 238
+                  },
+                  "sleep": {
+                    "requestedUs": 2000,
+                    "count": 987,
+                    "actualUsTotal": 2679325,
+                    "actualUsMax": 5003
+                  },
+                  "pollsPerLoop": 4,
+                  "ring": {
+                    "blockBytes": 1048576,
+                    "blocks": 8,
+                    "writeChunkBytes": 1048576
+                  },
+                  "netPoolBytes": 262144,
+                  "disk": {
+                    "writes": 256,
+                    "writeUsMax": 149538,
+                    "slowWrites": 10,
+                    "slowWriteUs": 50000,
+                    "writerWaitUs": 141361,
+                    "freeBytesBefore": 66874171392,
+                    "freeBytesAfter": 66874171392,
+                    "freeError": 0
+                  },
+                  "link": {
+                    "deviceRaw": 0,
+                    "linkRaw": 1,
+                    "mtu": 1500,
+                    "speedMbps": null,
+                    "error": 0
+                  }
+                }
+              }
+            }
+          },
+          {
+            "clients": 2,
+            "ms": 831.866916,
+            "aggregateMiBps": 76.93538325546295,
+            "perClient": [
+              {
+                "ms": 751.7373790000001,
+                "MiBps": 42.56805753435868,
+                "verified": true
+              },
+              {
+                "ms": 831.6386970000003,
+                "MiBps": 38.478247964452265,
+                "verified": true
+              }
+            ],
+            "diagnostics": {
+              "service": "PackegeFlowService",
+              "protocol": "speed-test-v1",
+              "benchmarkApi": 1,
+              "ready": true,
+              "busy": false,
+              "maxBytes": 268435456,
+              "modes": [
+                "latency",
+                "upload",
+                "download",
+                "disk"
+              ],
+              "diagnosticsVersion": 1,
+              "profiles": [
+                "baseline",
+                "sleep500",
+                "polls16",
+                "sockbuf256k",
+                "sockbuf1m",
+                "sockbuf2m",
+                "ring2m",
+                "ring4m",
+                "sockbuf512k",
+                "sockbuf512k-sleep500",
+                "write256k",
+                "ring4m-write256k",
+                "sockbuf512k-write256k",
+                "default"
+              ],
+              "loop": {
+                "idleSleepRequestedUs": 1000,
+                "idleSleepActualUs": 1986,
+                "testSleepUs": 2000,
+                "testPollsPerLoop": 4
+              },
+              "netPool": {
+                "bytes": 262144,
+                "requestedBytes": 262144
+              },
+              "busyReason": null,
+              "serviceSockets": {
+                "requestedBytes": 524288,
+                "tuned": 96,
+                "applied": 96,
+                "getErrors": 0,
+                "setErrors": 0,
+                "lastBytes": 524288,
+                "lastError": 0
+              },
+              "fileTransfers": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 105.27,
+                  "calls": 109,
+                  "wouldBlock": 54,
+                  "bytesPerCallAvg": 76260,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 104.795,
+                  "loopSleepMs": 99.146,
+                  "writer": "none",
+                  "readMs": 3.63
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 76.23,
+                  "calls": 71,
+                  "wouldBlock": 36,
+                  "bytesPerCallAvg": 119837,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 75.636,
+                  "loopSleepMs": 65.762,
+                  "writer": "none",
+                  "readMs": 7.772
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 84.72,
+                  "calls": 78,
+                  "wouldBlock": 39,
+                  "bytesPerCallAvg": 107546,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 84.338,
+                  "loopSleepMs": 69.862,
+                  "writer": "none",
+                  "readMs": 5.298
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 71.382,
+                  "calls": 68,
+                  "wouldBlock": 34,
+                  "bytesPerCallAvg": 123361,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 70.971,
+                  "loopSleepMs": 60.573,
+                  "writer": "none",
+                  "readMs": 6.115
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 76.173,
+                  "calls": 72,
+                  "wouldBlock": 36,
+                  "bytesPerCallAvg": 116508,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 75.791,
+                  "loopSleepMs": 63.12,
+                  "writer": "none",
+                  "readMs": 3.876
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 82.45,
+                  "calls": 79,
+                  "wouldBlock": 40,
+                  "bytesPerCallAvg": 107546,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 82.05,
+                  "loopSleepMs": 71.055,
+                  "writer": "none",
+                  "readMs": 6.481
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 81.029,
+                  "calls": 74,
+                  "wouldBlock": 37,
+                  "bytesPerCallAvg": 113359,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 80.423,
+                  "loopSleepMs": 67.243,
+                  "writer": "none",
+                  "readMs": 3.986
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "bytes": 4194304,
+                  "ms": 78.365,
+                  "calls": 76,
+                  "wouldBlock": 37,
+                  "bytesPerCallAvg": 107546,
+                  "writeMs": 0,
+                  "writeUsMax": 0,
+                  "slowWrites": 0,
+                  "fsyncMs": 0,
+                  "bufferBytes": 524288,
+                  "sendWaitMs": 77.931,
+                  "loopSleepMs": 66.512,
+                  "writer": "none",
+                  "readMs": 6.592
+                }
+              ],
+              "requests": [
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 73,
+                  "handleUs": 3679,
+                  "replyUs": 105232,
+                  "totalUs": 108984
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 1991,
+                  "handleUs": 7819,
+                  "replyUs": 76194,
+                  "totalUs": 86004
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 90,
+                  "handleUs": 5350,
+                  "replyUs": 84679,
+                  "totalUs": 90119
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 1923,
+                  "handleUs": 6167,
+                  "replyUs": 71342,
+                  "totalUs": 79432
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 78,
+                  "handleUs": 3929,
+                  "replyUs": 76131,
+                  "totalUs": 80138
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 23,
+                  "handleUs": 6532,
+                  "replyUs": 82412,
+                  "totalUs": 88967
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 153,
+                  "handleUs": 4036,
+                  "replyUs": 80991,
+                  "totalUs": 85180
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 25,
+                  "handleUs": 6645,
+                  "replyUs": 78324,
+                  "totalUs": 84994
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 2058,
+                  "handleUs": 4758,
+                  "replyUs": 76211,
+                  "totalUs": 83027
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 26,
+                  "handleUs": 6638,
+                  "replyUs": 54407,
+                  "totalUs": 61071
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 59,
+                  "handleUs": 4208,
+                  "replyUs": 91883,
+                  "totalUs": 96150
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 1984,
+                  "handleUs": 5901,
+                  "replyUs": 71266,
+                  "totalUs": 79151
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 23,
+                  "handleUs": 6465,
+                  "replyUs": 90484,
+                  "totalUs": 96972
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 2046,
+                  "handleUs": 4152,
+                  "replyUs": 71879,
+                  "totalUs": 78077
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 8569,
+                  "handleUs": 4280,
+                  "replyUs": 77148,
+                  "totalUs": 89997
+                },
+                {
+                  "kind": "read",
+                  "complete": true,
+                  "headersUs": 1951,
+                  "handleUs": 6290,
+                  "replyUs": 60844,
+                  "totalUs": 69085
+                }
+              ],
+              "settings": {
+                "loopWait": "short"
+              },
+              "lastTest": {
+                "mode": "disk",
+                "bytes": 268435456,
+                "size": 268435456,
+                "status": 200,
+                "elapsedMs": 3088.971,
+                "diagnostics": {
+                  "version": 1,
+                  "profile": "default",
+                  "profileApplied": true,
+                  "socket": {
+                    "option": "SO_RCVBUF",
+                    "bufferBytes": 524288,
+                    "originalBytes": 66608,
+                    "requestedBytes": 524288,
+                    "getError": 0,
+                    "setError": 0
+                  },
+                  "calls": {
+                    "poll": 2132,
+                    "io": 3852,
+                    "wouldBlock": 1831,
+                    "bytesPerCallAvg": 132823,
+                    "bytesPerCallMax": 609608,
+                    "ringFull": 238
+                  },
+                  "sleep": {
+                    "requestedUs": 2000,
+                    "count": 987,
+                    "actualUsTotal": 2679325,
+                    "actualUsMax": 5003
+                  },
+                  "pollsPerLoop": 4,
+                  "ring": {
+                    "blockBytes": 1048576,
+                    "blocks": 8,
+                    "writeChunkBytes": 1048576
+                  },
+                  "netPoolBytes": 262144,
+                  "disk": {
+                    "writes": 256,
+                    "writeUsMax": 149538,
+                    "slowWrites": 10,
+                    "slowWriteUs": 50000,
+                    "writerWaitUs": 141361,
+                    "freeBytesBefore": 66874171392,
+                    "freeBytesAfter": 66874171392,
+                    "freeError": 0
+                  },
+                  "link": {
+                    "deviceRaw": 0,
+                    "linkRaw": 1,
+                    "mtu": 1500,
+                    "speedMbps": null,
+                    "error": 0
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "sha256": "80bd27402c5ffbc45ee7dc16f1dbcb93db8e56560840f1fe6c43ec0843eb51dd",
+        "putMs": 408.0613750000002,
+        "finishMs": 18.656967999999324,
+        "putMiBps": 74.99091736958688,
+        "putDiagnostics": {
+          "service": "PackegeFlowService",
+          "protocol": "speed-test-v1",
+          "benchmarkApi": 1,
+          "ready": true,
+          "busy": false,
+          "maxBytes": 268435456,
+          "modes": [
+            "latency",
+            "upload",
+            "download",
+            "disk"
+          ],
+          "diagnosticsVersion": 1,
+          "profiles": [
+            "baseline",
+            "sleep500",
+            "polls16",
+            "sockbuf256k",
+            "sockbuf1m",
+            "sockbuf2m",
+            "ring2m",
+            "ring4m",
+            "sockbuf512k",
+            "sockbuf512k-sleep500",
+            "write256k",
+            "ring4m-write256k",
+            "sockbuf512k-write256k",
+            "default"
+          ],
+          "loop": {
+            "idleSleepRequestedUs": 1000,
+            "idleSleepActualUs": 1867,
+            "testSleepUs": 2000,
+            "testPollsPerLoop": 4
+          },
+          "netPool": {
+            "bytes": 262144,
+            "requestedBytes": 262144
+          },
+          "busyReason": null,
+          "serviceSockets": {
+            "requestedBytes": 524288,
+            "tuned": 72,
+            "applied": 72,
+            "getErrors": 0,
+            "setErrors": 0,
+            "lastBytes": 524288,
+            "lastError": 0
+          },
+          "fileTransfers": [
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 42.339,
+              "calls": 66,
+              "wouldBlock": 1,
+              "bytesPerCallAvg": 64527,
+              "writeMs": 8.336,
+              "writeUsMax": 458,
+              "slowWrites": 0,
+              "fsyncMs": 3.928,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 23.938,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 42.365,
+              "calls": 69,
+              "wouldBlock": 2,
+              "bytesPerCallAvg": 62601,
+              "writeMs": 8.373,
+              "writeUsMax": 362,
+              "slowWrites": 0,
+              "fsyncMs": 3.178,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 25.022,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 42.899,
+              "calls": 68,
+              "wouldBlock": 2,
+              "bytesPerCallAvg": 63550,
+              "writeMs": 8.188,
+              "writeUsMax": 759,
+              "slowWrites": 0,
+              "fsyncMs": 3.034,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 25.867,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 58.371,
+              "calls": 67,
+              "wouldBlock": 1,
+              "bytesPerCallAvg": 63550,
+              "writeMs": 22.424,
+              "writeUsMax": 14803,
+              "slowWrites": 0,
+              "fsyncMs": 3.619,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 26.649,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 42.211,
+              "calls": 71,
+              "wouldBlock": 2,
+              "bytesPerCallAvg": 60787,
+              "writeMs": 8.843,
+              "writeUsMax": 819,
+              "slowWrites": 0,
+              "fsyncMs": 3.253,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 25.059,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 40.344,
+              "calls": 66,
+              "wouldBlock": 1,
+              "bytesPerCallAvg": 64527,
+              "writeMs": 8.099,
+              "writeUsMax": 420,
+              "slowWrites": 0,
+              "fsyncMs": 3.943,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 23.693,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 39.706,
+              "calls": 71,
+              "wouldBlock": 0,
+              "bytesPerCallAvg": 59074,
+              "writeMs": 6.608,
+              "writeUsMax": 302,
+              "slowWrites": 0,
+              "fsyncMs": 3.714,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 24.276,
+              "writer": "sync",
+              "readMs": 0
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 43.044,
+              "calls": 70,
+              "wouldBlock": 0,
+              "bytesPerCallAvg": 59918,
+              "writeMs": 7.658,
+              "writeUsMax": 848,
+              "slowWrites": 0,
+              "fsyncMs": 6.095,
+              "bufferBytes": 524288,
+              "sendWaitMs": 0,
+              "loopSleepMs": 24.363,
+              "writer": "sync",
+              "readMs": 0
+            }
+          ],
+          "requests": [
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 23,
+              "handleUs": 15282,
+              "replyUs": 47,
+              "totalUs": 15352
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 182,
+              "handleUs": 0,
+              "replyUs": 42483,
+              "totalUs": 42665
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 192,
+              "handleUs": 0,
+              "replyUs": 42505,
+              "totalUs": 42697
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 2420,
+              "handleUs": 0,
+              "replyUs": 43042,
+              "totalUs": 45462
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 294,
+              "handleUs": 0,
+              "replyUs": 58509,
+              "totalUs": 58803
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 192,
+              "handleUs": 0,
+              "replyUs": 42352,
+              "totalUs": 42544
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 195,
+              "handleUs": 0,
+              "replyUs": 40483,
+              "totalUs": 40678
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 221,
+              "handleUs": 0,
+              "replyUs": 39843,
+              "totalUs": 40064
+            },
+            {
+              "kind": "put",
+              "complete": true,
+              "headersUs": 227,
+              "handleUs": 0,
+              "replyUs": 43250,
+              "totalUs": 43477
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 14,
+              "handleUs": 169,
+              "replyUs": 14,
+              "totalUs": 197
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 25,
+              "handleUs": 295,
+              "replyUs": 37,
+              "totalUs": 357
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 28,
+              "handleUs": 70,
+              "replyUs": 30,
+              "totalUs": 128
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 13,
+              "handleUs": 189,
+              "replyUs": 22,
+              "totalUs": 224
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 22,
+              "handleUs": 243,
+              "replyUs": 22,
+              "totalUs": 287
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 14,
+              "handleUs": 97,
+              "replyUs": 14,
+              "totalUs": 125
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 24,
+              "handleUs": 141,
+              "replyUs": 14,
+              "totalUs": 179
+            }
+          ],
+          "settings": {
+            "loopWait": "short"
+          },
+          "lastTest": {
+            "mode": "disk",
+            "bytes": 268435456,
+            "size": 268435456,
+            "status": 200,
+            "elapsedMs": 3088.971,
+            "diagnostics": {
+              "version": 1,
+              "profile": "default",
+              "profileApplied": true,
+              "socket": {
+                "option": "SO_RCVBUF",
+                "bufferBytes": 524288,
+                "originalBytes": 66608,
+                "requestedBytes": 524288,
+                "getError": 0,
+                "setError": 0
+              },
+              "calls": {
+                "poll": 2132,
+                "io": 3852,
+                "wouldBlock": 1831,
+                "bytesPerCallAvg": 132823,
+                "bytesPerCallMax": 609608,
+                "ringFull": 238
+              },
+              "sleep": {
+                "requestedUs": 2000,
+                "count": 987,
+                "actualUsTotal": 2679325,
+                "actualUsMax": 5003
+              },
+              "pollsPerLoop": 4,
+              "ring": {
+                "blockBytes": 1048576,
+                "blocks": 8,
+                "writeChunkBytes": 1048576
+              },
+              "netPoolBytes": 262144,
+              "disk": {
+                "writes": 256,
+                "writeUsMax": 149538,
+                "slowWrites": 10,
+                "slowWriteUs": 50000,
+                "writerWaitUs": 141361,
+                "freeBytesBefore": 66874171392,
+                "freeBytesAfter": 66874171392,
+                "freeError": 0
+              },
+              "link": {
+                "deviceRaw": 0,
+                "linkRaw": 1,
+                "mtu": 1500,
+                "speedMbps": null,
+                "error": 0
+              }
+            }
+          }
+        },
+        "complete": true,
+        "fileDeleted": true,
+        "directoryDeleted": true
+      }
+    ],
+    "completed": true,
+    "system": {
+      "service": "PackegeFlowService",
+      "version": "0.10.2",
+      "environment": "ps4",
+      "pkgVersion": "2.13",
+      "firmware": {
+        "version": "12.50",
+        "rawVersion": 307265537,
+        "error": 0
+      },
+      "model": {
+        "name": null,
+        "family": "PS4 Pro",
+        "source": null,
+        "error": 0,
+        "reason": "console_model_unavailable"
+      },
+      "hen": {
+        "name": null,
+        "version": null,
+        "sdkVersion": null,
+        "reason": "release_version_api_unavailable"
+      },
+      "filesystemAccess": {
+        "enabled": true,
+        "error": 0,
+        "errorHex": "0x00000000",
+        "stage": "ready",
+        "sdkProbed": true,
+        "sdkResult": -256,
+        "sdkResultHex": "0xFFFFFF00",
+        "sdkErrno": 256,
+        "sdkRawRaxHex": "0x0000000000000100",
+        "sdkCarry": true,
+        "sandboxBefore": 1,
+        "sandboxAfter": 0,
+        "jailbreakAttempted": true,
+        "jailbreakResult": 0,
+        "jailbreakErrno": 0,
+        "jailbreakRawRaxHex": "0x0000000000000000",
+        "jailbreakCarry": false
+      }
+    },
+    "before": {
+      "service": "PackegeFlowService",
+      "protocol": "speed-test-v1",
+      "benchmarkApi": 1,
+      "ready": true,
+      "busy": false,
+      "maxBytes": 268435456,
+      "modes": [
+        "latency",
+        "upload",
+        "download",
+        "disk"
+      ],
+      "diagnosticsVersion": 1,
+      "profiles": [
+        "baseline",
+        "sleep500",
+        "polls16",
+        "sockbuf256k",
+        "sockbuf1m",
+        "sockbuf2m",
+        "ring2m",
+        "ring4m",
+        "sockbuf512k",
+        "sockbuf512k-sleep500",
+        "write256k",
+        "ring4m-write256k",
+        "sockbuf512k-write256k",
+        "default"
+      ],
+      "loop": {
+        "idleSleepRequestedUs": 1000,
+        "idleSleepActualUs": 2029,
+        "testSleepUs": 2000,
+        "testPollsPerLoop": 4
+      },
+      "netPool": {
+        "bytes": 262144,
+        "requestedBytes": 262144
+      },
+      "busyReason": null,
+      "serviceSockets": {
+        "requestedBytes": 524288,
+        "tuned": 0,
+        "applied": 0,
+        "getErrors": 0,
+        "setErrors": 0,
+        "lastBytes": -1,
+        "lastError": 0
+      },
+      "fileTransfers": [
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 23,
+          "ms": 0.066,
+          "calls": 2,
+          "wouldBlock": 0,
+          "bytesPerCallAvg": 11,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": -1,
+          "sendWaitMs": 0,
+          "loopSleepMs": 0,
+          "writer": "none",
+          "readMs": 0.181
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 3,
+          "ms": 0.065,
+          "calls": 2,
+          "wouldBlock": 0,
+          "bytesPerCallAvg": 1,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": -1,
+          "sendWaitMs": 0,
+          "loopSleepMs": 0,
+          "writer": "none",
+          "readMs": 0.18
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 30,
+          "ms": 0.066,
+          "calls": 2,
+          "wouldBlock": 0,
+          "bytesPerCallAvg": 15,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": -1,
+          "sendWaitMs": 0,
+          "loopSleepMs": 0,
+          "writer": "none",
+          "readMs": 0.185
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 23,
+          "ms": 0.09,
+          "calls": 2,
+          "wouldBlock": 0,
+          "bytesPerCallAvg": 11,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": -1,
+          "sendWaitMs": 0,
+          "loopSleepMs": 0,
+          "writer": "none",
+          "readMs": 0.282
+        }
+      ],
+      "requests": [
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 26,
+          "handleUs": 74,
+          "replyUs": 40,
+          "totalUs": 140
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 432,
+          "handleUs": 28,
+          "replyUs": 12,
+          "totalUs": 472
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 365,
+          "handleUs": 43,
+          "replyUs": 14,
+          "totalUs": 422
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 238,
+          "handleUs": 102,
+          "replyUs": 15,
+          "totalUs": 355
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 48,
+          "handleUs": 54,
+          "replyUs": 112,
+          "totalUs": 214
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 20,
+          "handleUs": 54,
+          "replyUs": 24,
+          "totalUs": 98
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 29,
+          "handleUs": 61,
+          "replyUs": 40,
+          "totalUs": 130
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 350,
+          "handleUs": 30,
+          "replyUs": 13,
+          "totalUs": 393
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 286,
+          "handleUs": 40,
+          "replyUs": 13,
+          "totalUs": 339
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 180,
+          "handleUs": 83,
+          "replyUs": 13,
+          "totalUs": 276
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 51,
+          "handleUs": 58,
+          "replyUs": 42,
+          "totalUs": 151
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 21,
+          "handleUs": 59,
+          "replyUs": 25,
+          "totalUs": 105
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 28,
+          "handleUs": 64,
+          "replyUs": 43,
+          "totalUs": 135
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 2290,
+          "handleUs": 28,
+          "replyUs": 13,
+          "totalUs": 2331
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 2182,
+          "handleUs": 81,
+          "replyUs": 13,
+          "totalUs": 2276
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 2116,
+          "handleUs": 42,
+          "replyUs": 13,
+          "totalUs": 2171
+        }
+      ],
+      "settings": {
+        "loopWait": "short"
+      },
+      "lastTest": {
+        "mode": "disk",
+        "bytes": 268435456,
+        "size": 268435456,
+        "status": 200,
+        "elapsedMs": 3088.971,
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2132,
+            "io": 3852,
+            "wouldBlock": 1831,
+            "bytesPerCallAvg": 132823,
+            "bytesPerCallMax": 609608,
+            "ringFull": 238
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 987,
+            "actualUsTotal": 2679325,
+            "actualUsMax": 5003
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 1048576
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 256,
+            "writeUsMax": 149538,
+            "slowWrites": 10,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 141361,
+            "freeBytesBefore": 66874171392,
+            "freeBytesAfter": 66874171392,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    },
+    "tasks": {
+      "service": "PackegeFlowService",
+      "tasks": [
+        {
+          "requestId": "74939d64-356c-4ed6-ae51-d93f31fc03d4",
+          "taskId": 1012,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "4d6dcc03-f8c1-4aa2-a06b-f79fb05e0e48",
+          "taskId": 1013,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "f28201a2-11a9-49ce-b1d0-f5244f242274",
+          "taskId": 1015,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "576836c9-b3f0-4d52-b531-c82dc0594f18",
+          "taskId": 1016,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "784bc8df-42bc-4330-bd30-1e4dec9fdec1",
+          "taskId": 1018,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "6648473e-2be5-44c3-863d-a61d4ed70c61",
+          "taskId": 1019,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "98e99ece-d37c-4220-b8b8-c32c5b085aa1",
+          "taskId": 1023,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "731f2c30-b8bc-4b8d-859e-1a0744051487",
+          "taskId": 1025,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "8cad440f-686e-4a3e-9370-8b85cb73c3a5",
+          "taskId": 1027,
+          "state": "cancelled",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "bd850d65-bba2-40b3-9d6f-cd85ff728c5c",
+          "taskId": 1029,
+          "state": "cancelled",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "33d5c293-c1b7-449d-b32a-4406a69d2c39",
+          "taskId": 1030,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "14b22933-a7b9-4d30-9b29-42324b37e051",
+          "taskId": 1032,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "44138336-24e1-4769-863a-82de0f740950",
+          "taskId": 1034,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "43b20593-0284-4701-bd36-efff7e51cc95",
+          "taskId": 1036,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "be5e76dc-1878-4fdd-9a23-7c6bed703630",
+          "taskId": 1037,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "aea100fe-b97f-48a7-877f-f0875aadcd83",
+          "taskId": 1039,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "fe8d8ee1-dbed-4104-9742-faa7099dd280",
+          "taskId": 1040,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "9ddd8adb-dd62-42ab-8f14-dde31df89f87",
+          "taskId": 1042,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "657789a2-5d97-4610-9722-239b7f210779",
+          "taskId": 1043,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "a4746751-4581-4f58-befa-ec88e1c0c373",
+          "taskId": 1045,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "52927c37-2379-4b80-bf70-477e0cedba5a",
+          "taskId": 1046,
+          "state": "failed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "47c8d250-4084-4550-9975-8141fceaa8ca",
+          "taskId": 1047,
+          "state": "cancelled",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "cd5150c5-991b-4465-b399-af539fce7183",
+          "taskId": 1048,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "106ee024-41f5-4453-94e9-c9ffce38c7d0",
+          "taskId": 1050,
+          "state": "cancelled",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "3fabda37-43ed-491b-93a9-003f2e1e8492",
+          "taskId": 1051,
+          "state": "cancelled",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "5e1a8281-3818-429b-aaf6-bbbb4a2036b0",
+          "taskId": 1052,
+          "state": "cancelled",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "bf9b7771-f248-40c4-8b49-12586668b2b3",
+          "taskId": 1053,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "4c3061d2-be34-4bde-afe1-f52d281a2cee",
+          "taskId": 1055,
+          "state": "cancelled",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "73392228-7ed3-4159-902c-dd52f31f1139",
+          "taskId": 1056,
+          "state": "cancelled",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "3df98c80-147b-48b8-8bf6-fbf79f8dbb3d",
+          "taskId": 1057,
+          "state": "installed",
+          "present": false,
+          "pollError": -2137456615,
+          "bits": 0,
+          "bytes": 0,
+          "preparing": 0,
+          "copying": 0
+        },
+        {
+          "requestId": "e9a80fbc-0f48-45e8-92ac-f4b5458c8bcc",
+          "taskId": 1060,
+          "state": "cancelled",
+          "present": true,
+          "pollError": 0,
+          "bits": 403,
+          "bytes": 6619136,
+          "preparing": 100,
+          "copying": 100
+        }
+      ]
+    },
+    "initialSettings": {
+      "loopWait": "short",
+      "bgftStart": "int",
+      "putWriter": "sync"
+    },
+    "latency": [
+      {
+        "mode": "short",
+        "samples": [
+          2.39421399999992,
+          1.803649999999834,
+          2.3710030000002007,
+          3.7691939999995157,
+          1.8691360000002533,
+          2.236280000000079,
+          1.8074759999999515,
+          2.242562999999791,
+          1.8265029999993203,
+          2.074037999999746,
+          3.138429999999971,
+          1.6886359999998604,
+          2.217174000000341,
+          1.878407000000152,
+          1.9052560000000085,
+          2.76084499999979,
+          3.587891000000127,
+          3.6694229999993695,
+          2.0937030000004597,
+          1.9013390000000072
+        ],
+        "medianMs": 2.217174000000341
+      },
+      {
+        "mode": "baseline",
+        "samples": [
+          17.799975999999333,
+          16.66189099999974,
+          17.079407000000174,
+          16.806244000000333,
+          17.76696600000014,
+          16.37196099999983,
+          16.796492999999828,
+          17.456145999999535,
+          16.415391999999883,
+          17.635411999999633,
+          16.601818000000094,
+          16.846644000000197,
+          17.28926500000034,
+          17.08400899999924,
+          17.031826000000365,
+          17.083816999999726,
+          16.916897000000063,
+          17.016435000000456,
+          16.964829999999893,
+          16.550572000000102
+        ],
+        "medianMs": 17.016435000000456
+      },
+      {
+        "mode": "short",
+        "samples": [
+          1.8815679999997883,
+          2.2563090000003285,
+          1.924673999999868,
+          1.8852499999993597,
+          2.1414450000002034,
+          1.9351129999995464,
+          1.867435000000114,
+          2.164350000000013,
+          1.874442999999701,
+          2.173555999999735,
+          1.7090870000001814,
+          2.213150000000496,
+          2.124251999999615,
+          1.849435000000085,
+          1.989465999999993,
+          2.159096999999747,
+          2.0082140000004074,
+          1.7386429999996835,
+          2.047975999999835,
+          1.8773289999999179
+        ],
+        "medianMs": 1.989465999999993
+      }
+    ],
+    "restoredSettings": {
+      "loopWait": "short",
+      "bgftStart": "int",
+      "putWriter": "sync"
+    },
+    "after": {
+      "service": "PackegeFlowService",
+      "protocol": "speed-test-v1",
+      "benchmarkApi": 1,
+      "ready": true,
+      "busy": false,
+      "maxBytes": 268435456,
+      "modes": [
+        "latency",
+        "upload",
+        "download",
+        "disk"
+      ],
+      "diagnosticsVersion": 1,
+      "profiles": [
+        "baseline",
+        "sleep500",
+        "polls16",
+        "sockbuf256k",
+        "sockbuf1m",
+        "sockbuf2m",
+        "ring2m",
+        "ring4m",
+        "sockbuf512k",
+        "sockbuf512k-sleep500",
+        "write256k",
+        "ring4m-write256k",
+        "sockbuf512k-write256k",
+        "default"
+      ],
+      "loop": {
+        "idleSleepRequestedUs": 1000,
+        "idleSleepActualUs": 1711,
+        "testSleepUs": 2000,
+        "testPollsPerLoop": 4
+      },
+      "netPool": {
+        "bytes": 262144,
+        "requestedBytes": 262144
+      },
+      "busyReason": null,
+      "serviceSockets": {
+        "requestedBytes": 524288,
+        "tuned": 96,
+        "applied": 96,
+        "getErrors": 0,
+        "setErrors": 0,
+        "lastBytes": 524288,
+        "lastError": 0
+      },
+      "fileTransfers": [
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 105.27,
+          "calls": 109,
+          "wouldBlock": 54,
+          "bytesPerCallAvg": 76260,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 104.795,
+          "loopSleepMs": 99.146,
+          "writer": "none",
+          "readMs": 3.63
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 76.23,
+          "calls": 71,
+          "wouldBlock": 36,
+          "bytesPerCallAvg": 119837,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 75.636,
+          "loopSleepMs": 65.762,
+          "writer": "none",
+          "readMs": 7.772
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 84.72,
+          "calls": 78,
+          "wouldBlock": 39,
+          "bytesPerCallAvg": 107546,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 84.338,
+          "loopSleepMs": 69.862,
+          "writer": "none",
+          "readMs": 5.298
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 71.382,
+          "calls": 68,
+          "wouldBlock": 34,
+          "bytesPerCallAvg": 123361,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 70.971,
+          "loopSleepMs": 60.573,
+          "writer": "none",
+          "readMs": 6.115
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 76.173,
+          "calls": 72,
+          "wouldBlock": 36,
+          "bytesPerCallAvg": 116508,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 75.791,
+          "loopSleepMs": 63.12,
+          "writer": "none",
+          "readMs": 3.876
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 82.45,
+          "calls": 79,
+          "wouldBlock": 40,
+          "bytesPerCallAvg": 107546,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 82.05,
+          "loopSleepMs": 71.055,
+          "writer": "none",
+          "readMs": 6.481
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 81.029,
+          "calls": 74,
+          "wouldBlock": 37,
+          "bytesPerCallAvg": 113359,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 80.423,
+          "loopSleepMs": 67.243,
+          "writer": "none",
+          "readMs": 3.986
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 78.365,
+          "calls": 76,
+          "wouldBlock": 37,
+          "bytesPerCallAvg": 107546,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 77.931,
+          "loopSleepMs": 66.512,
+          "writer": "none",
+          "readMs": 6.592
+        }
+      ],
+      "requests": [
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 29,
+          "handleUs": 72,
+          "replyUs": 48,
+          "totalUs": 149
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 13,
+          "handleUs": 154,
+          "replyUs": 16,
+          "totalUs": 183
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 20,
+          "handleUs": 172,
+          "replyUs": 25,
+          "totalUs": 217
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 17,
+          "handleUs": 150,
+          "replyUs": 16,
+          "totalUs": 183
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 12,
+          "handleUs": 139,
+          "replyUs": 17,
+          "totalUs": 168
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 19,
+          "handleUs": 226,
+          "replyUs": 30,
+          "totalUs": 275
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 13,
+          "handleUs": 151,
+          "replyUs": 16,
+          "totalUs": 180
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 23,
+          "handleUs": 224,
+          "replyUs": 35,
+          "totalUs": 282
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 21,
+          "handleUs": 173,
+          "replyUs": 33,
+          "totalUs": 227
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 13,
+          "handleUs": 162,
+          "replyUs": 17,
+          "totalUs": 192
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 23,
+          "handleUs": 167,
+          "replyUs": 25,
+          "totalUs": 215
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 13,
+          "handleUs": 139,
+          "replyUs": 16,
+          "totalUs": 168
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 13,
+          "handleUs": 153,
+          "replyUs": 16,
+          "totalUs": 182
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 16,
+          "handleUs": 223,
+          "replyUs": 29,
+          "totalUs": 268
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 14,
+          "handleUs": 140,
+          "replyUs": 16,
+          "totalUs": 170
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 24,
+          "handleUs": 181,
+          "replyUs": 25,
+          "totalUs": 230
+        }
+      ],
+      "settings": {
+        "loopWait": "short"
+      },
+      "lastTest": {
+        "mode": "disk",
+        "bytes": 268435456,
+        "size": 268435456,
+        "status": 200,
+        "elapsedMs": 3088.971,
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 2132,
+            "io": 3852,
+            "wouldBlock": 1831,
+            "bytesPerCallAvg": 132823,
+            "bytesPerCallMax": 609608,
+            "ringFull": 238
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 987,
+            "actualUsTotal": 2679325,
+            "actualUsMax": 5003
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 1048576
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 256,
+            "writeUsMax": 149538,
+            "slowWrites": 10,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 141361,
+            "freeBytesBefore": 66874171392,
+            "freeBytesAfter": 66874171392,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    }
+  },
+  "speed": {
+    "at": "2026-10-12T15:49:59.574Z",
+    "ip": "10.1.10.32",
+    "consoleId": "f841d80b-c74c-4dc4-9651-454943fa8b7e",
+    "runs": [
+      {
+        "repeat": 1,
+        "initial": {
+          "id": "d5f1cc11-0657-4472-bfae-0a0b42ea460d",
+          "consoleId": "f841d80b-c74c-4dc4-9651-454943fa8b7e",
+          "ip": "10.1.10.32",
+          "state": "running",
+          "size": 268435456,
+          "startedAt": 1791820199669,
+          "results": [],
+          "current": "latency"
+        },
+        "final": {
+          "id": "d5f1cc11-0657-4472-bfae-0a0b42ea460d",
+          "consoleId": "f841d80b-c74c-4dc4-9651-454943fa8b7e",
+          "ip": "10.1.10.32",
+          "state": "completed",
+          "size": 268435456,
+          "startedAt": 1791820199669,
+          "results": [
+            {
+              "mode": "latency",
+              "bytes": 0,
+              "elapsedMs": 19.74550600349903,
+              "latencyMinMs": 1.9319429993629456,
+              "latencyMedianMs": 2.0785690024495125,
+              "latencyMaxMs": 3.875786989927292
+            },
+            {
+              "mode": "upload",
+              "bytes": 268435456,
+              "elapsedMs": 2299.956097006798,
+              "bytesPerSecond": 116713295.67957689,
+              "writeMs": 0,
+              "syncMs": 0,
+              "cleanup": true,
+              "receivePipeline": false
+            },
+            {
+              "mode": "download",
+              "bytes": 268435456,
+              "elapsedMs": 2466.003534004092,
+              "bytesPerSecond": 108854449.0299804
+            },
+            {
+              "mode": "disk",
+              "bytes": 268435456,
+              "elapsedMs": 2911.0206640064716,
+              "bytesPerSecond": 92213517.86302648,
+              "writeMs": 2676.08,
+              "syncMs": 21.331,
+              "cleanup": true,
+              "receivePipeline": true
+            }
+          ],
+          "finishedAt": 1791820207369
+        },
+        "diagnostics": {
+          "service": "PackegeFlowService",
+          "protocol": "speed-test-v1",
+          "benchmarkApi": 1,
+          "ready": true,
+          "busy": false,
+          "maxBytes": 268435456,
+          "modes": [
+            "latency",
+            "upload",
+            "download",
+            "disk"
+          ],
+          "diagnosticsVersion": 1,
+          "profiles": [
+            "baseline",
+            "sleep500",
+            "polls16",
+            "sockbuf256k",
+            "sockbuf1m",
+            "sockbuf2m",
+            "ring2m",
+            "ring4m",
+            "sockbuf512k",
+            "sockbuf512k-sleep500",
+            "write256k",
+            "ring4m-write256k",
+            "sockbuf512k-write256k",
+            "default"
+          ],
+          "loop": {
+            "idleSleepRequestedUs": 16000,
+            "idleSleepActualUs": 16977,
+            "testSleepUs": 2000,
+            "testPollsPerLoop": 4
+          },
+          "netPool": {
+            "bytes": 262144,
+            "requestedBytes": 262144
+          },
+          "busyReason": null,
+          "serviceSockets": {
+            "requestedBytes": 524288,
+            "tuned": 96,
+            "applied": 96,
+            "getErrors": 0,
+            "setErrors": 0,
+            "lastBytes": 524288,
+            "lastError": 0
+          },
+          "fileTransfers": [
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 105.27,
+              "calls": 109,
+              "wouldBlock": 54,
+              "bytesPerCallAvg": 76260,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 104.795,
+              "loopSleepMs": 99.146,
+              "writer": "none",
+              "readMs": 3.63
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 76.23,
+              "calls": 71,
+              "wouldBlock": 36,
+              "bytesPerCallAvg": 119837,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 75.636,
+              "loopSleepMs": 65.762,
+              "writer": "none",
+              "readMs": 7.772
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 84.72,
+              "calls": 78,
+              "wouldBlock": 39,
+              "bytesPerCallAvg": 107546,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 84.338,
+              "loopSleepMs": 69.862,
+              "writer": "none",
+              "readMs": 5.298
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 71.382,
+              "calls": 68,
+              "wouldBlock": 34,
+              "bytesPerCallAvg": 123361,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 70.971,
+              "loopSleepMs": 60.573,
+              "writer": "none",
+              "readMs": 6.115
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 76.173,
+              "calls": 72,
+              "wouldBlock": 36,
+              "bytesPerCallAvg": 116508,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 75.791,
+              "loopSleepMs": 63.12,
+              "writer": "none",
+              "readMs": 3.876
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 82.45,
+              "calls": 79,
+              "wouldBlock": 40,
+              "bytesPerCallAvg": 107546,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 82.05,
+              "loopSleepMs": 71.055,
+              "writer": "none",
+              "readMs": 6.481
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 81.029,
+              "calls": 74,
+              "wouldBlock": 37,
+              "bytesPerCallAvg": 113359,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 80.423,
+              "loopSleepMs": 67.243,
+              "writer": "none",
+              "readMs": 3.986
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 78.365,
+              "calls": 76,
+              "wouldBlock": 37,
+              "bytesPerCallAvg": 107546,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 77.931,
+              "loopSleepMs": 66.512,
+              "writer": "none",
+              "readMs": 6.592
+            }
+          ],
+          "requests": [
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 270,
+              "handleUs": 83,
+              "replyUs": 24,
+              "totalUs": 377
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 208,
+              "handleUs": 40,
+              "replyUs": 13,
+              "totalUs": 261
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 136,
+              "handleUs": 33,
+              "replyUs": 28,
+              "totalUs": 197
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 43,
+              "handleUs": 57,
+              "replyUs": 19,
+              "totalUs": 119
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 18,
+              "handleUs": 71,
+              "replyUs": 20,
+              "totalUs": 109
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 23,
+              "handleUs": 63,
+              "replyUs": 20,
+              "totalUs": 106
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 24,
+              "handleUs": 202,
+              "replyUs": 22,
+              "totalUs": 248
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 13,
+              "handleUs": 151,
+              "replyUs": 17,
+              "totalUs": 181
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 24,
+              "handleUs": 191,
+              "replyUs": 27,
+              "totalUs": 242
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 25,
+              "handleUs": 221,
+              "replyUs": 29,
+              "totalUs": 275
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 16,
+              "handleUs": 152,
+              "replyUs": 20,
+              "totalUs": 188
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 19,
+              "handleUs": 173,
+              "replyUs": 30,
+              "totalUs": 222
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 13,
+              "handleUs": 151,
+              "replyUs": 17,
+              "totalUs": 181
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 21,
+              "handleUs": 179,
+              "replyUs": 30,
+              "totalUs": 230
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 21,
+              "handleUs": 188,
+              "replyUs": 25,
+              "totalUs": 234
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 64,
+              "handleUs": 196,
+              "replyUs": 43,
+              "totalUs": 303
+            }
+          ],
+          "settings": {
+            "loopWait": "short"
+          },
+          "lastTest": {
+            "mode": "disk",
+            "bytes": 268435456,
+            "size": 268435456,
+            "status": 200,
+            "elapsedMs": 2896.886,
+            "diagnostics": {
+              "version": 1,
+              "profile": "default",
+              "profileApplied": true,
+              "socket": {
+                "option": "SO_RCVBUF",
+                "bufferBytes": 524288,
+                "originalBytes": 66608,
+                "requestedBytes": 524288,
+                "getError": 0,
+                "setError": 0
+              },
+              "calls": {
+                "poll": 2079,
+                "io": 3829,
+                "wouldBlock": 1836,
+                "bytesPerCallAvg": 134689,
+                "bytesPerCallMax": 622744,
+                "ringFull": 229
+              },
+              "sleep": {
+                "requestedUs": 2000,
+                "count": 932,
+                "actualUsTotal": 2512130,
+                "actualUsMax": 4769
+              },
+              "pollsPerLoop": 4,
+              "ring": {
+                "blockBytes": 1048576,
+                "blocks": 8,
+                "writeChunkBytes": 1048576
+              },
+              "netPoolBytes": 262144,
+              "disk": {
+                "writes": 256,
+                "writeUsMax": 133377,
+                "slowWrites": 10,
+                "slowWriteUs": 50000,
+                "writerWaitUs": 185201,
+                "freeBytesBefore": 66874159104,
+                "freeBytesAfter": 66874159104,
+                "freeError": 0
+              },
+              "link": {
+                "deviceRaw": 0,
+                "linkRaw": 1,
+                "mtu": 1500,
+                "speedMbps": null,
+                "error": 0
+              }
+            }
+          }
+        }
+      },
+      {
+        "repeat": 2,
+        "initial": {
+          "id": "fee1f5a6-0098-4d07-90d7-d2aeb55cb33e",
+          "consoleId": "f841d80b-c74c-4dc4-9651-454943fa8b7e",
+          "ip": "10.1.10.32",
+          "state": "running",
+          "size": 268435456,
+          "startedAt": 1791820207769,
+          "results": [],
+          "current": "latency"
+        },
+        "final": {
+          "id": "fee1f5a6-0098-4d07-90d7-d2aeb55cb33e",
+          "consoleId": "f841d80b-c74c-4dc4-9651-454943fa8b7e",
+          "ip": "10.1.10.32",
+          "state": "completed",
+          "size": 268435456,
+          "startedAt": 1791820207769,
+          "results": [
+            {
+              "mode": "latency",
+              "bytes": 0,
+              "elapsedMs": 17.945452958345413,
+              "latencyMinMs": 1.6568919867277145,
+              "latencyMedianMs": 2.096523493528366,
+              "latencyMaxMs": 4.078216999769211
+            },
+            {
+              "mode": "upload",
+              "bytes": 268435456,
+              "elapsedMs": 2297.7952069938183,
+              "bytesPerSecond": 116823055.06729268,
+              "writeMs": 0,
+              "syncMs": 0,
+              "cleanup": true,
+              "receivePipeline": false
+            },
+            {
+              "mode": "download",
+              "bytes": 268435456,
+              "elapsedMs": 2372.510697990656,
+              "bytesPerSecond": 113144044.50413872
+            },
+            {
+              "mode": "disk",
+              "bytes": 268435456,
+              "elapsedMs": 2655.918099999428,
+              "bytesPerSecond": 101070682.86482848,
+              "writeMs": 2256.4,
+              "syncMs": 19.303,
+              "cleanup": true,
+              "receivePipeline": true
+            }
+          ],
+          "finishedAt": 1791820215116
+        },
+        "diagnostics": {
+          "service": "PackegeFlowService",
+          "protocol": "speed-test-v1",
+          "benchmarkApi": 1,
+          "ready": true,
+          "busy": false,
+          "maxBytes": 268435456,
+          "modes": [
+            "latency",
+            "upload",
+            "download",
+            "disk"
+          ],
+          "diagnosticsVersion": 1,
+          "profiles": [
+            "baseline",
+            "sleep500",
+            "polls16",
+            "sockbuf256k",
+            "sockbuf1m",
+            "sockbuf2m",
+            "ring2m",
+            "ring4m",
+            "sockbuf512k",
+            "sockbuf512k-sleep500",
+            "write256k",
+            "ring4m-write256k",
+            "sockbuf512k-write256k",
+            "default"
+          ],
+          "loop": {
+            "idleSleepRequestedUs": 16000,
+            "idleSleepActualUs": 16010,
+            "testSleepUs": 2000,
+            "testPollsPerLoop": 4
+          },
+          "netPool": {
+            "bytes": 262144,
+            "requestedBytes": 262144
+          },
+          "busyReason": null,
+          "serviceSockets": {
+            "requestedBytes": 524288,
+            "tuned": 96,
+            "applied": 96,
+            "getErrors": 0,
+            "setErrors": 0,
+            "lastBytes": 524288,
+            "lastError": 0
+          },
+          "fileTransfers": [
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 105.27,
+              "calls": 109,
+              "wouldBlock": 54,
+              "bytesPerCallAvg": 76260,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 104.795,
+              "loopSleepMs": 99.146,
+              "writer": "none",
+              "readMs": 3.63
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 76.23,
+              "calls": 71,
+              "wouldBlock": 36,
+              "bytesPerCallAvg": 119837,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 75.636,
+              "loopSleepMs": 65.762,
+              "writer": "none",
+              "readMs": 7.772
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 84.72,
+              "calls": 78,
+              "wouldBlock": 39,
+              "bytesPerCallAvg": 107546,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 84.338,
+              "loopSleepMs": 69.862,
+              "writer": "none",
+              "readMs": 5.298
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 71.382,
+              "calls": 68,
+              "wouldBlock": 34,
+              "bytesPerCallAvg": 123361,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 70.971,
+              "loopSleepMs": 60.573,
+              "writer": "none",
+              "readMs": 6.115
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 76.173,
+              "calls": 72,
+              "wouldBlock": 36,
+              "bytesPerCallAvg": 116508,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 75.791,
+              "loopSleepMs": 63.12,
+              "writer": "none",
+              "readMs": 3.876
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 82.45,
+              "calls": 79,
+              "wouldBlock": 40,
+              "bytesPerCallAvg": 107546,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 82.05,
+              "loopSleepMs": 71.055,
+              "writer": "none",
+              "readMs": 6.481
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 81.029,
+              "calls": 74,
+              "wouldBlock": 37,
+              "bytesPerCallAvg": 113359,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 80.423,
+              "loopSleepMs": 67.243,
+              "writer": "none",
+              "readMs": 3.986
+            },
+            {
+              "kind": "read",
+              "complete": true,
+              "bytes": 4194304,
+              "ms": 78.365,
+              "calls": 76,
+              "wouldBlock": 37,
+              "bytesPerCallAvg": 107546,
+              "writeMs": 0,
+              "writeUsMax": 0,
+              "slowWrites": 0,
+              "fsyncMs": 0,
+              "bufferBytes": 524288,
+              "sendWaitMs": 77.931,
+              "loopSleepMs": 66.512,
+              "writer": "none",
+              "readMs": 6.592
+            }
+          ],
+          "requests": [
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 13,
+              "handleUs": 151,
+              "replyUs": 16,
+              "totalUs": 180
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 18,
+              "handleUs": 175,
+              "replyUs": 24,
+              "totalUs": 217
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 13,
+              "handleUs": 152,
+              "replyUs": 16,
+              "totalUs": 181
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 1962,
+              "handleUs": 182,
+              "replyUs": 33,
+              "totalUs": 2177
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 13,
+              "handleUs": 156,
+              "replyUs": 19,
+              "totalUs": 188
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 24,
+              "handleUs": 186,
+              "replyUs": 26,
+              "totalUs": 236
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 18,
+              "handleUs": 202,
+              "replyUs": 25,
+              "totalUs": 245
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 13,
+              "handleUs": 143,
+              "replyUs": 16,
+              "totalUs": 172
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 21,
+              "handleUs": 182,
+              "replyUs": 26,
+              "totalUs": 229
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 20,
+              "handleUs": 180,
+              "replyUs": 25,
+              "totalUs": 225
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 26,
+              "handleUs": 197,
+              "replyUs": 39,
+              "totalUs": 262
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 25,
+              "handleUs": 191,
+              "replyUs": 49,
+              "totalUs": 265
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 270,
+              "handleUs": 83,
+              "replyUs": 24,
+              "totalUs": 377
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 208,
+              "handleUs": 40,
+              "replyUs": 13,
+              "totalUs": 261
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 136,
+              "handleUs": 33,
+              "replyUs": 28,
+              "totalUs": 197
+            },
+            {
+              "kind": "json",
+              "complete": true,
+              "headersUs": 43,
+              "handleUs": 57,
+              "replyUs": 19,
+              "totalUs": 119
+            }
+          ],
+          "settings": {
+            "loopWait": "short"
+          },
+          "lastTest": {
+            "mode": "disk",
+            "bytes": 268435456,
+            "size": 268435456,
+            "status": 200,
+            "elapsedMs": 2640.863,
+            "diagnostics": {
+              "version": 1,
+              "profile": "default",
+              "profileApplied": true,
+              "socket": {
+                "option": "SO_RCVBUF",
+                "bufferBytes": 524288,
+                "originalBytes": 66608,
+                "requestedBytes": 524288,
+                "getError": 0,
+                "setError": 0
+              },
+              "calls": {
+                "poll": 1986,
+                "io": 3811,
+                "wouldBlock": 1848,
+                "bytesPerCallAvg": 136747,
+                "bytesPerCallMax": 609640,
+                "ringFull": 124
+              },
+              "sleep": {
+                "requestedUs": 2000,
+                "count": 838,
+                "actualUsTotal": 2258712,
+                "actualUsMax": 4755
+              },
+              "pollsPerLoop": 4,
+              "ring": {
+                "blockBytes": 1048576,
+                "blocks": 8,
+                "writeChunkBytes": 1048576
+              },
+              "netPoolBytes": 262144,
+              "disk": {
+                "writes": 256,
+                "writeUsMax": 115205,
+                "slowWrites": 5,
+                "slowWriteUs": 50000,
+                "writerWaitUs": 349633,
+                "freeBytesBefore": 66874159104,
+                "freeBytesAfter": 66874159104,
+                "freeError": 0
+              },
+              "link": {
+                "deviceRaw": 0,
+                "linkRaw": 1,
+                "mtu": 1500,
+                "speedMbps": null,
+                "error": 0
+              }
+            }
+          }
+        }
+      }
+    ],
+    "completed": true,
+    "after": {
+      "service": "PackegeFlowService",
+      "protocol": "speed-test-v1",
+      "benchmarkApi": 1,
+      "ready": true,
+      "busy": false,
+      "maxBytes": 268435456,
+      "modes": [
+        "latency",
+        "upload",
+        "download",
+        "disk"
+      ],
+      "diagnosticsVersion": 1,
+      "profiles": [
+        "baseline",
+        "sleep500",
+        "polls16",
+        "sockbuf256k",
+        "sockbuf1m",
+        "sockbuf2m",
+        "ring2m",
+        "ring4m",
+        "sockbuf512k",
+        "sockbuf512k-sleep500",
+        "write256k",
+        "ring4m-write256k",
+        "sockbuf512k-write256k",
+        "default"
+      ],
+      "loop": {
+        "idleSleepRequestedUs": 1000,
+        "idleSleepActualUs": 1987,
+        "testSleepUs": 2000,
+        "testPollsPerLoop": 4
+      },
+      "netPool": {
+        "bytes": 262144,
+        "requestedBytes": 262144
+      },
+      "busyReason": null,
+      "serviceSockets": {
+        "requestedBytes": 524288,
+        "tuned": 96,
+        "applied": 96,
+        "getErrors": 0,
+        "setErrors": 0,
+        "lastBytes": 524288,
+        "lastError": 0
+      },
+      "fileTransfers": [
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 105.27,
+          "calls": 109,
+          "wouldBlock": 54,
+          "bytesPerCallAvg": 76260,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 104.795,
+          "loopSleepMs": 99.146,
+          "writer": "none",
+          "readMs": 3.63
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 76.23,
+          "calls": 71,
+          "wouldBlock": 36,
+          "bytesPerCallAvg": 119837,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 75.636,
+          "loopSleepMs": 65.762,
+          "writer": "none",
+          "readMs": 7.772
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 84.72,
+          "calls": 78,
+          "wouldBlock": 39,
+          "bytesPerCallAvg": 107546,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 84.338,
+          "loopSleepMs": 69.862,
+          "writer": "none",
+          "readMs": 5.298
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 71.382,
+          "calls": 68,
+          "wouldBlock": 34,
+          "bytesPerCallAvg": 123361,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 70.971,
+          "loopSleepMs": 60.573,
+          "writer": "none",
+          "readMs": 6.115
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 76.173,
+          "calls": 72,
+          "wouldBlock": 36,
+          "bytesPerCallAvg": 116508,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 75.791,
+          "loopSleepMs": 63.12,
+          "writer": "none",
+          "readMs": 3.876
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 82.45,
+          "calls": 79,
+          "wouldBlock": 40,
+          "bytesPerCallAvg": 107546,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 82.05,
+          "loopSleepMs": 71.055,
+          "writer": "none",
+          "readMs": 6.481
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 81.029,
+          "calls": 74,
+          "wouldBlock": 37,
+          "bytesPerCallAvg": 113359,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 80.423,
+          "loopSleepMs": 67.243,
+          "writer": "none",
+          "readMs": 3.986
+        },
+        {
+          "kind": "read",
+          "complete": true,
+          "bytes": 4194304,
+          "ms": 78.365,
+          "calls": 76,
+          "wouldBlock": 37,
+          "bytesPerCallAvg": 107546,
+          "writeMs": 0,
+          "writeUsMax": 0,
+          "slowWrites": 0,
+          "fsyncMs": 0,
+          "bufferBytes": 524288,
+          "sendWaitMs": 77.931,
+          "loopSleepMs": 66.512,
+          "writer": "none",
+          "readMs": 6.592
+        }
+      ],
+      "requests": [
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 29,
+          "handleUs": 217,
+          "replyUs": 29,
+          "totalUs": 275
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 13,
+          "handleUs": 151,
+          "replyUs": 16,
+          "totalUs": 180
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 18,
+          "handleUs": 175,
+          "replyUs": 24,
+          "totalUs": 217
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 13,
+          "handleUs": 152,
+          "replyUs": 16,
+          "totalUs": 181
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 1962,
+          "handleUs": 182,
+          "replyUs": 33,
+          "totalUs": 2177
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 13,
+          "handleUs": 156,
+          "replyUs": 19,
+          "totalUs": 188
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 24,
+          "handleUs": 186,
+          "replyUs": 26,
+          "totalUs": 236
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 18,
+          "handleUs": 202,
+          "replyUs": 25,
+          "totalUs": 245
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 13,
+          "handleUs": 143,
+          "replyUs": 16,
+          "totalUs": 172
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 21,
+          "handleUs": 182,
+          "replyUs": 26,
+          "totalUs": 229
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 20,
+          "handleUs": 180,
+          "replyUs": 25,
+          "totalUs": 225
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 26,
+          "handleUs": 197,
+          "replyUs": 39,
+          "totalUs": 262
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 25,
+          "handleUs": 191,
+          "replyUs": 49,
+          "totalUs": 265
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 270,
+          "handleUs": 83,
+          "replyUs": 24,
+          "totalUs": 377
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 208,
+          "handleUs": 40,
+          "replyUs": 13,
+          "totalUs": 261
+        },
+        {
+          "kind": "json",
+          "complete": true,
+          "headersUs": 136,
+          "handleUs": 33,
+          "replyUs": 28,
+          "totalUs": 197
+        }
+      ],
+      "settings": {
+        "loopWait": "short"
+      },
+      "lastTest": {
+        "mode": "disk",
+        "bytes": 268435456,
+        "size": 268435456,
+        "status": 200,
+        "elapsedMs": 2640.863,
+        "diagnostics": {
+          "version": 1,
+          "profile": "default",
+          "profileApplied": true,
+          "socket": {
+            "option": "SO_RCVBUF",
+            "bufferBytes": 524288,
+            "originalBytes": 66608,
+            "requestedBytes": 524288,
+            "getError": 0,
+            "setError": 0
+          },
+          "calls": {
+            "poll": 1986,
+            "io": 3811,
+            "wouldBlock": 1848,
+            "bytesPerCallAvg": 136747,
+            "bytesPerCallMax": 609640,
+            "ringFull": 124
+          },
+          "sleep": {
+            "requestedUs": 2000,
+            "count": 838,
+            "actualUsTotal": 2258712,
+            "actualUsMax": 4755
+          },
+          "pollsPerLoop": 4,
+          "ring": {
+            "blockBytes": 1048576,
+            "blocks": 8,
+            "writeChunkBytes": 1048576
+          },
+          "netPoolBytes": 262144,
+          "disk": {
+            "writes": 256,
+            "writeUsMax": 115205,
+            "slowWrites": 5,
+            "slowWriteUs": 50000,
+            "writerWaitUs": 349633,
+            "freeBytesBefore": 66874159104,
+            "freeBytesAfter": 66874159104,
+            "freeError": 0
+          },
+          "link": {
+            "deviceRaw": 0,
+            "linkRaw": 1,
+            "mtu": 1500,
+            "speedMbps": null,
+            "error": 0
+          }
+        }
+      }
+    }
+  },
+  "source": {
+    "at": "2026-10-12T15:51:22.856Z",
+    "path": "/home/developer/Documents/Far Cry New Dawn Repack [FR_107].pkg",
+    "size": 19683540992,
+    "highWaterMark": 1048576,
+    "coldCache": false,
+    "runs": [
+      {
+        "start": 0,
+        "bytes": 268435456,
+        "ms": 133.986582,
+        "MiBps": 1910.520888519681
+      },
+      {
+        "start": 9841770496,
+        "bytes": 268435456,
+        "ms": 224.830195,
+        "MiBps": 1138.6285458455195
+      },
+      {
+        "start": 19415105536,
+        "bytes": 268435456,
+        "ms": 230.877233,
+        "MiBps": 1108.7029736054724
+      }
+    ]
+  }
+}

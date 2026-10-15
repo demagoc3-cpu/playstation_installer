@@ -1,0 +1,241 @@
+{
+  "version": "1.10.15",
+  "status": "live installed and verified 1.10.15.0 on GAMEPAD-PC; NSIS exit0; Windows Native/UI/background and isolated packaged WEB PASS; tray/IPC PASS; hardware Battlefield validation handled by coordinating chat",
+  "installer": {
+    "file": "PackageFlowSetup-1.10.15-x64.exe",
+    "size": 105757278,
+    "sha256": "4e4102f9914d68b1629a29ea47aa38cbd808d1e6f268f482aba0bf7ddb59398f",
+    "baseline11014Size": 322613541,
+    "reductionBytes": 216856263,
+    "reductionPercent": 67.218587
+  },
+  "launcherSha256": "1b9506e5a35f067ad05fc0b24ef24990e39ec5d8369c6613f34ce4ce5078b1e5",
+  "runtimeDependency": {
+    "schemaVersion": 2,
+    "fileName": "MicrosoftEdgeWebview2Setup.exe",
+    "url": "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/9712cd13-5db8-48a4-8252-116d1e072184/MicrosoftEdgeWebview2Setup.exe",
+    "officialLink": "https://go.microsoft.com/fwlink/p/?LinkId=2124703",
+    "size": 1860304,
+    "sha256": "baa78c71c5615533a1ee0c4d2ca2ea3fd24dae01965f9033ac530a61b5aa93a0",
+    "distribution": "Evergreen Bootstrapper, downloaded only when a suitable Runtime is absent",
+    "minimumVersion": "120.0.0.0",
+    "retrievedAt": "2026-10-14"
+  },
+  "consoleBundle": {
+    "schemaVersion": 1,
+    "elf": {
+      "fileName": "PackageFlowService-PS5.elf",
+      "size": 4094328,
+      "sha256": "2441b7ebe3aa6b265cb186512b5dd94f62666d40e16a71685d930c5b232a7732",
+      "version": "0.1.26-dev",
+      "buildId": "ps5-service-launch-preparation-026f-sse2",
+      "firmware": "13.60"
+    },
+    "app": {
+      "fileName": "PPSA95001-01.000.044.ffpkg",
+      "size": 22020096,
+      "sha256": "18f64a693842d9136d7703377cd368a1a067fe760d87626b8ba949945e6806e6",
+      "name": "PackageFlow",
+      "titleId": "PPSA95001",
+      "contentId": "IV0000-PPSA95001_00-PACKAGEFLOWUI001",
+      "version": "01.000.044",
+      "format": "ufs2",
+      "buildId": "5122c1f"
+    },
+    "ps4": {
+      "fileName": "PackageFlowService-2.14.pkg",
+      "size": 6619136,
+      "sha256": "83995a02c90e8dc6fb775243f911573dc3e2b0acd390e0f3d2d591c1dc554abf",
+      "name": "PackageFlow",
+      "titleId": "PFLS00001",
+      "version": "2.14"
+    }
+  },
+  "desktopManifest": {
+    "schemaVersion": 1,
+    "files": [
+      {
+        "path": "asset-provenance.json",
+        "size": 4556,
+        "sha256": "789ab91e14bc632ed6882082e8564e123d5292a4cc15cf974b5d6a1bb943de0a"
+      },
+      {
+        "path": "assets/4pda.png",
+        "size": 4996,
+        "sha256": "0f99a7b24292e2127db9679f79e659d7cd1babbf7285c9e79b7a3c817fc42a03"
+      },
+      {
+        "path": "assets/astro-BJlQol0n.png",
+        "size": 1711664,
+        "sha256": "690821a73d101ddf9742f0320bcf3d614808d1175d13217c7c18e2beb2fe6930"
+      },
+      {
+        "path": "assets/astro.png",
+        "size": 1711664,
+        "sha256": "690821a73d101ddf9742f0320bcf3d614808d1175d13217c7c18e2beb2fe6930"
+      },
+      {
+        "path": "assets/btc.png",
+        "size": 8418,
+        "sha256": "9251c533d330f09b2bd8d6cce5444e6c0212bc1c9ff8470479c39e977ee03f2c"
+      },
+      {
+        "path": "assets/consoles.png",
+        "size": 1682591,
+        "sha256": "6b968b02d1e6e6c5d9aad12b06edc74e846fac343e96fca87b298bee34502cef"
+      },
+      {
+        "path": "assets/flaresolverr.svg",
+        "size": 8141,
+        "sha256": "63eaecd7daa122f1cf43d6d169daf23d4356105b0e1bf1bab14a999f042aa2f5"
+      },
+      {
+        "path": "assets/github.png",
+        "size": 14978,
+        "sha256": "19adb300329b9608daaea3ec94c80949d3c0434a91233028efb032271a1d08f9"
+      },
+      {
+        "path": "assets/github.svg",
+        "size": 822,
+        "sha256": "7421820090b50ac79d7c2bf7c951a433d7098a8a9c474809207bdd45f62d9d46"
+      },
+      {
+        "path": "assets/index-CpmmzBfk.css",
+        "size": 15295,
+        "sha256": "35de6236bb61c54fb642ab03e61284fd1a758c3fb97cd0b52de33dc366799fd8"
+      },
+      {
+        "path": "assets/index-DtfsVnvp.js",
+        "size": 118139,
+        "sha256": "014ea20fa64529c86ddeec919da524f761d5571fd76014e72a72fe79a607ac2a"
+      },
+      {
+        "path": "assets/packageflow-en.svg",
+        "size": 47226,
+        "sha256": "6df21bc8fc58f3039979c57b3aa918be2c381ec9dead6d64b1ffdfa897b2e25c"
+      },
+      {
+        "path": "assets/packageflow-ru.svg",
+        "size": 41169,
+        "sha256": "903aa056c1590027667c613de65704a5d42a015ca97868f13a0de2f1c8978506"
+      },
+      {
+        "path": "assets/prowlarr.svg",
+        "size": 26958,
+        "sha256": "a8ed9073263696dcaec3c6dc477c82dae4fc83dd13914899def26388758784f0"
+      },
+      {
+        "path": "assets/qbittorrent.svg",
+        "size": 1536,
+        "sha256": "371d532463d91677316853c807f35991e8140b3cd8f6fe25ced10eeef7ee035d"
+      },
+      {
+        "path": "assets/rutracker.ico",
+        "size": 6518,
+        "sha256": "a7a3c664c22f2d45f7f102f92e71c60ebd17d527cd7ace49891761e16363e998"
+      },
+      {
+        "path": "assets/usdt.png",
+        "size": 15115,
+        "sha256": "1279b52b9197006860047779b855fd1df0907c2d6643fb6674f7f9da0f4301e2"
+      },
+      {
+        "path": "index.html",
+        "size": 546,
+        "sha256": "af0a7d4cbf027c80229e4b3021e794c4e3b054d9a141e81e789bcc7e9a5c9c40"
+      },
+      {
+        "path": "licenses/flaresolverr-LICENSE.txt",
+        "size": 1099,
+        "sha256": "c1e8bd07c81b8dfd1e7493d4d7d1f10717d156cfcd91119836e6ec36e89198ed"
+      },
+      {
+        "path": "licenses/GPL-3.0.txt",
+        "size": 35149,
+        "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+      },
+      {
+        "path": "licenses/octicons-MIT.txt",
+        "size": 1068,
+        "sha256": "da259c8bd0de62713ccdcf88910aebca810644f98c2c912bad814fc79ea778df"
+      },
+      {
+        "path": "licenses/prowlarr-LICENSE.txt",
+        "size": 35141,
+        "sha256": "589ed823e9a84c56feb95ac58e7cf384626b9cbf4fda2a907bc36e103de1bad2"
+      },
+      {
+        "path": "licenses/qbittorrent-COPYING.txt",
+        "size": 1056,
+        "sha256": "e675cd856f9817474455200ba7e6f5b7cc42d6598a5eecbbbdaa0e6fd304d6b7"
+      },
+      {
+        "path": "licenses/vite-LICENSE.txt",
+        "size": 101182,
+        "sha256": "2ef0b8a67599690e6abccc21a3678b54457b420fb402654112d45c4e71cce364"
+      },
+      {
+        "path": "licenses/vue-MIT.txt",
+        "size": 1091,
+        "sha256": "1bb85cc9b13b81ef41c81c51866172fc345e0503c86726a6755b796590b70175"
+      },
+      {
+        "path": "THIRD-PARTY.txt",
+        "size": 614,
+        "sha256": "d1e8318b768b800d6a6c6a4668479b164c21d5d8f83a9eedd5181e903fc840db"
+      }
+    ]
+  },
+  "nodeVersion": "22.23.3",
+  "dotnetSdk": "8.0.425",
+  "dotnetDistribution": "self-contained single-file win-x64",
+  "webview2Sdk": "1.0.4191.47",
+  "vue": "3.5.42",
+  "vite": "7.3.1",
+  "hardware": {
+    "gamepadPcUpdated": false,
+    "uiFirstStart11015": "initial isolated UI test found controller visibility/UI-thread error; corrected creation/visibility and harness synchronization, re-test pending",
+    "installedRuntimeNoDownload11015": "PASS in isolated Windows host: real SDK detects Runtime and zero dependency downloads/installer dispatches",
+    "missingRuntimeRealInstall": "not run; no separate clean VM available",
+    "realBootstrapperWindowsAuthenticode": "PASS: actual Microsoft HTTPS download, pinned SHA256 and Windows Authenticode Valid/Microsoft signer; unsigned junk rejected; no installer execution",
+    "windowsNativeMigration": "initial test found non-exclusive port guard issue; corrected, re-test pending"
+  },
+  "backgroundProbePatch": {
+    "sourceImplemented": true,
+    "onlyPeriodicHealthTimer": true,
+    "explicitAndCoordinatorProbesOmitBackground": true,
+    "coreRegression": "PASS",
+    "windowsHarness": "PASS: actual health timer background:true and explicit refresh without flag; mock HTTP only",
+    "includedInThisInstaller": true,
+    "webFilesChangedByThisChat": false,
+    "serverBundleRebuilt": true,
+    "gamepadPcTouched": false,
+    "serverManifestSha256": "f8f629be200a33ae33621d665e251b409787199cf20441e9e12bb10bc2278e14"
+  },
+  "windowsValidation": {
+    "installerExitCode": 0,
+    "installedVersion": "1.10.15.0",
+    "registryVersion": "1.10.15",
+    "launcherPid": 12512,
+    "nodePid": 1004,
+    "session": 1,
+    "webView2Version": "155.0.4283.45",
+    "runtimeDownloadRequests": 0,
+    "runtimeInstallerDispatches": 0,
+    "nativeMigration": "PASS",
+    "actualMicrosoftSignature": "PASS; Microsoft installer never executed",
+    "desktopUI": "PASS; WebView zoom, OS DPI unchanged",
+    "backgroundVsExplicit": "PASS; isolated actual timer callback",
+    "packagedNodeWeb": "PASS; isolated data",
+    "trayIPC": "PASS; same Node PID",
+    "missingRuntime": "Core integration fixtures only; no clean Windows VM available",
+    "windowsBuildEntrypoint": "aligned source; full build.ps1 not executed on Windows",
+    "installedServer": {
+      "expectedFiles": 1514,
+      "verifiedExpectedFiles": 1514,
+      "mismatches": 0,
+      "installedFileCount": 1515,
+      "extraPreserved": "public/_nuxt/builds/meta/0d979e88-06c4-4ca2-8790-933dacd6586f.json (old Nuxt build metadata)"
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "version": "1.10.13",
+  "installer": {
+    "path": "/home/developer/projects/web/playstation_installer/dist/windows/PackageFlowSetup-1.10.13-x64.exe",
+    "size": 100799425,
+    "sha256": "1f997fcede2e4fa5a8e4846f5c8087b5c0ca3b3e35ef720fd15fb10480023505"
+  },
+  "launcher": {
+    "path": "/home/developer/projects/web/playstation_installer/dist/windows/payload/PackageFlow.exe",
+    "size": 73896463,
+    "sha256": "0b24816cd5b82817926acebc33b7ee254997655def3ebfeb99345c6be5206b9f"
+  },
+  "consoleBundle": {
+    "schemaVersion": 1,
+    "elf": {
+      "fileName": "PackageFlowService-PS5.elf",
+      "size": 4094328,
+      "sha256": "2441b7ebe3aa6b265cb186512b5dd94f62666d40e16a71685d930c5b232a7732",
+      "version": "0.1.26-dev",
+      "buildId": "ps5-service-launch-preparation-026f-sse2",
+      "firmware": "13.60"
+    },
+    "app": {
+      "fileName": "PPSA95001-01.000.042.ffpkg",
+      "size": 5963776,
+      "sha256": "49d04c72fde69b8bc8d5bed193ffd638906dacd48d95f31020d81d305197df90",
+      "name": "PackageFlow",
+      "titleId": "PPSA95001",
+      "contentId": "IV0000-PPSA95001_00-PACKAGEFLOWUI001",
+      "version": "01.000.042",
+      "format": "ufs2"
+    },
+    "ps4": {
+      "fileName": "PackageFlowService-2.14.pkg",
+      "size": 6619136,
+      "sha256": "83995a02c90e8dc6fb775243f911573dc3e2b0acd390e0f3d2d591c1dc554abf",
+      "name": "PackageFlow",
+      "titleId": "PFLS00001",
+      "version": "2.14"
+    }
+  },
+  "ps5Candidate044Included": false,
+  "remoteInstall": {
+    "host": "GAMEPAD-PC",
+    "installerExitCode": 0,
+    "installedVersion": "1.10.13",
+    "registeredVersion": "1.10.13",
+    "launcherSha256": "0b24816cd5b82817926acebc33b7ee254997655def3ebfeb99345c6be5206b9f",
+    "directory": "C:\\Users\\gamepad\\AppData\\Local\\Programs\\PackageFlow",
+    "installerPath": "C:\\Users\\gamepad\\Downloads\\PackageFlow-glass-20261013\\PackageFlowSetup-1.10.13-x64.exe"
+  },
+  "remoteStartup": {
+    "launcherRunning": true,
+    "webRunning": true,
+    "webApplication": "PackageFlow",
+    "busy": false,
+    "wizardMigrated": true,
+    "existingTorrentChoicePreserved": true,
+    "automaticSetupPending": true
+  },
+  "remoteComponents": {
+    "qbittorrentApiReady": true,
+    "prowlarrApiReady": true,
+    "flaresolverrApiReady": true,
+    "rutrackerLoginVerifiedInThisRun": false
+  }
+}

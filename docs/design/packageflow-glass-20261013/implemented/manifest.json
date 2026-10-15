@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-13",
+  "screens": [
+    "saves-desktop.jpg",
+    "backups-desktop.jpg",
+    "downloads-desktop.jpg",
+    "search-desktop.jpg",
+    "tasks-desktop.jpg",
+    "console-desktop.jpg",
+    "console-files-desktop.jpg"
+  ],
+  "fixtureScreens": [
+    "active-cards-fixture-desktop.jpg",
+    "active-cards-fixture-mobile.jpg"
+  ],
+  "checks": {
+    "productionBuild": "pass",
+    "targetedTestFiles": 7,
+    "targetedTests": "pass",
+    "mobileWidth": 390,
+    "mobileOverflow": "none"
+  },
+  "scope": "WEB PS4 and PS5; fixture images use artificial data, production screens use current data"
+}

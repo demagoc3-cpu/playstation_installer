@@ -1,0 +1,73 @@
+{
+  "version": "1.10.17",
+  "status": "local installer built; UI previews use isolated fixtures",
+  "installer": {
+    "path": "/home/developer/projects/web/playstation_installer/dist/windows/PackageFlowSetup-1.10.17-x64.exe",
+    "size": 105762176,
+    "sha256": "152eab008b820594d892a6a2b5077592b3560bc398319ea1c7756ecd00edbd3f"
+  },
+  "changes": {
+    "navigation": "five SVG menu icons",
+    "discord": "https://discord.gg/eZDydyvGf",
+    "communityLinks": "larger GitHub and 4PDA",
+    "libraryFolder": "setting removed from UI and desktop bridge; saved LauncherSettings path retained",
+    "consoleDetails": [
+      "firmware",
+      "service version",
+      "installed package/application version",
+      "model if reported",
+      "pairing",
+      "ELF build/PID",
+      "HEN version/SDK",
+      "image backend",
+      "formats",
+      "free/total storage",
+      "transfer free space"
+    ]
+  },
+  "verification": {
+    "nuxt": "PASS",
+    "core": "PASS including Discord allowlist and rejected hidden library field",
+    "nativePublish": "PASS, self-contained win-x64 1.10.17.0",
+    "bundleCheck": "PASS, Core/Windows references match",
+    "serverTargetedSuites": 4,
+    "serverTargetedSuitesResult": "PASS",
+    "uiPreviewStates": 24,
+    "uiPreviewResult": "PASS; 800x580,1000x700,1280x800,1920x1080; RU/EN and wizard",
+    "installedVsTargetApplicationVersion": "UI fixture verified 01.000.041 is distinct from release target01.000.044",
+    "periodicProbes": "no extra endpoints; existing background regression PASS",
+    "payloadAudit": "PASS; no offline Runtime or Docker/Compose; exact PS hashes",
+    "nsisExitCode": 0,
+    "windowsHardwareRun": "not performed for this UI revision"
+  },
+  "consoleBundle": {
+    "schemaVersion": 1,
+    "elf": {
+      "fileName": "PackageFlowService-PS5.elf",
+      "size": 4094528,
+      "sha256": "920e5580b6ad765f8526196947eec7ae5c3f803c239884361d72b7ee6e4ee37a",
+      "version": "0.1.27-dev",
+      "buildId": "ps5-service-registration-handoff-027-sse2",
+      "firmware": "13.60"
+    },
+    "app": {
+      "fileName": "PPSA95001-01.000.044.ffpkg",
+      "size": 22020096,
+      "sha256": "18f64a693842d9136d7703377cd368a1a067fe760d87626b8ba949945e6806e6",
+      "name": "PackageFlow",
+      "titleId": "PPSA95001",
+      "contentId": "IV0000-PPSA95001_00-PACKAGEFLOWUI001",
+      "version": "01.000.044",
+      "format": "ufs2",
+      "buildId": "5122c1f"
+    },
+    "ps4": {
+      "fileName": "PackageFlowService-2.14.pkg",
+      "size": 6619136,
+      "sha256": "83995a02c90e8dc6fb775243f911573dc3e2b0acd390e0f3d2d591c1dc554abf",
+      "name": "PackageFlow",
+      "titleId": "PFLS00001",
+      "version": "2.14"
+    }
+  }
+}

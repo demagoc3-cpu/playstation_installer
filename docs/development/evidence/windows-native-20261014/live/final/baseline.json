@@ -1,0 +1,11 @@
+﻿{
+    "Version":  "1.10.15.0",
+    "Busy":  false,
+    "DataHashes":  {
+                       "ps5-service-keys.json":  "31740b7f79cb50c3c566d7d6a849674466ad5e9edcb3eeef170532fd85c3b824",
+                       "qbittorrent.json":  "7e1b045abf0a0d8805a20bd32d39733a823656b4e67fc5a93b0c510ca40bbc21",
+                       "console-profiles.json":  "65db867a7905d3eb6cc673cacab7f90e27c27d36e4d303f2bb1249ae9a19a43d",
+                       "storage-sources.json":  "3b26a348aca1ffb095b1bd09ff46ae7b6ec073da6bb73359bec1abfac0abc992",
+                       "package-library.json":  "06791090481fb307d30a480cac2afc2830c03aa1568bb6fad119d407622d7488"
+                   }
+}

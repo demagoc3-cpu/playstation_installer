@@ -1,0 +1,15 @@
+RUNNING: Windows WebView2, isolated fixtures
+PASS: trusted origin, unknown commands, unexpected payloads; state excludes saved secrets; DPAPI survives isolated save/reload and wizard reuse; account changes clear old credentials
+VIEWPORT: requested {Width=1000, Height=700} zoom=1 actual="{\"width\":1000,\"height\":700,\"dpr\":1}"
+VIEWPORT: requested {Width=1280, Height=800} zoom=1 actual="{\"width\":1280,\"height\":800,\"dpr\":1}"
+VIEWPORT: requested {Width=1920, Height=1080} zoom=1 actual="{\"width\":1920,\"height\":1061,\"dpr\":1}"
+VIEWPORT: requested {Width=1000, Height=700} zoom=1,25 actual="{\"width\":1000,\"height\":700,\"dpr\":1.25}"
+VIEWPORT: requested {Width=1280, Height=800} zoom=1,25 actual="{\"width\":1280,\"height\":800,\"dpr\":1.25}"
+VIEWPORT: requested {Width=1920, Height=1080} zoom=1,25 actual="{\"width\":1539,\"height\":849,\"dpr\":1.25}"
+VIEWPORT: requested {Width=1000, Height=700} zoom=1,5 actual="{\"width\":1000,\"height\":700,\"dpr\":1.5}"
+VIEWPORT: requested {Width=1280, Height=800} zoom=1,5 actual="{\"width\":1280,\"height\":707,\"dpr\":1.5}"
+VIEWPORT: requested {Width=1920, Height=1080} zoom=1,5 actual="{\"width\":1283,\"height\":707,\"dpr\":1.5}"
+PASS: new WebView stop dialog preserves jobs on cancel, confirms stop, rechecks late jobs, pauses only active PackageFlow torrents
+PASS: five sections across requested 1000x700 / 1280x800 / 1920x1080 and 100/125/150% WebView zoom; actual viewports logged above; no horizontal overflow or footer overlap
+PASS: wizard transitions, password reveal, new dialog default focus / Escape / confirmation, untrusted navigation blocked
+NOTE: scaling uses WebView zoom; OS DPI unchanged. Screenshots use CoreWebView2.CapturePreviewAsync. All states are isolated fixtures.

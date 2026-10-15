@@ -1,0 +1,24 @@
+{
+  "path": "/tmp/pf-own-app-update-028/build/PackageFlowService-PS5.elf",
+  "size": 4094576,
+  "sha256": "991df1c3568d7f51855beba9ea7d3c9e163109e1719e8aead6a9b6cc550fc178",
+  "version": "0.1.28-dev",
+  "buildId": "ps5-service-own-app-update-028-sse2",
+  "firmware": "13.60",
+  "hostTestBinaries": 35,
+  "sdkBuild": "passed",
+  "elf64LittleEndianX64DYN": true,
+  "noInterpreter": true,
+  "neededLibraries": [
+    "libSceLibcInternal.sprx",
+    "libSceNet.sprx",
+    "libSceSystemService.sprx",
+    "libSceUserService.sprx",
+    "libkernel_web.sprx"
+  ],
+  "sameUndefinedImportsAs027": true,
+  "blake3ExplicitSse2Backend": true,
+  "blake3Avx2Avx512Sse41BackendsAbsent": true,
+  "hardwareTested": false,
+  "patchSha256": "9b560edf0a74ccd40db7187ae2131dc04f60565796fe041072dd2c26eb3697df"
+}

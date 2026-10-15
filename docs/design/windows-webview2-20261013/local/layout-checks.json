@@ -1,0 +1,410 @@
+[
+  {
+    "section": "home",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "Применить и запустить",
+        "visible": true
+      },
+      {
+        "text": "Остановить",
+        "visible": true
+      },
+      {
+        "text": "Хранилище в WEB",
+        "visible": true
+      },
+      {
+        "text": "Доступ приставкам",
+        "visible": true
+      },
+      {
+        "text": "Мастер настройки",
+        "visible": true
+      },
+      {
+        "text": "Docker Desktop ↗",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "consoles",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "Найти",
+        "visible": true
+      },
+      {
+        "text": "Проверить",
+        "visible": true
+      },
+      {
+        "text": "Установить / обновить",
+        "visible": true
+      },
+      {
+        "text": "Найти и установить",
+        "visible": true
+      },
+      {
+        "text": "Удалить приложение",
+        "visible": true
+      },
+      {
+        "text": "Удалить профиль",
+        "visible": true
+      },
+      {
+        "text": "⟳",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "search",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "Настроить торренты",
+        "visible": true
+      },
+      {
+        "text": "Открыть WEB",
+        "visible": true
+      },
+      {
+        "text": "Дополнительные параметры",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "updates",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "⟳ Проверить обновления",
+        "visible": true
+      },
+      {
+        "text": "↓ Установить обновления",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "support",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": []
+  },
+  {
+    "section": "wizard",
+    "size": [
+      1000,
+      700
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": []
+  },
+  {
+    "section": "home",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "Применить и запустить",
+        "visible": true
+      },
+      {
+        "text": "Остановить",
+        "visible": true
+      },
+      {
+        "text": "Хранилище в WEB",
+        "visible": true
+      },
+      {
+        "text": "Доступ приставкам",
+        "visible": true
+      },
+      {
+        "text": "Мастер настройки",
+        "visible": true
+      },
+      {
+        "text": "Docker Desktop ↗",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "consoles",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "Найти",
+        "visible": true
+      },
+      {
+        "text": "Проверить",
+        "visible": true
+      },
+      {
+        "text": "Установить / обновить",
+        "visible": true
+      },
+      {
+        "text": "Найти и установить",
+        "visible": true
+      },
+      {
+        "text": "Удалить приложение",
+        "visible": true
+      },
+      {
+        "text": "Удалить профиль",
+        "visible": true
+      },
+      {
+        "text": "⟳",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "search",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "Настроить торренты",
+        "visible": true
+      },
+      {
+        "text": "Открыть WEB",
+        "visible": true
+      },
+      {
+        "text": "Дополнительные параметры",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "updates",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "⟳ Проверить обновления",
+        "visible": true
+      },
+      {
+        "text": "↓ Установить обновления",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "support",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": []
+  },
+  {
+    "section": "wizard",
+    "size": [
+      1280,
+      800
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": []
+  },
+  {
+    "section": "home",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "Применить и запустить",
+        "visible": true
+      },
+      {
+        "text": "Остановить",
+        "visible": true
+      },
+      {
+        "text": "Хранилище в WEB",
+        "visible": true
+      },
+      {
+        "text": "Доступ приставкам",
+        "visible": true
+      },
+      {
+        "text": "Мастер настройки",
+        "visible": true
+      },
+      {
+        "text": "Docker Desktop ↗",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "consoles",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "Найти",
+        "visible": true
+      },
+      {
+        "text": "Проверить",
+        "visible": true
+      },
+      {
+        "text": "Установить / обновить",
+        "visible": true
+      },
+      {
+        "text": "Найти и установить",
+        "visible": true
+      },
+      {
+        "text": "Удалить приложение",
+        "visible": true
+      },
+      {
+        "text": "Удалить профиль",
+        "visible": true
+      },
+      {
+        "text": "⟳",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "search",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "Настроить торренты",
+        "visible": true
+      },
+      {
+        "text": "Открыть WEB",
+        "visible": true
+      },
+      {
+        "text": "Дополнительные параметры",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "updates",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": [
+      {
+        "text": "⟳ Проверить обновления",
+        "visible": true
+      },
+      {
+        "text": "↓ Установить обновления",
+        "visible": true
+      }
+    ]
+  },
+  {
+    "section": "support",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": []
+  },
+  {
+    "section": "wizard",
+    "size": [
+      1920,
+      1080
+    ],
+    "errors": [],
+    "horizontal": false,
+    "buttons": []
+  }
+]

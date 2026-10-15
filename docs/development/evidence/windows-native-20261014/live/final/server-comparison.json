@@ -1,0 +1,9 @@
+{
+  "expectedFiles": 1514,
+  "installedFiles": 1516,
+  "mismatches": [],
+  "extraFiles": [
+    "public/_nuxt/builds/meta/08cf15f7-fc18-4bb4-b802-7c4255c550b2.json",
+    "public/_nuxt/builds/meta/0d979e88-06c4-4ca2-8790-933dacd6586f.json"
+  ]
+}
