@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-15",
+  "scope": "PackageFlow WEB; app, server, shared, tests and supported project scripts/configuration",
+  "layout": {
+    "desktopHeaderBeforePx": 80,
+    "desktopHeaderAfterPx": 64,
+    "desktopSidebarBeforePx": 224,
+    "desktopSidebarAfterPx": 192,
+    "browserVerified": true,
+    "selectionPackagesBefore": 9,
+    "selectionPackagesAfter": 9,
+    "selectionContentsVerified": true
+  },
+  "tools": {
+    "eslint": "10.12.0",
+    "prettier": "3.9.10",
+    "typescriptEslint": "8.71.2",
+    "eslintPluginVue": "10.11.1"
+  },
+  "format": {
+    "status": "PASS",
+    "sourceConfigFilesChangedThisTask": 474,
+    "commands": [
+      "pnpm lint",
+      "pnpm lint:fix",
+      "pnpm format",
+      "pnpm format:check",
+      "pnpm check"
+    ],
+    "excluded": "generated outputs, dependencies, build/packaging artifacts, evidence/docs and separately owned Windows app"
+  },
+  "lint": {
+    "files": 466,
+    "errors": 0,
+    "warnings": 45,
+    "warningRule": "@typescript-eslint/no-unused-vars",
+    "reasonNotRemoved": "Legacy handlers are exercised by regression harnesses; mass deletion was not needed for formatting."
+  },
+  "build": {
+    "status": "PASS",
+    "environment": "isolated checkout copy; production .nuxt/.output never written in working dev checkout"
+  },
+  "hostTests": {
+    "tests": 340,
+    "passed": 337,
+    "failed": 3,
+    "baselineFailuresReproduced": true,
+    "failures": [
+      {
+        "file": "server/tests/console-commands.test.ts",
+        "detail": "Fixture installation-queue module does not export canCancelInstallationItem."
+      },
+      {
+        "file": "server/tests/console-files.test.mjs",
+        "detail": "mkdir fixture expects completed but receives protected-path refusal."
+      },
+      {
+        "file": "server/tests/presets.test.mjs",
+        "detail": "Expected one preset cover URL but actual result is empty."
+      }
+    ]
+  },
+  "limits": {
+    "hardwareInstallationsRun": false,
+    "windowsInstallationUpdated": false,
+    "nativeOrElfChanged": false,
+    "typeCheckPerformed": false,
+    "existingRuntimeDependenciesOverwritten": false
+  },
+  "logs": {
+    "live-eslint.json": "/home/developer/projects/PS/.packageflow-quality-20261015/tooling/live-eslint.json",
+    "live-prettier.log": "/home/developer/projects/PS/.packageflow-quality-20261015/tooling/live-prettier.log",
+    "production-build-final.log": "/home/developer/projects/PS/.packageflow-quality-20261015/tooling/production-build-final.log",
+    "full-tests-verified.log": "/home/developer/projects/PS/.packageflow-quality-20261015/tooling/full-tests-verified.log",
+    "baseline-confirmed.log": "/home/developer/projects/PS/.packageflow-quality-20261015/tooling/baseline-confirmed.log",
+    "apply-manifest.json": "/home/developer/projects/PS/.packageflow-quality-20261015/tooling/apply-manifest.json",
+    "apply-result.json": "/home/developer/projects/PS/.packageflow-quality-20261015/tooling/apply-result.json"
+  }
+}

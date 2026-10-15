@@ -1,3 +1,3 @@
-import { getTorrentFiles } from '../../../utils/qbittorrent'
+import { getTorrentFiles } from '../../../utils/qbittorrent';
 
-export default defineEventHandler((event) => getTorrentFiles(getRouterParam(event, 'hash') || ''))
+export default defineEventHandler((event) => getTorrentFiles(getRouterParam(event, 'hash') || ''));

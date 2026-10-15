@@ -1,3 +1,3 @@
-import { getQbitStatus } from '../../utils/qbittorrent'
+import { getQbitStatus } from '../../utils/qbittorrent';
 
-export default defineEventHandler(() => getQbitStatus())
+export default defineEventHandler(() => getQbitStatus());

@@ -1,26 +1,45 @@
-import { storageManager } from '../../utils/storage-sources'
-import { assertInstallationOrigin } from '../../utils/installation-origin'
-import { logEvent } from '../../utils/event-log'
-import { scanPackageFolder } from '../../utils/package-library'
-import { getLocalIp } from '../../utils/ps4-installer'
+import { storageManager } from '../../utils/storage-sources';
+import { assertInstallationOrigin } from '../../utils/installation-origin';
+import { logEvent } from '../../utils/event-log';
+import { scanPackageFolder } from '../../utils/package-library';
+import { getLocalIp } from '../../utils/ps4-installer';
 
 export default defineEventHandler(async (event) => {
-  assertInstallationOrigin(event, true)
-  const body = await readBody<{ directory?: string; psIp?: string; titleId?: string; summaryOnly?: boolean }>(event)
-  let result
-  try { result = await scanPackageFolder(body?.directory || '', body?.titleId) }
-  catch (error: any) {
+  assertInstallationOrigin(event, true);
+  const body = await readBody<{
+    directory?: string;
+    psIp?: string;
+    titleId?: string;
+    summaryOnly?: boolean;
+  }>(event);
+  let result;
+  try {
+    result = await scanPackageFolder(body?.directory || '', body?.titleId);
+  } catch (error: any) {
     if (['EACCES', 'EPERM', 'EROFS'].includes(error?.code)) {
-      logEvent('error', 'Не удалось сохранить библиотеку и кэш PKG', error)
-      throw createError({ statusCode: 503, message: 'PackageFlow не может записать библиотеку или кэш. Проверьте права записи на папку .data (в Docker — том /app/.data).' })
+      logEvent('error', 'Не удалось сохранить библиотеку и кэш PKG', error);
+      throw createError({
+        statusCode: 503,
+        message:
+          'PackageFlow не может записать библиотеку или кэш. Проверьте права записи на папку .data (в Docker — том /app/.data).',
+      });
     }
-    throw error
+    throw error;
   }
-  storageManager.adoptLocal(result.directory)
-  logEvent('info', `Просканирована папка ${result.directory}: найдено пакетов — ${result.packages.length}`)
-  if (body?.summaryOnly) return { directory: result.directory, count: result.packages.length }
-  const pcIp = await getLocalIp(body?.psIp || '')
-  const host = getHeader(event, 'host') || 'localhost:3000'
-  const port = host.match(/:(\d+)$/)?.[1] || '3000'
-  return { directory: result.directory, packages: result.packages.map((item) => ({ ...item, url: `http://${pcIp}:${port}/json/${item.id}.json` })) }
-})
+  storageManager.adoptLocal(result.directory);
+  logEvent(
+    'info',
+    `Просканирована папка ${result.directory}: найдено пакетов — ${result.packages.length}`,
+  );
+  if (body?.summaryOnly) return { directory: result.directory, count: result.packages.length };
+  const pcIp = await getLocalIp(body?.psIp || '');
+  const host = getHeader(event, 'host') || 'localhost:3000';
+  const port = host.match(/:(\d+)$/)?.[1] || '3000';
+  return {
+    directory: result.directory,
+    packages: result.packages.map((item) => ({
+      ...item,
+      url: `http://${pcIp}:${port}/json/${item.id}.json`,
+    })),
+  };
+});

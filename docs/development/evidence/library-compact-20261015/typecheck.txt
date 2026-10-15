@@ -1,0 +1,102 @@
+app/components/ConsoleFileInstaller.vue(91,11): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+app/components/ConsoleProfiles.vue(80,80): error TS2322: Type 'unknown' is not assignable to type 'Record<string, any> | BodyInit | null | undefined'.
+app/components/ConsoleSaves.vue(89,16): error TS2339: Property 'userId' does not exist on type 'false | "" | SaveUser'.
+  Property 'userId' does not exist on type 'false'.
+app/components/DeviceInstallModal.vue(503,75): error TS2339: Property 'canOverwrite' does not exist on type 'InstallPackageSummary & Record<"canReinstall", unknown>'.
+app/components/DeviceInstallModal.vue(511,57): error TS18046: 'pkg.affected' is of type 'unknown'.
+app/components/DeviceInstallModal.vue(514,26): error TS18046: 'pkg.affected' is of type 'unknown'.
+app/components/EventLogPanel.vue(38,10): error TS2532: Object is possibly 'undefined'.
+app/components/LibraryPresets.vue(312,48): error TS2554: Expected 1-2 arguments, but got 3.
+app/components/Ps5ConsoleApps.vue(304,28): error TS2339: Property 'data' does not exist on type '{}'.
+app/components/Ps5ConsoleApps.vue(306,16): error TS2339: Property 'data' does not exist on type '{}'.
+app/components/Ps5ConsoleApps.vue(307,30): error TS2339: Property 'data' does not exist on type '{}'.
+app/components/Ps5ConsoleApps.vue(541,23): error TS2367: This comparison appears to be unintentional because the types '"ready"' and '"files"' have no overlap.
+app/components/SearchResults.vue(149,9): error TS18048: 'job' is possibly 'undefined'.
+server/utils/console-app-commands.ts(115,28): error TS2538: Type 'undefined' cannot be used as an index type.
+server/utils/console-app-commands.ts(116,15): error TS2538: Type 'undefined' cannot be used as an index type.
+server/utils/console-app-commands.ts(117,14): error TS2538: Type 'undefined' cannot be used as an index type.
+server/utils/console-app-commands.ts(118,14): error TS2538: Type 'undefined' cannot be used as an index type.
+server/utils/console-file-install.ts(93,67): error TS2345: Argument of type '"PS4GDE"' is not assignable to parameter of type 'never'.
+server/utils/console-file-install.ts(262,49): error TS18048: 'record' is possibly 'undefined'.
+server/utils/console-files.ts(732,11): error TS2367: This comparison appears to be unintentional because the types '"delete" | "restore" | "mkdir" | "rename" | "copy" | "move" | "trash" | "purge"' and '"replace"' have no overlap.
+server/utils/console-maintenance.ts(383,36): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/console-profiles.ts(567,61): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/console-profiles.ts(567,87): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/desktop-console-setup.ts(254,23): error TS7023: 'readDesktopPs5AppSetup' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+server/utils/desktop-console-setup.ts(264,15): error TS7022: 'observed' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+server/utils/desktop-console-setup.ts(515,66): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+server/utils/desktop-console-setup.ts(534,66): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+server/utils/device-installation.ts(213,18): error TS2339: Property 'online' does not exist on type 'StoredProfile'.
+server/utils/device-installation.ts(214,18): error TS2339: Property 'paired' does not exist on type 'StoredProfile'.
+server/utils/installation-queue.ts(641,15): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(643,42): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(650,21): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(652,51): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(667,66): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(670,53): error TS2345: Argument of type '"PS4GDE"' is not assignable to parameter of type 'never'.
+server/utils/installation-queue.ts(687,40): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(706,54): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(736,57): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(762,19): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(781,46): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(799,15): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(801,42): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(822,61): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/installation-queue.ts(980,30): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+server/utils/package-library.ts(341,24): error TS2339: Property 'find' does not exist on type 'Promise<{ id: number; offset: number; size: number; }[]>'.
+server/utils/package-library.ts(341,30): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+server/utils/package-library.ts(389,33): error TS2345: Argument of type '{ id: number; offset: number; size: number; }[]' is not assignable to parameter of type 'Promise<{ id: number; offset: number; size: number; }[]>'.
+  Type '{ id: number; offset: number; size: number; }[]' is missing the following properties from type 'Promise<{ id: number; offset: number; size: number; }[]>': then, catch, finally, [Symbol.toStringTag]
+server/utils/ps4-service-installer.ts(269,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(input: string | Request | URL, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type 'Buffer<ArrayBufferLike>' is not assignable to type 'BodyInit | null | undefined'.
+      Type 'Buffer<ArrayBufferLike>' is missing the following properties from type 'URLSearchParams': size, append, delete, get, and 2 more.
+  Overload 2 of 3, '(input: RequestInfo | URL, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type 'Buffer<ArrayBufferLike>' is not assignable to type 'BodyInit | null | undefined'.
+      Type 'Buffer<ArrayBufferLike>' is missing the following properties from type 'URLSearchParams': size, append, delete, get, and 2 more.
+  Overload 3 of 3, '(input: RequestInfo | URL, init?: RequestInit | undefined): Promise<Response>', gave the following error.
+    Type 'Buffer<ArrayBufferLike>' is not assignable to type 'BodyInit | null | undefined'.
+      Type 'Buffer<ArrayBufferLike>' is missing the following properties from type 'URLSearchParams': size, append, delete, get, and 2 more.
+server/utils/ps4-service-installer.ts(585,5): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+server/utils/ps5-folder-driver.ts(158,20): error TS2532: Object is possibly 'undefined'.
+server/utils/ps5-folder-driver.ts(159,19): error TS2532: Object is possibly 'undefined'.
+server/utils/ps5-folder-driver.ts(160,20): error TS2532: Object is possibly 'undefined'.
+server/utils/ps5-folder-driver.ts(161,21): error TS2532: Object is possibly 'undefined'.
+server/utils/ps5-image-driver.ts(415,58): error TS2345: Argument of type '{ 'X-PackageFlow-Image-Protocol': "image-registration-v1"; 'X-PackageFlow-Experimental'?: undefined; } | { 'X-PackageFlow-Experimental': "image-publication-v1"; 'X-PackageFlow-Image-Protocol'?: undefined; }' is not assignable to parameter of type 'Record<string, string> | undefined'.
+  Type '{ 'X-PackageFlow-Image-Protocol': "image-registration-v1"; 'X-PackageFlow-Experimental'?: undefined; }' is not assignable to type 'Record<string, string>'.
+    Property ''X-PackageFlow-Experimental'' is incompatible with index signature.
+      Type 'undefined' is not assignable to type 'string'.
+server/utils/ps5-installation-queue.ts(280,28): error TS18048: 'item' is possibly 'undefined'.
+server/utils/ps5-installation-queue.ts(281,7): error TS18048: 'item' is possibly 'undefined'.
+server/utils/ps5-installation-queue.ts(282,7): error TS18048: 'item' is possibly 'undefined'.
+server/utils/ps5-installation-queue.ts(283,39): error TS2345: Argument of type '{ id: string; installedAt: number | undefined; coverPath: string | undefined; sourceIds: string[]; path: string; sourceModifiedAt: number; icon: PackageIcon; sourceRoots?: string[] | undefined; ... 19 more ...; libraryRoot: string; } | undefined' is not assignable to parameter of type 'ContentIdentity'.
+  Type 'undefined' is not assignable to type 'ContentIdentity'.
+server/utils/ps5-installation-queue.ts(291,58): error TS18048: 'item' is possibly 'undefined'.
+server/utils/ps5-installation-queue.ts(294,29): error TS18048: 'item' is possibly 'undefined'.
+server/utils/ps5-management.ts(15,22): error TS7016: Could not find a declaration file for module 'archiver'. '/home/developer/projects/PS/.packageflow-quality-20261015/node_modules/archiver/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/archiver` if it exists or add a new declaration (.d.ts) file containing `declare module 'archiver';`
+server/utils/ps5-queue-core.ts(418,20): error TS2367: This comparison appears to be unintentional because the types '"running"' and '"paused"' have no overlap.
+server/utils/save-backup-store.ts(15,22): error TS7016: Could not find a declaration file for module 'archiver'. '/home/developer/projects/PS/.packageflow-quality-20261015/node_modules/archiver/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/archiver` if it exists or add a new declaration (.d.ts) file containing `declare module 'archiver';`
+server/utils/save-set-store.ts(16,22): error TS7016: Could not find a declaration file for module 'archiver'. '/home/developer/projects/PS/.packageflow-quality-20261015/node_modules/archiver/index.js' implicitly has an 'any' type.
+  Try `npm i --save-dev @types/archiver` if it exists or add a new declaration (.d.ts) file containing `declare module 'archiver';`
+server/utils/task-visibility.ts(51,35): error TS18048: 'queue' is possibly 'undefined'.

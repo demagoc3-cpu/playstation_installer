@@ -1,0 +1,310 @@
+{
+  "checks": {
+    "command": "npm run check",
+    "eslint": {
+      "errors": 0,
+      "warnings": 0,
+      "maxWarnings": 0
+    },
+    "typescript": {
+      "command": "vue-tsc --build --noEmit",
+      "errors": 0,
+      "scope": [
+        "app",
+        "server",
+        "shared",
+        "node"
+      ]
+    },
+    "prettier": "passed",
+    "productionBuild": {
+      "result": "passed",
+      "location": "isolated copy; live .nuxt not used"
+    },
+    "gitDiffCheck": "passed"
+  },
+  "hostTests": {
+    "reportedTests": 341,
+    "reportedPass": 341,
+    "reportedFail": 0,
+    "excludedScenarios": [
+      {
+        "name": "real file API: folders, copy resume, trash/restore, replacement and editor conflicts",
+        "reason": "The native host bridge permits test writes under /tmp; /tmp user disk quota is exhausted. Explicitly excluded with --test-skip-pattern. Node reports the resulting empty test file as passed; this is not validation of the native scenario."
+      }
+    ]
+  },
+  "regressions": {
+    "liveDeviceStatus": "passed: use online/paired public snapshot and never turn a local installation mark into console proof",
+    "durableNativeCommands": "passed, including rejection of stale queue IDs",
+    "pairingAndWebAddress": "passed with byte-accurate mock transport",
+    "selection": "passed; browser Call of Duty selection restored after HMR",
+    "ps4AndPs5QueuesFormatsTelemetrySaves": "host suite passed; no hardware installation performed"
+  },
+  "implementation": {
+    "eslintRulesDisabledForThisTask": [],
+    "runtimeDependencyVersionsChanged": [],
+    "newDevDependencies": {
+      "vue-tsc": "3.3.13",
+      "@types/archiver": "7.0.0"
+    },
+    "changedFiles": [
+      {
+        "path": "package-lock.json",
+        "before": "ccb25cf135f352cb8d6efb7ea63b6f6c056a539e06c167cb4497f4e645251f9a",
+        "after": "af574964d98a2025398c9424acf07aa28e1b985d46e9b0d2f350fa5188312fc8"
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "before": "1d5bbef61cd224e72f20ef24632bfc52f8b203c1133b819f30bdf03862e3dbeb",
+        "after": "cffb02d07c5e9dce3e45a7c461cf6be44800b677216436ffca211908dcc4c173"
+      },
+      {
+        "path": "package.json",
+        "before": "9fe24b8b2919587736f7d4d81d24fc1bf9e06765f9d7da0e8427b8f3db4529e2",
+        "after": "68852b0453e969b2bcdb4dfe6573aa8ebbeed7ebf08846b105a363ab4bafc54e"
+      },
+      {
+        "path": "app/app.vue",
+        "before": "51ff6ac2b982e637aec55109ddc3594ab1e9fba50fd3e8b936ed684a1bb45dc1",
+        "after": "77ef1b6a48098a14f1c772969b38d2821ec712f8cac5188597e2c4a83d7e0e0c"
+      },
+      {
+        "path": "server/tests/ps5-queue.test.mjs",
+        "before": "27abaf487338f641a2930ce671277ef9f4312c9cae93b54b6ab40e86d5786e34",
+        "after": "4d349da0895deb53f14f02c083d788d80a9f792ec80452bafb0181bb354882a5"
+      },
+      {
+        "path": "server/tests/ps5-management.test.mjs",
+        "before": "b55795a7ea47c63064b254259fd3bb5edda6ff700aaa81a1a3d307d4e0955954",
+        "after": "539f431dda3bcb5f670c459ce307a56c3c5fd3fbb20fc0dfbeab30b4543f70ce"
+      },
+      {
+        "path": "server/tests/presets.test.mjs",
+        "before": "e57f2ddba7fc0b94ee857f0b680f0299aebf724ca035a6455077ef41dab74359",
+        "after": "0949d7a0e3ae7263e2d91d414f1f62dbf8eb292d1f180c113864ec6c28d76315"
+      },
+      {
+        "path": "server/tests/library-page-api.test.mjs",
+        "before": "bb923f47778431c645ba7b512448deed0869c3b0bad172300d1b2ed0872daee6",
+        "after": "021fba9bf4ef9acee692cca7832dd32bec0614330fddd6ddb4bf907a30c6dd6d"
+      },
+      {
+        "path": "server/tests/ps5-saves-view.test.mjs",
+        "before": "02019a6cd6a0380484de6b195e0d64294ef4df03d304811472b9873e7777f65c",
+        "after": "619fd4210f6ec442d8b54e4d90a68a073756e1c3f30edd21e0cfb7723b8fc172"
+      },
+      {
+        "path": "server/tests/search-details-cache.test.mjs",
+        "before": "f9b31a936da3966e328d9b66abb94e83e5d8c675f207c6572f7fcff431c491e6",
+        "after": "9b95a036654a4665081de10561d7231636c1e65f8a5acd90588cc21b34e13c53"
+      },
+      {
+        "path": "server/tests/ps5-source-hash-cache.test.mjs",
+        "before": "c72c1b747b78ec2384c559d1de03defe99bd7d457c229ca47f87ee7d9753d399",
+        "after": "4726f54c686b1044f79b25b611c236c383b54f170a27f79c3d2dc06aaade9614"
+      },
+      {
+        "path": "server/tests/ps4-install-settings.test.mjs",
+        "before": "c33740820a4faf81a818af7ed6032c9243f5ad815eb912efdefb7ec8eacf46a6",
+        "after": "5ba1ecb55baf0fdc8bf2e7fa5650a38c9d969be34470f91e91bac9e639635e62"
+      },
+      {
+        "path": "server/tests/service-pairing.test.mjs",
+        "before": "6ee5d46cef8a6e6c6f8bdef4c4645790271631f911618cc9de8b82fb8997449a",
+        "after": "d5c0be4a5751617504d18911e4db8922288c5abe8b421fbf2ecf9f649a824d87"
+      },
+      {
+        "path": "server/tests/library-pagination.test.ts",
+        "before": "8982cd3edb669ecd86178f75cf3a708e2a8735603a1cf983a615c18e80151a73",
+        "after": "89a1342766629c73f354533f1bcbcf8dc5be074cd8f07da751526265e8287867"
+      },
+      {
+        "path": "server/tests/desktop-app-upgrade.test.mjs",
+        "before": "cb7a6400374b851fef457007742f40e1b766ab831eb687525f74749e46590fce",
+        "after": "3f0e521acf5b33137ba79ca3560c127fec4bbce8269cb00ee7436d6b1074df3d"
+      },
+      {
+        "path": "server/tests/ps5-native-status.test.mjs",
+        "before": "73791fce53729059bca2df784411be23b454bf4be55e87fdbf0fa62e8ed63b15",
+        "after": "e20803110de27c264abf92acc00581891371577a8c385f65cbfeaaee327b1746"
+      },
+      {
+        "path": "server/tests/ps5-folder.test.mjs",
+        "before": "f73d81ab59e85d8edeedd6a7fad64a2524032ad7e6a7ad89871dd9fcded5013b",
+        "after": "21de0dbc310e8b23a691128833af24e457eb5062b16b642470e8c329dc9927e4"
+      },
+      {
+        "path": "server/tests/glass-workspaces.test.mjs",
+        "before": "83ff0cea077774e859557b1c76f7b7df46d3e0fabb60f7d5b0c6ad3415c31170",
+        "after": "99c7cd1e729b0e5a03d6df9f26c4cfcf9d98b658269334d114c47a3423d6a027"
+      },
+      {
+        "path": "server/tests/library-network-index.test.mjs",
+        "before": "f98c56675ff431665f5607ef3750cdaf10f6e1aa2470d1994f3d2108a649d71a",
+        "after": "4f78ff92bfbbdef2ec35573e573547d119f26c963cbf7b276f71070584f85966"
+      },
+      {
+        "path": "server/tests/console-connection.test.mjs",
+        "before": "7ba46cd98a925934dc6c53578f7240f9c2d18a398eef368b10ca71e0ad9ad9c4",
+        "after": "a076382427db7c279ee6ea3030638b01f499c83e2fbabd5e50c77edc4d81e345"
+      },
+      {
+        "path": "server/tests/device-installation.test.mjs",
+        "before": "f5e1fe7693d1a7e57441aec50a5e6db3f78dbd060c1d8d211c3222e9c29f6a7f",
+        "after": "0ac9adc515b2202bc66a638327ab9c27ce95369f78d1ea6a6b2a9d349ad77289"
+      },
+      {
+        "path": "server/tests/ps5-image.test.mjs",
+        "before": "fd659117cc24c82eb1dccbaebe517494a151f9bd8a310452b9ab8162774b93de",
+        "after": "340f1a4c31442006fa335daf5b5e19f3250fb868a854e883bd0a073d9cd4d0c9"
+      },
+      {
+        "path": "server/utils/ps5-queue-driver.ts",
+        "before": "c000225a079bfe5fcd736c73d9990013e005181b3bdf6a4bcd97d736df4d7239",
+        "after": "44a9aa41ce02cccd54a9b39c260eda133ae2f22a5aaa9becf5215903ff25b8f5"
+      },
+      {
+        "path": "server/utils/console-file-install.ts",
+        "before": "f1cd15cde13e4c5a0cff4eab022cd5252eb06172f8453e716f43e91e6502ff68",
+        "after": "d6607cb568a190b67441dcf9ebb6074d33559a8e928d90c249996d7bf1604326"
+      },
+      {
+        "path": "server/utils/console-files.ts",
+        "before": "ec685218aefce9d24c03fea7993c7b9217935494eba3978bd221b439af70dc34",
+        "after": "df5959c418c5e6f1f751ead1374e8bb03c70384b665989ada002117b97b2fc4b"
+      },
+      {
+        "path": "server/utils/ps5-queue-core.ts",
+        "before": "efcdc6f1549add36b37665decccecb226abb69eff69a095820910ab3de2ded53",
+        "after": "b8fd5ece7e1f4704045fec6fcdd82511d2913dadeadeda882f7177b77dbd07d3"
+      },
+      {
+        "path": "server/utils/ps5-management.ts",
+        "before": "dbb10bc27b1af47009eb598ec534461820fe8d7521239c49e848265a242ccb0e",
+        "after": "7ad7e5071a651d7e591f4766e7c4d93cf123a7e0a7d6034f2faa26668d2d004b"
+      },
+      {
+        "path": "server/utils/device-installation.ts",
+        "before": "ff0863f0e80dcd51df4bd168183ed1e2d395a595e8b0ce10a4f818a2031b009a",
+        "after": "f381cfaa1fdf0d61af4ca302b68b250833ab0bd261b29519dababe8b90edcd9c"
+      },
+      {
+        "path": "server/utils/console-maintenance.ts",
+        "before": "57d96e0cb87e5eb0329a9237f48816635d276d1cf702e0979f89f2b48c057595",
+        "after": "d45d86e0b205b1a2c034789ebf063d7e10a9fb6bbd5b8578304194ef18bb1aa1"
+      },
+      {
+        "path": "server/utils/ps5-installation-queue.ts",
+        "before": "6f9021e2c55d722ceb9886dff9575d592494ad79121e491e3456548102880893",
+        "after": "8bf7a859d621a398da5b8ae400975b49d8264d5f15c4dadcd42fd93317c01182"
+      },
+      {
+        "path": "server/utils/ps5-folder-driver.ts",
+        "before": "d862ca65b49ab226481ce0fe7c7177a69f2be15d1ec2ed69dc8574012922ccf0",
+        "after": "2ace15666100f31d6886c5c90e139f5279def5b341af46ae357665be85164680"
+      },
+      {
+        "path": "server/utils/console-app-commands.ts",
+        "before": "af6f90bbf0e793679a5af538769c7a47151e14d95c98ab89af36c3d2baebecb1",
+        "after": "b7ba5049dcc2d20b2910e072f27a3fafdb46d978b22dbf593cc371bc78cb3d73"
+      },
+      {
+        "path": "server/utils/installation-queue.ts",
+        "before": "8c23554c457e757578dd9c39a49f53532dd81bf34abed3a91fb9bb17a8b68556",
+        "after": "7dae49101c318cfe24df7ba010d7e4aaad33ddaaf7800f253e677986cdceed43"
+      },
+      {
+        "path": "server/utils/ps4-service-installer.ts",
+        "before": "cc2b2471d2ef238a44a75317ed549e0ef9c7be8cc0d0dd8918f7dfd7941f03c7",
+        "after": "aeb15e739f08b7a96ed6d3a77bf4241766c2e8cc7d23dd3c91b5780f806cf012"
+      },
+      {
+        "path": "server/utils/ps4-installer.ts",
+        "before": "d5c015e9d311179f4f988416b8481754f3045d213e40631ce4f0f40764bc8e4e",
+        "after": "906ef8a24304a0637bfc80922226a80e3c3fcabbcfc907d3c07632ca4ee8e289"
+      },
+      {
+        "path": "server/utils/console-profiles.ts",
+        "before": "5ff368569509c8f406d142f136a041be443ce361f6c8ccb6e7075d1ea6c04200",
+        "after": "5ad0893d3339a66d7c5ebb8b0a3f86cc35309a4080bf4e7ffb55cb7676a66a5c"
+      },
+      {
+        "path": "server/utils/ps5-image-driver.ts",
+        "before": "8f3035f72dffe7bc9ee4aa1e082f28e30c8a2f36241792ad3069077bcf7f4c03",
+        "after": "499a3f4da4ad260d360035e7d58b0822c5451bc97d1f2b3866775d844a18a3d2"
+      },
+      {
+        "path": "server/utils/task-visibility.ts",
+        "before": "6355f24225072c7b4ee2de2309b3e56a5b45fe002bd87ddca0ee01774d920375",
+        "after": "31c9e89220de369b2139442016f2236d6eb5995eea04c410f14bd1c3badc42e7"
+      },
+      {
+        "path": "server/utils/package-library.ts",
+        "before": "42eed351be5cd207c88dae144afd83aa766d2cb2bb6608c1c156215afb85c406",
+        "after": "72784a0018a03751ed4e49034056af049a7656a9c00e0df4e817403b4a46f2bd"
+      },
+      {
+        "path": "server/utils/desktop-console-setup.ts",
+        "before": "49835a52199424c540c223aee5308c41108379f7176eefe29de9bc0b5e7b9d98",
+        "after": "4e968ffab9104318f3bb5395dd31c86cb5cf4ea06f25caba135bb207164e8444"
+      },
+      {
+        "path": "server/tests/fixtures/console-commands-runner.mjs",
+        "before": "5871e2856cd5ef8652d21b08a222d1ba0b8cd5a4276c58e2945a3899f7885600",
+        "after": "c1642c8c225f24916fbca2264ca6faaa3f88f221cf6ab283d5ee659b75fc20f0"
+      },
+      {
+        "path": "app/components/LibraryPresets.vue",
+        "before": "8e726fb9273a6a96d0b7c87539bcdc783bb4ec542e902708515e30544523c8fb",
+        "after": "e0f99e5896225c964f869ebf753f81f19e89671916f148d8b89030d9bb2272c8"
+      },
+      {
+        "path": "app/components/ConsoleProfiles.vue",
+        "before": "a8a3cb5d70fe34aee7be6f96768f3c116b626bcaa43dac2dc145bc3e981a1a58",
+        "after": "3d6b594a34fb3e7ae21826656cbde4def84b4b11035c4c85a52709b79d71f3f3"
+      },
+      {
+        "path": "app/components/Ps5ConsoleSaves.vue",
+        "before": "67acd950c7eb25eaf530e8bf04e05c6b9bcb62c2c45a87f734cfab75329b27c9",
+        "after": "50e790dd95219d6a7091a609863e0e5acda4a136ce61af97548f3c855d909b05"
+      },
+      {
+        "path": "app/components/ConsoleFileInstaller.vue",
+        "before": "08fc9b0537f011941525e7e363ef610975faf09acf11ce2439b5757701081f61",
+        "after": "450b5f4d5aab33f44b961c8057fb6ea83596f72c664eb72665475d127c811a07"
+      },
+      {
+        "path": "app/components/ConsoleSaves.vue",
+        "before": "7eccd8262ef430a583818ab1356454503147e3cb72c76aed01b61b4de5388bf4",
+        "after": "adffb67be4ae282cb0eb26b2b2900afe1fe5f235ae7fb3fafc65411097fc0069"
+      },
+      {
+        "path": "app/components/EventLogPanel.vue",
+        "before": "bd9503521952ce9c63b7fd8966216a5a89cd05a956cd56c296e05bc087006045",
+        "after": "52be776fee36e308bb8ce7648b0b483ef8fb6f9f665a7d2e2d894bfc9890b573"
+      },
+      {
+        "path": "app/components/DeviceInstallModal.vue",
+        "before": "a7b8b552b13c96fac25b56ab882ecc15bbb4f4553278cfae7b1f77977c8f79e4",
+        "after": "c084f4b35e7b82416595376cc197ee2602027a65adfd80250e234487f3a5f96a"
+      },
+      {
+        "path": "app/components/MenuIcon.vue",
+        "before": "216d6212a285d3fdc24495def785696bb748b496ccd82125e1763835975ca85f",
+        "after": "8ac33786cbbae81d56bd6141498a4a0b092cedd0eb95b1acd7382a703f2b2f1b"
+      },
+      {
+        "path": "app/components/SearchResults.vue",
+        "before": "e391fbf3c64d3f7db5ac37756e8e4a1b6047265b957c790e560a82ddfd243b77",
+        "after": "e5b335188231c70afcb69242e647ca9c91aacf50d28c92c8d9d062309af32c09"
+      },
+      {
+        "path": "app/components/Ps5ConsoleApps.vue",
+        "before": "b4e212a50af21b605b547a26c789e1a6fab1f32fe23b855e5a32bd4f07352454",
+        "after": "de54f18dc688dd6b7684f2de6bc2f1fd55e22a8ff0e4cc85837c9ec8618ae424"
+      }
+    ]
+  },
+  "hardwareValidation": "No real installation/reinstallation, ELF change, console service restart or Windows hardware run"
+}

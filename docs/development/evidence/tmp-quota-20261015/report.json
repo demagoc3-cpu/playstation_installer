@@ -1,0 +1,193 @@
+{
+  "quotaCleanup": {
+    "removed": [
+      {
+        "path": "/tmp/pf-stream-5vPzkc",
+        "bytes": 50334784
+      },
+      {
+        "path": "/tmp/pf-stream-64Ckgo",
+        "bytes": 50334784
+      },
+      {
+        "path": "/tmp/pf-stream-5nCB14",
+        "bytes": 50334784
+      },
+      {
+        "path": "/tmp/pf-stream-gFqOFQ",
+        "bytes": 50334784
+      },
+      {
+        "path": "/tmp/pf-stream-fyWV5f",
+        "bytes": 50334784
+      },
+      {
+        "path": "/tmp/pf-stream-ewy6XN",
+        "bytes": 50334784
+      },
+      {
+        "path": "/tmp/pf-stream-XLRLCc",
+        "bytes": 50334784
+      },
+      {
+        "path": "/tmp/pf-stream-YPz6Xm",
+        "bytes": 50334784
+      },
+      {
+        "path": "/tmp/pf-stream-Xt0Zq3",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-k3xynn",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-NUhCXi",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-6ATZs6",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-ROjrJH",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-p9NM0w",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-TGilhA",
+        "bytes": 210768030
+      },
+      {
+        "path": "/tmp/pf-stream-Z1uV7T",
+        "bytes": 210768030
+      },
+      {
+        "path": "/tmp/pf-stream-G3kKYr",
+        "bytes": 210768028
+      },
+      {
+        "path": "/tmp/pf-stream-8ksyp2",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-3K4vl8",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-nArYzy",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-dymddT",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-swQ0R1",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-pE3oxP",
+        "bytes": 210768032
+      },
+      {
+        "path": "/tmp/pf-stream-2vYRVv",
+        "bytes": 110104730
+      },
+      {
+        "path": "/tmp/pf-stream-ezkxu4",
+        "bytes": 110104734
+      },
+      {
+        "path": "/tmp/pf-stream-QwpfFT",
+        "bytes": 110104731
+      },
+      {
+        "path": "/tmp/pf-stream-fdR3ET",
+        "bytes": 110104734
+      },
+      {
+        "path": "/tmp/pf-stream-zKmLF9",
+        "bytes": 93327518
+      },
+      {
+        "path": "/tmp/pf-stream-L8dzTe",
+        "bytes": 93327518
+      },
+      {
+        "path": "/tmp/pf-stream-Z19E3M",
+        "bytes": 93327518
+      },
+      {
+        "path": "/tmp/pf-stream-qY3nCH",
+        "bytes": 93327517
+      },
+      {
+        "path": "/tmp/pf-stream-GUZyR4",
+        "bytes": 93327518
+      },
+      {
+        "path": "/tmp/pf-stream-6A2QoJ",
+        "bytes": 93327518
+      },
+      {
+        "path": "/tmp/pf-stream-iqBBNc",
+        "bytes": 75501490
+      },
+      {
+        "path": "/tmp/pf-stream-saCm6J",
+        "bytes": 75501490
+      },
+      {
+        "path": "/tmp/pf-stream-kz2Qjd",
+        "bytes": 62918137
+      },
+      {
+        "path": "/tmp/pf-stream-Na6hTg",
+        "bytes": 62918137
+      },
+      {
+        "path": "/tmp/pf-stream-0P895w",
+        "bytes": 62918137
+      }
+    ],
+    "retainedUnverified": [],
+    "freedFileBytes": 4904340171,
+    "userDataRemoved": false,
+    "quotaAfter": {
+      "usedBytes": 20347887616,
+      "limitBytes": 25254385664,
+      "freeBytes": 4906498048
+    },
+    "sourceTests": [
+      "PackageFlowService-PS5/tests/transfer-stream_test.c",
+      "PackageFlowPayload-PS5/tests/transfer-stream_test.c"
+    ],
+    "validation": "Verified every payload byte against deterministic test generators, including deliberately corrupted fixture headers; no active process references, all older than 24 hours."
+  },
+  "nativeFiles": {
+    "tests": 1,
+    "pass": 1,
+    "fail": 0,
+    "skipped": 0,
+    "realConsoleInstallation": false
+  },
+  "fullHostSuite": {
+    "tests": 341,
+    "pass": 341,
+    "fail": 0,
+    "skipped": 0,
+    "excludedScenarios": [],
+    "command": "TMPDIR=/tmp NODE_OPTIONS=--experimental-transform-types node --test server/tests/*.test.*"
+  },
+  "checks": {
+    "eslintErrors": 0,
+    "eslintWarnings": 0,
+    "typeErrors": 0,
+    "prettier": "passed"
+  },
+  "userData": "No user packages, settings, credentials, installed applications or active payloads were removed"
+}

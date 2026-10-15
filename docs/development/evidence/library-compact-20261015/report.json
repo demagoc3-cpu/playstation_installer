@@ -1,0 +1,28 @@
+{
+  "changes": [
+    "Removed search subtitle and sidebar caption from the DOM",
+    "Dynamic library games/package/size summary with loading and notification preservation",
+    "Reduced search/action spacing",
+    "Browser interval uses number; settings template uses named handlers"
+  ],
+  "validation": {
+    "browser": "Confirmed summary, removed nodes, search, RU/EN translation and qBittorrent settings navigation",
+    "regressionTests": {
+      "passed": 7,
+      "failed": 0
+    },
+    "eslint": {
+      "errors": 0,
+      "warnings": 45
+    },
+    "prettier": "passed",
+    "diffCheck": "passed",
+    "vueTypecheck": {
+      "appVueErrors": 0,
+      "otherErrors": 65,
+      "timerBefore": "TS2322: Type number is not assignable to Timeout",
+      "timerAfter": "no diagnostic"
+    }
+  },
+  "hardwareValidation": "Not performed; no real installation or service restart"
+}

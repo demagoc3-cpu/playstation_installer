@@ -1,3 +1,3 @@
-import { getInstallationPreference } from '../../utils/installation-preference'
+import { getInstallationPreference } from '../../utils/installation-preference';
 
-export default defineEventHandler(() => ({ transport: getInstallationPreference() }))
+export default defineEventHandler(() => ({ transport: getInstallationPreference() }));

@@ -1,24 +1,227 @@
 <script setup lang="ts">
-const { t } = useAppLocale()
+const { t } = useAppLocale();
 
-const props = defineProps<{ ip: string; pkg: { id: string; title: string; url: string } | null }>()
-const emit = defineEmits<{ close: []; changed: []; progress: [flow: any] }>()
-const plan = ref<any>(); const flow = ref<any>(); const typed = ref(''); const message = ref(''); const busy = ref(false)
-let generation = 0; let timer: ReturnType<typeof setInterval> | undefined; let completed = ''
-function error(e: any) { return e?.data?.message || e?.message || 'Нет ответа от PS4' }
-async function poll() { const id = generation; try { const value = await $fetch<any>('/api/ps4/maintenance', { query: { ip: props.ip } }); if (id !== generation) return; flow.value = value?.kind === 'reinstall' ? value : null; emit('progress', flow.value); if (flow.value?.state === 'completed' && completed !== flow.value.id) { completed = flow.value.id; emit('changed') } } catch (e) { if (id === generation && flow.value) message.value = error(e) } }
-async function prepare() { const pkg = props.pkg; const id = ++generation; typed.value = ''; message.value = ''; plan.value = undefined; if (!pkg) return; busy.value = true; try { const p = await $fetch('/api/ps4/reinstall', { query: { ip: props.ip, packageId: pkg.id } }); if (id === generation) plan.value = p } catch (e) { if (id === generation) message.value = error(e) } finally { if (id === generation) busy.value = false } }
-async function start() { if (!plan.value || !props.pkg || typed.value !== plan.value.details.app.titleId) return; const id = generation; busy.value = true; try { const f = await $fetch('/api/ps4/reinstall', { method: 'POST', body: { ip: props.ip, packageId: props.pkg.id, url: plan.value.url || props.pkg.url, confirmTitleId: typed.value, revision: plan.value.details.revision } }); if (id === generation) { flow.value = f; emit('progress', f); emit('close') } } catch (e) { if (id === generation) { message.value = error(e); await poll() } } finally { if (id === generation) busy.value = false } }
-watch(() => [props.pkg?.id, props.ip], () => void prepare())
-watch(() => props.ip, () => { flow.value = undefined; emit('progress', null); void poll() })
-onMounted(() => { void poll(); timer = setInterval(() => { if (flow.value && !['completed', 'failed'].includes(flow.value.state)) void poll() }, 2500) })
-onBeforeUnmount(() => { generation++; clearInterval(timer) })
+const props = defineProps<{ ip: string; pkg: { id: string; title: string; url: string } | null }>();
+const emit = defineEmits<{ close: []; changed: []; progress: [flow: any] }>();
+const plan = ref<any>();
+const flow = ref<any>();
+const typed = ref('');
+const message = ref('');
+const busy = ref(false);
+let generation = 0;
+let timer: ReturnType<typeof setInterval> | undefined;
+let completed = '';
+function error(e: any) {
+  return e?.data?.message || e?.message || 'Нет ответа от PS4';
+}
+async function poll() {
+  const id = generation;
+  try {
+    const value = await $fetch<any>('/api/ps4/maintenance', { query: { ip: props.ip } });
+    if (id !== generation) return;
+    flow.value = value?.kind === 'reinstall' ? value : null;
+    emit('progress', flow.value);
+    if (flow.value?.state === 'completed' && completed !== flow.value.id) {
+      completed = flow.value.id;
+      emit('changed');
+    }
+  } catch (e) {
+    if (id === generation && flow.value) message.value = error(e);
+  }
+}
+async function prepare() {
+  const pkg = props.pkg;
+  const id = ++generation;
+  typed.value = '';
+  message.value = '';
+  plan.value = undefined;
+  if (!pkg) return;
+  busy.value = true;
+  try {
+    const p = await $fetch('/api/ps4/reinstall', { query: { ip: props.ip, packageId: pkg.id } });
+    if (id === generation) plan.value = p;
+  } catch (e) {
+    if (id === generation) message.value = error(e);
+  } finally {
+    if (id === generation) busy.value = false;
+  }
+}
+async function start() {
+  if (!plan.value || !props.pkg || typed.value !== plan.value.details.app.titleId) return;
+  const id = generation;
+  busy.value = true;
+  try {
+    const f = await $fetch('/api/ps4/reinstall', {
+      method: 'POST',
+      body: {
+        ip: props.ip,
+        packageId: props.pkg.id,
+        url: plan.value.url || props.pkg.url,
+        confirmTitleId: typed.value,
+        revision: plan.value.details.revision,
+      },
+    });
+    if (id === generation) {
+      flow.value = f;
+      emit('progress', f);
+      emit('close');
+    }
+  } catch (e) {
+    if (id === generation) {
+      message.value = error(e);
+      await poll();
+    }
+  } finally {
+    if (id === generation) busy.value = false;
+  }
+}
+watch(
+  () => [props.pkg?.id, props.ip],
+  () => void prepare(),
+);
+watch(
+  () => props.ip,
+  () => {
+    flow.value = undefined;
+    emit('progress', null);
+    void poll();
+  },
+);
+onMounted(() => {
+  void poll();
+  timer = setInterval(() => {
+    if (flow.value && !['completed', 'failed'].includes(flow.value.state)) void poll();
+  }, 2500);
+});
+onBeforeUnmount(() => {
+  generation++;
+  clearInterval(timer);
+});
 </script>
 <template>
-
-  <div v-if="pkg" class="backdrop"><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="reinstall-title"><h2 id="reinstall-title">{{ t("Переустановить «") }}{{ pkg.title }}»?</h2><p v-if="busy">{{ t("Читаем состав игры на PS4…") }}</p><p v-if="message" role="alert">{{ t(message) }}</p><template v-if="plan"><p>{{ t("PS4 сначала удалит игру и перечисленные дополнения. Затем установит выбранный базовый PKG из библиотеки. Сохранения остаются. Патчи, бэкпорты и DLC потребуется установить заново.") }}</p><ul><li v-for="c in plan.details.components" :key="`${c.kind}/${c.id}`">{{ t(c.kind === 'base' ? 'Игра' : c.kind === 'patch' ? 'Патч / бэкпорт' : 'DLC') }} — {{ c.title }}</li></ul><p>{{ t("Перед переустановкой остановите игру в «На консоли».") }}</p><label>{{ t("Введите") }} {{ plan.details.app.titleId }} {{ t("для подтверждения") }}<input v-model="typed" autocomplete="off" spellcheck="false"></label></template><div class="actions"><button :disabled="busy" @click="emit('close')">{{ t("Отмена") }}</button><button class="danger" :disabled="busy || !plan || typed !== plan.details.app.titleId" @click="start">{{ t("Удалить и переустановить") }}</button></div></section></div>
+  <div v-if="pkg" class="backdrop">
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="reinstall-title">
+      <h2 id="reinstall-title">{{ t('Переустановить «') }}{{ pkg.title }}»?</h2>
+      <p v-if="busy">{{ t('Читаем состав игры на PS4…') }}</p>
+      <p v-if="message" role="alert">{{ t(message) }}</p>
+      <template v-if="plan"
+        ><p>
+          {{
+            t(
+              'PS4 сначала удалит игру и перечисленные дополнения. Затем установит выбранный базовый PKG из библиотеки. Сохранения остаются. Патчи, бэкпорты и DLC потребуется установить заново.',
+            )
+          }}
+        </p>
+        <ul>
+          <li v-for="c in plan.details.components" :key="`${c.kind}/${c.id}`">
+            {{ t(c.kind === 'base' ? 'Игра' : c.kind === 'patch' ? 'Патч / бэкпорт' : 'DLC') }} —
+            {{ c.title }}
+          </li>
+        </ul>
+        <p>{{ t('Перед переустановкой остановите игру в «На консоли».') }}</p>
+        <label
+          >{{ t('Введите') }} {{ plan.details.app.titleId }} {{ t('для подтверждения')
+          }}<input v-model="typed" autocomplete="off" spellcheck="false" /></label
+      ></template>
+      <div class="actions">
+        <button :disabled="busy" @click="emit('close')">{{ t('Отмена') }}</button
+        ><button
+          class="danger"
+          :disabled="busy || !plan || typed !== plan.details.app.titleId"
+          @click="start"
+        >
+          {{ t('Удалить и переустановить') }}
+        </button>
+      </div>
+    </section>
+  </div>
 </template>
 <style scoped>
-.reinstall-progress { max-width: 1000px; background: #282032; border: 1px solid #655071; padding: 20px; margin: 20px 0; border-radius: 10px; font-size: 13px; } .backdrop { position: fixed; inset: 0; background: #000b; z-index: 30; display: grid; place-items: center; padding: 24px; } .dialog { width: 100%; max-width: 620px; max-height: 85vh; overflow: auto; padding: 28px; background: #201d26; border: 1px solid #61516f; border-radius: 12px; } h2 { font-size: 19px; } p, li, label { font-size: 13px; line-height: 1.8; color: #c1b6ce; } label { display: flex; flex-direction: column; gap: 10px; } input { padding: 12px; color: #eee; background: #151419; border: 1px solid #6d577d; border-radius: 7px; } .actions { margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px; } button { padding: 10px 14px; border: 1px solid #5b4a68; border-radius: 7px; background: #332a3d; color: #e2d5ed; } .danger { background: #482832; border-color: #8a485b; color: #ffc2ce; }
-.progress-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }.dismiss { flex: none; padding: 0 6px; border: 0; background: transparent; color: #c1b6ce; font-size: 22px; line-height: 1; cursor: pointer; }.dismiss:hover { color: #fff; }
+.reinstall-progress {
+  max-width: 1000px;
+  background: #282032;
+  border: 1px solid #655071;
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: #000b;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.dialog {
+  width: 100%;
+  max-width: 620px;
+  max-height: 85vh;
+  overflow: auto;
+  padding: 28px;
+  background: #201d26;
+  border: 1px solid #61516f;
+  border-radius: 12px;
+}
+h2 {
+  font-size: 19px;
+}
+p,
+li,
+label {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #c1b6ce;
+}
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+input {
+  padding: 12px;
+  color: #eee;
+  background: #151419;
+  border: 1px solid #6d577d;
+  border-radius: 7px;
+}
+.actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+button {
+  padding: 10px 14px;
+  border: 1px solid #5b4a68;
+  border-radius: 7px;
+  background: #332a3d;
+  color: #e2d5ed;
+}
+.danger {
+  background: #482832;
+  border-color: #8a485b;
+  color: #ffc2ce;
+}
+.progress-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.dismiss {
+  flex: none;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: #c1b6ce;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.dismiss:hover {
+  color: #fff;
+}
 </style>

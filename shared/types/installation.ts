@@ -1,33 +1,41 @@
-export type InstallationTransport = 'payload' | 'service'
+export type InstallationTransport = 'payload' | 'service';
 export interface ServiceInstallJob {
-  service: 'PackegeFlowService'
-  jobId: string
-  requestId: string
-  contentId: string
-  taskId: number
-  state: 'registering' | 'downloading' | 'installing' | 'installed' | 'failed' | 'cancelling' | 'cancelled' | 'uncertain'
-  totalBytes: number
-  downloadedBytes: number
-  downloadTotalBytes: number
-  error: number
-  errorHex: string
-  pollError: number
-  progressBits?: number
-  preparingPercent?: number
-  localCopyPercent?: number
-  installing?: boolean
-  updating?: number
-  activeTaskId?: number
-  activeTaskProbe?: number
+  service: 'PackegeFlowService';
+  jobId: string;
+  requestId: string;
+  contentId: string;
+  taskId: number;
+  state:
+    | 'registering'
+    | 'downloading'
+    | 'installing'
+    | 'installed'
+    | 'failed'
+    | 'cancelling'
+    | 'cancelled'
+    | 'uncertain';
+  totalBytes: number;
+  downloadedBytes: number;
+  downloadTotalBytes: number;
+  error: number;
+  errorHex: string;
+  pollError: number;
+  progressBits?: number;
+  preparingPercent?: number;
+  localCopyPercent?: number;
+  installing?: boolean;
+  updating?: number;
+  activeTaskId?: number;
+  activeTaskProbe?: number;
 }
 export interface ServiceInstallCapabilities {
-  service: 'PackegeFlowService'
-  version: string
-  localInstall?: boolean
-  installApi: 1
-  ready: boolean
-  authentication: 'bearer'
-  contentTypes: string[]
-  error: number
-  errorHex: string
+  service: 'PackegeFlowService';
+  version: string;
+  localInstall?: boolean;
+  installApi: 1;
+  ready: boolean;
+  authentication: 'bearer';
+  contentTypes: string[];
+  error: number;
+  errorHex: string;
 }
