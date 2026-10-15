@@ -1,0 +1,29 @@
+{
+  "kind": "isolated Vue/CSS fixture; synthetic data; no console access",
+  "sizes": [
+    390,
+    768,
+    1280
+  ],
+  "languages": [
+    "ru",
+    "en"
+  ],
+  "telemetryTransitions": 48,
+  "telemetryStable": true,
+  "compactTransitions": 6,
+  "compactStable": true,
+  "longStatuses": 12,
+  "longStatusStable": true,
+  "hardwareTest": false,
+  "viewportReset": true,
+  "scope": "UI layout only: stable speed/ETA slots, percentage width, status and stage height",
+  "productLogicChanged": false,
+  "checks": {
+    "targetedTestFilesPassed": 5,
+    "eslint": "passed",
+    "prettier": "passed",
+    "gitDiffCheck": "passed"
+  },
+  "limitation": "Synthetic browser fixture, not an active console installation; long content may expand the card without clipping."
+}

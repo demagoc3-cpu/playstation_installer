@@ -26,7 +26,6 @@ const number = (value: number) =>
       :title="t(task.progressPhase === 'source-check' ? 'Проверено / всего' : 'Передано / всего')"
       >{{ number(megabytes.transferred) }} / {{ number(megabytes.total) }} {{ t('МБ') }}</small
     ><small
-      v-if="speed !== undefined"
       class="transfer-speed"
       :title="
         t(
@@ -35,17 +34,24 @@ const number = (value: number) =>
             : 'Скорость передачи по байтам, подтверждённым PS5',
         )
       "
-      >{{ number(speed / 1048576) }} {{ t('МиБ/с') }} · {{ number((speed * 8) / 1000000) }}
-      {{ t('Мбит/с') }}</small
+      ><template v-if="speed !== undefined"
+        ><span>{{ number(speed / 1048576) }} {{ t('МиБ/с') }}</span
+        ><span>· {{ number((speed * 8) / 1000000) }} {{ t('Мбит/с') }}</span></template
+      ></small
     ></span
   >
 </template>
 <style scoped>
 .transfer-info {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  display: inline-grid;
+  inline-size: 34ch;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  gap: 5px;
+  container: transfer-telemetry / inline-size;
+  font:
+    10px 'DM Mono',
+    monospace;
 }
 .transfer-bytes,
 .transfer-speed {
@@ -53,7 +59,26 @@ const number = (value: number) =>
   font:
     10px 'DM Mono',
     monospace;
-  white-space: nowrap;
+  line-height: 1.4;
   font-variant-numeric: tabular-nums;
+}
+.transfer-bytes {
+  overflow-wrap: anywhere;
+}
+.transfer-speed {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: start;
+  gap: 0 0.8ch;
+  min-block-size: 1.4em;
+}
+.transfer-speed > span {
+  white-space: nowrap;
+}
+/* Keep the second rate line reserved when a narrow card wraps the two units. */
+@container transfer-telemetry (max-width: 30ch) {
+  .transfer-speed {
+    min-block-size: 2.8em;
+  }
 }
 </style>

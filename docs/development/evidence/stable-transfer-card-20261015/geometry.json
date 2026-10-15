@@ -1,0 +1,2294 @@
+{
+  "responsive": [
+    {
+      "width": 390,
+      "language": "ru",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "ru",
+      "mode": "sending",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "ru",
+      "mode": "zero",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "ru",
+      "mode": "large",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "ru",
+      "mode": "complete",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "ru",
+      "mode": "source",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "ru",
+      "mode": "long",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "ru",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "mode": "sending",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "mode": "zero",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "mode": "large",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "mode": "complete",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "mode": "source",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "mode": "long",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 324,
+        "x": 33,
+        "y": 566.109375
+      },
+      "card": {
+        "height": 439.296875,
+        "width": 350,
+        "x": 20,
+        "y": 170.8125
+      },
+      "eta": {
+        "height": 30.796875,
+        "width": 242,
+        "x": 115,
+        "y": 333.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 350,
+        "x": 20,
+        "y": 620.109375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 242,
+        "x": 115,
+        "y": 260.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 115,
+        "y": 311.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "ru",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "ru",
+      "mode": "sending",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "ru",
+      "mode": "zero",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "ru",
+      "mode": "large",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "ru",
+      "mode": "complete",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "ru",
+      "mode": "source",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "ru",
+      "mode": "long",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "ru",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "mode": "sending",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "mode": "zero",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "mode": "large",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "mode": "complete",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "mode": "source",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "mode": "long",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 694,
+        "x": 37,
+        "y": 534.703125
+      },
+      "card": {
+        "height": 438.890625,
+        "width": 728,
+        "x": 20,
+        "y": 143.8125
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 598,
+        "x": 133,
+        "y": 313.3125
+      },
+      "following": {
+        "height": 60,
+        "width": 728,
+        "x": 20,
+        "y": 592.703125
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 598,
+        "x": 133,
+        "y": 240.3125
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 133,
+        "y": 291.3125
+      }
+    },
+    {
+      "width": 1280,
+      "language": "ru",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "ru",
+      "mode": "sending",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "ru",
+      "mode": "zero",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "ru",
+      "mode": "large",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "ru",
+      "mode": "complete",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "ru",
+      "mode": "source",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "ru",
+      "mode": "long",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "ru",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "en",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "en",
+      "mode": "sending",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "en",
+      "mode": "zero",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "en",
+      "mode": "large",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "en",
+      "mode": "complete",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "en",
+      "mode": "source",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "en",
+      "mode": "long",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    },
+    {
+      "width": 1280,
+      "language": "en",
+      "mode": "pending",
+      "actions": {
+        "height": 31,
+        "width": 366.21875,
+        "x": 746.78125,
+        "y": 345.4375
+      },
+      "card": {
+        "height": 242,
+        "width": 980,
+        "x": 150,
+        "y": 151.4375
+      },
+      "eta": {
+        "height": 15.390625,
+        "width": 425.78125,
+        "x": 288,
+        "y": 320.9375
+      },
+      "following": {
+        "height": 60,
+        "width": 980,
+        "x": 150,
+        "y": 403.4375
+      },
+      "overflow": false,
+      "progress": {
+        "height": 23,
+        "width": 425.78125,
+        "x": 288,
+        "y": 247.9375
+      },
+      "speed": {
+        "height": 14,
+        "width": 204.6875,
+        "x": 288,
+        "y": 298.9375
+      }
+    }
+  ],
+  "compact": [
+    {
+      "mode": "pending",
+      "card": {
+        "h": 453.296875,
+        "w": 280,
+        "y": 170.8125
+      },
+      "eta": "",
+      "following": {
+        "h": 60,
+        "w": 280,
+        "y": 634.109375
+      },
+      "progress": {
+        "h": 23,
+        "w": 172,
+        "y": 260.3125
+      },
+      "speed": {
+        "h": 28,
+        "w": 172,
+        "y": 311.3125
+      },
+      "speedText": ""
+    },
+    {
+      "mode": "sending",
+      "card": {
+        "h": 453.296875,
+        "w": 280,
+        "y": 170.8125
+      },
+      "eta": "Approximately remaining 6 min",
+      "following": {
+        "h": 60,
+        "w": 280,
+        "y": 634.109375
+      },
+      "progress": {
+        "h": 23,
+        "w": 172,
+        "y": 260.3125
+      },
+      "speed": {
+        "h": 28,
+        "w": 172,
+        "y": 311.3125
+      },
+      "speedText": "20.5 MiB/s· 172 Mbit/s"
+    },
+    {
+      "mode": "large",
+      "card": {
+        "h": 453.296875,
+        "w": 280,
+        "y": 170.8125
+      },
+      "eta": "Approximately remaining 1 min",
+      "following": {
+        "h": 60,
+        "w": 280,
+        "y": 634.109375
+      },
+      "progress": {
+        "h": 23,
+        "w": 172,
+        "y": 260.3125
+      },
+      "speed": {
+        "h": 28,
+        "w": 172,
+        "y": 311.3125
+      },
+      "speedText": "9,999.9 MiB/s· 83,885.2 Mbit/s"
+    },
+    {
+      "mode": "zero",
+      "card": {
+        "h": 453.296875,
+        "w": 280,
+        "y": 170.8125
+      },
+      "eta": "",
+      "following": {
+        "h": 60,
+        "w": 280,
+        "y": 634.109375
+      },
+      "progress": {
+        "h": 23,
+        "w": 172,
+        "y": 260.3125
+      },
+      "speed": {
+        "h": 28,
+        "w": 172,
+        "y": 311.3125
+      },
+      "speedText": "0 MiB/s· 0 Mbit/s"
+    },
+    {
+      "mode": "source",
+      "card": {
+        "h": 453.296875,
+        "w": 280,
+        "y": 170.8125
+      },
+      "eta": "",
+      "following": {
+        "h": 60,
+        "w": 280,
+        "y": 634.109375
+      },
+      "progress": {
+        "h": 23,
+        "w": 172,
+        "y": 260.3125
+      },
+      "speed": {
+        "h": 28,
+        "w": 172,
+        "y": 311.3125
+      },
+      "speedText": ""
+    },
+    {
+      "mode": "pending",
+      "card": {
+        "h": 453.296875,
+        "w": 280,
+        "y": 170.8125
+      },
+      "eta": "",
+      "following": {
+        "h": 60,
+        "w": 280,
+        "y": 634.109375
+      },
+      "progress": {
+        "h": 23,
+        "w": 172,
+        "y": 260.3125
+      },
+      "speed": {
+        "h": 28,
+        "w": 172,
+        "y": 311.3125
+      },
+      "speedText": ""
+    }
+  ],
+  "statusChecks": [
+    {
+      "width": 390,
+      "language": "ru",
+      "mode": "pending",
+      "actionsY": 566.109375,
+      "clipped": false,
+      "height": 439.296875,
+      "status": "Ожидание PS5 · Установщик PS5 не запущен или недоступен",
+      "statusHeight": 68
+    },
+    {
+      "width": 390,
+      "language": "ru",
+      "mode": "long",
+      "actionsY": 566.109375,
+      "clipped": false,
+      "height": 439.296875,
+      "status": "Передача · Ожидаем подтверждение приставки после проверки исходного файла; служба сообщает о подготовке установки. Повторное подключение выполняется автоматически.",
+      "statusHeight": 68
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "mode": "pending",
+      "actionsY": 566.109375,
+      "clipped": false,
+      "height": 439.296875,
+      "status": "Waiting for PS5 · Установщик PS5 не запущен или недоступен",
+      "statusHeight": 68
+    },
+    {
+      "width": 390,
+      "language": "en",
+      "mode": "long",
+      "actionsY": 566.109375,
+      "clipped": false,
+      "height": 439.296875,
+      "status": "Transferring · Waiting for confirmation from the console after source verification; the service is preparing the installation. Reconnection will continue automatically.",
+      "statusHeight": 68
+    },
+    {
+      "width": 768,
+      "language": "ru",
+      "mode": "pending",
+      "actionsY": 534.703125,
+      "clipped": false,
+      "height": 438.890625,
+      "status": "Ожидание PS5 · Установщик PS5 не запущен или недоступен",
+      "statusHeight": 68
+    },
+    {
+      "width": 768,
+      "language": "ru",
+      "mode": "long",
+      "actionsY": 534.703125,
+      "clipped": false,
+      "height": 438.890625,
+      "status": "Передача · Ожидаем подтверждение приставки после проверки исходного файла; служба сообщает о подготовке установки. Повторное подключение выполняется автоматически.",
+      "statusHeight": 68
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "mode": "pending",
+      "actionsY": 534.703125,
+      "clipped": false,
+      "height": 438.890625,
+      "status": "Waiting for PS5 · Установщик PS5 не запущен или недоступен",
+      "statusHeight": 68
+    },
+    {
+      "width": 768,
+      "language": "en",
+      "mode": "long",
+      "actionsY": 534.703125,
+      "clipped": false,
+      "height": 438.890625,
+      "status": "Transferring · Waiting for confirmation from the console after source verification; the service is preparing the installation. Reconnection will continue automatically.",
+      "statusHeight": 68
+    },
+    {
+      "width": 1280,
+      "language": "ru",
+      "mode": "pending",
+      "actionsY": 345.4375,
+      "clipped": false,
+      "height": 242,
+      "status": "Ожидание PS5 · Установщик PS5 не запущен или недоступен",
+      "statusHeight": 68
+    },
+    {
+      "width": 1280,
+      "language": "ru",
+      "mode": "long",
+      "actionsY": 345.4375,
+      "clipped": false,
+      "height": 242,
+      "status": "Передача · Ожидаем подтверждение приставки после проверки исходного файла; служба сообщает о подготовке установки. Повторное подключение выполняется автоматически.",
+      "statusHeight": 68
+    },
+    {
+      "width": 1280,
+      "language": "en",
+      "mode": "pending",
+      "actionsY": 345.4375,
+      "clipped": false,
+      "height": 242,
+      "status": "Waiting for PS5 · Установщик PS5 не запущен или недоступен",
+      "statusHeight": 68
+    },
+    {
+      "width": 1280,
+      "language": "en",
+      "mode": "long",
+      "actionsY": 345.4375,
+      "clipped": false,
+      "height": 242,
+      "status": "Transferring · Waiting for confirmation from the console after source verification; the service is preparing the installation. Reconnection will continue automatically.",
+      "statusHeight": 68
+    }
+  ]
+}

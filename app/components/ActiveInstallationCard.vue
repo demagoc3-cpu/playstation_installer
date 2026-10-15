@@ -63,8 +63,11 @@ const bytes = (n: number) =>
           :aria-label="`${t('Прогресс')}: ${task.title}`"
         /><strong>{{ Math.round(percent) }}%</strong>
       </div>
-      <InstallationTransferSpeed :task="task" /><small v-if="remaining !== undefined"
-        >{{ t('Осталось примерно') }} {{ remaining }} {{ t('мин') }}</small
+      <InstallationTransferSpeed :task="task" />
+      <small class="active-install-eta"
+        ><template v-if="remaining !== undefined"
+          >{{ t('Осталось примерно') }} {{ remaining }} {{ t('мин') }}</template
+        ></small
       >
     </div>
     <div class="active-install-status">
