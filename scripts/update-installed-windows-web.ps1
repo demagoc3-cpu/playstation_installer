@@ -101,11 +101,11 @@ function Save-Journal([string]$State) {
     try { $stream.Flush($true) } finally { $stream.Dispose() }
     Move-Item -Force -LiteralPath $temp -Destination $script:journalPath
 }
-function Desktop-Request([string]$Method, [string]$Route) {
+function Desktop-Request([string]$Method, [string]$Route, [ValidateRange(1,5000)][int]$TimeoutMs=5000) {
     # Fixed loopback routes only. This updater never calls a console API.
     if ($Route -notin @('/api/desktop/status','/api/desktop/prepare-stop','/')) { throw 'Invalid updater route' }
     $request = [Net.HttpWebRequest]::Create('http://127.0.0.1:'+$script:settings.Port+$Route)
-    $request.Proxy=$null; $request.Method=$Method; $request.Timeout=5000; $request.ReadWriteTimeout=5000; $request.KeepAlive=$false
+    $request.Proxy=$null; $request.Method=$Method; $request.Timeout=$TimeoutMs; $request.ReadWriteTimeout=$TimeoutMs; $request.KeepAlive=$false; $request.AllowAutoRedirect=$false
     $request.Headers['X-PackageFlow-Launcher-Key']=$script:launcherKey
     if ($Method -eq 'POST') { $request.ContentLength=0 }
     $response=$null; $reader=$null
@@ -129,15 +129,42 @@ function Current-Node {
     if ($reply.status -ne 200 -or $reply.body.application -ne 'PackageFlow' -or !$reply.body.processId) { throw 'Owned WEB status not confirmed' }
     return Owned-Node $reply.body.processId
 }
+function Stop-ClockMs {
+    return [Diagnostics.Stopwatch]::GetTimestamp()*1000.0/[Diagnostics.Stopwatch]::Frequency
+}
+function Open-NodeProcess([int]$NodeId) {
+    return [Diagnostics.Process]::GetProcessById($NodeId)
+}
 function Stop-OwnedNode($Process) {
     $reply=Desktop-Request 'GET' '/api/desktop/status'
-    if ($reply.body.application -ne 'PackageFlow' -or $reply.body.processId -ne $Process.ProcessId) { throw 'WEB changed before stop' }
-    $drain=Desktop-Request 'POST' '/api/desktop/prepare-stop'
-    if ($drain.status -ne 200 -or $drain.body.busy -isnot [bool] -or $drain.body.busy) { throw 'Standard WEB stop guard reports busy; no forced stop' }
-    $lease=[Diagnostics.Stopwatch]::StartNew()
+    if ($reply.status -ne 200 -or $reply.body.application -cne 'PackageFlow' -or $reply.body.processId -ne $Process.ProcessId) { throw 'WEB changed before stop' }
+    $budgetStart=Stop-ClockMs
+    $leaseStart=$null
+    for ($attempt=1; $attempt -le 12; $attempt++) {
+        $postStart=Stop-ClockMs
+        $elapsed=$postStart-$budgetStart
+        if ($elapsed -lt 0 -or $elapsed -ge 20000) { throw 'Standard WEB drain budget exhausted; no stop' }
+        # A known request-only busy response cancels draining on the server.
+        # Never retry a timeout, unknown outcome, malformed reply or real work.
+        $drain=Desktop-Request 'POST' '/api/desktop/prepare-stop' ([int][Math]::Min(5000,[Math]::Floor(20000-$elapsed)))
+        $received=Stop-ClockMs
+        if ($received -lt $postStart -or $received-$budgetStart -gt 20000) { throw 'Standard WEB drain exceeded its budget; no stop' }
+        if ($drain.status -isnot [int] -or $drain.status -ne 200 -or
+            ($drain.body -isnot [Collections.IDictionary] -and $drain.body -isnot [pscustomobject]) -or
+            $drain.body.busy -isnot [bool] -or $drain.body.reasons -isnot [array]) { throw 'Unknown standard WEB drain response; no retry or stop' }
+        if (!$drain.body.busy) {
+            if ($drain.body.reasons.Count -ne 0) { throw 'Idle WEB drain has nonempty reasons; no stop' }
+            # Lease starts before this POST, not after receiving its response.
+            $leaseStart=$postStart
+            break
+        }
+        if ($drain.body.reasons.Count -ne 1 -or $drain.body.reasons[0] -isnot [string] -or $drain.body.reasons[0] -cne 'request') { throw 'Standard WEB stop guard reports real work; no retry or stop' }
+    }
+    if ($null -eq $leaseStart) { throw 'Standard WEB did not drain within twelve attempts; no stop' }
     $exact=Owned-Node $Process.ProcessId $Process.CreationDate.ToUniversalTime().ToString('o')
-    if ($lease.Elapsed.TotalSeconds -gt 10) { throw 'Stop lease expired' }
-    $owned=[Diagnostics.Process]::GetProcessById($exact.ProcessId)
+    $owned=Open-NodeProcess $exact.ProcessId
+    $leaseAge=(Stop-ClockMs)-$leaseStart
+    if ($leaseAge -lt 0 -or $leaseAge -ge 10000) { throw 'Stop lease expired; no renewal' }
     $script:killAttempted=$true
     $owned.Kill()
     if (!$owned.WaitForExit(5000)) { throw 'Owned WEB exit not confirmed' }

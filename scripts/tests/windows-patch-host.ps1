@@ -104,6 +104,120 @@ try {
     Must-Reject { Stop-OwnedNode $fakeProcess } 'Unknown status allowed a stop'
     Check (!$identityCalled) 'Unknown status reached process control'
 
+    # Test the real retry/lease/kill policy with a fake monotonic clock,
+    # transport and process handle. No fixture can open or kill a real process.
+    function Stop-ClockMs { return $script:stopClock }
+    function Owned-Node($NodeId,$Creation) {
+        $script:identityCalls++
+        if ($script:rejectIdentity) { throw 'Fixture process identity changed' }
+        if ($NodeId -ne 12345 -or $Creation -cne $fakeProcess.CreationDate.ToUniversalTime().ToString('o')) { throw 'Missing exact process creation identity' }
+        $script:stopClock+=$script:identityDelay
+        return $fakeProcess
+    }
+    function Open-NodeProcess($NodeId) {
+        $script:openCalls++
+        if ($NodeId -ne 12345) { throw 'Wrong process handle requested' }
+        $script:stopClock+=$script:openDelay
+        return $script:fakeHandle
+    }
+    function Desktop-Request($Method,$Route,$TimeoutMs=5000) {
+        if ($Method -eq 'GET' -and $Route -eq '/api/desktop/status') { return $script:statusReply }
+        if ($Method -ne 'POST' -or $Route -ne '/api/desktop/prepare-stop') { throw 'Unexpected fixture route' }
+        $script:postCalls++
+        $script:postTimeouts+=@($TimeoutMs)
+        if ($script:postCalls -gt $script:stopSteps.Count) { throw 'Unexpected retry after terminal reply' }
+        $step=$script:stopSteps[$script:postCalls-1]
+        $script:stopClock+=$step.ms
+        if ($step.ContainsKey('error')) { throw $step.error }
+        return $step.reply
+    }
+    function Set-StopFixture($Steps) {
+        $script:stopSteps=@($Steps); $script:stopClock=1000.0
+        $script:postCalls=0; $script:postTimeouts=@(); $script:identityCalls=0; $script:openCalls=0
+        $script:killCalls=0; $script:waitCalls=0; $script:killAttempted=$false
+        $script:identityDelay=0; $script:openDelay=0; $script:rejectIdentity=$false
+        $script:statusReply=@{status=200;body=@{application='PackageFlow';processId=12345}}
+        $script:fakeHandle=New-Object PSObject
+        $script:fakeHandle | Add-Member ScriptMethod Kill { $script:killCalls++ }
+        $script:fakeHandle | Add-Member ScriptMethod WaitForExit { param($Timeout); $script:waitCalls++; return $Timeout -eq 5000 }
+    }
+    $requestBusy=@{status=200;body=@{busy=$true;reasons=@('request')}}
+    $idleReply=@{status=200;body=@{busy=$false;reasons=@()}}
+    $busyStep=@{ms=1500;reply=$requestBusy}
+    $idleStep=@{ms=1500;reply=$idleReply}
+    foreach ($busyCount in @(0,1,10,11)) {
+        Set-StopFixture (@($busyStep)*$busyCount+@($idleStep))
+        Stop-OwnedNode $fakeProcess
+        Check ($postCalls -eq $busyCount+1 -and $killCalls -eq 1 -and $killAttempted -and $waitCalls -eq 1) 'Acknowledged request-only drain must stop once at first idle reply'
+        Check ($identityCalls -eq 1 -and $openCalls -eq 1) 'Successful drain must preserve exact identity/handle guard'
+    }
+    $badReplies=@(
+        @{status=503;body=@{busy=$true;reasons=@('request')}},
+        @{status=302;body=@{busy=$true;reasons=@('request')}},
+        @{status='200';body=@{busy=$true;reasons=@('request')}},
+        @{status=200;body=@{busy='true';reasons=@('request')}},
+        @{status=200;body=@{busy=1;reasons=@('request')}},
+        @{status=200;body=@{busy=$true;reasons='request'}},
+        @{status=200;body=@{busy=$true;reasons=@()}},
+        @{status=200;body=@{busy=$true;reasons=@('REQUEST')}},
+        @{status=200;body=@{busy=$true;reasons=@('request','request')}},
+        @{status=200;body=@{busy=$true;reasons=@('request','transfer')}},
+        @{status=200;body=@{busy=$false;reasons=@('request')}},
+        @{status=200;body=@{busy=$false;reasons=''}},
+        @{status=200;body=@{busy=$true}},
+        @{status=200;body=@{reasons=@('request')}},
+        @{status=200;body=$null},
+        @{status=200;body=@()},
+        @{body=@{busy=$false;reasons=@()}}
+    )
+    foreach ($reason in @('installation','transfer','storage-indexing','maintenance','removal','local-installation','command','ps5-installation','ps5-bootstrap','unknown')) {
+        $badReplies+=@{status=200;body=@{busy=$true;reasons=@($reason)}}
+    }
+    foreach ($badReply in $badReplies) {
+        foreach ($prefix in @(0,1)) {
+            Set-StopFixture (@($busyStep)*$prefix+@(@{ms=1500;reply=$badReply},$idleStep))
+            Must-Reject { Stop-OwnedNode $fakeProcess } 'Malformed or real-work drain allowed a stop'
+            Check ($postCalls -eq $prefix+1 -and $identityCalls -eq 0 -and $openCalls -eq 0 -and $killCalls -eq 0 -and !$killAttempted) 'Rejected drain retried or reached process control'
+        }
+    }
+    foreach ($prefix in @(0,1)) {
+        Set-StopFixture (@($busyStep)*$prefix+@(@{ms=5000;error='Timed out after an unknown drain result'},$idleStep))
+        Must-Reject { Stop-OwnedNode $fakeProcess } 'Lost drain response allowed a stop'
+        Check ($postCalls -eq $prefix+1 -and $identityCalls -eq 0 -and $killCalls -eq 0) 'Lost drain response was retried'
+    }
+    Set-StopFixture (@($busyStep)*12+@($idleStep))
+    Must-Reject { Stop-OwnedNode $fakeProcess } 'Thirteenth POST allowed'
+    Check ($postCalls -eq 12 -and $identityCalls -eq 0 -and $killCalls -eq 0) 'Twelve-POST bound failed'
+    Set-StopFixture (@(@{ms=5000;reply=$requestBusy})*4+@($idleStep))
+    Must-Reject { Stop-OwnedNode $fakeProcess } 'Twenty-second budget allowed another POST'
+    Check ($postCalls -eq 4 -and $identityCalls -eq 0 -and $killCalls -eq 0) 'Monotonic budget failed'
+    Set-StopFixture @(@{ms=19001;reply=$requestBusy},@{ms=1000;reply=$idleReply})
+    Must-Reject { Stop-OwnedNode $fakeProcess } 'Late idle reply exceeded total budget'
+    Check ($postCalls -eq 2 -and $postTimeouts[1] -eq 999 -and $killCalls -eq 0) 'Remaining budget was not passed to transport'
+    Set-StopFixture @(@{ms=-1;reply=$idleReply})
+    Must-Reject { Stop-OwnedNode $fakeProcess } 'Backward clock accepted'
+    Check ($postCalls -eq 1 -and $killCalls -eq 0) 'Invalid clock reached kill'
+    foreach ($delayTarget in @('identity','handle')) {
+        Set-StopFixture @(@{ms=5000;reply=$idleReply},$idleStep)
+        if ($delayTarget -eq 'identity') { $script:identityDelay=5000 } else { $script:openDelay=5000 }
+        Must-Reject { Stop-OwnedNode $fakeProcess } 'Expired stop lease accepted'
+        Check ($postCalls -eq 1 -and $killCalls -eq 0 -and !$killAttempted) 'Lease renewed after idle or kill attempted at ten seconds'
+    }
+    Set-StopFixture @(@{ms=5000;reply=$idleReply})
+    $script:identityDelay=4999
+    Stop-OwnedNode $fakeProcess
+    Check ($postCalls -eq 1 -and $killCalls -eq 1) 'Valid lease below ten seconds rejected'
+    Set-StopFixture @($idleStep)
+    $script:rejectIdentity=$true
+    Must-Reject { Stop-OwnedNode $fakeProcess } 'Changed process identity accepted'
+    Check ($postCalls -eq 1 -and $openCalls -eq 0 -and $killCalls -eq 0) 'Changed identity reached process handle'
+    foreach ($badStatus in @(@{status=503;body=@{application='PackageFlow';processId=12345}},@{status=200;body=@{application='Other';processId=12345}},@{status=200;body=@{application='PackageFlow';processId=54321}})) {
+        Set-StopFixture @($idleStep)
+        $script:statusReply=$badStatus
+        Must-Reject { Stop-OwnedNode $fakeProcess } 'Unowned initial WEB status accepted'
+        Check ($postCalls -eq 0 -and $killCalls -eq 0) 'Unowned initial WEB status sent a drain'
+    }
+
     # Start failure must restore the calling process environment, including key.
     $settings=[pscustomobject]@{Port=3000;PayloadPort=3001;HostIp='192.168.1.2'}
     $dataDirectory=Join-Path $fixture 'data'; $backupDirectory=$fixture
