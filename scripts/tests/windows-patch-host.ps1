@@ -29,6 +29,20 @@ function Must-Reject([scriptblock]$Action,[string]$Message) {
 $fixture=Join-Path ([IO.Path]::GetTempPath()) ('pf-patch-host-'+[Guid]::NewGuid().ToString('N'))
 $null=[IO.Directory]::CreateDirectory($fixture)
 try {
+    if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+        # Exercise the production constructor and real filesystem ACE roundtrip
+        # before the updater can stop a process. No Windows application is run.
+        $acl=New-PrivateDirectoryAcl
+        $identity=[Security.Principal.WindowsIdentity]::GetCurrent().User
+        $rules=@($acl.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))
+        Check ($acl.AreAccessRulesProtected -and $rules.Count -eq 1 -and $rules[0].IdentityReference.Value -eq $identity.Value) 'Private ACL must contain the current typed SID, not a string account lookup'
+        $aclFixture=Join-Path $fixture 'acl-roundtrip'
+        $null=[IO.Directory]::CreateDirectory($aclFixture)
+        Set-Acl -LiteralPath $aclFixture -AclObject $acl
+        $roundtrip=Get-Acl -LiteralPath $aclFixture
+        $roundtripRules=@($roundtrip.GetAccessRules($true,$false,[Security.Principal.SecurityIdentifier]))
+        Check ($roundtrip.AreAccessRulesProtected -and $roundtripRules.Count -eq 1 -and $roundtripRules[0].IdentityReference.Value -eq $identity.Value -and $roundtripRules[0].AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and ($roundtripRules[0].FileSystemRights -band [Security.AccessControl.FileSystemRights]::FullControl) -eq [Security.AccessControl.FileSystemRights]::FullControl) 'Real Windows private ACE did not survive Set-Acl/Get-Acl'
+    }
     if ($BaseSnapshot) {
         $base=Get-Content -LiteralPath $BaseSnapshot -Raw | ConvertFrom-Json
         Validate-Records $base.web.files -Web
@@ -101,5 +115,5 @@ try {
     Must-Reject { Start-Web } 'Start fixture unexpectedly succeeded'
     Check ([Environment]::GetEnvironmentVariable('PACKAGEFLOW_LAUNCHER_KEY','Process') -ceq $previousKey) 'Launcher key leaked into parent environment'
     Check ([Environment]::GetEnvironmentVariable('PORT','Process') -ceq $previousPort) 'Parent port environment was changed'
-    Write-Output ('PASS: PowerShell parser/reserved-variable audit and '+$checks+' host checks; no network, Windows or PS5 execution')
+    Write-Output ('PASS: PowerShell parser/reserved-variable audit and '+$checks+' host checks; no network, application process or PS5 control')
 } finally { Remove-Item -LiteralPath $fixture -Recurse -Force }

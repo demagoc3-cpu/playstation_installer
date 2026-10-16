@@ -49,6 +49,16 @@ function Paths-Overlap([string]$First, [string]$Second) {
     $secondPath=[IO.Path]::GetFullPath($Second).TrimEnd([IO.Path]::DirectorySeparatorChar)+[IO.Path]::DirectorySeparatorChar
     return $firstPath.StartsWith($secondPath,[StringComparison]::OrdinalIgnoreCase) -or $secondPath.StartsWith($firstPath,[StringComparison]::OrdinalIgnoreCase)
 }
+function New-PrivateDirectoryAcl {
+    # The string overload treats a SID string as an NT account name on Windows.
+    # Pass the current user's typed SID to the IdentityReference overload.
+    $identity=[Security.Principal.WindowsIdentity]::GetCurrent().User
+    $acl=New-Object Security.AccessControl.DirectorySecurity
+    $acl.SetAccessRuleProtection($true,$false)
+    $rule=New-Object Security.AccessControl.FileSystemAccessRule($identity,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
+    $acl.AddAccessRule($rule)
+    return $acl
+}
 function Assert-File($Path, $Record) {
     Assert-NoLinks $Path
     $item = Get-Item -Force -LiteralPath $Path
@@ -224,11 +234,9 @@ try {
     }
     if ($approved.Count -or !$entries.ContainsKey($artifactRelative) -or !$entries.ContainsKey('ps5-service-artifacts/manifest.json')) { throw 'Incomplete patch payload' }
     $null=New-Item -ItemType Directory -Path $staging
-    $acl=New-Object Security.AccessControl.DirectorySecurity
     $userSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-    $acl.SetAccessRuleProtection($true,$false)
-    $rule=New-Object Security.AccessControl.FileSystemAccessRule($userSid,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
-    $acl.AddAccessRule($rule); Set-Acl -LiteralPath $staging -AclObject $acl
+    $acl=New-PrivateDirectoryAcl
+    Set-Acl -LiteralPath $staging -AclObject $acl
     foreach ($record in $patch.files) {
         $destination=Join-Path $staging $record.path
         $null=[IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination))
