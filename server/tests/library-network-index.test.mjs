@@ -10,14 +10,16 @@ import { createError } from 'h3';
 
 test('575-game pages and cached covers never probe 2895 network sources; delivery still validates its source', async () => {
   const work = mkdtempSync(join(tmpdir(), 'pf-network-index-')),
-    oldData = process.env.PACKAGEFLOW_DATA_DIR;
+    oldData = process.env.PACKAGEFLOW_DATA_DIR,
+    oldFetch = globalThis.fetch;
   const fs = createRequire(import.meta.url)('node:fs'),
     oldExists = fs.existsSync;
   const names = ['createError', 'defineEventHandler', 'getQuery', 'setHeader'];
   const previous = Object.fromEntries(names.map((name) => [name, globalThis[name]]));
   process.env.PACKAGEFLOW_DATA_DIR = join(work, 'data');
   mkdirSync(process.env.PACKAGEFLOW_DATA_DIR);
-  let probes = 0;
+  let probes = 0,
+    consoleProbes = 0;
   try {
     fs.existsSync = (path) => {
       if (String(path).startsWith('/offline-nas/')) {
@@ -31,6 +33,11 @@ test('575-game pages and cached covers never probe 2895 network sources; deliver
     globalThis.defineEventHandler = (handler) => handler;
     globalThis.getQuery = (event) => event.query;
     globalThis.setHeader = () => {};
+    globalThis.fetch = async (url) => {
+      assert.equal(new URL(url).pathname, '/health');
+      consoleProbes++;
+      return new Response('{}', { status: 503 });
+    };
     const cover = join(work, 'cover.png'),
       empty = join(work, 'empty.png'),
       png = Buffer.from('89504e470d0a1a0a', 'hex');
@@ -82,7 +89,7 @@ test('575-game pages and cached covers never probe 2895 network sources; deliver
       .consoles[0];
     const ids = [];
     for (let offset = 0; offset < 575; offset += 10) {
-      const page = api.catalog({ query: { consoleId: profile.id, offset, limit: 10 } });
+      const page = await api.catalog({ query: { consoleId: profile.id, offset, limit: 10 } });
       assert.equal(page.offset, offset);
       assert.equal(page.total, 575);
       assert.equal(page.games.length, Math.min(10, 575 - offset));
@@ -92,6 +99,7 @@ test('575-game pages and cached covers never probe 2895 network sources; deliver
       assert.ok(!JSON.stringify(page).includes('/offline-nas'), 'private paths stay server-side');
     }
     assert.equal(new Set(ids).size, 575);
+    assert.equal(consoleProbes, 1, 'offline console status is cached across all 58 pages');
     assert.equal(probes, 0, 'all pages use the scan index without live NAS calls');
     const stream = api.getPackageIconStream('pkg-0'),
       chunks = [];
@@ -116,6 +124,7 @@ test('575-game pages and cached covers never probe 2895 network sources; deliver
       'index edits invalidate display data',
     );
   } finally {
+    globalThis.fetch = oldFetch;
     fs.existsSync = oldExists;
     syncBuiltinESMExports();
     for (const name of names) {
