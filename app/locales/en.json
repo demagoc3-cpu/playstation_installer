@@ -1,4 +1,5 @@
 {
+  "Проверка установленных пакетов продолжится в очереди. До её завершения файлы не передаются.": "Installed packages will be checked in the queue. Files will not be transferred until the check completes.",
   "Установка PKG на PS4": "PS4 PKG installation",
   "Проверять PKG перед отправкой": "Check PKG before sending",
   "Дополнительная проверка требований PARAM и SDK. По умолчанию выключена; не меняет установку PS5. PyLoader не требует нашей службы: место и итог установки проверяет приставка.": "Optional PARAM and SDK requirement checks. Off by default; PS5 installation is unchanged. PyLoader does not require our service: the console checks space and the installation result.",

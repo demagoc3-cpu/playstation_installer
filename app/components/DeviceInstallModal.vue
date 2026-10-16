@@ -350,7 +350,9 @@ onBeforeUnmount(() => {
                 >
               </td>
               <td>
-                <span :class="{ ready: item.eligible }">{{ t(item.reason || 'Готово') }}</span>
+                <span :class="{ ready: item.eligible && !item.warning, warning: !!item.warning }">{{
+                  t(item.reason || item.warning || 'Готово')
+                }}</span>
                 <Ps5ServiceControl
                   v-if="item.profile.platform === 'ps5' && !item.profile.online && !attempted"
                   :key="item.profile.id + item.profile.ip"

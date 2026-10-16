@@ -14,6 +14,7 @@ import {
 } from './selected-reinstallation';
 import { readMaintenance } from './maintenance-store';
 import { installedPackagePreviewChecker } from './installed-package-check';
+import { withPs5InstalledReview } from './ps5-installed-read-coordinator';
 import { getPackage, getLibraryPackages } from './package-library';
 import { presetSelection } from './presets';
 import { filterContent, contentBranchKey, contentFormat } from '../../shared/content-platform';
@@ -205,7 +206,7 @@ const liveActivitySnapshots = new Map<string, { until: number; value: string[] }
 const liveActivityChecks = new Map<string, Promise<string[]>>();
 export async function deviceActivitiesLive(packageIds: string[] = []): Promise<DeviceActivity[]> {
   const activity = deviceActivities(packageIds),
-    check = installedPackagePreviewChecker(),
+    check = installedPackagePreviewChecker({ background: true }),
     selection = [...new Set(packageIds)].sort();
   await Promise.all(
     activity.map(async (entry) => {
@@ -289,8 +290,23 @@ export async function previewDeviceInstall(
   destinations?: string[],
 ): Promise<DeviceInstallPreview> {
   const ids = resolveDeviceSelection(selection),
-    items = ids.map((id) => getPackage(id)),
-    scope = items.every((item) => contentFormat(item) === 'pkg') ? 'pkg' : 'full';
+    items = ids.map((id) => getPackage(id));
+  const ps5Targets = getConsoleProfiles()
+    .consoles.filter(
+      (profile) =>
+        profile.platform === 'ps5' && (!destinations || destinations.includes(profile.id)),
+    )
+    .map((profile) => profile.id);
+  return withPs5InstalledReview(ps5Targets, () =>
+    previewResolvedDeviceInstall(ids, items, destinations),
+  );
+}
+async function previewResolvedDeviceInstall(
+  ids: string[],
+  items: Array<ReturnType<typeof getPackage>>,
+  destinations?: string[],
+): Promise<DeviceInstallPreview> {
+  const scope = items.every((item) => contentFormat(item) === 'pkg') ? 'pkg' : 'full';
   if (destinations)
     for (let offset = 0; offset < destinations.length; offset += 8)
       await Promise.all(
@@ -441,6 +457,27 @@ export async function previewDeviceInstall(
                 ),
             );
           const maintenance = readMaintenance()[profile.ip];
+          const unknownInstalled = checks.filter(({ check }) => check.state === 'unavailable');
+          const pendingInstalledCheck =
+            profile.platform === 'ps5' &&
+            profile.online &&
+            profile.paired &&
+            profile.verified &&
+            items.every((item) => profile.capabilities.formats.includes(contentFormat(item))) &&
+            unknownInstalled.length > 0 &&
+            unknownInstalled.every(
+              ({ item, check }) =>
+                check.transient === true &&
+                item.type !== 'DLC' &&
+                item.installOrder === 0 &&
+                ['folder', 'ufs2', 'exfat', 'pfs', 'ffpfsc'].includes(contentFormat(item)),
+            );
+          const installedReason = pendingInstalledCheck
+            ? ''
+            : (
+                unknownInstalled.find(({ check }) => check.transient !== true) ||
+                unknownInstalled[0]
+              )?.check.detail;
           const reason =
             maintenance && !['completed', 'failed'].includes(maintenance.state)
               ? 'Дождитесь завершения переустановки или обновления службы'
@@ -455,7 +492,7 @@ export async function previewDeviceInstall(
                 profile.freeBytes === undefined
                   ? 'Не удалось прочитать свободное место с приставки'
                   : '') ||
-                checks.find(({ check }) => check.state === 'unavailable')?.check.detail ||
+                installedReason ||
                 transportConflict ||
                 (mixedPayload ? PS4_PARALLEL_SERVICE_REQUIRED : '') ||
                 (finishedRetry
@@ -503,6 +540,12 @@ export async function previewDeviceInstall(
             profile,
             eligible: !reason,
             reason,
+            ...(!reason && pendingInstalledCheck
+              ? {
+                  warning:
+                    'Проверка установленных пакетов продолжится в очереди. До её завершения файлы не передаются.',
+                }
+              : {}),
             selectedBytes: additional,
             queueBytes: pendingBytes,
             reviewToken,

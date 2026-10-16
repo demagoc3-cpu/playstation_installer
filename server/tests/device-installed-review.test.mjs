@@ -41,6 +41,285 @@ function pkg(values) {
   s.copy(p, 256);
   return p;
 }
+test(
+  'PS5 temporarily unavailable inventory permits only qualified pending admission and preserves review binding',
+  { timeout: 6000 },
+  async () => {
+    const work = mkdtempSync(join(tmpdir(), 'pf-ps5-pending-review-')),
+      oldData = process.env.PACKAGEFLOW_DATA_DIR,
+      oldFetch = globalThis.fetch;
+    const data = join(work, 'data');
+    mkdirSync(data);
+    process.env.PACKAGEFLOW_DATA_DIR = data;
+    try {
+      const bundle = join(work, 'api.mjs');
+      await build({
+        stdin: {
+          contents:
+            "export * from './server/utils/device-installation';export * from './server/utils/console-profiles';",
+          resolveDir: resolve('.'),
+        },
+        outfile: bundle,
+        bundle: true,
+        platform: 'node',
+        format: 'esm',
+        logLevel: 'silent',
+      });
+      const api = await import(pathToFileURL(bundle).href);
+      const profile = api.saveConsoleProfile({ name: 'PS5', ip: '192.168.1.5', platform: 'ps5' })
+        .consoles[0];
+      writeFileSync(
+        join(data, 'ps5-service-keys.json'),
+        JSON.stringify({ [profile.ip]: 'a'.repeat(64) }),
+      );
+      const source = join(work, 'hades.ffpfsc');
+      writeFileSync(source, Buffer.alloc(8192));
+      const image = {
+        id: 'hades',
+        title: 'Hades',
+        titleId: 'PPSA36082',
+        contentId: 'EP4484-PPSA36082_00-0912328937643383',
+        appVersion: '01.006.000',
+        platform: 'ps5',
+        format: 'ffpfsc',
+        contentType: 'PS5GD',
+        type: 'Игра',
+        installOrder: 0,
+        size: 8192,
+        requiredFirmware: '13.00',
+        path: source,
+        fileName: 'hades.ffpfsc',
+        libraryRoot: work,
+        sourceModifiedAt: 1,
+        iconSize: 0,
+        icon: { offset: 0, size: 0 },
+      };
+      const dlc = {
+        ...image,
+        id: 'dlc',
+        format: 'pkg',
+        type: 'DLC',
+        contentType: 'PS5AC',
+        installOrder: 2,
+      };
+      const patch = {
+        ...image,
+        id: 'patch',
+        format: 'pkg',
+        type: 'Патч',
+        contentType: 'PS5GP',
+        installOrder: 1,
+      };
+      writeFileSync(
+        join(data, 'package-library.json'),
+        JSON.stringify({ version: 2, packages: [image, dlc, patch], deliveries: {} }),
+      );
+      let mode = 'temporary',
+        formatsReady = true,
+        storageRead = true,
+        revision = 'a'.repeat(64),
+        healthReads = 0,
+        holdCatalog = false,
+        catalogEntered,
+        releaseCatalog;
+      const posts = [];
+      const reply = (body, status = 200) => new Response(JSON.stringify(body), { status });
+      globalThis.fetch = async (url, options) => {
+        const path = new URL(url).pathname;
+        assert.equal(new URL(url).hostname, profile.ip);
+        if (options.method !== 'GET') {
+          posts.push(path);
+          throw Error('No dispatch expected');
+        }
+        if (path === '/health') {
+          healthReads++;
+          return reply({
+            apiVersion: 'v1',
+            pid: 97,
+            firmwareRead: true,
+            firmwareRaw: '0x13600007',
+            serviceReport: {
+              service: 'PackageFlowService-PS5',
+              platform: 'ps5',
+              consoleVerified: true,
+              version: '0.1.24-dev',
+            },
+          });
+        }
+        if (path === '/api/v1/capabilities')
+          return reply({ service: 'PackageFlowService-PS5', capabilities: {} });
+        if (path === '/api/v1/system')
+          return reply({
+            service: 'PackageFlowService-PS5',
+            storageRead,
+            freeBytes: 8 * 1024 ** 3,
+            totalBytes: 10 * 1024 ** 3,
+          });
+        if (path === '/api/v1/install/readiness')
+          return reply({
+            service: 'PackageFlowService-PS5',
+            schemaVersion: 1,
+            route: 'staged-pkg',
+            exactVersionReceipt: false,
+            ready: true,
+            reason: 'ready',
+            formats: ['pkg'],
+            platforms: ['ps4', 'ps5'],
+            images: {
+              schemaVersion: 1,
+              route: 'staged-image',
+              ready: formatsReady,
+              reason: formatsReady ? 'ready' : 'backend_not_verified_or_unavailable',
+              protocol: 'image-registration-v1',
+              backend: 'ShadowMountPlus-1.7beta3',
+              registrationReceipt: formatsReady,
+              platforms: formatsReady ? ['ps5'] : [],
+              formats: formatsReady ? ['ufs2', 'exfat', 'pfs', 'ffpfsc'] : [],
+            },
+          });
+        if (path === '/api/v1/management/status')
+          return reply({ protocol: 'ps5-management-v1', ready: true, catalog: true });
+        if (path === '/api/v1/console/catalog') {
+          if (holdCatalog) {
+            holdCatalog = false;
+            catalogEntered();
+            await new Promise((resolve) => {
+              releaseCatalog = resolve;
+            });
+          }
+          return reply({
+            revision,
+            entries: [
+              {
+                titleId: image.titleId,
+                contentId: image.contentId,
+                metadata: JSON.stringify({ contentVersion: image.appVersion }),
+              },
+            ],
+            next: 1,
+            done: true,
+          });
+        }
+        if (path === '/api/v1/console/info') {
+          if (mode === 'temporary') return reply({}, 503);
+          if (mode === 'schema') return reply({ title_id: image.titleId });
+          return reply({
+            title_id: image.titleId,
+            installed: true,
+            source_available: true,
+            content_id: image.contentId,
+            version: image.appVersion,
+            sourceIdentity: 'c'.repeat(64),
+          });
+        }
+        assert.fail(path);
+      };
+      const selection = { packageIds: [image.id] },
+        targets = [profile.id];
+      const pending = (await api.previewDeviceInstall(selection, targets)).devices[0];
+      assert.equal(pending.eligible, true);
+      assert.equal(pending.reason, '');
+      assert.equal(
+        pending.warning,
+        'Проверка установленных пакетов продолжится в очереди. До её завершения файлы не передаются.',
+      );
+      assert.deepEqual(
+        pending.installedPackages,
+        [],
+        'unknown inventory is never installed or overwrite proof',
+      );
+      assert.equal(pending.selectedBytes, image.size);
+      const backgroundEntered = new Promise((resolve) => {
+        catalogEntered = resolve;
+      });
+      holdCatalog = true;
+      const background = api.deviceActivitiesLive([image.id]);
+      await backgroundEntered;
+      const beforeForeground = healthReads;
+      const foreground = api.previewDeviceInstall(selection, targets);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      assert.equal(
+        healthReads,
+        beforeForeground,
+        'foreground review drains the active background read before its health probe',
+      );
+      releaseCatalog();
+      const [reviewAfterDrain] = await Promise.all([foreground, background]);
+      assert.equal(reviewAfterDrain.devices[0].eligible, true);
+      assert.equal(healthReads, beforeForeground + 1);
+      await assert.rejects(
+        api.installDeviceBatch(
+          '9'.repeat(32),
+          selection,
+          targets,
+          'localhost:3000',
+          { [profile.id]: [image.id] },
+          { [profile.id]: pending.reviewToken },
+        ),
+        { statusCode: 400 },
+      );
+      formatsReady = false;
+      const unqualified = (await api.previewDeviceInstall(selection, targets)).devices[0];
+      assert.equal(unqualified.eligible, false);
+      assert.match(unqualified.reason, /формата/);
+      assert.equal(unqualified.warning, undefined);
+      formatsReady = true;
+      storageRead = false;
+      const noStorage = (await api.previewDeviceInstall(selection, targets)).devices[0];
+      assert.equal(noStorage.eligible, false);
+      assert.match(noStorage.reason, /свободное место/);
+      assert.equal(noStorage.warning, undefined);
+      storageRead = true;
+      mode = 'schema';
+      const malformed = (await api.previewDeviceInstall(selection, targets)).devices[0];
+      assert.equal(malformed.eligible, false);
+      assert.equal(malformed.warning, undefined);
+      mode = 'temporary';
+      const unavailableDlc = (await api.previewDeviceInstall({ packageIds: [dlc.id] }, targets))
+        .devices[0];
+      assert.equal(
+        unavailableDlc.eligible,
+        false,
+        'DLC is not admitted by a transient connection error',
+      );
+      const mixedPatch = (
+        await api.previewDeviceInstall({ packageIds: [image.id, patch.id] }, targets)
+      ).devices[0];
+      assert.equal(
+        mixedPatch.eligible,
+        false,
+        'a temporary PKG patch check still blocks the mixed selection',
+      );
+      assert.equal(mixedPatch.warning, undefined);
+      mode = 'known';
+      const unsupportedDlc = (await api.previewDeviceInstall({ packageIds: [dlc.id] }, targets))
+        .devices[0];
+      assert.equal(unsupportedDlc.eligible, false);
+      assert.match(unsupportedDlc.reason, /DLC/);
+      mode = 'temporary';
+      const beforeChange = (await api.previewDeviceInstall(selection, targets)).devices[0];
+      mode = 'known';
+      revision = 'b'.repeat(64);
+      const changed = await api.installDeviceBatch(
+        '8'.repeat(32),
+        selection,
+        targets,
+        'localhost:3000',
+        {},
+        { [profile.id]: beforeChange.reviewToken },
+      );
+      assert.equal(changed.results[0].state, 'failed');
+      assert.match(changed.results[0].message, /изменился/);
+      assert.equal(posts.length, 0);
+      assert.equal(api.deviceQueue(profile.id).items.length, 0);
+    } finally {
+      globalThis.fetch = oldFetch;
+      if (oldData === undefined) delete process.env.PACKAGEFLOW_DATA_DIR;
+      else process.env.PACKAGEFLOW_DATA_DIR = oldData;
+      rmSync(work, { recursive: true, force: true });
+    }
+  },
+);
 test('live two-game selection, insufficient space, changed reviews, explicit queue admission, and selected PS4 reinstallation', async () => {
   const work = mkdtempSync(join(tmpdir(), 'pf-live-review-')),
     oldData = process.env.PACKAGEFLOW_DATA_DIR,

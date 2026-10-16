@@ -68,6 +68,36 @@ test('table review is mandatory, sends only selected destinations/packages, and 
       { packageIds: ['base'] },
       'selection is frozen when opening the modal',
     );
+    const initial = view.preview.value;
+    view.preview.value = {
+      ...initial,
+      devices: [
+        {
+          ...initial.devices[0],
+          warning:
+            'Проверка установленных пакетов продолжится в очереди. До её завершения файлы не передаются.',
+          reviewToken: 'c'.repeat(64),
+          selectedBytes: 100,
+          requiredBytes: 200,
+          installedPackages: [],
+        },
+      ],
+    };
+    view.selected.value = ['one'];
+    assert.equal(
+      view.ready.value,
+      true,
+      'a pending check permits queue intent without an overwrite',
+    );
+    assert.ok(Object.values(view.overwrite.value).every((ids) => !ids.length));
+    await view.load(true);
+    assert.deepEqual(view.selected.value, ['one'], 'refresh preserves the chosen destination');
+    assert.equal(
+      view.ready.value,
+      false,
+      'newly confirmed installed content still requires its current table review',
+    );
+    assert.deepEqual(view.overwrite.value.one, [], 'pending inventory grants no overwrite');
     const streaming = {
       ...view.preview.value.devices[0],
       requiredBytes: 610,

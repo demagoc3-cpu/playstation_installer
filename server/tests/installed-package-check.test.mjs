@@ -197,6 +197,115 @@ function ps5CatalogReader(pages, info = { status: 503, body: {} }) {
     },
   };
 }
+test('PS5 temporary lookup failures stay unknown and retryable; malformed or unsupported replies do not', async () => {
+  const candidate = { ...base, format: 'ffpfsc' };
+  const pages = [catalogPage([catalogRegistration(candidate)])];
+  for (const status of [408, 429, 500, 502, 503, 504]) {
+    const fixture = ps5CatalogReader(pages, { status, body: {} });
+    const result = await api.checkPs5InstalledPackage(
+      'retryable',
+      '192.168.1.5',
+      candidate,
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.equal(result.transient, true);
+  }
+  for (const reply of [
+    { status: 401, body: {} },
+    { status: 404, body: {} },
+    { status: 200, body: { title_id: candidate.titleId, installed: 'true' } },
+  ]) {
+    const fixture = ps5CatalogReader(pages, reply);
+    const result = await api.checkPs5InstalledPackage(
+      'permanent',
+      '192.168.1.5',
+      candidate,
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.notEqual(result.transient, true);
+  }
+  for (const error of [
+    new DOMException('lookup deadline', 'TimeoutError'),
+    new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } }),
+  ]) {
+    const result = await api.checkPs5InstalledPackage(
+      'network',
+      '192.168.1.5',
+      candidate,
+      undefined,
+      async () => {
+        throw error;
+      },
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.equal(result.transient, true);
+  }
+  const invalid = await api.checkPs5InstalledPackage(
+    'invalid-json',
+    '192.168.1.5',
+    candidate,
+    undefined,
+    async () => {
+      throw new SyntaxError('invalid response');
+    },
+  );
+  assert.notEqual(invalid.transient, true);
+  for (const code of ['UND_ERR_INVALID_ARG', 'UND_ERR_NOT_SUPPORTED', 'UND_ERR_HEADERS_OVERFLOW']) {
+    const result = await api.checkPs5InstalledPackage(
+      'protocol-error',
+      '192.168.1.5',
+      candidate,
+      undefined,
+      async () => {
+        throw new TypeError('invalid protocol', { cause: { code } });
+      },
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.notEqual(result.transient, true);
+  }
+  assert.notEqual(
+    api.matchPs5InstalledGame(dlc, { installed: true, content_id: dlc.contentId, version: '01.00' })
+      .transient,
+    true,
+  );
+});
+test('a changed native PS5 catalog is retryable without claiming absence; invalid metadata stays blocked', async () => {
+  for (const [revision, transient] of [
+    ['d'.repeat(64), true],
+    ['invalid', false],
+  ]) {
+    const fixture = ps5CatalogReader([
+      catalogPage([catalogRegistration(base)], 1, false),
+      catalogPage([], 1, true, revision),
+    ]);
+    const result = await api.checkPs5InstalledPackage(
+      'changed-catalog',
+      '192.168.1.5',
+      { ...base, format: 'folder' },
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.equal(result.transient === true, transient);
+  }
+  const malformed = ps5CatalogReader([
+    catalogPage([catalogRegistration(base)], 1, false),
+    { revision: 'd'.repeat(64) },
+  ]);
+  const result = await api.checkPs5InstalledPackage(
+    'changed-invalid-catalog',
+    '192.168.1.5',
+    { ...base, format: 'folder' },
+    undefined,
+    malformed.read,
+  );
+  assert.equal(result.state, 'unavailable');
+  assert.notEqual(result.transient, true);
+});
 test('a complete native PKG base registration allows manual review without claiming its files or version are installed', async () => {
   for (const registration of [
     catalogRegistration(base),
