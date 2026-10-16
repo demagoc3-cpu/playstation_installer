@@ -212,6 +212,7 @@ test('known embedded status stays basic while native catalog learns full formats
           };
         } else if (path === '/api/v1/installer/status') {
           helloCalls++;
+          if (helloState === 'unavailable') status = 503;
           if (heldHello) {
             const hold = heldHello;
             heldHello = undefined;
@@ -381,6 +382,95 @@ test('known embedded status stays basic while native catalog learns full formats
     );
     assert.equal(JSON.stringify(api.getConsoleProfiles()).includes('runtimeIdentity'), false);
     assert.equal(JSON.stringify(api.getConsoleProfiles()).includes('fullCheckedAt'), false);
+
+    fullReady = false;
+    const routeFile = join(
+      process.env.PACKAGEFLOW_DATA_DIR,
+      'consoles',
+      profile.id,
+      'ps5-qualified-routes.json',
+    );
+    mkdirSync(join(process.env.PACKAGEFLOW_DATA_DIR, 'consoles', profile.id), {
+      recursive: true,
+    });
+    const activation = {
+      schemaVersion: 1,
+      consoleId: profile.id,
+      ip: profile.ip,
+      firmware: '13.60',
+      serviceBuild: 'ps5-service-pkg-context-029c-sse2',
+      serviceVersion: '0.1.29-dev',
+      userEnabledFormats: ['folder', 'ufs2', 'exfat', 'pfs', 'ffpfsc'],
+      folderProtocol: 'folder-stream-v2',
+      imageProtocol: 'image-registration-v1',
+      imageBackend: 'ShadowMountPlus-1.7beta3',
+      qualification: {
+        folderReceiptId: 'a'.repeat(32),
+        streamReceiptId: 'b'.repeat(32),
+        imageMarkerSha256: 'c'.repeat(64),
+      },
+    };
+    writeFileSync(routeFile, JSON.stringify(activation), { mode: 0o600 });
+    const beforeActivation = fullCalls;
+    const activated = (await api.probeConsoleProfile(profile.id)).consoles.find(
+      (item) => item.id === profile.id,
+    );
+    assert.deepEqual(activated.capabilities.formats, activation.userEnabledFormats);
+    assert.equal(activated.capabilities.installation.ready, false);
+    assert.equal(activated.capabilities.folder.storageCopies, 1);
+    assert.equal(activated.capabilities.images.ready, true);
+    assert.equal(activated.capabilitiesDeferred, false);
+    assert.equal(activated.freeBytes, 8000000);
+    assert.equal(fullCalls, beforeActivation, 'explicit activation does not run a mount scan');
+    time += 16000;
+    const activatedCatalog = (await api.index({})).capabilities;
+    assert.deepEqual(activatedCatalog.formats, activation.userEnabledFormats);
+    assert.equal(activatedCatalog.install, true);
+    assert.equal(activatedCatalog.installation, undefined);
+    assert.equal(fullCalls, beforeActivation, 'native full capabilities stay enabled without SMP');
+
+    helloState = 'unavailable';
+    const independent = (await api.probeConsoleProfile(profile.id)).consoles.find(
+      (item) => item.id === profile.id,
+    );
+    assert.deepEqual(independent.capabilities.formats, activation.userEnabledFormats);
+    assert.equal(independent.capabilities.installation.ready, false);
+    assert.equal(fullCalls, beforeActivation, 'content routes do not depend on a PKG hello');
+    const independentCatalog = (await api.index({})).capabilities;
+    assert.equal(independentCatalog.install, true);
+    assert.equal(independentCatalog.formats.includes('pkg'), false);
+    assert.equal(independentCatalog.installation, undefined);
+    assert.equal(
+      independentCatalog.install && independentCatalog.installation?.ready !== false,
+      true,
+      'native 044 global gate permits content review without advertising PKG readiness',
+    );
+    assert.equal((await api.status({})).capabilities.installation.ready, false);
+    helloState = 'ready';
+    for (const altered of [
+      { consoleId: 'another-console' },
+      { ip: '192.168.1.6' },
+      { firmware: '12.60' },
+      { serviceBuild: 'another-build' },
+      { imageProtocol: 'another-protocol' },
+      { userEnabledFormats: ['pkg'] },
+      { userEnabledFormats: ['ffpfsc'] },
+      { qualification: { ...activation.qualification, imageMarkerSha256: 'bad' } },
+    ]) {
+      writeFileSync(routeFile, JSON.stringify({ ...activation, ...altered }));
+      const rejected = (await api.probeConsoleProfile(profile.id)).consoles.find(
+        (item) => item.id === profile.id,
+      );
+      assert.deepEqual(rejected.capabilities.formats, ['pkg']);
+    }
+    writeFileSync(routeFile, JSON.stringify(activation));
+    pairAccepted = false;
+    const deniedActivation = (await api.probeConsoleProfile(profile.id)).consoles.find(
+      (item) => item.id === profile.id,
+    );
+    assert.equal(deniedActivation.paired, false);
+    assert.deepEqual(deniedActivation.capabilities.formats, []);
+    assert.equal(deniedActivation.freeBytes, undefined);
   } finally {
     Date.now = oldNow;
     for (const name of names) {

@@ -94,22 +94,43 @@ test('production Folder driver passes real HTTP validation, seals bytes and incl
     };
     const transfers = new Map(),
       calls = [];
-    let published = false;
+    let published = false,
+      activated = false,
+      healthReads = 0,
+      invalidAuth = false,
+      changedRuntime = false;
     const response = (body, status = 200) => new Response(JSON.stringify(body), { status });
     globalThis.fetch = async (url, opts = {}) => {
       const path = new URL(url).pathname,
         h = opts.headers || {};
       calls.push(path);
-      if (path === '/health')
+      if (path === '/health') {
+        healthReads++;
         return response({
           apiVersion: 'v1',
           firmwareRead: true,
           firmwareRaw: '0x13600007',
-          serviceReport: { service: ready.service, platform: 'ps5', consoleVerified: true },
+          ...(activated
+            ? {
+                pid: changedRuntime && healthReads === 2 ? 98 : 97,
+                startedAt: 1792146534,
+                backend: 'embedded',
+                pkgBackendVersion: '1.4.0-embedded-029',
+              }
+            : {}),
+          serviceReport: {
+            service: ready.service,
+            platform: 'ps5',
+            consoleVerified: true,
+            ...(activated
+              ? { version: '0.1.29-dev', buildId: 'ps5-service-pkg-context-029c-sse2' }
+              : {}),
+          },
         });
+      }
       assert.equal(h.Authorization, 'Bearer ' + 'a'.repeat(64));
       if (path === '/api/v1/capabilities')
-        return response({ service: ready.service, capabilities: {} });
+        return response({ service: ready.service, capabilities: {} }, invalidAuth ? 401 : 200);
       if (path === '/api/v1/system')
         return response({
           service: ready.service,
@@ -223,6 +244,139 @@ test('production Folder driver passes real HTTP validation, seals bytes and incl
       api.Ps5OperationValidationError,
     );
     assert.equal(calls.length, before, 'unknown headers remain blocked locally');
+    writeFileSync(
+      join(data, 'consoles', profile.id, 'ps5-qualified-routes.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        consoleId: profile.id,
+        ip: profile.ip,
+        firmware: '13.60',
+        serviceBuild: 'ps5-service-pkg-context-029c-sse2',
+        serviceVersion: '0.1.29-dev',
+        userEnabledFormats: ['folder', 'ufs2', 'exfat', 'pfs', 'ffpfsc'],
+        folderProtocol: 'folder-stream-v2',
+        imageProtocol: 'image-registration-v1',
+        imageBackend: 'ShadowMountPlus-1.7beta3',
+        qualification: {
+          folderReceiptId: 'a'.repeat(32),
+          streamReceiptId: 'b'.repeat(32),
+          imageMarkerSha256: 'c'.repeat(64),
+        },
+      }),
+    );
+    activated = true;
+    const activeItem = {
+      ...pkg,
+      packageId: pkg.id,
+      order: 0,
+      branch: 'ps5:' + pkg.titleId,
+      transferId: 'd'.repeat(32),
+      bytesSent: 0,
+      state: 'pending',
+      detail: '',
+    };
+    for (const issue of ['auth', 'runtime']) {
+      invalidAuth = issue === 'auth';
+      changedRuntime = issue === 'runtime';
+      healthReads = 0;
+      calls.length = 0;
+      assert.equal(
+        (await driver.run(activeItem, signal, (p) => Object.assign(activeItem, p))).state,
+        'waiting',
+      );
+      assert.equal(activeItem.hash, undefined);
+      assert.equal(activeItem.bytesSent, 0);
+      assert.ok(!calls.includes('/api/v1/install/readiness'));
+      assert.ok(!calls.some((path) => path.startsWith('/api/v1/transfers/')));
+    }
+    invalidAuth = changedRuntime = false;
+    const fixtureFetch = globalThis.fetch,
+      profileFile = join(data, 'console-profiles.json'),
+      savedProfiles = readFileSync(profileFile, 'utf8');
+    calls.length = 0;
+    globalThis.fetch = async (url, options) => {
+      const reply = await fixtureFetch(url, options);
+      if (new URL(url).pathname === '/health') {
+        const changed = JSON.parse(savedProfiles);
+        changed.consoles.find((p) => p.id === profile.id).platform = 'ps4';
+        writeFileSync(profileFile, JSON.stringify(changed));
+      }
+      return reply;
+    };
+    try {
+      const denied = await api.readPs5ActivatedRouteCapabilities(profile.id, signal);
+      assert.deepEqual(denied.formats, []);
+      assert.deepEqual(
+        calls,
+        ['/health'],
+        'a changed platform cannot continue activated readiness',
+      );
+    } finally {
+      writeFileSync(profileFile, savedProfiles);
+      globalThis.fetch = fixtureFetch;
+    }
+    calls.length = 0;
+    globalThis.fetch = async (url, options) => {
+      const reply = await fixtureFetch(url, options);
+      if (new URL(url).pathname !== '/health') return reply;
+      const health = await reply.json();
+      health.serviceReport.buildId = 'another-healthy-build';
+      return new Response(JSON.stringify(health), { status: 200 });
+    };
+    try {
+      assert.equal(
+        await api.readPs5ActivatedRouteCapabilities(profile.id, signal),
+        undefined,
+        'a healthy different build retains its existing full readiness path',
+      );
+      assert.deepEqual(calls, ['/health']);
+    } finally {
+      globalThis.fetch = fixtureFetch;
+    }
+    const controller = new AbortController();
+    let notifyBlocked;
+    const blocked = new Promise((resolve) => {
+      notifyBlocked = resolve;
+    });
+    calls.length = 0;
+    globalThis.fetch = async (url, options) => {
+      if (new URL(url).pathname !== '/health') return fixtureFetch(url, options);
+      calls.push('/health');
+      return new Promise((_resolve, reject) => {
+        options.signal.addEventListener('abort', () => reject(options.signal.reason), {
+          once: true,
+        });
+        notifyBlocked();
+      });
+    };
+    const abortedRun = driver.run(activeItem, controller.signal, (p) =>
+      Object.assign(activeItem, p),
+    );
+    await blocked;
+    let deadline;
+    const timelyAbort = new Promise((_resolve, reject) => {
+      deadline = setTimeout(() => reject(Error('Activated route ignored caller abort')), 500);
+    });
+    controller.abort();
+    try {
+      await assert.rejects(Promise.race([abortedRun, timelyAbort]), { name: 'AbortError' });
+      assert.equal(activeItem.hash, undefined);
+      assert.equal(activeItem.bytesSent, 0);
+      assert.deepEqual(calls, ['/health'], 'aborted activation never starts a transfer');
+    } finally {
+      clearTimeout(deadline);
+      globalThis.fetch = fixtureFetch;
+    }
+    healthReads = 0;
+    calls.length = 0;
+    assert.equal(
+      (await driver.run(activeItem, signal, (p) => Object.assign(activeItem, p))).state,
+      'installing',
+    );
+    assert.equal(activeItem.bytesSent, pkg.size);
+    assert.ok(calls.includes('/api/v1/capabilities'));
+    assert.ok(!calls.includes('/api/v1/install/readiness'));
+    assert.ok(calls.includes('/api/v1/folder/commit'));
   } finally {
     globalThis.fetch = oldFetch;
     if (oldData === undefined) delete process.env.PACKAGEFLOW_DATA_DIR;

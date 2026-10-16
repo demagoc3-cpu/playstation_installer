@@ -26,6 +26,14 @@ export default defineEventHandler(async (event) => {
     groupByPlatform: true,
   });
   const index = new Map(packages.map((item) => [item.id, item]));
+  // Native 044 treats this optional PKG block as a global install gate. Keep
+  // independent content routes usable without claiming that PKG is ready.
+  const installation =
+    snapshot.capabilities.installation?.ready === false &&
+    !snapshot.capabilities.formats.includes('pkg') &&
+    snapshot.capabilities.formats.some((format) => format !== 'pkg')
+      ? undefined
+      : snapshot.capabilities.installation;
   setHeader(event, 'Cache-Control', 'no-store');
   return {
     ...result,
@@ -37,7 +45,7 @@ export default defineEventHandler(async (event) => {
       installReview: nativeInstallReviewCapability(),
       install: snapshot.online && snapshot.paired && snapshot.capabilities.formats.length > 0,
       formats: snapshot.capabilities.formats,
-      installation: snapshot.capabilities.installation,
+      installation,
       installationMessage:
         profile.platform === 'ps5' ? ps5InstallMessage(snapshot.capabilities) : undefined,
     },

@@ -21,6 +21,7 @@ import {
   ps5OperationRequest,
   Ps5OperationValidationError,
   readPs5PkgInstallCapabilities,
+  readPs5ActivatedRouteCapabilities,
 } from './console-profiles';
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core';
 import { ps5InstallCapabilities, ps5PkgInstallMessage } from '../../shared/ps5-install-readiness';
@@ -191,12 +192,15 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
           source.appVersion !== item.appVersion
         )
           throw new Ps5QueueFailure('Образ изменился в библиотеке');
-        const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal);
-        const capabilities = ps5InstallCapabilities(
-          readiness.status,
-          readiness.body,
-          getConsoleProfile(consoleId).firmware,
-        );
+        let capabilities = await readPs5ActivatedRouteCapabilities(consoleId, signal);
+        if (capabilities === undefined) {
+          const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal);
+          capabilities = ps5InstallCapabilities(
+            readiness.status,
+            readiness.body,
+            getConsoleProfile(consoleId).firmware,
+          );
+        }
         if (!capabilities.images?.ready || !capabilities.formats.includes(item.format))
           return {
             state: 'waiting',
@@ -236,12 +240,15 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
           source.appVersion !== item.appVersion
         )
           throw new Ps5QueueFailure('Folder изменился в библиотеке');
-        const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal);
-        const capabilities = ps5InstallCapabilities(
-          readiness.status,
-          readiness.body,
-          getConsoleProfile(consoleId).firmware,
-        );
+        let capabilities = await readPs5ActivatedRouteCapabilities(consoleId, signal);
+        if (capabilities === undefined) {
+          const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal);
+          capabilities = ps5InstallCapabilities(
+            readiness.status,
+            readiness.body,
+            getConsoleProfile(consoleId).firmware,
+          );
+        }
         if (!capabilities.formats.includes('folder'))
           return { state: 'waiting', detail: 'Служба ещё не подтвердила маршрут Folder' };
         const denied = await firmwareGate(source, signal);

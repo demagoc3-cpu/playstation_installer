@@ -17,6 +17,7 @@ import {
 } from './ps4-service-installer';
 import { ps5WebAddressHeaders, ps5WebAddressAccepted } from './ps5-web-address';
 import { ps5InstallCapabilities } from '../../shared/ps5-install-readiness';
+import { readPs5QualifiedRoutes, withPs5QualifiedRoutes } from './ps5-qualified-routes';
 import type {
   ConsoleProfile,
   ConsoleProfiles,
@@ -543,6 +544,50 @@ const sameEmbeddedRuntime = (a?: EmbeddedRuntime, b?: EmbeddedRuntime) =>
   a.version === b.version &&
   a.firmware === b.firmware;
 
+async function activatedRuntimeStillCurrent(
+  consoleId: string,
+  before: EmbeddedRuntime,
+  signal?: AbortSignal,
+) {
+  const current = getConsoleProfile(consoleId);
+  if (current.ip !== before.ip || current.platform !== 'ps5') return false;
+  const after = embeddedRuntime(await ps5ServiceRequest(before.ip, '/health', signal), before.ip);
+  signal?.throwIfAborted();
+  const latest = getConsoleProfile(consoleId);
+  return latest.ip === before.ip && latest.platform === 'ps5' && sameEmbeddedRuntime(before, after);
+}
+
+/** Worker admission for explicitly activated, previously tested content routes.
+ * No PKG initialization or synchronous mount scan is required for these routes. */
+export async function readPs5ActivatedRouteCapabilities(consoleId: string, signal?: AbortSignal) {
+  signal?.throwIfAborted();
+  const profile = getConsoleProfile(consoleId);
+  if (profile.platform !== 'ps5') return;
+  const activation = readPs5QualifiedRoutes(profile.id, profile.ip);
+  if (!activation) return;
+  try {
+    const health = await ps5ServiceRequest(profile.ip, '/health', signal);
+    const current = getConsoleProfile(consoleId);
+    if (current.ip !== profile.ip || current.platform !== 'ps5') return emptyCapabilities();
+    const before = embeddedRuntime(health, profile.ip);
+    if (!before)
+      return validPs5Health(health) && !claimsKnownEmbeddedBuild(health)
+        ? undefined
+        : emptyCapabilities();
+    const auth = await ps5ServiceRequest(profile.ip, '/api/v1/capabilities', signal);
+    if (
+      auth.status !== 200 ||
+      auth.body?.service !== 'PackageFlowService-PS5' ||
+      !(await activatedRuntimeStillCurrent(consoleId, before, signal))
+    )
+      return emptyCapabilities();
+    return withPs5QualifiedRoutes(emptyCapabilities(), activation);
+  } catch {
+    signal?.throwIfAborted();
+    return emptyCapabilities();
+  }
+}
+
 function embeddedPkgCapabilities(reason: string) {
   const ready = reason === 'ready';
   return ps5InstallCapabilities(
@@ -792,6 +837,7 @@ async function runConsoleProfileProbe(
         const response = await ps5ServiceRequest(profile.ip, '/api/v1/capabilities');
         paired = response.status === 200 && response.body?.service === 'PackageFlowService-PS5';
         if (paired) {
+          const activation = runtimeIdentity && readPs5QualifiedRoutes(profile.id, profile.ip);
           const pkgScope = claimsKnownEmbeddedBuild(health) && (background || scope === 'pkg');
           const transferDeferred = background && ps5TransferInProgress(profile.id);
           capabilitiesDeferred = pkgScope || transferDeferred;
@@ -808,6 +854,25 @@ async function runConsoleProfileProbe(
             if (sameProcess && previous?.online && previous.paired) {
               capabilities = structuredClone(previous.capabilities);
               fullCheckedAt = previous.fullCheckedAt;
+            }
+          } else if (activation) {
+            // Activated content routes are independent of PKG initialization.
+            // Keep PKG's fresh hello proof, but a failed PKG hello cannot remove
+            // explicitly enabled Folder/image routes from the same live service.
+            try {
+              capabilities = await readEmbeddedPkgCapabilities(profile.id, runtimeIdentity!);
+            } catch {
+              capabilities = embeddedPkgCapabilities('readiness_unavailable');
+            }
+            try {
+              if (!(await activatedRuntimeStillCurrent(profile.id, runtimeIdentity!)))
+                throw Error('PS5 runtime changed during activated route admission');
+              capabilities = withPs5QualifiedRoutes(capabilities, activation);
+              capabilitiesDeferred = false;
+              fullCheckedAt = Date.now();
+            } catch {
+              capabilities = emptyCapabilities();
+              runtimeIdentity = undefined;
             }
           } else if (pkgScope) {
             try {

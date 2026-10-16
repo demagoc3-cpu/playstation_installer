@@ -580,7 +580,9 @@ test('registration recovery binds all receipt fields and does not reopen the sou
 
 test('all four production image routes refuse a higher PARAM minimum before hashing, transfer or mounting', async () => {
   const previousFetch = globalThis.fetch,
-    calls = [];
+    calls = [],
+    sources = [];
+  let activated = false;
   try {
     await mkdir(process.env.PACKAGEFLOW_DATA_DIR, { recursive: true });
     const profile = api.saveConsoleProfile({
@@ -602,7 +604,25 @@ test('all four production image routes refuse a higher PARAM minimum before hash
             apiVersion: 'v1',
             firmwareRead: true,
             firmwareRaw: '0x13600007',
-            serviceReport: { service: 'PackageFlowService-PS5', consoleVerified: true },
+            ...(activated
+              ? {
+                  pid: 97,
+                  startedAt: 1792146534,
+                  backend: 'embedded',
+                  pkgBackendVersion: '1.4.0-embedded-029',
+                }
+              : {}),
+            serviceReport: {
+              service: 'PackageFlowService-PS5',
+              consoleVerified: true,
+              ...(activated
+                ? {
+                    platform: 'ps5',
+                    version: '0.1.29-dev',
+                    buildId: 'ps5-service-pkg-context-029c-sse2',
+                  }
+                : {}),
+            },
           }),
         );
       if (path === '/api/v1/capabilities')
@@ -639,25 +659,25 @@ test('all four production image routes refuse a higher PARAM minimum before hash
     calls.length = 0;
     for (const format of api.ps5ImageFormats) {
       const f = await fixture(`blocked-${format}`, format);
+      const indexed = {
+        ...f.item,
+        id: f.item.packageId,
+        path: f.path,
+        fileName: 'image',
+        title: 'Owned image fixture',
+        type: 'Игра',
+        installOrder: 0,
+        libraryRoot: work,
+        sourceModifiedAt: 1,
+        iconSize: 0,
+        icon: { offset: 0, size: 0 },
+      };
+      sources.push({ f, indexed });
       await writeFile(
         join(process.env.PACKAGEFLOW_DATA_DIR, 'package-library.json'),
         JSON.stringify({
           version: 2,
-          packages: [
-            {
-              ...f.item,
-              id: f.item.packageId,
-              path: f.path,
-              fileName: 'image',
-              title: 'Owned image fixture',
-              type: 'Игра',
-              installOrder: 0,
-              libraryRoot: work,
-              sourceModifiedAt: 1,
-              iconSize: 0,
-              icon: { offset: 0, size: 0 },
-            },
-          ],
+          packages: [indexed],
           deliveries: {},
         }),
       );
@@ -673,6 +693,45 @@ test('all four production image routes refuse a higher PARAM minimum before hash
       8,
       'only readiness and live firmware GETs, no transfer/registration',
     );
+    const directory = join(process.env.PACKAGEFLOW_DATA_DIR, 'consoles', profile.id);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      join(directory, 'ps5-qualified-routes.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        consoleId: profile.id,
+        ip: profile.ip,
+        firmware: '13.60',
+        serviceBuild: 'ps5-service-pkg-context-029c-sse2',
+        serviceVersion: '0.1.29-dev',
+        userEnabledFormats: ['folder', 'ufs2', 'exfat', 'pfs', 'ffpfsc'],
+        folderProtocol: 'folder-stream-v2',
+        imageProtocol: 'image-registration-v1',
+        imageBackend: 'ShadowMountPlus-1.7beta3',
+        qualification: {
+          folderReceiptId: 'a'.repeat(32),
+          streamReceiptId: 'b'.repeat(32),
+          imageMarkerSha256: 'c'.repeat(64),
+        },
+      }),
+    );
+    activated = true;
+    calls.length = 0;
+    for (const { f, indexed } of sources) {
+      await writeFile(
+        join(process.env.PACKAGEFLOW_DATA_DIR, 'package-library.json'),
+        JSON.stringify({ version: 2, packages: [indexed], deliveries: {} }),
+      );
+      await assert.rejects(
+        api.ps5QueueDriver(profile.id).run(f.item, signal, (patch) => Object.assign(f.item, patch)),
+        /PARAM 14.00.*13.60/,
+      );
+      assert.equal(f.item.hash, undefined);
+      assert.equal(f.item.bytesSent, 0);
+    }
+    assert.ok(calls.includes('/api/v1/capabilities'));
+    assert.ok(!calls.includes('/api/v1/install/readiness'));
+    assert.ok(calls.every((path) => ['/health', '/api/v1/capabilities'].includes(path)));
   } finally {
     globalThis.fetch = previousFetch;
   }
