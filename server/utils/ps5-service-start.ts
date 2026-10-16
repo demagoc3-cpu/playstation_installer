@@ -230,7 +230,7 @@ function healthConnectionTimedOut(error: unknown): boolean {
   return false;
 }
 
-/** A silent port alone is not absence. Only the reviewed saved 029 + full PM proof qualifies. */
+/** A silent port alone is not absence. Only the reviewed saved 029c + full PM proof qualifies. */
 async function serviceHealth(
   profile: ReturnType<typeof target>,
   release?: Ps5ServiceRelease,
@@ -243,9 +243,9 @@ async function serviceHealth(
       !healthConnectionTimedOut(error) ||
       profile.verified !== true ||
       profile.firmware !== '13.60' ||
-      release?.sha256 !== '6cfe3a4898e4bbba7d3b7599b8baf2e8654d6e4c4ea3e3374742578bf01b735a' ||
+      release?.sha256 !== '698fda5e903648d937efca20e12fa1d3cfdcdb00dd439ae20ab6048fa7d997c6' ||
       release.version !== '0.1.29-dev' ||
-      release.buildId !== 'ps5-service-embedded-pkg-029-sse2' ||
+      release.buildId !== 'ps5-service-pkg-context-029c-sse2' ||
       release.firmware !== '13.60'
     )
       throw error;

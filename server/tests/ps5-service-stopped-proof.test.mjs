@@ -64,10 +64,10 @@ await build({
 const api = await import(pathToFileURL(output).href);
 const release = {
   fileName: 'PackageFlowService-PS5.elf',
-  size: 4131968,
-  sha256: '6cfe3a4898e4bbba7d3b7599b8baf2e8654d6e4c4ea3e3374742578bf01b735a',
+  size: 4132200,
+  sha256: '698fda5e903648d937efca20e12fa1d3cfdcdb00dd439ae20ab6048fa7d997c6',
   version: '0.1.29-dev',
-  buildId: 'ps5-service-embedded-pkg-029-sse2',
+  buildId: 'ps5-service-pkg-context-029c-sse2',
   firmware: '13.60',
 };
 const entry = {
@@ -212,7 +212,7 @@ test('the actual full 13.60 process snapshot proves absence while malformed, par
     assert.throws(() => api.checkedPs5StoppedProcesses(changed), /полный список/);
 });
 
-test('GET uses the known saved 029 plus process proof but never launches; explicit start dispatches once', async (t) => {
+test('GET uses the known saved 029c plus process proof but never launches; explicit start dispatches once', async (t) => {
   const f = await fixture(t),
     [p] = f.profiles;
   const info = await api.ps5ServiceStartInfo(p.id);
