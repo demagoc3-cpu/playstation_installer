@@ -49,6 +49,7 @@ await build({
               ? 'export const createConnection = options => globalThis.__pfServiceStartFixture.connect(options);'
               : `
                 export const readPs5PayloadManager = ip => globalThis.__pfServiceStartFixture.manager(ip);
+                export const readPs5PayloadManagerProcesses = () => { throw Error('No qualified process proof in the legacy fixture'); };
                 export const storePs5ServicePayload = (ip, artifact, transport, guard) => globalThis.__pfServiceStartFixture.store(ip, artifact, guard);
                 export const launchPs5StoredPayload = (ip, path, transport, guard) => globalThis.__pfServiceStartFixture.launch(ip, path, guard);
                 export const isPs5StoredServicePayload = value =>

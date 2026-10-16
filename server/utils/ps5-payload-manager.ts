@@ -3,6 +3,7 @@ import { request, type ClientRequest, type IncomingMessage, type RequestOptions 
 import type { SetupElf } from './console-setup-artifacts';
 import { ps4ServiceIp } from './ps4-service';
 import { PS5_SERVICE_ELF_FILE_NAME } from './ps5-service-artifact';
+import { checkedPs5StoppedProcesses } from './ps5-service-process-proof';
 
 export interface Ps5StoredPayload {
   path: string;
@@ -224,6 +225,16 @@ export async function readPs5PayloadManager(ip: string, makeRequest: RequestFact
     json(await managerRequest(ip, 'GET', '/list_payloads', undefined, makeRequest)),
   );
   return { version, payloads };
+}
+
+/** Authoritative full process inventory, read only; malformed/partial replies fail closed. */
+export async function readPs5PayloadManagerProcesses(
+  ip: string,
+  makeRequest: RequestFactory = request,
+) {
+  return checkedPs5StoppedProcesses(
+    json(await managerRequest(ip, 'GET', '/processes_list', undefined, makeRequest)),
+  );
 }
 
 export async function launchPs5StoredPayload(

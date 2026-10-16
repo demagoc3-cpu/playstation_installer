@@ -14,6 +14,7 @@ import { readPs5ServiceArtifact, PS5_SERVICE_ELF_FILE_NAME } from './ps5-service
 import {
   isPs5StoredServicePayload,
   readPs5PayloadManager,
+  readPs5PayloadManagerProcesses,
   storePs5ServicePayload,
   launchPs5StoredPayload,
   type Ps5StoredPayload,
@@ -194,6 +195,7 @@ async function manager(profile: ReturnType<typeof target>, release?: Ps5ServiceR
     receipt = storedReceipt(profile);
   return {
     available: true,
+    managerVersion: result.version,
     entry,
     known: !!(
       entry &&
@@ -209,6 +211,77 @@ async function manager(profile: ReturnType<typeof target>, release?: Ps5ServiceR
       receipt.release.firmware === release.firmware
     ),
   };
+}
+
+function healthConnectionTimedOut(error: unknown): boolean {
+  const seen = new Set<object>();
+  let current = error;
+  while (current && typeof current === 'object' && !seen.has(current)) {
+    seen.add(current);
+    const value = current as { name?: unknown; code?: unknown; cause?: unknown };
+    if (
+      value.name === 'TimeoutError' ||
+      value.code === 'ETIMEDOUT' ||
+      value.code === 'UND_ERR_CONNECT_TIMEOUT'
+    )
+      return true;
+    current = value.cause;
+  }
+  return false;
+}
+
+/** A silent port alone is not absence. Only the reviewed saved 029 + full PM proof qualifies. */
+async function serviceHealth(
+  profile: ReturnType<typeof target>,
+  release?: Ps5ServiceRelease,
+  onProcessProof?: () => void,
+) {
+  try {
+    return await health(profile.ip);
+  } catch (error) {
+    if (
+      !healthConnectionTimedOut(error) ||
+      profile.verified !== true ||
+      profile.firmware !== '13.60' ||
+      release?.sha256 !== '6cfe3a4898e4bbba7d3b7599b8baf2e8654d6e4c4ea3e3374742578bf01b735a' ||
+      release.version !== '0.1.29-dev' ||
+      release.buildId !== 'ps5-service-embedded-pkg-029-sse2' ||
+      release.firmware !== '13.60'
+    )
+      throw error;
+    // Hash the current local artifact again; a stale receipt/name alone grants no launch.
+    const fresh = (await readPs5ServiceArtifact()).manifest;
+    if (
+      fresh.sha256 !== release.sha256 ||
+      fresh.size !== release.size ||
+      fresh.version !== release.version ||
+      fresh.buildId !== release.buildId ||
+      fresh.firmware !== release.firmware
+    )
+      throw new Error('Комплект службы изменился. Запуск не подтверждён', { cause: error });
+    assertTarget(profile);
+    assertIdle(profile);
+    const first = await manager(profile, release);
+    if (!first.known || !first.entry || first.managerVersion !== '0.6.1') throw error;
+    await readPs5PayloadManagerProcesses(profile.ip);
+    const second = await manager(profile, release);
+    if (
+      !second.known ||
+      second.managerVersion !== '0.6.1' ||
+      !second.entry ||
+      first.entry.path !== second.entry.path ||
+      first.entry.slot !== second.entry.slot ||
+      first.entry.version !== second.entry.version ||
+      first.entry.buildId !== second.entry.buildId
+    )
+      throw new Error('Сохранённая нагрузка изменилась. Запуск не подтверждён', { cause: error });
+    // The final inventory follows the awaited metadata read, immediately before admission.
+    await readPs5PayloadManagerProcesses(profile.ip);
+    assertTarget(profile);
+    assertIdle(profile);
+    onProcessProof?.();
+    return null;
+  }
 }
 function assertTarget(profile: ReturnType<typeof target>) {
   const current = target(profile.id);
@@ -348,8 +421,11 @@ export async function ps5ServiceStartInfo(id: unknown): Promise<Ps5ServiceStartI
   const release = artifact || (!artifactConfigured() ? storedReceipt(profile)?.release : undefined);
   let state: Ps5ServiceStartInfo['state'] = 'unknown',
     message = 'Связь со службой пока не подтверждена';
+  let processProofUsed = false;
   try {
-    const response = await health(profile.ip);
+    const response = await serviceHealth(profile, release, () => {
+      processProofUsed = true;
+    });
     if (!response) {
       state = 'stopped';
       message = 'Служба PackageFlow остановлена';
@@ -399,8 +475,9 @@ export async function ps5ServiceStartInfo(id: unknown): Promise<Ps5ServiceStartI
     consoleId: profile.id,
     state,
     message: eligible && !release ? artifactMessage : message,
-    canStart: eligible && !!release && (pm.known || (!!artifact && !pm.available)),
-    canInstall: eligible && !!artifact && !pm.known,
+    canStart:
+      eligible && !!release && (pm.known || (!!artifact && !pm.available && !processProofUsed)),
+    canInstall: eligible && !!artifact && !pm.known && !processProofUsed,
     managerAvailable: pm.available,
     savedPayloadKnown: pm.known,
     artifact: release,
@@ -506,6 +583,16 @@ export async function beginPs5ServiceStart(
   }
   running.add(profile.ip);
   const done = trackDesktopRequest();
+  // A PM process proof grants only the saved-payload route, even if a later list read fails.
+  let processProofUsed = false,
+    loaderSelected = false;
+  const assertOtherRouteAllowed = () => {
+    if (processProofUsed)
+      throw Object.assign(
+        new Error('PLDMGR подтвердил только запуск сохранённой службы. Повторите проверку'),
+        { dispatched: false },
+      );
+  };
   const readHealth = () =>
     options.confirmedServiceStopped === true
       ? bootstrapHealth(
@@ -513,16 +600,22 @@ export async function beginPs5ServiceStart(
           () => servicePortConnects(profile.ip),
           true,
         )
-      : health(profile.ip);
+      : loaderSelected
+        ? health(profile.ip)
+        : serviceHealth(profile, release, () => {
+            processProofUsed = true;
+          });
   void runPs5ServiceLaunch(flow, {
     assertTarget: () => assertTarget(profile),
     assertIdle: () => assertIdle(profile),
     health: readHealth,
     manager: () => manager(profile, release),
     register: async () => {
+      assertOtherRouteAllowed();
       if (!artifact) throw new Error('Проверенный ELF отсутствует');
       const entry = await storePs5ServicePayload(profile.ip, artifact, undefined, async () => {
         if (await readHealth()) throw new Error('Служба уже отвечает. Сохранение не отправлено');
+        assertOtherRouteAllowed();
         assertTarget(profile);
         assertIdle(profile);
       });
@@ -551,7 +644,10 @@ export async function beginPs5ServiceStart(
         assertIdle(profile);
       }),
     connect: async () => {
+      assertOtherRouteAllowed();
       if (!artifact) throw new Error('Загрузчик требует проверенный ELF на WEB');
+      // Once selected, an open loader connection cannot gain authority from a later PM proof.
+      loaderSelected = true;
       return loader(profile.ip, artifact.bytes);
     },
     save: persist,

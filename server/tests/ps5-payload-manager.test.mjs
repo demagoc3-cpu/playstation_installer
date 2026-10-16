@@ -121,6 +121,27 @@ test('normalizes PLDMGR 0.5 path metadata and 0.6 slot metadata without trusting
   }
 });
 
+test('process proof uses only the fixed PLDMGR GET endpoint and rejects a partial list', async (t) => {
+  const { readFileSync } = await import('node:fs');
+  const snapshot = JSON.parse(
+    readFileSync('server/tests/fixtures/ps5-stopped-processes-1360.json', 'utf8'),
+  );
+  for (const complete of [true, false]) {
+    const f = await fixture(t, ({ method, path }, res) => {
+      assert.equal(method, 'GET');
+      assert.equal(path, '/processes_list');
+      replyJson(res, complete ? snapshot : { processes: snapshot.processes.slice(0, 5) });
+    });
+    if (complete)
+      assert.equal(
+        (await api.readPs5PayloadManagerProcesses(ip, f.transport)).length,
+        snapshot.processes.length,
+      );
+    else await assert.rejects(api.readPs5PayloadManagerProcesses(ip, f.transport), /полный список/);
+    assert.equal(f.calls.length, 1);
+  }
+});
+
 test('launches exactly one listed canonical record using POST and the PLDMGR request marker', async (t) => {
   for (const selector of [own.slot, own.path]) {
     const f = await fixture(t, ({ path, method, bytes }, res) => {
