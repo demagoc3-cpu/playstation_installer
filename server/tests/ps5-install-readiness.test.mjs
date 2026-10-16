@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -85,7 +85,20 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
         platforms: [],
       },
       readinessStatus = 200,
-      firmware = '0x13600007';
+      firmware = '0x13600007',
+      knownEmbedded = false,
+      healthReads = 0,
+      healthStatus = 200,
+      healthPidMissing = false,
+      restartedField,
+      hello = {
+        ok: true,
+        version: '1.4.0',
+        fw: '13',
+        state: 'ready',
+        init_rc: 0,
+        escalated: true,
+      };
     const calls = [],
       transferred = [];
     let durable = 0,
@@ -119,13 +132,38 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
       }
       assert.equal(address.hostname, ps5.ip);
       assert.equal(address.port, '8095');
-      if (path === '/health')
-        return response({
-          apiVersion: 'v1',
-          firmwareRead: true,
-          firmwareRaw: firmware,
-          serviceReport: { service: ready.service, platform: 'ps5', consoleVerified: true },
-        });
+      if (path === '/health') {
+        healthReads++;
+        return response(
+          {
+            apiVersion: 'v1',
+            firmwareRead: true,
+            firmwareRaw: firmware,
+            ...(knownEmbedded
+              ? {
+                  pid: healthPidMissing
+                    ? undefined
+                    : restartedField === 'pid' && healthReads === 2
+                      ? 98
+                      : 97,
+                  startedAt:
+                    restartedField === 'startedAt' && healthReads === 2 ? 1792146535 : 1792146534,
+                  backend: 'embedded',
+                  pkgBackendVersion: '1.4.0-embedded-029',
+                }
+              : {}),
+            serviceReport: {
+              service: ready.service,
+              platform: 'ps5',
+              consoleVerified: true,
+              ...(knownEmbedded
+                ? { version: '0.1.29-dev', buildId: 'ps5-service-pkg-context-029c-sse2' }
+                : {}),
+            },
+          },
+          healthStatus,
+        );
+      }
       assert.equal(headers.Authorization, `Bearer ${'b'.repeat(64)}`);
       if (path === '/api/v1/capabilities')
         return response({
@@ -140,6 +178,7 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
           totalBytes: 2000000,
         });
       if (path === '/api/v1/install/readiness') return response(readiness, readinessStatus);
+      if (path === '/api/v1/installer/status') return response(hello);
       if (path === '/api/v1/management/status')
         return response({ protocol: 'ps5-management-v1', ready: true, catalog: true });
       if (path === '/api/v1/console/catalog')
@@ -196,7 +235,7 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
     calls.length = 0;
     const waiting = await driver.run(item, signal, (patch) => Object.assign(item, patch));
     assert.equal(waiting.state, 'waiting');
-    assert.deepEqual(calls, ['/api/v1/install/readiness']);
+    assert.deepEqual(calls, ['/health', '/api/v1/install/readiness']);
     assert.equal(
       item.hash,
       undefined,
@@ -257,12 +296,57 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
     assert.equal(embeddedWaiting.detail, 'Встроенная установка PKG ещё не проверена на этой PS5');
     assert.deepEqual(
       calls,
-      ['/api/v1/install/readiness'],
+      ['/health', '/api/v1/install/readiness'],
       'unverified embedded PKG never hashes, transfers or installs',
     );
     assert.equal(item.hash, undefined);
     assert.equal(item.bytesSent, 0);
     assert.equal(item.installDispatched, undefined);
+    knownEmbedded = true;
+    const readyHello = { ...hello };
+    for (const invalidHello of [
+      { ...readyHello, state: 'unverified' },
+      { ...readyHello, ok: 'true' },
+      { ...readyHello, init_rc: -1 },
+      { ...readyHello, escalated: false },
+      { ...readyHello, version: '1.4.1' },
+    ]) {
+      hello = invalidHello;
+      healthReads = 0;
+      calls.length = 0;
+      const denied = await driver.run(item, signal, (patch) => Object.assign(item, patch));
+      assert.equal(denied.state, 'waiting');
+      assert.notEqual(denied.detail, 'Установщик PS5 не запущен или недоступен');
+      assert.ok(calls.includes('/api/v1/installer/status'));
+      assert.ok(!calls.includes('/api/v1/install/readiness'));
+      assert.ok(!calls.some((path) => path.startsWith('/api/v1/transfers/')));
+      assert.equal(item.hash, undefined, 'invalid live hello is rejected before source hashing');
+      assert.equal(item.installDispatched, undefined);
+    }
+    hello = readyHello;
+    for (const field of ['pid', 'startedAt']) {
+      restartedField = field;
+      healthReads = 0;
+      calls.length = 0;
+      const denied = await driver.run(item, signal, (patch) => Object.assign(item, patch));
+      assert.equal(denied.state, 'waiting');
+      assert.deepEqual(calls, ['/health', '/api/v1/installer/status', '/health']);
+      assert.equal(item.hash, undefined, `a changed ${field} cannot authorize source hashing`);
+      assert.equal(item.bytesSent, 0);
+      assert.equal(item.installDispatched, undefined);
+    }
+    restartedField = undefined;
+    for (const invalidHealth of ['missing-pid', 'http-500']) {
+      healthPidMissing = invalidHealth === 'missing-pid';
+      healthStatus = invalidHealth === 'http-500' ? 500 : 200;
+      calls.length = 0;
+      const denied = await api.readPs5PkgInstallCapabilities(ps5.id, signal);
+      assert.equal(denied.installation.ready, false);
+      assert.deepEqual(calls, ['/health'], `${invalidHealth} never falls back to full readiness`);
+    }
+    healthPidMissing = false;
+    healthStatus = 200;
+    knownEmbedded = false;
     for (const invalid of [
       null,
       { ...ready, formats: ['pkg', 'ffpfsc'] },
@@ -315,6 +399,118 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
       0,
       'read error never becomes a second install',
     );
+    knownEmbedded = true;
+    healthReads = 0;
+    calls.length = 0;
+    durable = 0;
+    transferred.length = 0;
+    const embeddedItem = {
+      ...indexed,
+      packageId: indexed.id,
+      transferId: 'e'.repeat(32),
+      state: 'pending',
+      detail: '',
+      bytesSent: 0,
+      branch: 'own',
+      order: 0,
+    };
+    const embeddedRunning = await driver.run(embeddedItem, signal, (patch) =>
+      Object.assign(embeddedItem, patch),
+    );
+    assert.equal(embeddedRunning.state, 'installing');
+    assert.equal(embeddedItem.installDispatched, true);
+    assert.deepEqual(calls.slice(0, 3), ['/health', '/api/v1/installer/status', '/health']);
+    assert.ok(
+      !calls.includes('/api/v1/install/readiness'),
+      'known PKG does not query SMP readiness',
+    );
+    assert.equal(calls.filter((path) => path === '/api/v1/install/staged').length, 1);
+    assert.deepEqual(Buffer.concat(transferred), Buffer.alloc(32));
+    hello = { ...readyHello, state: 'unverified' };
+    jobStatus = 200;
+    calls.length = 0;
+    await assert.rejects(
+      driver.run(embeddedItem, signal, (patch) => Object.assign(embeddedItem, patch)),
+      /Пакет полностью передан установщику/,
+    );
+    assert.deepEqual(
+      calls,
+      ['/api/v1/install/status', '/api/v1/installer/job'],
+      'an accepted embedded job is reconciled without hello, readiness or install replay',
+    );
+    hello = readyHello;
+    const fixtureFetch = globalThis.fetch,
+      profilePath = join(data, 'console-profiles.json'),
+      originalProfiles = readFileSync(profilePath, 'utf8'),
+      keysPath = join(data, 'ps5-service-keys.json'),
+      originalKeys = readFileSync(keysPath, 'utf8'),
+      changedIp = '192.168.1.6',
+      changedProfiles = JSON.parse(originalProfiles);
+    changedProfiles.consoles.find((profile) => profile.id === ps5.id).ip = changedIp;
+    writeFileSync(
+      keysPath,
+      JSON.stringify({ ...JSON.parse(originalKeys), [changedIp]: 'b'.repeat(64) }),
+    );
+    const identicalHealth = await (await fixtureFetch(`http://${ps5.ip}:8095/health`)).json();
+    for (const changeDuring of ['/health', '/api/v1/installer/status']) {
+      const contacted = [];
+      globalThis.fetch = async (url, options) => {
+        const address = new URL(url);
+        contacted.push(address.hostname);
+        if (address.hostname === changedIp)
+          return response(address.pathname === '/health' ? identicalHealth : readyHello);
+        const reply = await fixtureFetch(url, options);
+        if (address.pathname === changeDuring)
+          writeFileSync(profilePath, JSON.stringify(changedProfiles));
+        return reply;
+      };
+      try {
+        const denied = await api.readPs5PkgInstallCapabilities(ps5.id, signal);
+        assert.equal(denied.installation.ready, false);
+        assert.ok(contacted.length > 0);
+        assert.ok(
+          contacted.every((host) => host === ps5.ip),
+          'identical PID/start/build/firmware on another IP must never continue the probe there',
+        );
+      } finally {
+        writeFileSync(profilePath, originalProfiles);
+      }
+    }
+    writeFileSync(keysPath, originalKeys);
+    for (const blockedHealth of [1, 2]) {
+      let healthCount = 0,
+        notifyBlocked;
+      const blocked = new Promise((resolve) => {
+          notifyBlocked = resolve;
+        }),
+        controller = new AbortController();
+      globalThis.fetch = async (url, options) => {
+        if (new URL(url).pathname === '/health' && ++healthCount === blockedHealth)
+          return new Promise((_resolve, reject) => {
+            options.signal.addEventListener('abort', () => reject(options.signal.reason), {
+              once: true,
+            });
+            notifyBlocked();
+          });
+        return fixtureFetch(url, options);
+      };
+      const pending = api.readPs5PkgInstallCapabilities(ps5.id, controller.signal);
+      await blocked;
+      let deadline;
+      const immediateAbort = new Promise((_resolve, reject) => {
+        deadline = setTimeout(
+          () => reject(Error('Caller abort waited for the health deadline')),
+          500,
+        );
+      });
+      controller.abort();
+      try {
+        await assert.rejects(Promise.race([pending, immediateAbort]), { name: 'AbortError' });
+      } finally {
+        clearTimeout(deadline);
+      }
+    }
+    globalThis.fetch = fixtureFetch;
     assert.ok(!JSON.stringify(profiles).includes('b'.repeat(64)));
   } finally {
     globalThis.fetch = previousFetch;

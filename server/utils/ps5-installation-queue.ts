@@ -213,11 +213,6 @@ export async function startPs5Queue(input: {
   const profile = getConsoleProfile(input.consoleId);
   if (profile.platform !== 'ps5') throw createError({ statusCode: 400, message: 'Выберите PS5' });
   assertNoPs5Bootstrap(profile.id, profile.ip);
-  const snapshot = (await probeConsoleProfile(profile.id)).consoles.find(
-    (p) => p.id === profile.id,
-  )!;
-  if (!snapshot.online || !snapshot.paired)
-    throw createError({ statusCode: 409, message: 'Подключите и сопрягите сервис PS5' });
   const library = getLibraryPackages(profile.ip),
     current = runner(profile.id);
   let ids = input.packageIds;
@@ -258,6 +253,15 @@ export async function startPs5Queue(input: {
   )
     throw createError({ statusCode: 400, message: 'Выберите пакеты для установки' });
   const items = [...new Set(ids as string[])].map((id) => getPackage(id));
+  const snapshot = (
+    await probeConsoleProfile(
+      profile.id,
+      false,
+      items.every((item) => contentFormat(item) === 'pkg') ? 'pkg' : 'full',
+    )
+  ).consoles.find((p) => p.id === profile.id)!;
+  if (!snapshot.online || !snapshot.paired)
+    throw createError({ statusCode: 409, message: 'Подключите и сопрягите сервис PS5' });
   const overwrite = input.overwritePackageIds || [];
   if (
     !Array.isArray(overwrite) ||

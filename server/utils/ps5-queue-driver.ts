@@ -17,7 +17,11 @@ import { ps5SourceStamp as stamp } from './ps5-source-hash';
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache';
 import { seedPs5SourceHashHistory } from './ps5-source-hash-history';
 import { getPackage } from './package-library';
-import { ps5OperationRequest, Ps5OperationValidationError } from './console-profiles';
+import {
+  ps5OperationRequest,
+  Ps5OperationValidationError,
+  readPs5PkgInstallCapabilities,
+} from './console-profiles';
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core';
 import { ps5InstallCapabilities, ps5PkgInstallMessage } from '../../shared/ps5-install-readiness';
 import { getConsoleProfile } from './console-profiles';
@@ -374,12 +378,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
         throw new Ps5QueueFailure('Backend этого формата ещё не проверен на PS5');
       // Check before hashing/transferring gigabytes. Recovery of accepted jobs
       // above does not depend on current admission and never resubmits them.
-      const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal);
-      const capabilities = ps5InstallCapabilities(
-        readiness.status,
-        readiness.body,
-        getConsoleProfile(consoleId).firmware,
-      );
+      const capabilities = await readPs5PkgInstallCapabilities(consoleId, signal);
       if (!capabilities.installation?.ready || !capabilities.formats.includes('pkg'))
         return { state: 'waiting', detail: ps5PkgInstallMessage(capabilities) };
       if (

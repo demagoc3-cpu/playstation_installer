@@ -1,4 +1,4 @@
-import { getConsoleProfile, getConsoleProfiles } from '../../../utils/console-profiles';
+import { getConsoleProfile, refreshPs5NativeCatalogProfile } from '../../../utils/console-profiles';
 import { getLibraryPackages } from '../../../utils/package-library';
 import { filterContent, contentPlatform, contentFormat } from '../../../../shared/content-platform';
 import { buildConsoleCatalog } from '../../../utils/console-catalog';
@@ -7,10 +7,12 @@ import { ps5InstallMessage } from '../../../../shared/ps5-install-readiness';
 import { nativeInstallReviewCapability } from '../../../utils/native-install-review';
 
 /** PS5 contract. The legacy PS4 app continues to use catalog/v1. */
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   const query = getQuery(event),
     profile = getConsoleProfile(query.consoleId);
-  const snapshot = getConsoleProfiles().consoles.find((item) => item.id === profile.id)!;
+  const snapshot = (await refreshPs5NativeCatalogProfile(profile.id)).consoles.find(
+    (item) => item.id === profile.id,
+  )!;
   const packages = filterContent(getLibraryPackages(profile.ip), query.platform, profile.platform);
   const favoriteIds =
     typeof query.favorites === 'string'

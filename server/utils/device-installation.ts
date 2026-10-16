@@ -289,14 +289,17 @@ export async function previewDeviceInstall(
   destinations?: string[],
 ): Promise<DeviceInstallPreview> {
   const ids = resolveDeviceSelection(selection),
-    items = ids.map((id) => getPackage(id));
+    items = ids.map((id) => getPackage(id)),
+    scope = items.every((item) => contentFormat(item) === 'pkg') ? 'pkg' : 'full';
   if (destinations)
     for (let offset = 0; offset < destinations.length; offset += 8)
       await Promise.all(
-        destinations.slice(offset, offset + 8).map((id) => refreshConsoleProfile(id, true)),
+        destinations
+          .slice(offset, offset + 8)
+          .map((id) => refreshConsoleProfile(id, true, false, scope)),
       );
   // An explicit installation review must not reuse a cached failed PS5 probe.
-  else await refreshConsoleProfiles(true);
+  else await refreshConsoleProfiles(true, scope);
   const checkInstalled = installedPackagePreviewChecker();
   const size = items.reduce((sum, item) => sum + item.size, 0);
   return {
