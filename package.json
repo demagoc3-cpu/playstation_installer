@@ -9,7 +9,14 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "start": "node .output/server/index.mjs"
+    "start": "node .output/server/index.mjs",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "eslint . --max-warnings=0 && vue-tsc --build --noEmit && prettier --check .",
+    "typecheck": "vue-tsc --build --noEmit",
+    "test": "node scripts/test.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",
@@ -22,6 +29,17 @@
     "vue-router": "^5.3.0"
   },
   "devDependencies": {
-    "@types/node": "^22.20.4"
+    "@types/node": "^22.20.4",
+    "@eslint/js": "10.0.1",
+    "@types/archiver": "7.0.0",
+    "eslint": "10.12.0",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-vue": "10.11.1",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.71.2",
+    "vue-eslint-parser": "10.3.0",
+    "vue-tsc": "3.3.13"
   }
 }

@@ -1,14 +1,25 @@
-import { currentConsoleIp, inConsoleScope, legacyConsoleIp } from '../../utils/console-scope'
-import { contentFormat } from '../../../shared/content-platform'
-import { logEvent } from '../../utils/event-log'
-import { Transform } from 'node:stream'
-import type { ReadStream } from 'node:fs'
-import type { H3Event } from 'h3'
-import { PACKAGE_STREAM_BUFFER_BYTES, getPackage, getPackageDelivery, getPackageIconStream, getPackageStream, isDeliveryBlocked, recordPackageDelivery, recordPackageRequest, recordPackageStartup, registerActiveTransfer } from '../../utils/package-library'
+import { currentConsoleIp, inConsoleScope, legacyConsoleIp } from '../../utils/console-scope';
+import { contentFormat } from '../../../shared/content-platform';
+import { logEvent } from '../../utils/event-log';
+import { Transform } from 'node:stream';
+import type { ReadStream } from 'node:fs';
+import type { H3Event } from 'h3';
+import {
+  PACKAGE_STREAM_BUFFER_BYTES,
+  getPackage,
+  getPackageDelivery,
+  getPackageIconStream,
+  getPackageStream,
+  isDeliveryBlocked,
+  recordPackageDelivery,
+  recordPackageRequest,
+  recordPackageStartup,
+  registerActiveTransfer,
+} from '../../utils/package-library';
 
-const debug = Boolean(process.env.PACKAGEFLOW_DEBUG)
-const PROGRESS_INTERVAL_MS = 500
-const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(2)} МБ`
+const debug = Boolean(process.env.PACKAGEFLOW_DEBUG);
+const PROGRESS_INTERVAL_MS = 500;
+const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(2)} МБ`;
 
 /**
  * Streams a byte range to the console and tracks what was actually handed to
@@ -18,81 +29,160 @@ const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(2)} МБ`
  * drops the connection, it is logged with the byte count. Bookkeeping errors
  * never break the transfer.
  */
-function streamRange(event: H3Event, file: ReadStream, id: string, fileName: string, start: number, end: number, completed: boolean, requestedAt: number) {
-  const owner = currentConsoleIp()
-  const record = (last: number, done: boolean) => inConsoleScope(owner, () => {
-    if (last < start) return
-    try { recordPackageDelivery(id, start, last, done) } catch (error) { logEvent('warn', 'Не удалось записать прогресс передачи:', error) }
-  })
-  const expected = end - start + 1
-  let sent = 0
-  let reportedAt = 0
+function streamRange(
+  event: H3Event,
+  file: ReadStream,
+  id: string,
+  fileName: string,
+  start: number,
+  end: number,
+  completed: boolean,
+  requestedAt: number,
+) {
+  const owner = currentConsoleIp();
+  const record = (last: number, done: boolean) =>
+    inConsoleScope(owner, () => {
+      if (last < start) return;
+      try {
+        recordPackageDelivery(id, start, last, done);
+      } catch (error) {
+        logEvent('warn', 'Не удалось записать прогресс передачи:', error);
+      }
+    });
+  const expected = end - start + 1;
+  let sent = 0;
+  let reportedAt = 0;
   const counter = new Transform({
     highWaterMark: Math.max(1, Math.min(PACKAGE_STREAM_BUFFER_BYTES, expected)),
     transform(chunk: Buffer, _encoding, callback) {
-      if (!sent && inConsoleScope(owner, () => recordPackageStartup(id, 'firstBlock', Date.now(), performance.now() - requestedAt))) logEvent('info', `Первый блок PKG «${fileName}» прочитан WEB за ${(performance.now() - requestedAt).toFixed(1)} мс после запроса PS4`)
-      sent += chunk.length
-      const now = Date.now()
-      if (now - reportedAt >= PROGRESS_INTERVAL_MS) { reportedAt = now; record(start + sent - 1, false) }
-      callback(null, chunk)
-    }
-  })
-  const response = event.node.res
-  const unregister = registerActiveTransfer(id, () => response.destroy())
-  response.once('close', () => inConsoleScope(owner, () => {
-    unregister()
-    if (response.writableFinished) { record(end, completed); return }
-    file.destroy()
-    if (isDeliveryBlocked(id)) { logEvent('info', `Передача «${fileName}» остановлена: установка отменена`); return }
-    record(start + sent - 1, false)
-    logEvent('warn', `PS4 оборвала загрузку «${fileName}»: диапазон ${start}-${end}, отдано ${mb(sent)} из ${mb(expected)}`)
-  }))
-  file.once('error', (error) => { logEvent('warn', `Ошибка чтения PKG ${fileName} (${start}-${end}):`, error); counter.destroy(error) })
-  return sendStream(event, file.pipe(counter))
+      if (
+        !sent &&
+        inConsoleScope(owner, () =>
+          recordPackageStartup(id, 'firstBlock', Date.now(), performance.now() - requestedAt),
+        )
+      )
+        logEvent(
+          'info',
+          `Первый блок PKG «${fileName}» прочитан WEB за ${(performance.now() - requestedAt).toFixed(1)} мс после запроса PS4`,
+        );
+      sent += chunk.length;
+      const now = Date.now();
+      if (now - reportedAt >= PROGRESS_INTERVAL_MS) {
+        reportedAt = now;
+        record(start + sent - 1, false);
+      }
+      callback(null, chunk);
+    },
+  });
+  const response = event.node.res;
+  const unregister = registerActiveTransfer(id, () => response.destroy());
+  response.once('close', () =>
+    inConsoleScope(owner, () => {
+      unregister();
+      if (response.writableFinished) {
+        record(end, completed);
+        return;
+      }
+      file.destroy();
+      if (isDeliveryBlocked(id)) {
+        logEvent('info', `Передача «${fileName}» остановлена: установка отменена`);
+        return;
+      }
+      record(start + sent - 1, false);
+      logEvent(
+        'warn',
+        `PS4 оборвала загрузку «${fileName}»: диапазон ${start}-${end}, отдано ${mb(sent)} из ${mb(expected)}`,
+      );
+    }),
+  );
+  file.once('error', (error) => {
+    logEvent('warn', `Ошибка чтения PKG ${fileName} (${start}-${end}):`, error);
+    counter.destroy(error);
+  });
+  return sendStream(event, file.pipe(counter));
 }
 
-export default defineEventHandler((event) => inConsoleScope(currentConsoleIp() || getQuery(event).console?.toString() || legacyConsoleIp(), async () => {
-  const id = getRouterParam(event, 'id') || ''
-  const asset = getQuery(event).asset
-  if (asset === 'delivery') return getPackageDelivery(id)
-  if (asset === 'icon') {
-    setHeader(event, 'Content-Type', 'image/png')
-    setHeader(event, 'Cache-Control', 'private, max-age=3600')
-    return sendStream(event, getPackageIconStream(id))
-  }
+export default defineEventHandler((event) =>
+  inConsoleScope(
+    currentConsoleIp() || getQuery(event).console?.toString() || legacyConsoleIp(),
+    async () => {
+      const id = getRouterParam(event, 'id') || '';
+      const asset = getQuery(event).asset;
+      if (asset === 'delivery') return getPackageDelivery(id);
+      if (asset === 'icon') {
+        setHeader(event, 'Content-Type', 'image/png');
+        setHeader(event, 'Cache-Control', 'private, max-age=3600');
+        return sendStream(event, getPackageIconStream(id));
+      }
 
-  const requestedAt = performance.now(), requestedWallAt = Date.now()
-  const range = getHeader(event, 'range')
-  const item = getPackage(id)
-  if (contentFormat(item) === 'folder') throw createError({ statusCode: 409, message: 'Папка передаётся через протокол файлов PS5' })
-  if (isDeliveryBlocked(id)) throw createError({ statusCode: 410, message: 'Installation cancelled' })
-  if (event.method !== 'HEAD' && recordPackageStartup(id, 'data', requestedWallAt)) logEvent('info', `Первый запрос данных PKG получен WEB: ${id}, ${range || 'целиком'}`)
-  recordPackageRequest(id)
-  if (debug) logEvent('info', `PS4 запрашивает «${item.fileName}» ${range || 'целиком'}`)
-  setHeader(event, 'Content-Type', 'application/octet-stream')
-  setHeader(event, 'Accept-Ranges', 'bytes')
-  setHeader(event, 'Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(item.fileName)}`)
+      const requestedAt = performance.now(),
+        requestedWallAt = Date.now();
+      const range = getHeader(event, 'range');
+      const item = getPackage(id);
+      if (contentFormat(item) === 'folder')
+        throw createError({
+          statusCode: 409,
+          message: 'Папка передаётся через протокол файлов PS5',
+        });
+      if (isDeliveryBlocked(id))
+        throw createError({ statusCode: 410, message: 'Installation cancelled' });
+      if (event.method !== 'HEAD' && recordPackageStartup(id, 'data', requestedWallAt))
+        logEvent('info', `Первый запрос данных PKG получен WEB: ${id}, ${range || 'целиком'}`);
+      recordPackageRequest(id);
+      if (debug) logEvent('info', `PS4 запрашивает «${item.fileName}» ${range || 'целиком'}`);
+      setHeader(event, 'Content-Type', 'application/octet-stream');
+      setHeader(event, 'Accept-Ranges', 'bytes');
+      setHeader(
+        event,
+        'Content-Disposition',
+        `inline; filename*=UTF-8''${encodeURIComponent(item.fileName)}`,
+      );
 
-  if (!range) {
-    setHeader(event, 'Content-Length', item.size)
-    if (event.method === 'HEAD') return ''
-    return streamRange(event, getPackageStream(id).stream, id, item.fileName, 0, item.size - 1, true, requestedAt)
-  }
+      if (!range) {
+        setHeader(event, 'Content-Length', item.size);
+        if (event.method === 'HEAD') return '';
+        return streamRange(
+          event,
+          getPackageStream(id).stream,
+          id,
+          item.fileName,
+          0,
+          item.size - 1,
+          true,
+          requestedAt,
+        );
+      }
 
-  const match = /^bytes=(\d*)-(\d*)$/i.exec(range.trim())
-  if (!match) throw createError({ statusCode: 416, message: 'Некорректный диапазон файла' })
-  // "bytes=-N" means the last N bytes of the file.
-  const start = match[1] ? Number(match[1]) : Math.max(0, item.size - Number(match[2] || 0))
-  const requestedEnd = match[1] && match[2] ? Number(match[2]) : item.size - 1
-  const end = Math.min(requestedEnd, item.size - 1)
-  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end || start >= item.size) {
-    setHeader(event, 'Content-Range', `bytes */${item.size}`)
-    setResponseStatus(event, 416)
-    return ''
-  }
-  setResponseStatus(event, 206)
-  setHeader(event, 'Content-Range', `bytes ${start}-${end}/${item.size}`)
-  setHeader(event, 'Content-Length', end - start + 1)
-  if (event.method === 'HEAD') return ''
-  return streamRange(event, getPackageStream(id, { start, end }).stream, id, item.fileName, start, end, start === 0 && end === item.size - 1, requestedAt)
-}))
+      const match = /^bytes=(\d*)-(\d*)$/i.exec(range.trim());
+      if (!match) throw createError({ statusCode: 416, message: 'Некорректный диапазон файла' });
+      // "bytes=-N" means the last N bytes of the file.
+      const start = match[1] ? Number(match[1]) : Math.max(0, item.size - Number(match[2] || 0));
+      const requestedEnd = match[1] && match[2] ? Number(match[2]) : item.size - 1;
+      const end = Math.min(requestedEnd, item.size - 1);
+      if (
+        !Number.isSafeInteger(start) ||
+        !Number.isSafeInteger(end) ||
+        start > end ||
+        start >= item.size
+      ) {
+        setHeader(event, 'Content-Range', `bytes */${item.size}`);
+        setResponseStatus(event, 416);
+        return '';
+      }
+      setResponseStatus(event, 206);
+      setHeader(event, 'Content-Range', `bytes ${start}-${end}/${item.size}`);
+      setHeader(event, 'Content-Length', end - start + 1);
+      if (event.method === 'HEAD') return '';
+      return streamRange(
+        event,
+        getPackageStream(id, { start, end }).stream,
+        id,
+        item.fileName,
+        start,
+        end,
+        start === 0 && end === item.size - 1,
+        requestedAt,
+      );
+    },
+  ),
+);

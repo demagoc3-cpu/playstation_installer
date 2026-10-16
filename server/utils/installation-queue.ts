@@ -1,819 +1,1510 @@
-import { inConsoleScope, currentConsoleIp, consoleDataPath } from './console-scope'
-import { readJsonFile } from './json-store'
-import { contentPlatform, contentFormat } from '../../shared/content-platform'
-import { assertDesktopWritable } from './desktop-lifecycle'
-import { dataPath } from './data-path'
-import { logEvent } from './event-log'
-import { assertNoFileInstallation } from './console-file-install-store'
-import { assertNoRemoval } from './console-operation-store'
-import { assertNoMaintenance, readMaintenance, saveMaintenance } from './maintenance-store'
-import { claimConsoleWorker } from './console-worker-lock'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { inConsoleScope, currentConsoleIp, consoleDataPath } from './console-scope';
+import { readJsonFile } from './json-store';
+import { contentPlatform, contentFormat } from '../../shared/content-platform';
+import { assertDesktopWritable } from './desktop-lifecycle';
+import { dataPath } from './data-path';
+import { logEvent } from './event-log';
+import { assertNoFileInstallation } from './console-file-install-store';
+import { assertNoRemoval } from './console-operation-store';
+import { assertNoMaintenance, readMaintenance, saveMaintenance } from './maintenance-store';
+import { claimConsoleWorker } from './console-worker-lock';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 
-import { writeJsonFile } from './json-store'
-import { blockPackageDelivery, getPackage, getLibraryPackages, getPackageDelivery, isPackageTransferActive, markPackageInstalled, readPackageIcon, readPackageMetadata, resetPackageDelivery } from './package-library'
-import { sendPackage, startInstaller } from './ps4-installer'
-import { createHash, randomUUID } from 'node:crypto'
-import { serviceArtifact } from './service-updates'
-import { createError } from 'h3'
-import { installationTransport, serviceJobDetail } from './installation-transport'
-import { getInstallationPreference } from './installation-preference'
-import { getPs4InstallSettings } from './ps4-install-settings'
-import { checkPs4InstallSpace, installSpaceMessage } from './installation-space'
-import { checkPs4InstalledPackage } from './installed-package-check'
-import { assessPackageFirmware, checkPs4Firmware } from './installation-firmware'
-import { cancelServiceInstallJob, getActiveServiceInstallJob, getServiceInstallJob, getServiceInstallerStatus, releaseServiceInstallJob, serviceKeyConfigured, submitServicePackage, uploadServiceInstallIcon } from './ps4-service-installer'
-import type { InstallationTransport, ServiceInstallJob } from '../../shared/types/installation'
-import { Ps4TransferSpeed } from './ps4-transfer-speed'
-import { assertPs4TransportAdmission, ps4TransportConflict } from './ps4-transport-admission'
+import { writeJsonFile } from './json-store';
+import {
+  blockPackageDelivery,
+  getPackage,
+  getLibraryPackages,
+  getPackageDelivery,
+  isPackageTransferActive,
+  markPackageInstalled,
+  readPackageIcon,
+  readPackageMetadata,
+  resetPackageDelivery,
+} from './package-library';
+import { sendPackage, startInstaller } from './ps4-installer';
+import { createHash, randomUUID } from 'node:crypto';
+import { serviceArtifact } from './service-updates';
+import { createError } from 'h3';
+import { installationTransport, serviceJobDetail } from './installation-transport';
+import { getInstallationPreference } from './installation-preference';
+import { getPs4InstallSettings } from './ps4-install-settings';
+import { checkPs4InstallSpace, installSpaceMessage } from './installation-space';
+import { checkPs4InstalledPackage } from './installed-package-check';
+import { assessPackageFirmware, checkPs4Firmware } from './installation-firmware';
+import {
+  cancelServiceInstallJob,
+  getActiveServiceInstallJob,
+  getServiceInstallJob,
+  getServiceInstallerStatus,
+  releaseServiceInstallJob,
+  serviceKeyConfigured,
+  submitServicePackage,
+  uploadServiceInstallIcon,
+} from './ps4-service-installer';
+import type { InstallationTransport, ServiceInstallJob } from '../../shared/types/installation';
+import { Ps4TransferSpeed } from './ps4-transfer-speed';
+import { assertPs4TransportAdmission, ps4TransportConflict } from './ps4-transport-admission';
 
-export type InstallationItemState = 'pending' | 'sending' | 'waiting' | 'receiving' | 'installing' | 'verifying' | 'delivered' | 'installed' | 'unconfirmed' | 'skipped' | 'failed' | 'cancelled'
+export type InstallationItemState =
+  | 'pending'
+  | 'sending'
+  | 'waiting'
+  | 'receiving'
+  | 'installing'
+  | 'verifying'
+  | 'delivered'
+  | 'installed'
+  | 'unconfirmed'
+  | 'skipped'
+  | 'failed'
+  | 'cancelled';
 
 interface InstallationQueueItem {
-  packageId: string
-  title?: string
-  fileName?: string
-  size?: number
-  type?: string
-  titleId?: string
-  url: string
-  state: InstallationItemState
-  detail: string
-  bytesSent: number
-  dispatchedAt?: number
-  completedAt?: number
-  installedAt?: number
-  requestId?: string
-  serviceDispatchedAt?: number
-  serviceJobId?: string
-  serviceTaskId?: number
-  serviceIdleSince?: number
-  serviceProgress?: string
-  cancelRequested?: boolean
-  serviceStallCancelled?: boolean
+  packageId: string;
+  title?: string;
+  fileName?: string;
+  size?: number;
+  type?: string;
+  titleId?: string;
+  url: string;
+  state: InstallationItemState;
+  detail: string;
+  bytesSent: number;
+  dispatchedAt?: number;
+  completedAt?: number;
+  installedAt?: number;
+  requestId?: string;
+  serviceDispatchedAt?: number;
+  serviceJobId?: string;
+  serviceTaskId?: number;
+  serviceIdleSince?: number;
+  serviceProgress?: string;
+  cancelRequested?: boolean;
+  serviceStallCancelled?: boolean;
 }
 
 interface InstallationQueue {
-  version: 1
-  status: 'idle' | 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled'
-  transport?: InstallationTransport
-  maintenanceId?: string
-  bootstrapArtifactId?: string
-  id?: string
-  psIp?: string
-  items: InstallationQueueItem[]
-  currentIndex?: number
-  createdAt?: number
-  updatedAt?: number
-  message?: string
+  version: 1;
+  status: 'idle' | 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled';
+  transport?: InstallationTransport;
+  maintenanceId?: string;
+  bootstrapArtifactId?: string;
+  id?: string;
+  psIp?: string;
+  items: InstallationQueueItem[];
+  currentIndex?: number;
+  createdAt?: number;
+  updatedAt?: number;
+  message?: string;
 }
 
-const queuePath = () => consoleDataPath('installation-queue.json')
-const historyPath = () => consoleDataPath('installation-history.json')
-const WAIT_INTERVAL_MS = 1500
-const UNCONFIRMED_AFTER_MS = 20_000
-const STALLED_DLC_MS = 3 * 60_000
-const STALLED_PATCH_MS = 10 * 60_000
-const STALLED_GAME_MS = 15 * 60_000
-const STALLED_CANCEL_RETRY_MS = 60_000
-const runners = new Map<string, Promise<void>>()
-const transferSpeed = new Ps4TransferSpeed()
-export const getInstallationTransferTelemetry = (queue: InstallationQueue, item: InstallationQueueItem) => transferSpeed.read(queue, item)
-const runnerKey = () => currentConsoleIp() || 'legacy'
+const queuePath = () => consoleDataPath('installation-queue.json');
+const historyPath = () => consoleDataPath('installation-history.json');
+const WAIT_INTERVAL_MS = 1500;
+const UNCONFIRMED_AFTER_MS = 20_000;
+const STALLED_DLC_MS = 3 * 60_000;
+const STALLED_PATCH_MS = 10 * 60_000;
+const STALLED_GAME_MS = 15 * 60_000;
+const STALLED_CANCEL_RETRY_MS = 60_000;
+const runners = new Map<string, Promise<void>>();
+const transferSpeed = new Ps4TransferSpeed();
+export const getInstallationTransferTelemetry = (
+  queue: InstallationQueue,
+  item: InstallationQueueItem,
+) => transferSpeed.read(queue, item);
+const runnerKey = () => currentConsoleIp() || 'legacy';
 
-const blankQueue = (): InstallationQueue => ({ version: 1, status: 'idle', items: [] })
+const blankQueue = (): InstallationQueue => ({ version: 1, status: 'idle', items: [] });
 
 // The bootstrap artifact retains its independent identity/integrity check.
 // Ordinary PyLoader queues do not require PackageFlowService.
 function isServiceBootstrap(queue: InstallationQueue, pkg: ReturnType<typeof getPackage>) {
-  if (!queue.bootstrapArtifactId) return false
-  const artifact = serviceArtifact(queue.bootstrapArtifactId)
-  if (queue.transport !== 'payload' || queue.items.length !== 1 || pkg.path !== artifact.path ||
-      pkg.titleId !== 'PFLS00001' || pkg.contentId !== 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00' || pkg.contentType !== 'PS4GDE' ||
-      createHash('sha256').update(readFileSync(pkg.path)).digest('hex') !== artifact.sha256)
-    throw createError({ statusCode: 409, message: 'Проверенный пакет первоначальной установки службы изменился' })
-  return true
+  if (!queue.bootstrapArtifactId) return false;
+  const artifact = serviceArtifact(queue.bootstrapArtifactId);
+  if (
+    queue.transport !== 'payload' ||
+    queue.items.length !== 1 ||
+    pkg.path !== artifact.path ||
+    pkg.titleId !== 'PFLS00001' ||
+    pkg.contentId !== 'IV0000-PFLS00001_00-PACKAGEFLOWSRV00' ||
+    pkg.contentType !== 'PS4GDE' ||
+    createHash('sha256').update(readFileSync(pkg.path)).digest('hex') !== artifact.sha256
+  )
+    throw createError({
+      statusCode: 409,
+      message: 'Проверенный пакет первоначальной установки службы изменился',
+    });
+  return true;
 }
 
 /** Reinstalling a game is a user queue; service updates remain protected. */
-export function canManageInstallationQueue(queue: {maintenanceId?:string;psIp?:string}) {
-  if (!queue.maintenanceId) return true
-  const flow=queue.psIp ? readMaintenance()[queue.psIp] : undefined
-  return flow?.id===queue.maintenanceId && ['selected-reinstall','reinstall'].includes(flow.kind)
+export function canManageInstallationQueue(queue: { maintenanceId?: string; psIp?: string }) {
+  if (!queue.maintenanceId) return true;
+  const flow = queue.psIp ? readMaintenance()[queue.psIp] : undefined;
+  return (
+    flow?.id === queue.maintenanceId && ['selected-reinstall', 'reinstall'].includes(flow.kind)
+  );
 }
 
 /** An archived, never-dispatched tail can be cancelled without touching the live queue. */
-export function canCancelInstallationItem(queue: InstallationQueue, item: InstallationQueueItem, currentId?: string) {
-  if (!canManageInstallationQueue(queue)) return false
-  if (queue.id === currentId && queue.status === 'running') return ACTIVE_STATES.includes(item.state)
-  return !['running', 'cancelling'].includes(queue.status) && item.state === 'pending' && !item.serviceDispatchedAt && !item.dispatchedAt
+export function canCancelInstallationItem(
+  queue: InstallationQueue,
+  item: InstallationQueueItem,
+  currentId?: string,
+) {
+  if (!canManageInstallationQueue(queue)) return false;
+  if (queue.id === currentId && queue.status === 'running')
+    return ACTIVE_STATES.includes(item.state);
+  return (
+    !['running', 'cancelling'].includes(queue.status) &&
+    item.state === 'pending' &&
+    !item.serviceDispatchedAt &&
+    !item.dispatchedAt
+  );
 }
 
 function readQueue(): InstallationQueue {
   try {
-    const legacy = readJsonFile<InstallationQueue>(dataPath('installation-queue.json'), blankQueue())
-    const path = existsSync(queuePath()) ? queuePath() : (!currentConsoleIp() || legacy.psIp === currentConsoleIp()) ? dataPath('installation-queue.json') : queuePath()
-    const queue = JSON.parse(readFileSync(path, 'utf8')) as InstallationQueue
-    if (queue.version !== 1 || !Array.isArray(queue.items)) return blankQueue()
-    try { queue.transport = installationTransport(queue.transport) }
-    catch { queue.status = 'failed'; queue.message = 'Неизвестный сохранённый способ установки; повтор не отправлен' }
-    return queue
-  } catch { return blankQueue() }
+    const legacy = readJsonFile<InstallationQueue>(
+      dataPath('installation-queue.json'),
+      blankQueue(),
+    );
+    const path = existsSync(queuePath())
+      ? queuePath()
+      : !currentConsoleIp() || legacy.psIp === currentConsoleIp()
+        ? dataPath('installation-queue.json')
+        : queuePath();
+    const queue = JSON.parse(readFileSync(path, 'utf8')) as InstallationQueue;
+    if (queue.version !== 1 || !Array.isArray(queue.items)) return blankQueue();
+    try {
+      queue.transport = installationTransport(queue.transport);
+    } catch {
+      queue.status = 'failed';
+      queue.message = 'Неизвестный сохранённый способ установки; повтор не отправлен';
+    }
+    return queue;
+  } catch {
+    return blankQueue();
+  }
 }
 
 function writeQueue(queue: InstallationQueue) {
-  queue.updatedAt = Date.now()
-  writeJsonFile(queuePath(), queue)
-  transferSpeed.observe(queue)
+  queue.updatedAt = Date.now();
+  writeJsonFile(queuePath(), queue);
+  transferSpeed.observe(queue);
 }
 
 function publicQueue(queue: InstallationQueue) {
   // BGFT can pause after its header probe, then fetch the body after the queue's
   // observation window. Read actual delivery again; never claim installation.
   if (queue.transport === 'payload' && readQueue().id === queue.id) {
-    let changed = false
+    let changed = false;
     for (const item of queue.items) {
-      if (!item.dispatchedAt || !['delivered','unconfirmed'].includes(item.state)) continue
-      let delivery: ReturnType<typeof getPackageDelivery>
-      try { delivery = getPackageDelivery(item.packageId) } catch { continue } // Archived sources may have been removed.
-      const bytes = Math.min(delivery.bytesSent,delivery.size)
-      if (bytes > item.bytesSent) { item.bytesSent=bytes; changed=true }
-      const detail='PS4 скачала пакет полностью; итог установки проверьте на приставке'
-      if (delivery.completedAt && !delivery.partial && (item.state === 'unconfirmed' || item.detail !== detail)) {
-        item.state='delivered';item.completedAt=delivery.completedAt
-        item.detail=detail;changed=true
+      if (!item.dispatchedAt || !['delivered', 'unconfirmed'].includes(item.state)) continue;
+      let delivery: ReturnType<typeof getPackageDelivery>;
+      try {
+        delivery = getPackageDelivery(item.packageId);
+      } catch {
+        continue;
+      } // Archived sources may have been removed.
+      const bytes = Math.min(delivery.bytesSent, delivery.size);
+      if (bytes > item.bytesSent) {
+        item.bytesSent = bytes;
+        changed = true;
+      }
+      const detail = 'PS4 скачала пакет полностью; итог установки проверьте на приставке';
+      if (
+        delivery.completedAt &&
+        !delivery.partial &&
+        (item.state === 'unconfirmed' || item.detail !== detail)
+      ) {
+        item.state = 'delivered';
+        item.completedAt = delivery.completedAt;
+        item.detail = detail;
+        changed = true;
       }
     }
     if (changed) {
-      if (queue.status === 'completed' && queue.items.every(item=>item.state==='delivered')) queue.message='Все пакеты скачаны PS4; итог установки проверьте на приставке'
-      if (readQueue().id === queue.id) writeQueue(queue)
+      if (queue.status === 'completed' && queue.items.every((item) => item.state === 'delivered'))
+        queue.message = 'Все пакеты скачаны PS4; итог установки проверьте на приставке';
+      if (readQueue().id === queue.id) writeQueue(queue);
     }
   }
-  const missing = queue.items.some(item => !item.fileName)
-  const packages = missing ? new Map(getLibraryPackages().map(item => [item.id, item])) : new Map()
-  return { ...queue, items: queue.items.map((item) => {
-    const pkg = packages.get(item.packageId)
-    // Older completed queues stored only the raw duplicate-task code. Show the
-    // same explanation after a restart without changing or resubmitting a job.
-    const detail = item.state === 'failed' && /^Ошибка установки на PS4: 0x80990015$/i.test(item.detail)
-      ? 'PS4 уже зарегистрировала задание для этого пакета. Проверьте «Уведомления → Загрузки» на консоли (0x80990015)' : item.detail
-    return { ...item, title: item.title || pkg?.title || item.packageId, fileName: item.fileName || pkg?.fileName || item.packageId,
-      size: item.size ?? pkg?.size ?? 0, type: item.type || pkg?.type || 'PKG', titleId: item.titleId || pkg?.titleId || '', detail }
-  }) }
+  const missing = queue.items.some((item) => !item.fileName);
+  const packages = missing
+    ? new Map(getLibraryPackages().map((item) => [item.id, item]))
+    : new Map();
+  return {
+    ...queue,
+    items: queue.items.map((item) => {
+      const pkg = packages.get(item.packageId);
+      // Older completed queues stored only the raw duplicate-task code. Show the
+      // same explanation after a restart without changing or resubmitting a job.
+      const detail =
+        item.state === 'failed' && /^Ошибка установки на PS4: 0x80990015$/i.test(item.detail)
+          ? 'PS4 уже зарегистрировала задание для этого пакета. Проверьте «Уведомления → Загрузки» на консоли (0x80990015)'
+          : item.detail;
+      return {
+        ...item,
+        title: item.title || pkg?.title || item.packageId,
+        fileName: item.fileName || pkg?.fileName || item.packageId,
+        size: item.size ?? pkg?.size ?? 0,
+        type: item.type || pkg?.type || 'PKG',
+        titleId: item.titleId || pkg?.titleId || '',
+        detail,
+      };
+    }),
+  };
 }
 
 function getInstallationHistoryScoped(): InstallationQueue[] {
   try {
-    const history = readJsonFile<any[]>(existsSync(historyPath()) ? historyPath() : dataPath('installation-history.json'), []).filter(queue => !currentConsoleIp() || queue.psIp === currentConsoleIp())
-    return Array.isArray(history) ? history.filter(queue => queue.version === 1 && queue.id && Array.isArray(queue.items)).slice(0, 10) : []
-  } catch { return [] }
+    const history = readJsonFile<any[]>(
+      existsSync(historyPath()) ? historyPath() : dataPath('installation-history.json'),
+      [],
+    ).filter((queue) => !currentConsoleIp() || queue.psIp === currentConsoleIp());
+    return Array.isArray(history)
+      ? history
+          .filter((queue) => queue.version === 1 && queue.id && Array.isArray(queue.items))
+          .slice(0, 10)
+      : [];
+  } catch {
+    return [];
+  }
 }
 function archiveQueue(queue: InstallationQueue) {
-  if (!queue.id || !queue.items.length) return
-  writeJsonFile(historyPath(), [publicQueue(queue), ...getInstallationHistory().filter(previous => previous.id !== queue.id)].slice(0, 10))
+  if (!queue.id || !queue.items.length) return;
+  writeJsonFile(
+    historyPath(),
+    [
+      publicQueue(queue),
+      ...getInstallationHistory().filter((previous) => previous.id !== queue.id),
+    ].slice(0, 10),
+  );
 }
 
-const pause = () => new Promise<void>((resolve) => setTimeout(resolve, WAIT_INTERVAL_MS))
-const ACTIVE_STATES: InstallationItemState[] = ['pending', 'sending', 'waiting', 'receiving', 'installing', 'verifying']
+const pause = () => new Promise<void>((resolve) => setTimeout(resolve, WAIT_INTERVAL_MS));
+const ACTIVE_STATES: InstallationItemState[] = [
+  'pending',
+  'sending',
+  'waiting',
+  'receiving',
+  'installing',
+  'verifying',
+];
 
 /** Clear the daemon's stale reservation only after it independently verifies
  * that BGFT has no task and AppInst is idle. A failed probe keeps us polling. */
-async function reconcileRemovedServiceJob(ip: string, id: string, job: ServiceInstallJob): Promise<ServiceInstallJob> {
-  if (!['uncertain', 'cancelling'].includes(job.state) || job.errorHex.toUpperCase() !== '0X80990019' || job.installing || (job.updating ?? 0) > 0) return job
+async function reconcileRemovedServiceJob(
+  ip: string,
+  id: string,
+  job: ServiceInstallJob,
+): Promise<ServiceInstallJob> {
+  if (
+    !['uncertain', 'cancelling'].includes(job.state) ||
+    job.errorHex.toUpperCase() !== '0X80990019' ||
+    job.installing ||
+    (job.updating ?? 0) > 0
+  )
+    return job;
   try {
-    const released = await releaseServiceInstallJob(ip, id)
-    return ['cancelled', 'failed'].includes(released.state) ? { ...released, errorHex: job.errorHex } : released
+    const released = await releaseServiceInstallJob(ip, id);
+    return ['cancelled', 'failed'].includes(released.state)
+      ? { ...released, errorHex: job.errorHex }
+      : released;
   } catch {
     // Retain the live reservation until the daemon confirms release. The
     // transport may have failed after accepting this idempotent operation.
-    return { ...job, errorHex: '0x00000000' }
+    return { ...job, errorHex: '0x00000000' };
   }
 }
 
-function stillCurrent(queue: InstallationQueue, index: number, status: InstallationQueue['status'] = 'running') {
-  const updated = readQueue()
-  return updated.status === status && updated.id === queue.id && updated.createdAt === queue.createdAt &&
+function stillCurrent(
+  queue: InstallationQueue,
+  index: number,
+  status: InstallationQueue['status'] = 'running',
+) {
+  const updated = readQueue();
+  return updated.status === status &&
+    updated.id === queue.id &&
+    updated.createdAt === queue.createdAt &&
     updated.items[index]?.packageId === queue.items[index]?.packageId &&
-    ACTIVE_STATES.includes(updated.items[index]!.state) ? updated : null
+    ACTIVE_STATES.includes(updated.items[index]!.state)
+    ? updated
+    : null;
 }
 function applyServiceJob(item: InstallationQueueItem, job: ServiceInstallJob) {
-  item.serviceJobId = job.jobId; item.serviceTaskId = job.taskId
-  item.bytesSent = job.downloadedBytes; item.detail = serviceJobDetail(job)
-  item.state = job.state === 'installed' ? 'installed' : job.state === 'failed' ? 'failed' : job.state === 'cancelled' ? 'cancelled' :
-    job.state === 'installing' ? 'installing' : job.state === 'uncertain' || job.state === 'cancelling' || job.pollError ? 'verifying' : job.downloadedBytes ? 'receiving' : 'waiting'
-  if (item.state === 'failed' && job.errorHex.toUpperCase() === '0XFFFFD8D0') item.state = 'unconfirmed'
+  item.serviceJobId = job.jobId;
+  item.serviceTaskId = job.taskId;
+  item.bytesSent = job.downloadedBytes;
+  item.detail = serviceJobDetail(job);
+  item.state =
+    job.state === 'installed'
+      ? 'installed'
+      : job.state === 'failed'
+        ? 'failed'
+        : job.state === 'cancelled'
+          ? 'cancelled'
+          : job.state === 'installing'
+            ? 'installing'
+            : job.state === 'uncertain' || job.state === 'cancelling' || job.pollError
+              ? 'verifying'
+              : job.downloadedBytes
+                ? 'receiving'
+                : 'waiting';
+  if (item.state === 'failed' && job.errorHex.toUpperCase() === '0XFFFFD8D0')
+    item.state = 'unconfirmed';
   if (item.state === 'installed') {
-    item.completedAt ??= Date.now(); item.installedAt ??= Date.now(); markPackageInstalled(item.packageId, true)
+    item.completedAt ??= Date.now();
+    item.installedAt ??= Date.now();
+    markPackageInstalled(item.packageId, true);
   }
   if (item.serviceStallCancelled && item.state === 'cancelled') {
-    item.state = 'unconfirmed'
-    item.detail = 'PS4 не подтвердила установку после полной загрузки. Задание снято; проверьте результат на приставке'
+    item.state = 'unconfirmed';
+    item.detail =
+      'PS4 не подтвердила установку после полной загрузки. Задание снято; проверьте результат на приставке';
   }
   // BGFT explicitly reports that its system task no longer exists. This is
   // terminal, unlike a transport/poll timeout, and must not block the successor.
-  if (job.errorHex.toUpperCase() === '0X80990019' && ['cancelled', 'failed'].includes(job.state) && !job.installing && (job.updating ?? 0) <= 0) {
-    item.state = item.cancelRequested ? 'cancelled' : 'unconfirmed'
-    item.completedAt ??= Date.now()
-    item.detail = 'Системное задание удалено на PS4; установка не подтверждена'
+  if (
+    job.errorHex.toUpperCase() === '0X80990019' &&
+    ['cancelled', 'failed'].includes(job.state) &&
+    !job.installing &&
+    (job.updating ?? 0) <= 0
+  ) {
+    item.state = item.cancelRequested ? 'cancelled' : 'unconfirmed';
+    item.completedAt ??= Date.now();
+    item.detail = 'Системное задание удалено на PS4; установка не подтверждена';
   }
 }
-function stalledServiceJob(item: InstallationQueueItem, job: ServiceInstallJob, contentType: string, now = Date.now()) {
-  const downloaded = job.downloadTotalBytes > 0 && job.downloadedBytes >= job.downloadTotalBytes
-  const idle = job.state === 'installing' && downloaded && !job.pollError && !job.error && !job.installing && !job.updating
-  if (!idle) { item.serviceIdleSince = undefined; item.serviceProgress = undefined; return false }
-  const progress = [job.downloadedBytes, job.downloadTotalBytes, job.progressBits, job.preparingPercent, job.localCopyPercent].join(':')
-  if (item.serviceProgress !== progress || !item.serviceIdleSince) {
-    item.serviceProgress = progress
-    item.serviceIdleSince = now
-    return false
+function stalledServiceJob(
+  item: InstallationQueueItem,
+  job: ServiceInstallJob,
+  contentType: string,
+  now = Date.now(),
+) {
+  const downloaded = job.downloadTotalBytes > 0 && job.downloadedBytes >= job.downloadTotalBytes;
+  const idle =
+    job.state === 'installing' &&
+    downloaded &&
+    !job.pollError &&
+    !job.error &&
+    !job.installing &&
+    !job.updating;
+  if (!idle) {
+    item.serviceIdleSince = undefined;
+    item.serviceProgress = undefined;
+    return false;
   }
-  const limit = ['PS4AC', 'PS4AL'].includes(contentType) ? STALLED_DLC_MS : contentType === 'PS4GP' ? STALLED_PATCH_MS : STALLED_GAME_MS
-  return now - item.serviceIdleSince >= limit
+  const progress = [
+    job.downloadedBytes,
+    job.downloadTotalBytes,
+    job.progressBits,
+    job.preparingPercent,
+    job.localCopyPercent,
+  ].join(':');
+  if (item.serviceProgress !== progress || !item.serviceIdleSince) {
+    item.serviceProgress = progress;
+    item.serviceIdleSince = now;
+    return false;
+  }
+  const limit = ['PS4AC', 'PS4AL'].includes(contentType)
+    ? STALLED_DLC_MS
+    : contentType === 'PS4GP'
+      ? STALLED_PATCH_MS
+      : STALLED_GAME_MS;
+  return now - item.serviceIdleSince >= limit;
 }
 async function cancelServicePass(queue: InstallationQueue) {
   for (let index = 0; index < queue.items.length; index++) {
-    const item = queue.items[index]!
-    if (!ACTIVE_STATES.includes(item.state)) continue
-    if (!item.serviceDispatchedAt || !item.requestId) { item.state = 'cancelled'; item.detail = 'Не отправлен: очередь отменена'; continue }
+    const item = queue.items[index]!;
+    if (!ACTIVE_STATES.includes(item.state)) continue;
+    if (!item.serviceDispatchedAt || !item.requestId) {
+      item.state = 'cancelled';
+      item.detail = 'Не отправлен: очередь отменена';
+      continue;
+    }
     try {
-      const previous = await reconcileRemovedServiceJob(queue.psIp!, item.requestId, await getServiceInstallJob(queue.psIp!, item.requestId))
-      const job = ['installed', 'failed', 'cancelled'].includes(previous.state) ? previous : await reconcileRemovedServiceJob(queue.psIp!, item.requestId, await cancelServiceInstallJob(queue.psIp!, item.requestId))
-      if (!stillCurrent(queue, index, 'cancelling')) return
-      applyServiceJob(item, job)
+      const previous = await reconcileRemovedServiceJob(
+        queue.psIp!,
+        item.requestId,
+        await getServiceInstallJob(queue.psIp!, item.requestId),
+      );
+      const job = ['installed', 'failed', 'cancelled'].includes(previous.state)
+        ? previous
+        : await reconcileRemovedServiceJob(
+            queue.psIp!,
+            item.requestId,
+            await cancelServiceInstallJob(queue.psIp!, item.requestId),
+          );
+      if (!stillCurrent(queue, index, 'cancelling')) return;
+      applyServiceJob(item, job);
     } catch (error: any) {
-      if (!stillCurrent(queue, index, 'cancelling')) return
-      item.state = 'verifying'; item.detail = error?.statusCode ? error.message : 'Связь потеряна; отмена принятого задания ещё не подтверждена'
+      if (!stillCurrent(queue, index, 'cancelling')) return;
+      item.state = 'verifying';
+      item.detail = error?.statusCode
+        ? error.message
+        : 'Связь потеряна; отмена принятого задания ещё не подтверждена';
     }
   }
-  if (!queue.items.some(item => ACTIVE_STATES.includes(item.state))) {
-    queue.status = 'cancelled'; queue.currentIndex = undefined
-    queue.message = queue.items.some(item => item.state === 'unconfirmed')
+  if (!queue.items.some((item) => ACTIVE_STATES.includes(item.state))) {
+    queue.status = 'cancelled';
+    queue.currentIndex = undefined;
+    queue.message = queue.items.some((item) => item.state === 'unconfirmed')
       ? 'Очередь освобождена: системная задача PS4 удалена. Установка не подтверждена; проверьте результат на приставке.'
-      : 'Очередь остановлена; результаты принятых заданий получены с PS4'
-  } else queue.message = 'Ожидаем подтверждение отмены с PS4; новые задания не отправляются'
-  if (readQueue().status !== 'cancelling' || readQueue().id !== queue.id) return
-  writeQueue(queue)
+      : 'Очередь остановлена; результаты принятых заданий получены с PS4';
+  } else queue.message = 'Ожидаем подтверждение отмены с PS4; новые задания не отправляются';
+  if (readQueue().status !== 'cancelling' || readQueue().id !== queue.id) return;
+  writeQueue(queue);
 }
 
 function busyRejectedQueue(queue: InstallationQueue) {
-  return queue.transport === 'service' && queue.status === 'failed' && queue.items.some(item =>
-    item.state === 'failed' && !!item.requestId && /^На PS4 уже есть активное задание сервиса(?: \(0x00000000\))?$/.test(item.detail))
+  return (
+    queue.transport === 'service' &&
+    queue.status === 'failed' &&
+    queue.items.some(
+      (item) =>
+        item.state === 'failed' &&
+        !!item.requestId &&
+        /^На PS4 уже есть активное задание сервиса(?: \(0x00000000\))?$/.test(item.detail),
+    )
+  );
 }
 
 /** Recover the previous explicit busy rejection by reading its original receipt. */
 async function recoverBusyQueue(queue: InstallationQueue) {
-  const index = queue.items.findIndex(item => item.state === 'failed' && !!item.requestId && /^На PS4 уже есть активное задание сервиса(?: \(0x00000000\))?$/.test(item.detail))
-  if (index < 0 || !queue.psIp) return
-  const original = queue.items[index]!
-  let job: ServiceInstallJob | undefined
-  try { job = await getServiceInstallJob(queue.psIp, original.requestId!) }
-  catch (error: any) { if (error.statusCode !== 404) return }
-  const current = readQueue()
-  if (current.id !== queue.id || current.status !== 'failed' || current.items[index]?.requestId !== original.requestId || current.items[index]?.state !== 'failed' || current.items[index]?.detail !== original.detail) return
-  const maintenance = readMaintenance(), flow = maintenance[queue.psIp]
-  if (flow?.id === current.maintenanceId && flow.cancelRequested) return
-  const item = current.items[index]!
+  const index = queue.items.findIndex(
+    (item) =>
+      item.state === 'failed' &&
+      !!item.requestId &&
+      /^На PS4 уже есть активное задание сервиса(?: \(0x00000000\))?$/.test(item.detail),
+  );
+  if (index < 0 || !queue.psIp) return;
+  const original = queue.items[index]!;
+  let job: ServiceInstallJob | undefined;
+  try {
+    job = await getServiceInstallJob(queue.psIp, original.requestId!);
+  } catch (error: any) {
+    if (error.statusCode !== 404) return;
+  }
+  const current = readQueue();
+  if (
+    current.id !== queue.id ||
+    current.status !== 'failed' ||
+    current.items[index]?.requestId !== original.requestId ||
+    current.items[index]?.state !== 'failed' ||
+    current.items[index]?.detail !== original.detail
+  )
+    return;
+  const maintenance = readMaintenance(),
+    flow = maintenance[queue.psIp];
+  if (flow?.id === current.maintenanceId && flow.cancelRequested) return;
+  const item = current.items[index]!;
   if (job) {
-    if (job.contentId !== getPackage(item.packageId).contentId) return
-    applyServiceJob(item, job)
+    if (job.contentId !== getPackage(item.packageId).contentId) return;
+    applyServiceJob(item, job);
   } else {
-    delete item.serviceDispatchedAt; delete item.dispatchedAt
-    delete item.serviceJobId; delete item.serviceTaskId
-    item.state = 'pending'; item.bytesSent = 0
-    item.detail = 'Сервис был занят; повторно проверяем пакет и продолжаем очередь'
+    delete item.serviceDispatchedAt;
+    delete item.dispatchedAt;
+    delete item.serviceJobId;
+    delete item.serviceTaskId;
+    item.state = 'pending';
+    item.bytesSent = 0;
+    item.detail = 'Сервис был занят; повторно проверяем пакет и продолжаем очередь';
   }
-  current.status = 'running'; current.message = item.detail
-  if (flow?.id === current.maintenanceId && flow.kind === 'selected-reinstall' && flow.state === 'failed' && flow.index >= flow.steps.length) {
-    flow.state = 'installing'; flow.message = current.message; saveMaintenance(maintenance)
+  current.status = 'running';
+  current.message = item.detail;
+  if (
+    flow?.id === current.maintenanceId &&
+    flow.kind === 'selected-reinstall' &&
+    flow.state === 'failed' &&
+    flow.index >= flow.steps.length
+  ) {
+    flow.state = 'installing';
+    flow.message = current.message;
+    saveMaintenance(maintenance);
   }
-  writeQueue(current)
+  writeQueue(current);
 }
 
 async function runQueue(releaseWorker: () => void) {
   try {
     while (true) {
-      let queue = readQueue()
-      if (busyRejectedQueue(queue)) { await recoverBusyQueue(queue); queue = readQueue() }
-      const profile = readJsonFile<{ consoles?: Array<{ ip: string; platform: string }> }>(dataPath('console-profiles.json'), {}).consoles?.find(item => item.ip === queue.psIp)
-      if (profile?.platform === 'ps5' && ['running', 'cancelling'].includes(queue.status)) { queue.status = 'failed'; queue.message = 'Сохранённая очередь PS4 не может выполняться на профиле PS5. Повтор не отправлен.'; writeQueue(queue); return }
-      if (queue.status === 'cancelling' && queue.transport === 'service' && queue.psIp) {
-        await cancelServicePass(queue)
-        if (readQueue().status !== 'cancelling') return
-        await pause(); continue
+      let queue = readQueue();
+      if (busyRejectedQueue(queue)) {
+        await recoverBusyQueue(queue);
+        queue = readQueue();
       }
-      if (queue.status !== 'running' || !queue.psIp) return
-      const index = queue.items.findIndex((item) => ACTIVE_STATES.includes(item.state))
+      const profile = readJsonFile<{ consoles?: Array<{ ip: string; platform: string }> }>(
+        dataPath('console-profiles.json'),
+        {},
+      ).consoles?.find((item) => item.ip === queue.psIp);
+      if (profile?.platform === 'ps5' && ['running', 'cancelling'].includes(queue.status)) {
+        queue.status = 'failed';
+        queue.message =
+          'Сохранённая очередь PS4 не может выполняться на профиле PS5. Повтор не отправлен.';
+        writeQueue(queue);
+        return;
+      }
+      if (queue.status === 'cancelling' && queue.transport === 'service' && queue.psIp) {
+        await cancelServicePass(queue);
+        if (readQueue().status !== 'cancelling') return;
+        await pause();
+        continue;
+      }
+      if (queue.status !== 'running' || !queue.psIp) return;
+      const index = queue.items.findIndex((item) => ACTIVE_STATES.includes(item.state));
       if (index < 0) {
-        queue.status = 'completed'
-        queue.currentIndex = undefined
-        const unconfirmed = queue.items.filter(item => item.state === 'unconfirmed').length
-        const skipped = queue.items.filter(item => item.state === 'skipped').length
-        const installed = queue.items.filter(item => item.state === 'installed').length
-        const failed = queue.items.filter(item => item.state === 'failed').length
-        const cancelled = queue.items.filter(item => item.state === 'cancelled').length
-        queue.message = queue.transport === 'service' ? failed || cancelled || skipped || unconfirmed
-          ? `Очередь завершена: PS4 подтвердила ${installed} пак., с ошибкой — ${failed}, отменено — ${cancelled}, без подтверждения — ${unconfirmed}, пропущено — ${skipped}. Причины указаны у пакетов.`
-          : 'PS4 подтвердила установку всех пакетов очереди.' : unconfirmed
-          ? `Очередь отправлена; для ${unconfirmed} пак. скачивание не подтверждено. Проверьте загрузки PS4.`
-          : 'Все пакеты переданы PlayStation по очереди: игра → патчи/бэкпорты → DLC. Финальный результат проверьте на PS4.'
-        logEvent(unconfirmed || skipped || failed || cancelled ? 'warn' : 'info', queue.message)
-        writeQueue(queue)
-        return
+        queue.status = 'completed';
+        queue.currentIndex = undefined;
+        const unconfirmed = queue.items.filter((item) => item.state === 'unconfirmed').length;
+        const skipped = queue.items.filter((item) => item.state === 'skipped').length;
+        const installed = queue.items.filter((item) => item.state === 'installed').length;
+        const failed = queue.items.filter((item) => item.state === 'failed').length;
+        const cancelled = queue.items.filter((item) => item.state === 'cancelled').length;
+        queue.message =
+          queue.transport === 'service'
+            ? failed || cancelled || skipped || unconfirmed
+              ? `Очередь завершена: PS4 подтвердила ${installed} пак., с ошибкой — ${failed}, отменено — ${cancelled}, без подтверждения — ${unconfirmed}, пропущено — ${skipped}. Причины указаны у пакетов.`
+              : 'PS4 подтвердила установку всех пакетов очереди.'
+            : unconfirmed
+              ? `Очередь отправлена; для ${unconfirmed} пак. скачивание не подтверждено. Проверьте загрузки PS4.`
+              : 'Все пакеты переданы PlayStation по очереди: игра → патчи/бэкпорты → DLC. Финальный результат проверьте на PS4.';
+        logEvent(unconfirmed || skipped || failed || cancelled ? 'warn' : 'info', queue.message);
+        writeQueue(queue);
+        return;
       }
 
-      queue.currentIndex = index
+      queue.currentIndex = index;
       // Async admission checks re-read the durable queue. Preserve the selected
       // index so an early sender failure cannot leave a "sending" ghost item.
-      writeQueue(queue)
-      let item = queue.items[index]!
-      let packageInfo: ReturnType<typeof getPackage>
-      try { packageInfo = getPackage(item.packageId) }
-      catch (error: any) {
+      writeQueue(queue);
+      let item = queue.items[index]!;
+      let packageInfo: ReturnType<typeof getPackage>;
+      try {
+        packageInfo = getPackage(item.packageId);
+      } catch (error: any) {
         // A missing, never-dispatched source cannot have started an installation.
-        if (queue.bootstrapArtifactId || item.dispatchedAt || item.serviceDispatchedAt) throw error
-        item.state = 'failed'; item.completedAt = Date.now()
-        item.detail = error?.message || 'Исходный PKG недоступен'
-        writeQueue(queue); continue
+        if (queue.bootstrapArtifactId || item.dispatchedAt || item.serviceDispatchedAt) throw error;
+        item.state = 'failed';
+        item.completedAt = Date.now();
+        item.detail = error?.message || 'Исходный PKG недоступен';
+        writeQueue(queue);
+        continue;
       }
-      const bootstrap = !!queue.bootstrapArtifactId
-      if (bootstrap && !item.dispatchedAt) isServiceBootstrap(queue, packageInfo)
+      const bootstrap = !!queue.bootstrapArtifactId;
+      if (bootstrap && !item.dispatchedAt) isServiceBootstrap(queue, packageInfo);
 
-      if (queue.transport === 'service' && !bootstrap && !item.serviceDispatchedAt && !item.dispatchedAt && !item.cancelRequested) {
-        const present = await checkPs4InstalledPackage(queue.psIp, packageInfo)
-        const checked = stillCurrent(queue, index); if (!checked) return
-        queue = checked; item = queue.items[index]!
-        if (item.cancelRequested) continue
+      if (
+        queue.transport === 'service' &&
+        !bootstrap &&
+        !item.serviceDispatchedAt &&
+        !item.dispatchedAt &&
+        !item.cancelRequested
+      ) {
+        const present = await checkPs4InstalledPackage(queue.psIp, packageInfo);
+        const checked = stillCurrent(queue, index);
+        if (!checked) return;
+        queue = checked;
+        item = queue.items[index]!;
+        if (item.cancelRequested) continue;
         if (present.state !== 'absent') {
-          item.state = present.state === 'unavailable' ? 'pending' : 'skipped'
-          item.detail = present.detail; queue.message = present.detail
+          item.state = present.state === 'unavailable' ? 'pending' : 'skipped';
+          item.detail = present.detail;
+          queue.message = present.detail;
           if (present.state !== 'unavailable') {
-            item.completedAt = Date.now()
-            if (present.state === 'installed') { markPackageInstalled(item.packageId, true); item.installedAt = Date.now() }
+            item.completedAt = Date.now();
+            if (present.state === 'installed') {
+              markPackageInstalled(item.packageId, true);
+              item.installedAt = Date.now();
+            }
           }
-          writeQueue(queue)
-          if (present.state === 'unavailable') await pause()
-          continue
+          writeQueue(queue);
+          if (present.state === 'unavailable') await pause();
+          continue;
         }
       }
 
       if (queue.transport === 'service') {
-        let dispatchAttempt = false
+        let dispatchAttempt = false;
         try {
           if (item.cancelRequested) {
             if (!item.serviceDispatchedAt || !item.requestId) {
-              item.state = 'cancelled'; item.completedAt = Date.now(); item.detail = 'Не отправлен: пакет отменён'; writeQueue(queue); continue
+              item.state = 'cancelled';
+              item.completedAt = Date.now();
+              item.detail = 'Не отправлен: пакет отменён';
+              writeQueue(queue);
+              continue;
             }
-            const previous = await reconcileRemovedServiceJob(queue.psIp, item.requestId, await getServiceInstallJob(queue.psIp, item.requestId))
-            const stopped = ['installed', 'failed', 'cancelled'].includes(previous.state) || (previous.state === 'cancelling' && previous.errorHex.toUpperCase() === '0X80990019')
-              ? previous : await reconcileRemovedServiceJob(queue.psIp, item.requestId, await cancelServiceInstallJob(queue.psIp, item.requestId))
-            const latest = stillCurrent(queue, index); if (!latest) return
-            const target = latest.items[index]!
-            applyServiceJob(target, stopped)
-            if (ACTIVE_STATES.includes(target.state)) target.detail = 'Ожидаем подтверждение отмены текущего пакета с PS4'
-            writeQueue(latest)
-            if (ACTIVE_STATES.includes(target.state)) await pause()
-            continue
+            const previous = await reconcileRemovedServiceJob(
+              queue.psIp!,
+              item.requestId,
+              await getServiceInstallJob(queue.psIp!, item.requestId),
+            );
+            const stopped =
+              ['installed', 'failed', 'cancelled'].includes(previous.state) ||
+              (previous.state === 'cancelling' && previous.errorHex.toUpperCase() === '0X80990019')
+                ? previous
+                : await reconcileRemovedServiceJob(
+                    queue.psIp!,
+                    item.requestId,
+                    await cancelServiceInstallJob(queue.psIp!, item.requestId),
+                  );
+            const latest = stillCurrent(queue, index);
+            if (!latest) return;
+            const target = latest.items[index]!;
+            applyServiceJob(target, stopped);
+            if (ACTIVE_STATES.includes(target.state))
+              target.detail = 'Ожидаем подтверждение отмены текущего пакета с PS4';
+            writeQueue(latest);
+            if (ACTIVE_STATES.includes(target.state)) await pause();
+            continue;
           }
-          let job: ServiceInstallJob
+          let job: ServiceInstallJob;
           if (!item.serviceDispatchedAt) {
             if (packageInfo.contentType === 'PS4GDE') {
-              const capability = await getServiceInstallerStatus(queue.psIp)
-              if (!capability.ready) throw createError({ statusCode: 503, message: capability.message })
-              if (!capability.contentTypes.includes('PS4GDE')) throw createError({ statusCode: 409, message: 'Для установки приложений PS4GDE обновите PackageFlowService до PKG 1.69 или новее' })
+              const capability = await getServiceInstallerStatus(queue.psIp!);
+              if (!capability.ready)
+                throw createError({ statusCode: 503, message: capability.message });
+              if (!capability.contentTypes.includes('PS4GDE'))
+                throw createError({
+                  statusCode: 409,
+                  message:
+                    'Для установки приложений PS4GDE обновите PackageFlowService до PKG 1.69 или новее',
+                });
             }
             // The optional requirements check can read older library metadata.
             // Disabled means no PKG re-read or firmware request before sending.
-            const verifyPkg = getPs4InstallSettings().verifyPkgBeforeSend
-            const metadata = !verifyPkg || packageInfo.requiredFirmware || packageInfo.sdkFirmware ? packageInfo
-              : await readPackageMetadata(packageInfo.path, packageInfo.fileName).catch(() => packageInfo)
-            const firmware = verifyPkg ? await checkPs4Firmware(queue.psIp, metadata) : { state: 'compatible', detail: '' }
-            const checked = stillCurrent(queue, index); if (!checked) return
-            queue = checked; item = queue.items[index]!
-            if (item.cancelRequested) continue
+            const verifyPkg = getPs4InstallSettings().verifyPkgBeforeSend;
+            const metadata =
+              !verifyPkg || packageInfo.requiredFirmware || packageInfo.sdkFirmware
+                ? packageInfo
+                : await readPackageMetadata(packageInfo.path, packageInfo.fileName).catch(
+                    () => packageInfo,
+                  );
+            const firmware = verifyPkg
+              ? await checkPs4Firmware(queue.psIp!, metadata)
+              : { state: 'compatible', detail: '' };
+            const checked = stillCurrent(queue, index);
+            if (!checked) return;
+            queue = checked;
+            item = queue.items[index]!;
+            if (item.cancelRequested) continue;
             if (firmware.state !== 'compatible') {
-              item.state = firmware.state === 'unavailable' ? 'pending' : 'skipped'
-              item.detail = firmware.detail
-              queue.message = `«${packageInfo.title}»: ${firmware.detail}`
-              writeQueue(queue)
-              if (firmware.state === 'unavailable') { await pause(); continue }
-              logEvent('warn', queue.message)
-              continue
-            }
-            const space = await checkPs4InstallSpace(queue.psIp, packageInfo.size)
-            const refreshed = stillCurrent(queue, index); if (!refreshed) return
-            queue = refreshed; item = queue.items[index]!
-            if (item.cancelRequested) continue
-            if (space.state !== 'enough') {
-              item.state = space.state === 'insufficient' ? 'failed' : 'pending'
-              item.detail = installSpaceMessage(space)
-              queue.message = `«${packageInfo.title}»: ${item.detail}`
-              if (space.state === 'insufficient') {
-                queue.status = 'failed'
-                for (const following of queue.items) if (following !== item && following.state === 'pending') {
-                  following.state = 'cancelled'
-                  following.detail = 'Не отправлен: очередь остановлена из-за нехватки места'
-                }
+              item.state = firmware.state === 'unavailable' ? 'pending' : 'skipped';
+              item.detail = firmware.detail;
+              queue.message = `«${packageInfo.title}»: ${firmware.detail}`;
+              writeQueue(queue);
+              if (firmware.state === 'unavailable') {
+                await pause();
+                continue;
               }
-              writeQueue(queue)
-              if (space.state === 'insufficient') { logEvent('warn', queue.message); return }
-              await pause(); continue
+              logEvent('warn', queue.message);
+              continue;
+            }
+            const space = await checkPs4InstallSpace(queue.psIp!, packageInfo.size);
+            const refreshed = stillCurrent(queue, index);
+            if (!refreshed) return;
+            queue = refreshed;
+            item = queue.items[index]!;
+            if (item.cancelRequested) continue;
+            if (space.state !== 'enough') {
+              item.state = space.state === 'insufficient' ? 'failed' : 'pending';
+              item.detail = installSpaceMessage(space);
+              queue.message = `«${packageInfo.title}»: ${item.detail}`;
+              if (space.state === 'insufficient') {
+                queue.status = 'failed';
+                for (const following of queue.items)
+                  if (following !== item && following.state === 'pending') {
+                    following.state = 'cancelled';
+                    following.detail = 'Не отправлен: очередь остановлена из-за нехватки места';
+                  }
+              }
+              writeQueue(queue);
+              if (space.state === 'insufficient') {
+                logEvent('warn', queue.message);
+                return;
+              }
+              await pause();
+              continue;
             }
             // A terminal poll can precede release of the daemon's reservation.
             // Wait before the dispatch boundary instead of rejecting the next game.
-            let active:ServiceInstallJob|null=null
-            try{active=await getActiveServiceInstallJob(queue.psIp)}catch(error:any){if(error?.statusCode!==404)throw error}
-            const available=stillCurrent(queue,index);if(!available)return
-            queue=available;item=queue.items[index]!
-            if(item.cancelRequested)continue
-            if(active&&active.requestId!==item.requestId){item.state='pending';item.detail='Ожидаем завершения предыдущего задания сервиса PS4';queue.message=item.detail;writeQueue(queue);await pause();continue}
-            item.requestId ??= randomUUID()
-            item.state = 'sending'; item.detail = 'Отправляем задание сервису PS4…'; resetPackageDelivery(item.packageId); writeQueue(queue)
-            const icon = await readPackageIcon(item.packageId).catch(() => undefined)
-            if (icon) {
-              try { await uploadServiceInstallIcon(queue.psIp, packageInfo.titleId, item.requestId, icon) }
-              catch (error: any) { logEvent('warn', `Обложка «${packageInfo.title}» не передана на PS4: ${error?.message || error}`) }
+            let active: ServiceInstallJob | null = null;
+            try {
+              active = await getActiveServiceInstallJob(queue.psIp!);
+            } catch (error: any) {
+              if (error?.statusCode !== 404) throw error;
             }
-            const beforeDispatch = stillCurrent(queue, index); if (!beforeDispatch) return
-            if (beforeDispatch.items[index]!.cancelRequested) continue
-            beforeDispatch.items[index]!.serviceDispatchedAt = Date.now()
-            beforeDispatch.items[index]!.dispatchedAt = Date.now()
-            writeQueue(beforeDispatch)
-            dispatchAttempt = true
-            job = await submitServicePackage(queue.psIp, { requestId: item.requestId, titleId: packageInfo.titleId, contentId: packageInfo.contentId,
-              title: packageInfo.title, url: item.url, contentType: packageInfo.contentType, size: packageInfo.size })
+            const available = stillCurrent(queue, index);
+            if (!available) return;
+            queue = available;
+            item = queue.items[index]!;
+            if (item.cancelRequested) continue;
+            if (active && active.requestId !== item.requestId) {
+              item.state = 'pending';
+              item.detail = 'Ожидаем завершения предыдущего задания сервиса PS4';
+              queue.message = item.detail;
+              writeQueue(queue);
+              await pause();
+              continue;
+            }
+            item.requestId ??= randomUUID();
+            item.state = 'sending';
+            item.detail = 'Отправляем задание сервису PS4…';
+            resetPackageDelivery(item.packageId);
+            writeQueue(queue);
+            const icon = await readPackageIcon(item.packageId).catch(() => undefined);
+            if (icon) {
+              try {
+                await uploadServiceInstallIcon(
+                  queue.psIp!,
+                  packageInfo.titleId,
+                  item.requestId,
+                  icon,
+                );
+              } catch (error: any) {
+                logEvent(
+                  'warn',
+                  `Обложка «${packageInfo.title}» не передана на PS4: ${error?.message || error}`,
+                );
+              }
+            }
+            const beforeDispatch = stillCurrent(queue, index);
+            if (!beforeDispatch) return;
+            if (beforeDispatch.items[index]!.cancelRequested) continue;
+            beforeDispatch.items[index]!.serviceDispatchedAt = Date.now();
+            beforeDispatch.items[index]!.dispatchedAt = Date.now();
+            writeQueue(beforeDispatch);
+            dispatchAttempt = true;
+            job = await submitServicePackage(queue.psIp!, {
+              requestId: item.requestId,
+              titleId: packageInfo.titleId,
+              contentId: packageInfo.contentId,
+              title: packageInfo.title,
+              url: item.url,
+              contentType: packageInfo.contentType,
+              size: packageInfo.size,
+            });
           } else {
             // The dispatch boundary is durable before the POST. A lost reply or
             // server restart only resumes GETs for that ID, never another POST.
-            if (!item.requestId) throw createError({ statusCode: 409, message: 'Идентификатор принятого задания неизвестен; проверьте PS4' })
-            job = await reconcileRemovedServiceJob(queue.psIp, item.requestId, await getServiceInstallJob(queue.psIp, item.requestId))
+            if (!item.requestId)
+              throw createError({
+                statusCode: 409,
+                message: 'Идентификатор принятого задания неизвестен; проверьте PS4',
+              });
+            job = await reconcileRemovedServiceJob(
+              queue.psIp!,
+              item.requestId,
+              await getServiceInstallJob(queue.psIp!, item.requestId),
+            );
           }
-          const updated = stillCurrent(queue, index) || stillCurrent(queue, index, 'cancelling'); if (!updated) return
-          const current = updated.items[index]!
-          applyServiceJob(current, job)
-          const stalled = updated.status === 'running' && (current.serviceStallCancelled
-            ? (job.state === 'cancelling' || job.state === 'uncertain') && Date.now() - (current.serviceIdleSince || Date.now()) >= STALLED_CANCEL_RETRY_MS
-            : stalledServiceJob(current, job, packageInfo.contentType))
-          updated.message = `${index + 1} из ${updated.items.length}: «${packageInfo.title}». ${current.detail}`
-          writeQueue(updated)
-          if (updated.status !== 'running') return
+          const updated = stillCurrent(queue, index) || stillCurrent(queue, index, 'cancelling');
+          if (!updated) return;
+          const current = updated.items[index]!;
+          applyServiceJob(current, job);
+          const stalled =
+            updated.status === 'running' &&
+            (current.serviceStallCancelled
+              ? (job.state === 'cancelling' || job.state === 'uncertain') &&
+                Date.now() - (current.serviceIdleSince || Date.now()) >= STALLED_CANCEL_RETRY_MS
+              : stalledServiceJob(current, job, packageInfo.contentType));
+          updated.message = `${index + 1} из ${updated.items.length}: «${packageInfo.title}». ${current.detail}`;
+          writeQueue(updated);
+          if (updated.status !== 'running') return;
           if (stalled) {
             // BGFT can retain a suspended task with 100% transferred and no
             // error code. Stop it only after an extended period with no copy,
             // preparation, or AppInst activity; never infer installation.
             try {
-              const stopped = await cancelServiceInstallJob(queue.psIp, item.requestId!)
-              const latest = stillCurrent(updated, index); if (!latest) return
-              const stalledItem = latest.items[index]!
-              stalledItem.serviceStallCancelled = true
-              stalledItem.serviceIdleSince = Date.now()
-              applyServiceJob(stalledItem, stopped)
-              if (stalledItem.state === 'verifying') stalledItem.detail = 'PS4 не подтвердила установку; ожидаем снятия остановленного задания'
-              latest.message = `${index + 1} из ${latest.items.length}: «${packageInfo.title}». ${stalledItem.detail}`
-              writeQueue(latest)
-              continue
+              const stopped = await cancelServiceInstallJob(queue.psIp!, item.requestId!);
+              const latest = stillCurrent(updated, index);
+              if (!latest) return;
+              const stalledItem = latest.items[index]!;
+              stalledItem.serviceStallCancelled = true;
+              stalledItem.serviceIdleSince = Date.now();
+              applyServiceJob(stalledItem, stopped);
+              if (stalledItem.state === 'verifying')
+                stalledItem.detail =
+                  'PS4 не подтвердила установку; ожидаем снятия остановленного задания';
+              latest.message = `${index + 1} из ${latest.items.length}: «${packageInfo.title}». ${stalledItem.detail}`;
+              writeQueue(latest);
+              continue;
             } catch (error: any) {
-              const latest = stillCurrent(updated, index); if (!latest) return
-              latest.items[index]!.serviceIdleSince = Date.now()
-              latest.items[index]!.detail = `Полная загрузка без подтверждения PS4; снять задание пока не удалось (${error?.message || 'нет ответа'})`
-              latest.message = latest.items[index]!.detail
-              writeQueue(latest)
-              await pause(); continue
+              const latest = stillCurrent(updated, index);
+              if (!latest) return;
+              latest.items[index]!.serviceIdleSince = Date.now();
+              latest.items[index]!.detail =
+                `Полная загрузка без подтверждения PS4; снять задание пока не удалось (${error?.message || 'нет ответа'})`;
+              latest.message = latest.items[index]!.detail;
+              writeQueue(latest);
+              await pause();
+              continue;
             }
           }
-          if (current.state === 'installed') { logEvent('info', `PackageFlowService подтвердил установку «${packageInfo.title}» (задание PS4 ${job.taskId})`); continue }
-          if (current.state === 'failed' || current.state === 'cancelled' || current.state === 'unconfirmed') {
-            logEvent('warn', `PackageFlowService не установил «${packageInfo.title}»: ${current.detail}. Очередь продолжена.`)
-            continue
+          if (current.state === 'installed') {
+            logEvent(
+              'info',
+              `PackageFlowService подтвердил установку «${packageInfo.title}» (задание PS4 ${job.taskId})`,
+            );
+            continue;
+          }
+          if (
+            current.state === 'failed' ||
+            current.state === 'cancelled' ||
+            current.state === 'unconfirmed'
+          ) {
+            logEvent(
+              'warn',
+              `PackageFlowService не установил «${packageInfo.title}»: ${current.detail}. Очередь продолжена.`,
+            );
+            continue;
           }
         } catch (error: any) {
-          const updated = stillCurrent(queue, index) || stillCurrent(queue, index, 'cancelling'); if (!updated) return
-          const current = updated.items[index]!
-          const serviceError = error?.data?.serviceError
-          if (serviceError === 'another_service_job_active' && error.statusCode === 409 && updated.status === 'running') {
+          const updated = stillCurrent(queue, index) || stillCurrent(queue, index, 'cancelling');
+          if (!updated) return;
+          const current = updated.items[index]!;
+          const serviceError = error?.data?.serviceError;
+          if (
+            serviceError === 'another_service_job_active' &&
+            error.statusCode === 409 &&
+            updated.status === 'running'
+          ) {
             // This explicit rejection did not register our request. Keep its ID,
             // wait for the reservation, and recheck inventory before dispatch.
-            delete current.serviceDispatchedAt; delete current.dispatchedAt
-            delete current.serviceJobId; delete current.serviceTaskId
-            current.state = 'pending'
-            current.detail = 'Ожидаем завершения предыдущего задания сервиса PS4'
-            updated.message = current.detail
-            writeQueue(updated)
-            await pause(); continue
+            delete current.serviceDispatchedAt;
+            delete current.dispatchedAt;
+            delete current.serviceJobId;
+            delete current.serviceTaskId;
+            current.state = 'pending';
+            current.detail = 'Ожидаем завершения предыдущего задания сервиса PS4';
+            updated.message = current.detail;
+            writeQueue(updated);
+            await pause();
+            continue;
           }
-          const alreadyPresent = serviceError === 'component_already_installed' || serviceError === 'game_already_exists_no_overwrite'
-          const packageRejected = alreadyPresent || serviceError === 'base_game_not_installed'
+          const alreadyPresent =
+            serviceError === 'component_already_installed' ||
+            serviceError === 'game_already_exists_no_overwrite';
+          const packageRejected = alreadyPresent || serviceError === 'base_game_not_installed';
           if (packageRejected && updated.status === 'running') {
-            current.state = 'skipped'
-            current.detail = error.message
-            updated.message = `${index + 1} из ${updated.items.length}: «${packageInfo.title}». ${current.detail}`
-            writeQueue(updated)
-            logEvent('warn', `PackageFlowService пропустил «${packageInfo.title}»: ${current.detail}. Очередь продолжена.`)
-            continue
+            current.state = 'skipped';
+            current.detail = error.message;
+            updated.message = `${index + 1} из ${updated.items.length}: «${packageInfo.title}». ${current.detail}`;
+            writeQueue(updated);
+            logEvent(
+              'warn',
+              `PackageFlowService пропустил «${packageInfo.title}»: ${current.detail}. Очередь продолжена.`,
+            );
+            continue;
           }
-          if (dispatchAttempt && [400,422].includes(error?.statusCode) && updated.status === 'running') {
-            current.state = 'failed'; current.completedAt = Date.now()
-            current.detail = error.message; updated.message = current.detail
-            writeQueue(updated)
-            logEvent('warn', `PackageFlowService отклонил «${packageInfo.title}»: ${current.detail}. Очередь продолжена.`)
-            continue
+          if (
+            dispatchAttempt &&
+            [400, 422].includes(error?.statusCode) &&
+            updated.status === 'running'
+          ) {
+            current.state = 'failed';
+            current.completedAt = Date.now();
+            current.detail = error.message;
+            updated.message = current.detail;
+            writeQueue(updated);
+            logEvent(
+              'warn',
+              `PackageFlowService отклонил «${packageInfo.title}»: ${current.detail}. Очередь продолжена.`,
+            );
+            continue;
           }
           // Other explicit rejections stop the queue. Connection/5xx errors
           // may have occurred after acceptance, so keep observing the same ID.
           // Only explicit package rejection at POST proves it wasn't accepted.
           // A missing receipt during later GETs remains ambiguous, as does 5xx.
-          const rejected = error?.statusCode >= 400 && error.statusCode < 500 && (dispatchAttempt || !current.serviceDispatchedAt || [401,403].includes(error.statusCode))
-          current.state = rejected ? 'failed' : 'verifying'
-          current.detail = error?.statusCode ? error.message : 'Связь с сервисом потеряна; проверяем прежнее задание без повторной отправки'
-          updated.message = current.detail
-          if (rejected && updated.status !== 'cancelling') updated.status = 'failed'
-          writeQueue(updated)
-          if (rejected) return
+          const rejected =
+            error?.statusCode >= 400 &&
+            error.statusCode < 500 &&
+            (dispatchAttempt ||
+              !current.serviceDispatchedAt ||
+              [401, 403].includes(error.statusCode));
+          current.state = rejected ? 'failed' : 'verifying';
+          current.detail = error?.statusCode
+            ? error.message
+            : 'Связь с сервисом потеряна; проверяем прежнее задание без повторной отправки';
+          updated.message = current.detail;
+          if (rejected && updated.status !== 'cancelling') updated.status = 'failed';
+          writeQueue(updated);
+          if (rejected) return;
         }
-        await pause(); continue
+        await pause();
+        continue;
       }
 
       if (item.state === 'pending' || item.state === 'sending') {
         // PyLoader exposes neither firmware nor installed inventory. Never call
         // PackageFlowService for this transport, even when a service key exists.
-        const metadata = getPs4InstallSettings().verifyPkgBeforeSend && !bootstrap
-          ? packageInfo.requiredFirmware || packageInfo.sdkFirmware ? packageInfo
-            : await readPackageMetadata(packageInfo.path, packageInfo.fileName).catch(() => packageInfo)
-          : packageInfo
-        const savedFirmware = readJsonFile<{ consoles?: Array<{ ip: string; firmware?: string }> }>(dataPath('console-profiles.json'), {}).consoles?.find(profile => profile.ip === queue.psIp)?.firmware
-        const firmware = bootstrap ? assessPackageFirmware('0.00', metadata)
-          : getPs4InstallSettings().verifyPkgBeforeSend && savedFirmware ? assessPackageFirmware(savedFirmware, metadata)
-            : { state: 'compatible', detail: '' }
-        const checked = stillCurrent(queue, index); if (!checked) return
-        queue = checked; item = queue.items[index]!
-        if (item.cancelRequested) continue
+        const metadata =
+          getPs4InstallSettings().verifyPkgBeforeSend && !bootstrap
+            ? packageInfo.requiredFirmware || packageInfo.sdkFirmware
+              ? packageInfo
+              : await readPackageMetadata(packageInfo.path, packageInfo.fileName).catch(
+                  () => packageInfo,
+                )
+            : packageInfo;
+        const savedFirmware = readJsonFile<{ consoles?: Array<{ ip: string; firmware?: string }> }>(
+          dataPath('console-profiles.json'),
+          {},
+        ).consoles?.find((profile) => profile.ip === queue.psIp)?.firmware;
+        const firmware = bootstrap
+          ? assessPackageFirmware('0.00', metadata)
+          : getPs4InstallSettings().verifyPkgBeforeSend && savedFirmware
+            ? assessPackageFirmware(savedFirmware, metadata)
+            : { state: 'compatible', detail: '' };
+        const checked = stillCurrent(queue, index);
+        if (!checked) return;
+        queue = checked;
+        item = queue.items[index]!;
+        if (item.cancelRequested) continue;
         if (firmware.state !== 'compatible') {
-          item.state = firmware.state === 'unavailable' ? 'pending' : 'skipped'
-          item.detail = firmware.detail; queue.message = `«${packageInfo.title}»: ${firmware.detail}`; writeQueue(queue)
-          if (firmware.state === 'unavailable') await pause()
-          continue
+          item.state = firmware.state === 'unavailable' ? 'pending' : 'skipped';
+          item.detail = firmware.detail;
+          queue.message = `«${packageInfo.title}»: ${firmware.detail}`;
+          writeQueue(queue);
+          if (firmware.state === 'unavailable') await pause();
+          continue;
         }
-        item.state = 'sending'
-        item.detail = 'Передаём задание загрузчику…'
-        queue.message = `Передаём ${index + 1} из ${queue.items.length}: «${packageInfo.title}»`
-        writeQueue(queue)
+        item.state = 'sending';
+        item.detail = 'Передаём задание загрузчику…';
+        queue.message = `Передаём ${index + 1} из ${queue.items.length}: «${packageInfo.title}»`;
+        writeQueue(queue);
 
-        await startInstaller(queue.psIp)
-        if (!stillCurrent(queue, index)) return
-        resetPackageDelivery(item.packageId)
-        const iconData = await readPackageIcon(item.packageId).catch(() => undefined)
-        if (!stillCurrent(queue, index)) return
-        if (bootstrap) isServiceBootstrap(queue, getPackage(item.packageId))
-        await sendPackage({ url: item.url, title: packageInfo.title, contentId: packageInfo.contentId, contentType: packageInfo.contentType, size: packageInfo.size, iconData })
+        await startInstaller(queue.psIp!);
+        if (!stillCurrent(queue, index)) return;
+        resetPackageDelivery(item.packageId);
+        const iconData = await readPackageIcon(item.packageId).catch(() => undefined);
+        if (!stillCurrent(queue, index)) return;
+        if (bootstrap) isServiceBootstrap(queue, getPackage(item.packageId));
+        await sendPackage({
+          url: item.url,
+          title: packageInfo.title,
+          contentId: packageInfo.contentId,
+          contentType: packageInfo.contentType,
+          size: packageInfo.size,
+          iconData,
+        });
 
-        const updated = readQueue()
-        const current = updated.items[index]
+        const updated = readQueue();
+        const current = updated.items[index];
         // Cancelled while the job was being handed over: the cancel already cut the transfer.
-        if (!current || updated.id !== queue.id || updated.status !== 'running' || current.packageId !== item.packageId || !ACTIVE_STATES.includes(current.state)) return
-        current.state = 'waiting'
-        current.detail = 'Задание получено PS4; ожидаем скачивание'
-        current.dispatchedAt = Date.now()
-        updated.currentIndex = index
-        updated.message = `PS4 загружает ${index + 1} из ${updated.items.length}: «${packageInfo.title}». Следующий пакет ожидает.`
-        writeQueue(updated)
-        continue
+        if (
+          !current ||
+          updated.id !== queue.id ||
+          updated.status !== 'running' ||
+          current.packageId !== item.packageId ||
+          !ACTIVE_STATES.includes(current.state)
+        )
+          return;
+        current.state = 'waiting';
+        current.detail = 'Задание получено PS4; ожидаем скачивание';
+        current.dispatchedAt = Date.now();
+        updated.currentIndex = index;
+        updated.message = `PS4 загружает ${index + 1} из ${updated.items.length}: «${packageInfo.title}». Следующий пакет ожидает.`;
+        writeQueue(updated);
+        continue;
       }
 
-      const delivery = getPackageDelivery(item.packageId)
-      item.bytesSent = Math.min(delivery.bytesSent, delivery.size)
+      const delivery = getPackageDelivery(item.packageId);
+      item.bytesSent = Math.min(delivery.bytesSent, delivery.size);
       if (delivery.completedAt) {
-        item.state = delivery.partial ? 'unconfirmed' : 'delivered'
-        item.completedAt = delivery.completedAt
-        if (!delivery.partial) item.bytesSent = delivery.size
+        item.state = delivery.partial ? 'unconfirmed' : 'delivered';
+        item.completedAt = delivery.completedAt;
+        if (!delivery.partial) item.bytesSent = delivery.size;
         item.detail = delivery.partial
           ? `PS4 перестала запрашивать данные (получено ${formatBytes(item.bytesSent)} из ${formatBytes(delivery.requiredSize)}). Проверьте результат на приставке`
-          : 'PS4 скачала пакет полностью; установка идёт на приставке'
-        logEvent(delivery.partial ? 'warn' : 'info', `«${packageInfo.title}» (${packageInfo.type}): ${item.detail}`)
-        writeQueue(queue)
-        continue
+          : 'PS4 скачала пакет полностью; установка идёт на приставке';
+        logEvent(
+          delivery.partial ? 'warn' : 'info',
+          `«${packageInfo.title}» (${packageInfo.type}): ${item.detail}`,
+        );
+        writeQueue(queue);
+        continue;
       }
 
       if (item.bytesSent > 0) {
-        item.state = 'receiving'
-        item.detail = `PS4 получила ${formatBytes(Math.min(item.bytesSent, delivery.requiredSize))} из ${formatBytes(delivery.requiredSize)}`
-        writeQueue(queue)
+        item.state = 'receiving';
+        item.detail = `PS4 получила ${formatBytes(Math.min(item.bytesSent, delivery.requiredSize))} из ${formatBytes(delivery.requiredSize)}`;
+        writeQueue(queue);
       } else if (delivery.requests > 0) {
         // A rejected BGFT job can request only the manifest/HEAD and never
         // fetch body bytes. Don't let that empty observation hold the tail forever.
-        if (delivery.lastActivityAt && Date.now() - delivery.lastActivityAt >= 30_000 && !isPackageTransferActive(item.packageId)) {
-          item.state = 'unconfirmed'; item.completedAt = Date.now()
-          item.detail = 'PS4 запросила сведения о пакете, но скачивание не началось. Итог не подтверждён; очередь продолжена'
-          writeQueue(queue); continue
+        if (
+          delivery.lastActivityAt &&
+          Date.now() - delivery.lastActivityAt >= 30_000 &&
+          !isPackageTransferActive(item.packageId)
+        ) {
+          item.state = 'unconfirmed';
+          item.completedAt = Date.now();
+          item.detail =
+            'PS4 запросила сведения о пакете, но скачивание не началось. Итог не подтверждён; очередь продолжена';
+          writeQueue(queue);
+          continue;
         }
         // An active or recent request may still be opening a slow source.
-        if (item.detail !== 'PS4 запросила пакет, начинает скачивание…') { item.detail = 'PS4 запросила пакет, начинает скачивание…'; writeQueue(queue) }
+        if (item.detail !== 'PS4 запросила пакет, начинает скачивание…') {
+          item.detail = 'PS4 запросила пакет, начинает скачивание…';
+          writeQueue(queue);
+        }
       } else if (item.dispatchedAt && Date.now() - item.dispatchedAt >= UNCONFIRMED_AFTER_MS) {
-        logEvent('warn', `PS4 не запросила «${packageInfo.title}» за 20 с — результат не подтверждён`)
-        item.state = 'unconfirmed'
-        item.detail = 'PS4 не запросила файл: проверьте загрузки на консоли; установка не подтверждена'
-        writeQueue(queue)
-        continue
+        logEvent(
+          'warn',
+          `PS4 не запросила «${packageInfo.title}» за 20 с — результат не подтверждён`,
+        );
+        item.state = 'unconfirmed';
+        item.detail =
+          'PS4 не запросила файл: проверьте загрузки на консоли; установка не подтверждена';
+        writeQueue(queue);
+        continue;
       }
-      await pause()
+      await pause();
     }
   } catch (error: any) {
-    const queue = readQueue()
+    const queue = readQueue();
     if (queue.status === 'running') {
-      const current = queue.currentIndex === undefined ? undefined : queue.items[queue.currentIndex]
-      if (current) { current.state = 'failed'; current.detail = (error?.statusCode && error.message) || 'Не удалось передать задание' }
-      queue.status = 'failed'
-      queue.message = (error?.statusCode && error.message) || 'Не удалось передать очередь установщику'
-      logEvent('error', `Очередь установки остановлена: ${queue.message}`, error?.statusCode ? '' : error)
-      writeQueue(queue)
+      const current =
+        queue.currentIndex === undefined ? undefined : queue.items[queue.currentIndex];
+      if (current) {
+        current.state = 'failed';
+        current.detail = (error?.statusCode && error.message) || 'Не удалось передать задание';
+      }
+      queue.status = 'failed';
+      queue.message =
+        (error?.statusCode && error.message) || 'Не удалось передать очередь установщику';
+      logEvent(
+        'error',
+        `Очередь установки остановлена: ${queue.message}`,
+        error?.statusCode ? '' : error,
+      );
+      writeQueue(queue);
     }
   } finally {
-    runners.delete(runnerKey())
-    releaseWorker()
-    const final = readQueue()
-    if (final.status === 'cancelling' || (final.status === 'running' && final.items.some(item => ACTIVE_STATES.includes(item.state)))) ensureInstallationQueueRunning()
+    runners.delete(runnerKey());
+    releaseWorker();
+    const final = readQueue();
+    if (
+      final.status === 'cancelling' ||
+      (final.status === 'running' && final.items.some((item) => ACTIVE_STATES.includes(item.state)))
+    )
+      ensureInstallationQueueRunning();
   }
 }
 
 /** Restarts a persisted queue after a browser or server reload without re-sending its current job. */
 function ensureInstallationQueueRunningScoped() {
-  const queue = readQueue()
-  if ((queue.status === 'running' || queue.status === 'cancelling' || busyRejectedQueue(queue)) && queue.psIp && !runners.has(runnerKey())) {
+  const queue = readQueue();
+  if (
+    (queue.status === 'running' || queue.status === 'cancelling' || busyRejectedQueue(queue)) &&
+    queue.psIp &&
+    !runners.has(runnerKey())
+  ) {
     // Persisted legacy queues must obey the same rule after WEB restarts.
     // Keep receipts intact; the user can cancel the conflicting queue.
-    const conflict = ps4TransportConflict(queue.psIp, queue.transport || 'payload')
+    const conflict = ps4TransportConflict(queue.psIp, queue.transport || 'payload');
     if (conflict && queue.status !== 'cancelling') {
-      if (queue.message !== conflict) { queue.message = conflict; writeQueue(queue) }
-      return publicQueue(queue)
+      if (queue.message !== conflict) {
+        queue.message = conflict;
+        writeQueue(queue);
+      }
+      return publicQueue(queue);
     }
-    const release = claimConsoleWorker('installation', queue.psIp)
-    if (release) { const key = runnerKey(); const running = Promise.resolve().then(() => runQueue(release)); runners.set(key, running) }
+    const release = claimConsoleWorker('installation', queue.psIp);
+    if (release) {
+      const key = runnerKey();
+      const running = Promise.resolve().then(() => runQueue(release));
+      runners.set(key, running);
+    }
   }
-  return publicQueue(queue)
+  return publicQueue(queue);
 }
 
 function getInstallationQueueScoped() {
-  ensureInstallationQueueRunning()
-  return publicQueue(readQueue())
+  ensureInstallationQueueRunning();
+  return publicQueue(readQueue());
 }
 
-function createQueueItems(packageIds: string[], packageUrls: Record<string, string>, transport: InstallationTransport): InstallationQueueItem[] {
+function createQueueItems(
+  packageIds: string[],
+  packageUrls: Record<string, string>,
+  transport: InstallationTransport,
+): InstallationQueueItem[] {
   return packageIds.map((packageId) => {
-    const item = getPackage(packageId)
-    if (contentPlatform(item) !== 'ps4' || contentFormat(item) !== 'pkg') throw createError({ statusCode: 400, message: 'Установщик PS4 принимает только пакеты PS4. Для PS5 нужен соответствующий backend.' })
-    if (transport === 'service' && !['PS4GD', 'PS4GP', 'PS4AC', 'PS4AL', 'PS4GDE'].includes(item.contentType)) throw createError({ statusCode: 400, message: 'Этот тип PKG пока не поддерживается сервисом PS4' })
-    let url = packageUrls[packageId]
-    if (!url || !/^https?:\/\//.test(url)) throw createError({ statusCode: 400, message: `Не найден PS4 URL для «${item.title}»` })
-    const address = new URL(url)
+    const item = getPackage(packageId);
+    if (contentPlatform(item) !== 'ps4' || contentFormat(item) !== 'pkg')
+      throw createError({
+        statusCode: 400,
+        message:
+          'Установщик PS4 принимает только пакеты PS4. Для PS5 нужен соответствующий backend.',
+      });
+    if (
+      transport === 'service' &&
+      !['PS4GD', 'PS4GP', 'PS4AC', 'PS4AL', 'PS4GDE'].includes(item.contentType)
+    )
+      throw createError({
+        statusCode: 400,
+        message: 'Этот тип PKG пока не поддерживается сервисом PS4',
+      });
+    let url = packageUrls[packageId];
+    if (!url || !/^https?:\/\//.test(url))
+      throw createError({ statusCode: 400, message: `Не найден PS4 URL для «${item.title}»` });
+    const address = new URL(url);
     // BGFT checks the complete URL suffix before fetching. Keep destination
     // scope in the path so the manifest ends in .json, without a query.
     if (address.pathname === `/json/${packageId}.json` && currentConsoleIp()) {
-      address.pathname = `/ps4/manifest/${currentConsoleIp()}/${packageId}.json`
-      address.search = ''; address.hash = ''; url = address.toString()
+      address.pathname = `/ps4/manifest/${currentConsoleIp()}/${packageId}.json`;
+      address.search = '';
+      address.hash = '';
+      url = address.toString();
     }
-    return { packageId, title: item.title, fileName: item.fileName, size: item.size, type: item.type, titleId: item.titleId, url, state: 'pending', detail: 'Ожидает очереди', bytesSent: 0 }
-  })
+    return {
+      packageId,
+      title: item.title,
+      fileName: item.fileName,
+      size: item.size,
+      type: item.type,
+      titleId: item.titleId,
+      url,
+      state: 'pending',
+      detail: 'Ожидает очереди',
+      bytesSent: 0,
+    };
+  });
 }
 
-function startInstallationQueueScoped(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string; bootstrapArtifactId?: string }) {
-  assertDesktopWritable()
-  const profiles = readJsonFile<{ consoles?: Array<{ ip: string; platform: string }> }>(dataPath('console-profiles.json'), {})
-  if (profiles.consoles?.some(item => item.ip === input.psIp && item.platform === 'ps5')) throw createError({ statusCode: 409, message: 'Установка на PS5 через маршрут PS4 недоступна. Нужен подтверждённый backend PS5.' })
-  assertNoMaintenance(input.psIp, input.maintenanceId)
-  assertNoRemoval(input.psIp)
-  assertNoFileInstallation(input.psIp)
-  const active = readQueue()
-  if (active.status === 'running' || active.status === 'cancelling') throw createError({ statusCode: 409, message: 'Очередь уже работает; дождитесь её завершения или отмены' })
-  let transport: InstallationTransport
-  try { transport = input.transport === undefined ? getInstallationPreference() : installationTransport(input.transport) }
-  catch { throw createError({ statusCode: 400, message: 'Неизвестный способ установки' }) }
-  assertPs4TransportAdmission(input.psIp, transport)
-  if (transport === 'service' && !serviceKeyConfigured(input.psIp)) throw createError({ statusCode: 409, message: 'Сначала подключите PS4 в разделе «Устройства»' })
-  const packageIds = [...new Set(input.packageIds)]
-  if (!packageIds.length) throw createError({ statusCode: 400, message: 'Нет пакетов для установки' })
-  const items = createQueueItems(packageIds, input.packageUrls, transport)
-  archiveQueue(active)
-  const queue: InstallationQueue = { version: 1, id: input.maintenanceId || randomUUID(), maintenanceId: input.maintenanceId, bootstrapArtifactId: input.bootstrapArtifactId, transport, status: 'running', psIp: input.psIp, items, createdAt: Date.now(), message: 'Подготавливаем последовательную очередь установки…' }
-  if (input.bootstrapArtifactId) for (const item of items) isServiceBootstrap(queue, getPackage(item.packageId))
-  writeQueue(queue)
-  logEvent('info', `${transport === 'service' ? 'PackageFlowService' : 'PyLoader'}: очередь установки, пакетов ${items.length}`)
-  ensureInstallationQueueRunning()
-  return publicQueue(queue)
+function startInstallationQueueScoped(input: {
+  psIp: string;
+  packageIds: string[];
+  packageUrls: Record<string, string>;
+  transport?: unknown;
+  maintenanceId?: string;
+  bootstrapArtifactId?: string;
+}) {
+  assertDesktopWritable();
+  const profiles = readJsonFile<{ consoles?: Array<{ ip: string; platform: string }> }>(
+    dataPath('console-profiles.json'),
+    {},
+  );
+  if (profiles.consoles?.some((item) => item.ip === input.psIp && item.platform === 'ps5'))
+    throw createError({
+      statusCode: 409,
+      message: 'Установка на PS5 через маршрут PS4 недоступна. Нужен подтверждённый backend PS5.',
+    });
+  assertNoMaintenance(input.psIp, input.maintenanceId);
+  assertNoRemoval(input.psIp);
+  assertNoFileInstallation(input.psIp);
+  const active = readQueue();
+  if (active.status === 'running' || active.status === 'cancelling')
+    throw createError({
+      statusCode: 409,
+      message: 'Очередь уже работает; дождитесь её завершения или отмены',
+    });
+  let transport: InstallationTransport;
+  try {
+    transport =
+      input.transport === undefined
+        ? getInstallationPreference()
+        : installationTransport(input.transport);
+  } catch {
+    throw createError({ statusCode: 400, message: 'Неизвестный способ установки' });
+  }
+  assertPs4TransportAdmission(input.psIp, transport);
+  if (transport === 'service' && !serviceKeyConfigured(input.psIp))
+    throw createError({
+      statusCode: 409,
+      message: 'Сначала подключите PS4 в разделе «Устройства»',
+    });
+  const packageIds = [...new Set(input.packageIds)];
+  if (!packageIds.length)
+    throw createError({ statusCode: 400, message: 'Нет пакетов для установки' });
+  const items = createQueueItems(packageIds, input.packageUrls, transport);
+  archiveQueue(active);
+  const queue: InstallationQueue = {
+    version: 1,
+    id: input.maintenanceId || randomUUID(),
+    maintenanceId: input.maintenanceId,
+    bootstrapArtifactId: input.bootstrapArtifactId,
+    transport,
+    status: 'running',
+    psIp: input.psIp,
+    items,
+    createdAt: Date.now(),
+    message: 'Подготавливаем последовательную очередь установки…',
+  };
+  if (input.bootstrapArtifactId)
+    for (const item of items) isServiceBootstrap(queue, getPackage(item.packageId));
+  writeQueue(queue);
+  logEvent(
+    'info',
+    `${transport === 'service' ? 'PackageFlowService' : 'PyLoader'}: очередь установки, пакетов ${items.length}`,
+  );
+  ensureInstallationQueueRunning();
+  return publicQueue(queue);
 }
 
 /** Resume only the unsent tail; accepted receipts and removals are never replayed. */
 function resumeInstallationQueueScoped(expectedId: string, ip: string) {
-  assertDesktopWritable()
-  const current = readQueue()
-  const source = current.id === expectedId ? current : getInstallationHistoryScoped().find(queue => queue.id === expectedId && queue.psIp === ip)
-  if (!source || source.psIp !== ip || !['failed', 'completed'].includes(source.status) || !canManageInstallationQueue(source))
-    throw createError({ statusCode: 409, message: 'Остановленная очередь изменилась. Обновите задания' })
-  const targets = source.items.filter(item => item.state === 'pending' && !item.serviceDispatchedAt && !item.dispatchedAt && !item.cancelRequested)
-  if (!targets.length) throw createError({ statusCode: 409, message: 'В этой очереди нет неотправленных пакетов' })
-  const resumed = startInstallationQueueScoped({ psIp: ip, transport: source.transport,
-    packageIds: targets.map(item => item.packageId), packageUrls: Object.fromEntries(targets.map(item => [item.packageId, item.url])) })
-  const ids = new Set(targets.map(item => item.packageId))
-  const history = getInstallationHistoryScoped().map(queue => {
-    if (queue.id !== expectedId) return queue
-    for (const item of queue.items) if (ids.has(item.packageId)) {
-      item.state = 'cancelled'; item.completedAt = Date.now(); item.detail = `Неотправленный пакет перенесён в очередь ${resumed.id}`
-    }
-    return queue
-  })
-  writeJsonFile(historyPath(), history)
-  return resumed
+  assertDesktopWritable();
+  const current = readQueue();
+  const source =
+    current.id === expectedId
+      ? current
+      : getInstallationHistoryScoped().find(
+          (queue) => queue.id === expectedId && queue.psIp === ip,
+        );
+  if (
+    !source ||
+    source.psIp !== ip ||
+    !['failed', 'completed'].includes(source.status) ||
+    !canManageInstallationQueue(source)
+  )
+    throw createError({
+      statusCode: 409,
+      message: 'Остановленная очередь изменилась. Обновите задания',
+    });
+  const targets = source.items.filter(
+    (item) =>
+      item.state === 'pending' &&
+      !item.serviceDispatchedAt &&
+      !item.dispatchedAt &&
+      !item.cancelRequested,
+  );
+  if (!targets.length)
+    throw createError({ statusCode: 409, message: 'В этой очереди нет неотправленных пакетов' });
+  const resumed = startInstallationQueueScoped({
+    psIp: ip,
+    transport: source.transport,
+    packageIds: targets.map((item) => item.packageId),
+    packageUrls: Object.fromEntries(targets.map((item) => [item.packageId, item.url])),
+  });
+  const ids = new Set(targets.map((item) => item.packageId));
+  const history = getInstallationHistoryScoped().map((queue) => {
+    if (queue.id !== expectedId) return queue;
+    for (const item of queue.items)
+      if (ids.has(item.packageId)) {
+        item.state = 'cancelled';
+        item.completedAt = Date.now();
+        item.detail = `Неотправленный пакет перенесён в очередь ${resumed.id}`;
+      }
+    return queue;
+  });
+  writeJsonFile(historyPath(), history);
+  return resumed;
 }
 
 /** Appends new packages without touching a job already accepted by PS4. */
-function appendInstallationQueueScoped(input: { psIp: string; queueId: string; packageIds: string[]; packageUrls: Record<string, string> }) {
-  const queue = readQueue()
-  if (queue.status !== 'running' || !queue.id || queue.id !== input.queueId || queue.psIp !== input.psIp)
-    throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите страницу и повторите добавление.' })
-  if (queue.maintenanceId) throw createError({ statusCode: 409, message: 'Идёт обновление сервиса; дождитесь его завершения.' })
-  assertNoMaintenance(input.psIp)
-  assertNoRemoval(input.psIp)
-  if(input.packageIds.some(id=>queue.items.some(item=>item.packageId===id&&!ACTIVE_STATES.includes(item.state)))) throw createError({statusCode:409,message:'Задание этого пакета уже завершено в текущей очереди. Дождитесь завершения очереди перед новым заданием'})
-  const seen = new Set(queue.items.filter(item=>ACTIVE_STATES.includes(item.state)).map((item) => item.packageId))
-  const packageIds = [...new Set(input.packageIds)].filter((id) => !seen.has(id))
-  if (!packageIds.length) throw createError({ statusCode: 409, message: 'Выбранные пакеты уже находятся в очереди.' })
-  const additions = createQueueItems(packageIds, input.packageUrls, queue.transport || 'payload')
-  queue.items.push(...additions)
+function appendInstallationQueueScoped(input: {
+  psIp: string;
+  queueId: string;
+  packageIds: string[];
+  packageUrls: Record<string, string>;
+}) {
+  const queue = readQueue();
+  if (
+    queue.status !== 'running' ||
+    !queue.id ||
+    queue.id !== input.queueId ||
+    queue.psIp !== input.psIp
+  )
+    throw createError({
+      statusCode: 409,
+      message: 'Очередь изменилась. Обновите страницу и повторите добавление.',
+    });
+  if (queue.maintenanceId)
+    throw createError({
+      statusCode: 409,
+      message: 'Идёт обновление сервиса; дождитесь его завершения.',
+    });
+  assertNoMaintenance(input.psIp);
+  assertNoRemoval(input.psIp);
+  if (
+    input.packageIds.some((id) =>
+      queue.items.some((item) => item.packageId === id && !ACTIVE_STATES.includes(item.state)),
+    )
+  )
+    throw createError({
+      statusCode: 409,
+      message:
+        'Задание этого пакета уже завершено в текущей очереди. Дождитесь завершения очереди перед новым заданием',
+    });
+  const seen = new Set(
+    queue.items.filter((item) => ACTIVE_STATES.includes(item.state)).map((item) => item.packageId),
+  );
+  const packageIds = [...new Set(input.packageIds)].filter((id) => !seen.has(id));
+  if (!packageIds.length)
+    throw createError({ statusCode: 409, message: 'Выбранные пакеты уже находятся в очереди.' });
+  const additions = createQueueItems(packageIds, input.packageUrls, queue.transport || 'payload');
+  queue.items.push(...additions);
   // Preserve every active/finished index while ordering the pending tail by game,
   // then base, patch and DLC. This also handles additions to an earlier branch.
-  const metadata=new Map<string,ReturnType<typeof getPackage>>()
-  const packageFor=(id:string)=>{let item=metadata.get(id);if(!item){item=getPackage(id);metadata.set(id,item)}return item}
-  const pending = queue.items.filter((item,index) => item.state === 'pending' && index !== queue.currentIndex).sort((a,b) => {
-    const left = packageFor(a.packageId), right = packageFor(b.packageId)
-    return (left.titleId || left.id).localeCompare(right.titleId || right.id) || left.installOrder-right.installOrder ||
-      (left.appVersion || '').localeCompare(right.appVersion || '',undefined,{numeric:true})
-  })
-  let pendingIndex=0
-  queue.items=queue.items.map((item,index)=>item.state==='pending' && index !== queue.currentIndex?pending[pendingIndex++]!:item)
-  writeQueue(queue)
-  logEvent('info', `К текущей очереди добавлено пакетов: ${additions.length}`)
-  ensureInstallationQueueRunning()
-  return publicQueue(queue)
+  const metadata = new Map<string, ReturnType<typeof getPackage>>();
+  const packageFor = (id: string) => {
+    let item = metadata.get(id);
+    if (!item) {
+      item = getPackage(id);
+      metadata.set(id, item);
+    }
+    return item;
+  };
+  const pending = queue.items
+    .filter((item, index) => item.state === 'pending' && index !== queue.currentIndex)
+    .sort((a, b) => {
+      const left = packageFor(a.packageId),
+        right = packageFor(b.packageId);
+      return (
+        (left.titleId || left.id).localeCompare(right.titleId || right.id) ||
+        left.installOrder - right.installOrder ||
+        (left.appVersion || '').localeCompare(right.appVersion || '', undefined, { numeric: true })
+      );
+    });
+  let pendingIndex = 0;
+  queue.items = queue.items.map((item, index) =>
+    item.state === 'pending' && index !== queue.currentIndex ? pending[pendingIndex++]! : item,
+  );
+  writeQueue(queue);
+  logEvent('info', `К текущей очереди добавлено пакетов: ${additions.length}`);
+  ensureInstallationQueueRunning();
+  return publicQueue(queue);
 }
 
 /** Capture the exact current package, so a delayed click cannot cancel its successor. */
 function cancelCurrentInstallationScoped(expectedId: string, packageId: string, ip: string) {
-  const queue = readQueue()
-  const index = queue.items.findIndex(item => ACTIVE_STATES.includes(item.state))
-  if (queue.id !== expectedId || queue.psIp !== ip || queue.transport !== 'service' || queue.status !== 'running' || index < 0 || queue.items[index]!.packageId !== packageId)
-    throw createError({ statusCode: 409, message: 'Текущее задание изменилось. Обновите «Задания»' })
-  if (!canManageInstallationQueue(queue)) throw createError({statusCode:409,message:'Идёт обновление сервиса; дождитесь его завершения.'})
-  queue.items[index]!.cancelRequested = true
-  queue.items[index]!.detail = 'Запрошена отмена текущего пакета'
-  writeQueue(queue); ensureInstallationQueueRunning(); return publicQueue(queue)
+  const queue = readQueue();
+  const index = queue.items.findIndex((item) => ACTIVE_STATES.includes(item.state));
+  if (
+    queue.id !== expectedId ||
+    queue.psIp !== ip ||
+    queue.transport !== 'service' ||
+    queue.status !== 'running' ||
+    index < 0 ||
+    queue.items[index]!.packageId !== packageId
+  )
+    throw createError({
+      statusCode: 409,
+      message: 'Текущее задание изменилось. Обновите «Задания»',
+    });
+  if (!canManageInstallationQueue(queue))
+    throw createError({
+      statusCode: 409,
+      message: 'Идёт обновление сервиса; дождитесь его завершения.',
+    });
+  queue.items[index]!.cancelRequested = true;
+  queue.items[index]!.detail = 'Запрошена отмена текущего пакета';
+  writeQueue(queue);
+  ensureInstallationQueueRunning();
+  return publicQueue(queue);
 }
 
 /** Mutate a selection in one snapshot. Indices remain stable for the running worker. */
 function cancelInstallationItemsScoped(expectedId: string, packageIds: string[], ip: string) {
-  assertDesktopWritable()
-  const current = readQueue(), selected = new Set(packageIds)
-  const queue = current.id === expectedId ? current : getInstallationHistoryScoped().find(q => q.id === expectedId && q.psIp === ip)
-  const targets = queue?.items.filter(item => selected.has(item.packageId) && canCancelInstallationItem(queue, item, current.id)) || []
+  assertDesktopWritable();
+  const current = readQueue(),
+    selected = new Set(packageIds);
+  const queue =
+    current.id === expectedId
+      ? current
+      : getInstallationHistoryScoped().find((q) => q.id === expectedId && q.psIp === ip);
+  const targets =
+    queue?.items.filter(
+      (item) => selected.has(item.packageId) && canCancelInstallationItem(queue, item, current.id),
+    ) || [];
   if (!expectedId || !queue || queue.psIp !== ip || !targets.length)
-    throw createError({ statusCode: 409, message: 'Задание изменилось. Обновите «Задания»' })
-  if (!canManageInstallationQueue(queue)) throw createError({ statusCode: 409, message: 'Идёт обновление сервиса; дождитесь его завершения.' })
-  return cancelQueueSelection(queue, targets, false, queue.id !== current.id)
+    throw createError({ statusCode: 409, message: 'Задание изменилось. Обновите «Задания»' });
+  if (!canManageInstallationQueue(queue))
+    throw createError({
+      statusCode: 409,
+      message: 'Идёт обновление сервиса; дождитесь его завершения.',
+    });
+  return cancelQueueSelection(queue, targets, false, queue.id !== current.id);
 }
 function cancelInstallationItemScoped(expectedId: string, packageId: string, ip: string) {
-  return cancelInstallationItems(expectedId, [packageId], ip)
+  return cancelInstallationItems(expectedId, [packageId], ip);
 }
 
 /** All active packages of the selected game branches, including off-page patches/DLC. */
 function cancelGameInstallationsScoped(expectedId: string, ip: string, gameIds: string[]) {
-  assertDesktopWritable()
-  const current = readQueue(), selected = new Set(gameIds)
-  const queue = current.id === expectedId ? current : getInstallationHistoryScoped().find(q => q.id === expectedId && q.psIp === ip)
+  assertDesktopWritable();
+  const current = readQueue(),
+    selected = new Set(gameIds);
+  const queue =
+    current.id === expectedId
+      ? current
+      : getInstallationHistoryScoped().find((q) => q.id === expectedId && q.psIp === ip);
   if (!queue || queue.psIp !== ip || !canManageInstallationQueue(queue))
-    throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите карточку игры' })
-  const targets = queue.items.filter(item => {
-    const titleId = item.titleId || (() => { try { const pkg = getPackage(item.packageId); return pkg.titleId || pkg.id } catch { return item.packageId } })()
-    return selected.has(titleId) && canCancelInstallationItem(queue, item, current.id)
-  })
-  if (!targets.length) throw createError({ statusCode: 409, message: 'У этой игры больше нет активных пакетов' })
-  return cancelQueueSelection(queue, targets, true, queue.id !== current.id)
+    throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите карточку игры' });
+  const targets = queue.items.filter((item) => {
+    const titleId =
+      item.titleId ||
+      (() => {
+        try {
+          const pkg = getPackage(item.packageId);
+          return pkg.titleId || pkg.id;
+        } catch {
+          return item.packageId;
+        }
+      })();
+    return selected.has(titleId) && canCancelInstallationItem(queue, item, current.id);
+  });
+  if (!targets.length)
+    throw createError({ statusCode: 409, message: 'У этой игры больше нет активных пакетов' });
+  return cancelQueueSelection(queue, targets, true, queue.id !== current.id);
 }
 function cancelGameInstallationScoped(expectedId: string, ip: string, gameId: string) {
-  return cancelGameInstallations(expectedId, ip, [gameId])
+  return cancelGameInstallations(expectedId, ip, [gameId]);
 }
-function cancelQueueSelection(queue: InstallationQueue, targets: InstallationQueue['items'], branch: boolean, archived = false) {
+function cancelQueueSelection(
+  queue: InstallationQueue,
+  targets: InstallationQueue['items'],
+  branch: boolean,
+  archived = false,
+) {
   for (const item of targets) {
     if (item.state === 'pending' && !item.serviceDispatchedAt) {
-      item.state = 'cancelled'; item.completedAt = Date.now(); item.detail = branch ? 'Ветка убрана из очереди; пакет не отправлен' : 'Убрано из очереди; пакет не отправлен'
+      item.state = 'cancelled';
+      item.completedAt = Date.now();
+      item.detail = branch
+        ? 'Ветка убрана из очереди; пакет не отправлен'
+        : 'Убрано из очереди; пакет не отправлен';
     } else if (queue.transport === 'service') {
-      item.cancelRequested = true; item.detail = branch ? 'Запрошена отмена пакетов этой игры' : 'Запрошена отмена пакета; ожидаем ответ PS4'
+      item.cancelRequested = true;
+      item.detail = branch
+        ? 'Запрошена отмена пакетов этой игры'
+        : 'Запрошена отмена пакета; ожидаем ответ PS4';
     } else {
-      blockPackageDelivery(item.packageId); item.state = 'cancelled'; item.completedAt = Date.now()
-      item.detail = 'Передача остановлена. Проверьте «Уведомления → Загрузки» на PS4'
+      blockPackageDelivery(item.packageId);
+      item.state = 'cancelled';
+      item.completedAt = Date.now();
+      item.detail = 'Передача остановлена. Проверьте «Уведомления → Загрузки» на PS4';
     }
   }
-  if(queue.status==='failed'&&!queue.items.some(item=>ACTIVE_STATES.includes(item.state))){queue.status='cancelled';queue.currentIndex=undefined;queue.message='Оставшиеся задания убраны из остановленной очереди. Результаты прежних пакетов сохранены.'}
+  if (
+    queue.status === 'failed' &&
+    !queue.items.some((item) => ACTIVE_STATES.includes(item.state))
+  ) {
+    queue.status = 'cancelled';
+    queue.currentIndex = undefined;
+    queue.message =
+      'Оставшиеся задания убраны из остановленной очереди. Результаты прежних пакетов сохранены.';
+  }
   if (archived) {
-    queue.updatedAt = Date.now()
-    writeJsonFile(historyPath(), getInstallationHistoryScoped().map(previous => previous.id === queue.id ? queue : previous))
-  } else { writeQueue(queue); ensureInstallationQueueRunning() }
-  return publicQueue(queue)
+    queue.updatedAt = Date.now();
+    writeJsonFile(
+      historyPath(),
+      getInstallationHistoryScoped().map((previous) =>
+        previous.id === queue.id ? queue : previous,
+      ),
+    );
+  } else {
+    writeQueue(queue);
+    ensureInstallationQueueRunning();
+  }
+  return publicQueue(queue);
 }
 
 /**
@@ -822,116 +1513,199 @@ function cancelQueueSelection(queue: InstallationQueue, targets: InstallationQue
  * A BGFT job already accepted by the PS4 then fails on the console side.
  */
 function cancelInstallationQueueScoped() {
-  const queue = readQueue()
-  if (!canManageInstallationQueue(queue)) throw createError({statusCode:409,message:'Идёт обновление сервиса; дождитесь его завершения.'})
-  if(queue.status==='failed'){
-    const pending=queue.items.filter(item=>item.state==='pending'&&!item.serviceDispatchedAt)
-    return pending.length ? cancelQueueSelection(queue,pending,false) : publicQueue(queue)
+  const queue = readQueue();
+  if (!canManageInstallationQueue(queue))
+    throw createError({
+      statusCode: 409,
+      message: 'Идёт обновление сервиса; дождитесь его завершения.',
+    });
+  if (queue.status === 'failed') {
+    const pending = queue.items.filter(
+      (item) => item.state === 'pending' && !item.serviceDispatchedAt,
+    );
+    return pending.length ? cancelQueueSelection(queue, pending, false) : publicQueue(queue);
   }
-  if (queue.status === 'cancelling') return publicQueue(queue)
-  if (queue.status !== 'running') return publicQueue(queue)
+  if (queue.status === 'cancelling') return publicQueue(queue);
+  if (queue.status !== 'running') return publicQueue(queue);
   if (queue.transport === 'service') {
-    queue.status = 'cancelling'; queue.message = 'Запрошена отмена; ожидаем подтверждение PS4'
-    writeQueue(queue); ensureInstallationQueueRunning(); return publicQueue(queue)
+    queue.status = 'cancelling';
+    queue.message = 'Запрошена отмена; ожидаем подтверждение PS4';
+    writeQueue(queue);
+    ensureInstallationQueueRunning();
+    return publicQueue(queue);
   }
-  let cancelled = 0
+  let cancelled = 0;
   for (const item of queue.items) {
-    if (!ACTIVE_STATES.includes(item.state)) continue
-    if (item.state !== 'pending') blockPackageDelivery(item.packageId)
-    item.state = 'cancelled'
-    item.detail = 'Установка отменена'
-    item.bytesSent = 0
-    cancelled += 1
+    if (!ACTIVE_STATES.includes(item.state)) continue;
+    if (item.state !== 'pending') blockPackageDelivery(item.packageId);
+    item.state = 'cancelled';
+    item.detail = 'Установка отменена';
+    item.bytesSent = 0;
+    cancelled += 1;
   }
-  queue.status = 'cancelled'
-  queue.currentIndex = undefined
-  queue.message = `Установка отменена${cancelled ? `: остановлено пакетов — ${cancelled}` : ''}. Если загрузка уже появилась на PS4, удалите её в «Уведомления → Загрузки».`
-  writeQueue(queue)
-  logEvent('info', 'Очередь установки отменена пользователем')
-  return publicQueue(queue)
+  queue.status = 'cancelled';
+  queue.currentIndex = undefined;
+  queue.message = `Установка отменена${cancelled ? `: остановлено пакетов — ${cancelled}` : ''}. Если загрузка уже появилась на PS4, удалите её в «Уведомления → Загрузки».`;
+  writeQueue(queue);
+  logEvent('info', 'Очередь установки отменена пользователем');
+  return publicQueue(queue);
 }
 
 /** Releases a stale WEB queue after the user has checked Downloads on PS4.
  * No BGFT or package request is sent, and accepted jobs are never marked installed. */
 function resolveCancelledQueueScoped(expectedId: string) {
-  const queue = readQueue()
+  const queue = readQueue();
   if (queue.status !== 'cancelling' || !queue.id || queue.id !== expectedId)
-    throw createError({ statusCode: 409, message: 'Очередь уже изменилась. Обновите страницу.' })
+    throw createError({ statusCode: 409, message: 'Очередь уже изменилась. Обновите страницу.' });
   for (const item of queue.items) {
-    if (!ACTIVE_STATES.includes(item.state)) continue
-    item.state = item.serviceDispatchedAt ? 'unconfirmed' : 'cancelled'
+    if (!ACTIVE_STATES.includes(item.state)) continue;
+    item.state = item.serviceDispatchedAt ? 'unconfirmed' : 'cancelled';
     item.detail = item.serviceDispatchedAt
       ? 'Ожидание снято вручную; результат задания PS4 не подтверждён'
-      : 'Не отправлен: очередь отменена'
+      : 'Не отправлен: очередь отменена';
   }
-  queue.status = 'cancelled'
-  queue.currentIndex = undefined
-  queue.message = 'Ожидание снято. Проверьте «Загрузки» на PS4 перед повторной установкой.'
-  writeQueue(queue)
-  logEvent('warn', `Ожидание отмены очереди ${queue.id} снято вручную; результат установки не подтверждён`)
-  return publicQueue(queue)
+  queue.status = 'cancelled';
+  queue.currentIndex = undefined;
+  queue.message = 'Ожидание снято. Проверьте «Загрузки» на PS4 перед повторной установкой.';
+  writeQueue(queue);
+  logEvent(
+    'warn',
+    `Ожидание отмены очереди ${queue.id} снято вручную; результат установки не подтверждён`,
+  );
+  return publicQueue(queue);
 }
 
 /** Release only a failed or already cancelling WEB queue after PS4 has no live job. */
 function clearStaleInstallationQueueScoped(ip: string, expectedId: string) {
-  const queue = readQueue()
-  if (queue.psIp !== ip || queue.id !== expectedId || !['failed', 'cancelling', 'cancelled'].includes(queue.status))
-    throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите состояние и повторите проверку.' })
+  const queue = readQueue();
+  if (
+    queue.psIp !== ip ||
+    queue.id !== expectedId ||
+    !['failed', 'cancelling', 'cancelled'].includes(queue.status)
+  )
+    throw createError({
+      statusCode: 409,
+      message: 'Очередь изменилась. Обновите состояние и повторите проверку.',
+    });
   for (const item of queue.items) {
-    if (!ACTIVE_STATES.includes(item.state)) continue
-    item.state = item.serviceDispatchedAt ? 'unconfirmed' : 'cancelled'
-    item.detail = item.serviceDispatchedAt ? 'Задание PS4 не подтверждено; повтор не отправлен' : 'Не отправлен: очередь очищена'
+    if (!ACTIVE_STATES.includes(item.state)) continue;
+    item.state = item.serviceDispatchedAt ? 'unconfirmed' : 'cancelled';
+    item.detail = item.serviceDispatchedAt
+      ? 'Задание PS4 не подтверждено; повтор не отправлен'
+      : 'Не отправлен: очередь очищена';
   }
-  queue.status = 'cancelled'; queue.currentIndex = undefined
-  queue.message = 'Зависшее ожидание снято. Перед повторной установкой проверьте «Загрузки» PS4.'
-  writeQueue(queue)
-  logEvent('warn', `Зависшее ожидание очереди ${expectedId} снято после проверки PS4`)
-  return publicQueue(queue)
+  queue.status = 'cancelled';
+  queue.currentIndex = undefined;
+  queue.message = 'Зависшее ожидание снято. Перед повторной установкой проверьте «Загрузки» PS4.';
+  writeQueue(queue);
+  logEvent('warn', `Зависшее ожидание очереди ${expectedId} снято после проверки PS4`);
+  return publicQueue(queue);
 }
 
 /** Forgets a package's queue history so it can be installed again from scratch. */
 function forgetQueuedPackageScoped(packageId: string) {
-  const queue = readQueue()
-  const item = queue.items.find((entry) => entry.packageId === packageId)
-  if (!item) return
-  if ((queue.status === 'running' || queue.status === 'cancelling') && item.state !== 'pending' && ACTIVE_STATES.includes(item.state)) {
-    throw createError({ statusCode: 409, message: 'Пакет сейчас передаётся. Сначала отмените установку.' })
+  const queue = readQueue();
+  const item = queue.items.find((entry) => entry.packageId === packageId);
+  if (!item) return;
+  if (
+    (queue.status === 'running' || queue.status === 'cancelling') &&
+    item.state !== 'pending' &&
+    ACTIVE_STATES.includes(item.state)
+  ) {
+    throw createError({
+      statusCode: 409,
+      message: 'Пакет сейчас передаётся. Сначала отмените установку.',
+    });
   }
-  queue.items = queue.items.filter((entry) => entry.packageId !== packageId)
-  queue.currentIndex = undefined
-  if (queue.status !== 'running' && !queue.items.length) { queue.status = 'idle'; queue.message = undefined }
-  writeQueue(queue)
+  queue.items = queue.items.filter((entry) => entry.packageId !== packageId);
+  queue.currentIndex = undefined;
+  if (queue.status !== 'running' && !queue.items.length) {
+    queue.status = 'idle';
+    queue.message = undefined;
+  }
+  writeQueue(queue);
 }
 
 function formatBytes(value: number) {
-  if (!value) return '0 Б'
-  const units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ']
-  const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1)
-  return `${(value / 1024 ** index).toFixed(index >= 3 ? 1 : 0)} ${units[index]}`
+  if (!value) return '0 Б';
+  const units = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
+  const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+  return `${(value / 1024 ** index).toFixed(index >= 3 ? 1 : 0)} ${units[index]}`;
 }
 
-export function getInstallationHistory(ip?: string): InstallationQueue[] { return inConsoleScope(ip, () => getInstallationHistoryScoped()) }
-export function ensureInstallationQueueRunning(ip?: string) { return inConsoleScope(ip, () => ensureInstallationQueueRunningScoped()) }
-export function peekInstallationQueue(ip?: string) { return inConsoleScope(ip, () => publicQueue(readQueue())) }
-export function getInstallationQueue(ip?: string) { return inConsoleScope(ip, () => getInstallationQueueScoped()) }
-export function startInstallationQueue(input: { psIp: string; packageIds: string[]; packageUrls: Record<string, string>; transport?: unknown; maintenanceId?: string; bootstrapArtifactId?: string }) { return inConsoleScope(input.psIp, () => startInstallationQueueScoped(input)) }
-export function appendInstallationQueue(input: { psIp: string; queueId: string; packageIds: string[]; packageUrls: Record<string, string> }) { return inConsoleScope(input.psIp, () => appendInstallationQueueScoped(input)) }
-export function cancelCurrentInstallation(expectedId: string, packageId: string, ip: string) { return inConsoleScope(ip, () => cancelCurrentInstallationScoped(expectedId, packageId, ip)) }
-export function cancelInstallationItems(expectedId: string, packageIds: string[], ip: string) { return inConsoleScope(ip, () => cancelInstallationItemsScoped(expectedId, packageIds, ip)) }
-export function resumeInstallationQueue(expectedId: string, ip: string) { return inConsoleScope(ip, () => resumeInstallationQueueScoped(expectedId, ip)) }
-export function cancelInstallationItem(expectedId: string, packageId: string, ip: string) { return inConsoleScope(ip, () => cancelInstallationItemScoped(expectedId, packageId, ip)) }
-export function cancelGameInstallations(expectedId: string, ip: string, gameIds: string[]) { return inConsoleScope(ip, () => cancelGameInstallationsScoped(expectedId, ip, gameIds)) }
-export function cancelGameInstallation(expectedId: string, ip: string, gameId: string) { return inConsoleScope(ip, () => cancelGameInstallationScoped(expectedId, ip, gameId)) }
-export function cancelInstallationQueue(ip?: string) { return inConsoleScope(ip, () => cancelInstallationQueueScoped()) }
-export function resolveCancelledQueue(expectedId: string, ip?: string) { return inConsoleScope(ip, () => resolveCancelledQueueScoped(expectedId)) }
-export function clearStaleInstallationQueue(ip: string, expectedId: string) { return inConsoleScope(ip, () => clearStaleInstallationQueueScoped(ip, expectedId)) }
-export function forgetQueuedPackage(packageId: string, ip?: string) { return inConsoleScope(ip, () => forgetQueuedPackageScoped(packageId)) }
+export function getInstallationHistory(ip?: string): InstallationQueue[] {
+  return inConsoleScope(ip, () => getInstallationHistoryScoped());
+}
+export function ensureInstallationQueueRunning(ip?: string) {
+  return inConsoleScope(ip, () => ensureInstallationQueueRunningScoped());
+}
+export function peekInstallationQueue(ip?: string) {
+  return inConsoleScope(ip, () => publicQueue(readQueue()));
+}
+export function getInstallationQueue(ip?: string) {
+  return inConsoleScope(ip, () => getInstallationQueueScoped());
+}
+export function startInstallationQueue(input: {
+  psIp: string;
+  packageIds: string[];
+  packageUrls: Record<string, string>;
+  transport?: unknown;
+  maintenanceId?: string;
+  bootstrapArtifactId?: string;
+}) {
+  return inConsoleScope(input.psIp, () => startInstallationQueueScoped(input));
+}
+export function appendInstallationQueue(input: {
+  psIp: string;
+  queueId: string;
+  packageIds: string[];
+  packageUrls: Record<string, string>;
+}) {
+  return inConsoleScope(input.psIp, () => appendInstallationQueueScoped(input));
+}
+export function cancelCurrentInstallation(expectedId: string, packageId: string, ip: string) {
+  return inConsoleScope(ip, () => cancelCurrentInstallationScoped(expectedId, packageId, ip));
+}
+export function cancelInstallationItems(expectedId: string, packageIds: string[], ip: string) {
+  return inConsoleScope(ip, () => cancelInstallationItemsScoped(expectedId, packageIds, ip));
+}
+export function resumeInstallationQueue(expectedId: string, ip: string) {
+  return inConsoleScope(ip, () => resumeInstallationQueueScoped(expectedId, ip));
+}
+export function cancelInstallationItem(expectedId: string, packageId: string, ip: string) {
+  return inConsoleScope(ip, () => cancelInstallationItemScoped(expectedId, packageId, ip));
+}
+export function cancelGameInstallations(expectedId: string, ip: string, gameIds: string[]) {
+  return inConsoleScope(ip, () => cancelGameInstallationsScoped(expectedId, ip, gameIds));
+}
+export function cancelGameInstallation(expectedId: string, ip: string, gameId: string) {
+  return inConsoleScope(ip, () => cancelGameInstallationScoped(expectedId, ip, gameId));
+}
+export function cancelInstallationQueue(ip?: string) {
+  return inConsoleScope(ip, () => cancelInstallationQueueScoped());
+}
+export function resolveCancelledQueue(expectedId: string, ip?: string) {
+  return inConsoleScope(ip, () => resolveCancelledQueueScoped(expectedId));
+}
+export function clearStaleInstallationQueue(ip: string, expectedId: string) {
+  return inConsoleScope(ip, () => clearStaleInstallationQueueScoped(ip, expectedId));
+}
+export function forgetQueuedPackage(packageId: string, ip?: string) {
+  return inConsoleScope(ip, () => forgetQueuedPackageScoped(packageId));
+}
 
 /** Resume each persisted console, independent of the browser's selected profile. */
 function persistedConsoleIps() {
-  const root = dataPath('consoles'), result = existsSync(root) ? readdirSync(root, { withFileTypes: true }).filter(item => item.isDirectory() && /^(?:\d{1,3}\.){3}\d{1,3}$/.test(item.name)).map(item => item.name) : []
-  const legacy = readJsonFile<InstallationQueue>(dataPath('installation-queue.json'), blankQueue())
-  if (legacy.psIp && !result.includes(legacy.psIp)) result.push(legacy.psIp)
-  return result
+  const root = dataPath('consoles'),
+    result = existsSync(root)
+      ? readdirSync(root, { withFileTypes: true })
+          .filter((item) => item.isDirectory() && /^(?:\d{1,3}\.){3}\d{1,3}$/.test(item.name))
+          .map((item) => item.name)
+      : [];
+  const legacy = readJsonFile<InstallationQueue>(dataPath('installation-queue.json'), blankQueue());
+  if (legacy.psIp && !result.includes(legacy.psIp)) result.push(legacy.psIp);
+  return result;
 }
-export function resumeConsoleQueues() { for (const ip of persistedConsoleIps()) ensureInstallationQueueRunning(ip) }
+export function resumeConsoleQueues() {
+  for (const ip of persistedConsoleIps()) ensureInstallationQueueRunning(ip);
+}

@@ -1,3 +1,3 @@
-import { getTorrents } from '../../utils/qbittorrent'
+import { getTorrents } from '../../utils/qbittorrent';
 
-export default defineEventHandler(() => getTorrents())
+export default defineEventHandler(() => getTorrents());

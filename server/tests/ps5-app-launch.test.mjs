@@ -1,2 +1,102 @@
-import assert from 'node:assert/strict';import {test} from 'node:test';import {build} from 'esbuild';import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';import {tmpdir} from 'node:os';import {join,resolve} from 'node:path';import {pathToFileURL} from 'node:url';import {createError} from 'h3';
-test('launch only pinned own UI, durable intent, lost reply reconciliation and concurrent requests never resend',async()=>{const dir=mkdtempSync(join(tmpdir(),'pf-launch-web-')),old=process.env.PACKAGEFLOW_DATA_DIR,fetchBefore=globalThis.fetch;const data=join(dir,'data');mkdirSync(data);process.env.PACKAGEFLOW_DATA_DIR=data;globalThis.createError=createError;try{const f=join(dir,'test.mjs');await build({stdin:{contents:"export * from './server/utils/console-profiles';export * from './server/utils/ps5-app-launch'",resolveDir:resolve('.')},outfile:f,bundle:true,platform:'node',format:'esm',logLevel:'silent'});const api=await import(pathToFileURL(f));const p=api.saveConsoleProfile({name:'Test',ip:'192.168.1.5',platform:'ps5'}).consoles[0];writeFileSync(join(data,'ps5-service-keys.json'),JSON.stringify({[p.ip]:'b'.repeat(64)}));const pin={titleId:'PPSA95035',version:'01.000.034',metadataHash:'a'.repeat(64)};writeFileSync(join(data,'ps5-ui-release.json'),JSON.stringify(pin));let running=false,lost=true,launches=0,receipt,ready=true;globalThis.fetch=async(url,opts={})=>{assert.equal(opts.headers.Authorization,'Bearer '+'b'.repeat(64));const path=new URL(url).pathname;let body={};if(path==='/api/v1/app/status'){if(opts.headers['X-PackageFlow-Request-Id'])body=receipt||{};else body={available:ready,running};}else{assert.equal(path,'/api/v1/app/launch');launches++;assert.equal(opts.headers['X-PackageFlow-UI-Title'],pin.titleId);assert.equal(opts.headers['X-PackageFlow-UI-Metadata-Hash'],pin.metadataHash);const saved=JSON.parse(readFileSync(join(data,'consoles',p.id,'ps5-app-launch.json')));assert.equal(saved.state,'intent');assert.equal(saved.requestId,opts.headers['X-PackageFlow-Request-Id']);receipt={requestId:saved.requestId,titleId:pin.titleId,state:'accepted',code:'0x00000000'};if(lost)throw Error('lost after Sony accepted');body=receipt;}return new Response(JSON.stringify(body),{status:200});};await assert.rejects(api.launchPs5App(p.id),/lost/);assert.equal(launches,1);await api.launchPs5App(p.id);assert.equal(launches,1);running=true;assert.equal((await api.ps5AppLaunchInfo(p.id)).flow.state,'running');running=false;assert.equal((await api.ps5AppLaunchInfo(p.id)).flow.state,'closed');lost=false;await Promise.all([api.launchPs5App(p.id),api.launchPs5App(p.id)]);assert.equal(launches,2);await api.ps5AppLaunchInfo(p.id);assert.equal(launches,2);const savedPath=join(data,'consoles',p.id,'ps5-app-launch.json');const saved=JSON.parse(readFileSync(savedPath));saved.startedAt=1;writeFileSync(savedPath,JSON.stringify(saved));assert.equal((await api.ps5AppLaunchInfo(p.id)).flow.state,'unconfirmed');await api.launchPs5App(p.id);assert.equal(launches,2);writeFileSync(savedPath,'broken');await assert.rejects(api.launchPs5App(p.id),/прочитать/);assert.equal(launches,2);writeFileSync(join(data,'ps5-ui-release.json'),JSON.stringify({...pin,titleId:'PPSA12544'}));assert.equal((await api.ps5AppLaunchInfo(p.id).catch(()=>({release:null}))).release,null);}finally{globalThis.fetch=fetchBefore;if(old===undefined)delete process.env.PACKAGEFLOW_DATA_DIR;else process.env.PACKAGEFLOW_DATA_DIR=old;rmSync(dir,{recursive:true,force:true});}});
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { build } from 'esbuild';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createError } from 'h3';
+test('launch only pinned own UI, durable intent, lost reply reconciliation and concurrent requests never resend', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pf-launch-web-')),
+    old = process.env.PACKAGEFLOW_DATA_DIR,
+    fetchBefore = globalThis.fetch;
+  const data = join(dir, 'data');
+  mkdirSync(data);
+  process.env.PACKAGEFLOW_DATA_DIR = data;
+  globalThis.createError = createError;
+  try {
+    const f = join(dir, 'test.mjs');
+    await build({
+      stdin: {
+        contents:
+          "export * from './server/utils/console-profiles';export * from './server/utils/ps5-app-launch'",
+        resolveDir: resolve('.'),
+      },
+      outfile: f,
+      bundle: true,
+      platform: 'node',
+      format: 'esm',
+      logLevel: 'silent',
+    });
+    const api = await import(pathToFileURL(f));
+    const p = api.saveConsoleProfile({ name: 'Test', ip: '192.168.1.5', platform: 'ps5' })
+      .consoles[0];
+    writeFileSync(join(data, 'ps5-service-keys.json'), JSON.stringify({ [p.ip]: 'b'.repeat(64) }));
+    const pin = { titleId: 'PPSA95035', version: '01.000.034', metadataHash: 'a'.repeat(64) };
+    writeFileSync(join(data, 'ps5-ui-release.json'), JSON.stringify(pin));
+    let running = false,
+      lost = true,
+      launches = 0,
+      receipt,
+      ready = true;
+    globalThis.fetch = async (url, opts = {}) => {
+      assert.equal(opts.headers.Authorization, 'Bearer ' + 'b'.repeat(64));
+      const path = new URL(url).pathname;
+      let body;
+      if (path === '/api/v1/app/status') {
+        if (opts.headers['X-PackageFlow-Request-Id']) body = receipt || {};
+        else body = { available: ready, running };
+      } else {
+        assert.equal(path, '/api/v1/app/launch');
+        launches++;
+        assert.equal(opts.headers['X-PackageFlow-UI-Title'], pin.titleId);
+        assert.equal(opts.headers['X-PackageFlow-UI-Metadata-Hash'], pin.metadataHash);
+        const saved = JSON.parse(readFileSync(join(data, 'consoles', p.id, 'ps5-app-launch.json')));
+        assert.equal(saved.state, 'intent');
+        assert.equal(saved.requestId, opts.headers['X-PackageFlow-Request-Id']);
+        receipt = {
+          requestId: saved.requestId,
+          titleId: pin.titleId,
+          state: 'accepted',
+          code: '0x00000000',
+        };
+        if (lost) throw Error('lost after Sony accepted');
+        body = receipt;
+      }
+      return new Response(JSON.stringify(body), { status: 200 });
+    };
+    await assert.rejects(api.launchPs5App(p.id), /lost/);
+    assert.equal(launches, 1);
+    await api.launchPs5App(p.id);
+    assert.equal(launches, 1);
+    running = true;
+    assert.equal((await api.ps5AppLaunchInfo(p.id)).flow.state, 'running');
+    running = false;
+    assert.equal((await api.ps5AppLaunchInfo(p.id)).flow.state, 'closed');
+    lost = false;
+    await Promise.all([api.launchPs5App(p.id), api.launchPs5App(p.id)]);
+    assert.equal(launches, 2);
+    await api.ps5AppLaunchInfo(p.id);
+    assert.equal(launches, 2);
+    const savedPath = join(data, 'consoles', p.id, 'ps5-app-launch.json');
+    const saved = JSON.parse(readFileSync(savedPath));
+    saved.startedAt = 1;
+    writeFileSync(savedPath, JSON.stringify(saved));
+    assert.equal((await api.ps5AppLaunchInfo(p.id)).flow.state, 'unconfirmed');
+    await api.launchPs5App(p.id);
+    assert.equal(launches, 2);
+    writeFileSync(savedPath, 'broken');
+    await assert.rejects(api.launchPs5App(p.id), /прочитать/);
+    assert.equal(launches, 2);
+    writeFileSync(
+      join(data, 'ps5-ui-release.json'),
+      JSON.stringify({ ...pin, titleId: 'PPSA12544' }),
+    );
+    assert.equal((await api.ps5AppLaunchInfo(p.id).catch(() => ({ release: null }))).release, null);
+  } finally {
+    globalThis.fetch = fetchBefore;
+    if (old === undefined) delete process.env.PACKAGEFLOW_DATA_DIR;
+    else process.env.PACKAGEFLOW_DATA_DIR = old;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

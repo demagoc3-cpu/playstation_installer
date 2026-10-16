@@ -1,3 +1,3 @@
-import { getInstallationQueue } from '../../utils/installation-queue'
+import { getInstallationQueue } from '../../utils/installation-queue';
 
-export default defineEventHandler(event => getInstallationQueue(getQuery(event).ip?.toString()))
+export default defineEventHandler((event) => getInstallationQueue(getQuery(event).ip?.toString()));
