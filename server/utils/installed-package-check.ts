@@ -1,4 +1,6 @@
 import { authenticatedServiceRequest, serviceKeyConfigured } from './ps4-service-installer';
+import { contentFormat } from '../../shared/content-platform';
+import type { ContentFormat } from '../../shared/types/consoles';
 // Lazy loading keeps the PS4 queue independent of PS5 profile/runtime helpers.
 async function readPs5(
   ...args: Parameters<typeof import('./console-profiles').ps5OperationRequest>
@@ -14,6 +16,8 @@ export interface InstalledCandidate {
   appVersion?: string;
   installOrder: number;
   type?: string;
+  format?: ContentFormat;
+  contentType?: string;
 }
 export interface InstalledCheck {
   revision?: string;
@@ -250,7 +254,15 @@ export async function checkPs5InstalledPackage(
           let meta: any = {};
           try {
             meta = JSON.parse(row.metadata);
-          } catch {}
+          } catch {
+            if (pkg.format === 'pkg' && pkg.installOrder === 0) return unavailable();
+          }
+          if (
+            pkg.format === 'pkg' &&
+            pkg.installOrder === 0 &&
+            (!meta || typeof meta !== 'object' || Array.isArray(meta))
+          )
+            return unavailable();
           const version = meta.contentVersion || meta.CONTENT_VERSION || '';
           if (typeof version !== 'string') return unavailable();
           const value = { installed: true, version, content_id: row.contentId };
@@ -260,6 +272,16 @@ export async function checkPs5InstalledPackage(
       offset = v.next;
       if (v.done) {
         if (!found) return absent();
+        if (pkg.format === 'pkg' && pkg.installOrder === 0) {
+          // A complete native catalog proves base registration, not that its
+          // files or the selected version are present. Keep manual overwrite.
+          return {
+            ...basePresent(),
+            detail:
+              'Игра зарегистрирована на PS5; наличие файлов и версия выбранного пакета не подтверждены. Для замены выберите переустановку',
+            revision,
+          };
+        }
         const info = await read(
           consoleId,
           '/api/v1/console/info',
@@ -330,6 +352,12 @@ export function installedPackagePreviewChecker() {
     pkg: InstalledCandidate,
   ) =>
     profile.platform === 'ps5'
-      ? checkPs5InstalledPackage(profile.id, profile.ip, pkg, undefined, ps5)
+      ? checkPs5InstalledPackage(
+          profile.id,
+          profile.ip,
+          { ...pkg, format: contentFormat(pkg) },
+          undefined,
+          ps5,
+        )
       : checkPs4InstalledPackage(profile.ip, pkg, profile.transport === 'payload', ps4);
 }

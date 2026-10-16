@@ -110,7 +110,9 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
     };
     const jobs = new Map(),
       posts = [];
-    let offline = false;
+    let offline = false,
+      ps5Offline = false,
+      ps5HealthCalls = 0;
     const response = (body, status = 200) =>
       new Response(JSON.stringify(body), {
         status,
@@ -123,7 +125,9 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
       if (address.port === '9090' && path === '/status') return response({ status: 'ready' });
       if (ip === two.ip && offline) throw new Error('offline');
       if (ip === five.ip) {
-        if (path === '/health')
+        if (path === '/health') {
+          ps5HealthCalls++;
+          if (ps5Offline) throw Error('temporary health failure');
           return response({
             apiVersion: 'v1',
             firmwareRead: true,
@@ -134,6 +138,7 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
               consoleVerified: true,
             },
           });
+        }
         assert.equal(options.headers.Authorization, `Bearer ${'c'.repeat(64)}`);
         if (path === '/api/v1/system')
           return response({
@@ -411,6 +416,23 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
     const recovered = await api.installDeviceBatch(old.id, body, recipients, 'localhost:3000');
     assert.equal(recovered.results[0].state, 'uncertain');
     assert.equal(posts.length, 2);
+    ps5Offline = true;
+    assert.equal(
+      (await api.probeConsoleProfile(five.id)).consoles.find((p) => p.id === five.id).online,
+      false,
+    );
+    const beforePreview = ps5HealthCalls;
+    ps5Offline = false;
+    const fresh = await api.previewDeviceInstall({ packageIds: [future.id] });
+    const freshPs5 = fresh.devices.find((d) => d.profile.id === five.id);
+    assert.equal(
+      ps5HealthCalls,
+      beforePreview + 1,
+      'explicit review ignores a cached failed probe',
+    );
+    assert.equal(freshPs5.profile.online, true);
+    assert.equal(freshPs5.profile.freeBytes, 500000000);
+    assert.equal(posts.length, 2, 'refreshing installation review never starts a queue');
   } finally {
     globalThis.fetch = oldFetch;
     globalThis.createError = oldError;

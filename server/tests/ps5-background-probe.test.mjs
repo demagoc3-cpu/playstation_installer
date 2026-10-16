@@ -149,3 +149,203 @@ test('background checks never block a sending PS5 on installer hello; explicit c
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('PS5 direct, background and foreground probes share one flight, escalate in order and keep other devices independent', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pf-probe-flight-'));
+  const oldData = process.env.PACKAGEFLOW_DATA_DIR,
+    oldFetch = globalThis.fetch;
+  process.env.PACKAGEFLOW_DATA_DIR = dir;
+  try {
+    const output = join(dir, 'probe.mjs');
+    await build({
+      stdin: {
+        contents: "export * from './server/utils/console-profiles'",
+        resolveDir: resolve('.'),
+      },
+      bundle: true,
+      platform: 'node',
+      format: 'esm',
+      outfile: output,
+      logLevel: 'silent',
+    });
+    const api = await import(pathToFileURL(output).href);
+    const first = api.saveConsoleProfile({
+      name: 'First',
+      ip: '192.168.1.5',
+      platform: 'ps5',
+    }).consoles[0];
+    const second = api.saveConsoleProfile({
+      name: 'Second',
+      ip: '192.168.1.6',
+      platform: 'ps5',
+    }).consoles[1];
+    writeFileSync(
+      join(dir, 'ps5-service-keys.json'),
+      JSON.stringify({
+        [first.ip]: 'a'.repeat(64),
+        [second.ip]: 'b'.repeat(64),
+        '192.168.1.7': 'c'.repeat(64),
+      }),
+    );
+    const ready = {
+      service: 'PackageFlowService-PS5',
+      schemaVersion: 1,
+      route: 'staged-pkg',
+      exactVersionReceipt: false,
+      ready: true,
+      reason: 'ready',
+      formats: ['pkg'],
+      platforms: ['ps4', 'ps5'],
+    };
+    const healthCalls = new Map();
+    let blockReadiness = true,
+      failReadiness = false,
+      releaseReadiness,
+      enteredReadiness;
+    const readinessGate = new Promise((resolve) => (releaseReadiness = resolve));
+    const readinessEntered = new Promise((resolve) => (enteredReadiness = resolve));
+    const healthHolds = new Map();
+    const holdHealth = (ip, fail = false) => {
+      let release, enter;
+      const gate = new Promise((resolve) => (release = resolve));
+      const entered = new Promise((resolve) => (enter = resolve));
+      healthHolds.set(ip, { gate, enter, fail });
+      return { entered, release };
+    };
+    globalThis.fetch = async (url, options) => {
+      const { hostname: ip, pathname: path } = new URL(url);
+      assert.equal(options.method, 'GET');
+      if (path === '/health') {
+        healthCalls.set(ip, (healthCalls.get(ip) || 0) + 1);
+        const hold = healthHolds.get(ip);
+        if (hold) {
+          healthHolds.delete(ip);
+          hold.enter();
+          await hold.gate;
+          if (hold.fail) throw Error('older health timed out');
+        }
+        return new Response(
+          JSON.stringify({
+            apiVersion: 'v1',
+            pid: ip === second.ip ? 102 : 101,
+            firmwareRead: true,
+            firmwareRaw: '0x13600007',
+            serviceReport: {
+              service: ready.service,
+              platform: 'ps5',
+              consoleVerified: true,
+              buildId: 'own-unified-fixture',
+              capabilities: { installPs4Pkg: false, installPs5Content: false },
+            },
+          }),
+        );
+      }
+      if (path === '/api/v1/capabilities')
+        return new Response(
+          JSON.stringify({
+            service: ready.service,
+            capabilities: { installPs4Pkg: false, installPs5Content: false },
+          }),
+        );
+      if (path === '/api/v1/install/readiness') {
+        if (ip === first.ip && blockReadiness) {
+          blockReadiness = false;
+          enteredReadiness();
+          await readinessGate;
+        }
+        if (failReadiness) throw Error('readiness timed out');
+        return new Response(JSON.stringify(ready));
+      }
+      assert.equal(path, '/api/v1/system');
+      return new Response(
+        JSON.stringify({
+          service: ready.service,
+          storageRead: true,
+          freeBytes: 4096,
+          totalBytes: 8192,
+        }),
+      );
+    };
+    const background = api.probeConsoleProfile(first.id, true);
+    await readinessEntered;
+    const full = api.probeConsoleProfile(first.id),
+      joinedBackground = api.refreshConsoleProfile(first.id, true, true),
+      joinedFull = api.refreshConsoleProfile(first.id, true),
+      joinedDirect = api.probeConsoleProfile(first.id);
+    const other = (await api.probeConsoleProfile(second.id)).consoles.find(
+      (p) => p.id === second.id,
+    );
+    assert.equal(other.online, true, 'another PS5 does not wait for the first device');
+    assert.equal(healthCalls.get(first.ip), 1, 'foreground waits for the current PS5 request');
+    releaseReadiness();
+    await Promise.all([background, full, joinedBackground, joinedFull, joinedDirect]);
+    assert.equal(healthCalls.get(first.ip), 2, 'one background and one fresh foreground flight');
+    const current = api.getConsoleProfiles().consoles.find((p) => p.id === first.id);
+    assert.equal(current.online, true);
+    assert.equal(current.capabilities.installation.ready, true);
+    assert.deepEqual(
+      current.capabilities.formats,
+      ['pkg'],
+      'static legacy flags cannot deny readiness',
+    );
+    failReadiness = true;
+    const waiting = (await api.probeConsoleProfile(first.id)).consoles.find(
+      (p) => p.id === first.id,
+    );
+    assert.equal(waiting.online, true, 'failed readiness is not a failed health response');
+    assert.equal(waiting.paired, true);
+    assert.equal(waiting.capabilities.installation.ready, false);
+    assert.equal(waiting.capabilities.installation.reason, 'readiness_unavailable');
+    failReadiness = false;
+
+    // A profile file can be reloaded by another desktop session while a probe is
+    // outstanding. Returning to its original address must not revive that probe.
+    const changeAddress = (ip) => {
+      const file = join(dir, 'console-profiles.json');
+      const stored = JSON.parse(readFileSync(file, 'utf8'));
+      stored.consoles.find((p) => p.id === first.id).ip = ip;
+      writeFileSync(file, JSON.stringify(stored));
+    };
+    const oldHold = holdHealth(first.ip, true);
+    const old = api.probeConsoleProfile(first.id);
+    await oldHold.entered;
+    changeAddress('192.168.1.7');
+    await api.probeConsoleProfile(first.id);
+    changeAddress(first.ip);
+    await api.probeConsoleProfile(first.id);
+    oldHold.release();
+    await old;
+    assert.equal(
+      api.getConsoleProfiles().consoles.find((p) => p.id === first.id).online,
+      true,
+      'an older failed probe cannot overwrite the newer successful generation',
+    );
+    const queuedOldHold = holdHealth(first.ip, true),
+      newHold = holdHealth('192.168.1.7');
+    const beforeQueued = healthCalls.get(first.ip);
+    const oldBackground = api.probeConsoleProfile(first.id, true);
+    await queuedOldHold.entered;
+    const queuedForeground = api.probeConsoleProfile(first.id);
+    changeAddress('192.168.1.7');
+    const newAddress = api.probeConsoleProfile(first.id);
+    await newHold.entered;
+    queuedOldHold.release();
+    await Promise.all([oldBackground, queuedForeground]);
+    assert.equal(
+      healthCalls.get(first.ip),
+      beforeQueued + 1,
+      'a queued foreground probe for the old address never contacts that address again',
+    );
+    newHold.release();
+    await newAddress;
+    const updated = api.getConsoleProfiles().consoles.find((p) => p.id === first.id);
+    assert.equal(updated.ip, '192.168.1.7');
+    assert.equal(updated.online, true, 'a stale queued probe cannot invalidate the new address');
+    assert.equal(updated.capabilities.installation.ready, true);
+  } finally {
+    globalThis.fetch = oldFetch;
+    if (oldData === undefined) delete process.env.PACKAGEFLOW_DATA_DIR;
+    else process.env.PACKAGEFLOW_DATA_DIR = oldData;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

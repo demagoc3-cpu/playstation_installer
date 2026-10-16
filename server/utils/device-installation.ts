@@ -201,10 +201,12 @@ export function deviceActivities(packageIds: string[] = []): DeviceActivity[] {
   });
 }
 // This short-lived memory cache contains only live device replies. It never reads installation marks.
-const liveActivitySnapshots = new Map<string, { until: number; value: Promise<string[]> }>();
+const liveActivitySnapshots = new Map<string, { until: number; value: string[] }>();
+const liveActivityChecks = new Map<string, Promise<string[]>>();
 export async function deviceActivitiesLive(packageIds: string[] = []): Promise<DeviceActivity[]> {
   const activity = deviceActivities(packageIds),
-    check = installedPackagePreviewChecker();
+    check = installedPackagePreviewChecker(),
+    selection = [...new Set(packageIds)].sort();
   await Promise.all(
     activity.map(async (entry) => {
       const profile = getConsoleProfiles().consoles.find((item) => item.id === entry.consoleId);
@@ -216,30 +218,42 @@ export async function deviceActivitiesLive(packageIds: string[] = []): Promise<D
         !packageIds.length
       )
         return;
-      const key = JSON.stringify([profile.id, profile.ip, profile.transport, packageIds]),
+      const key = JSON.stringify([profile.id, profile.ip, profile.transport, selection]),
         cached = liveActivitySnapshots.get(key);
       if (cached && cached.until > Date.now()) {
-        entry.installedPackageIds = await cached.value;
+        entry.installedPackageIds = cached.value;
+        return;
+      }
+      const pending = liveActivityChecks.get(key);
+      if (pending) {
+        entry.installedPackageIds = await pending;
         return;
       }
       const value = (async () => {
-        const present: string[] = [];
-        for (let offset = 0; offset < packageIds.length; offset += 8) {
-          await Promise.all(
-            packageIds.slice(offset, offset + 8).map(async (id) => {
-              try {
-                const pkg = getPackage(id);
-                if ((await check(profile, pkg)).state === 'installed') present.push(id);
-              } catch {
-                /* Unavailable package is not installed proof. */
-              }
-            }),
-          );
+        try {
+          const present: string[] = [];
+          for (let offset = 0; offset < selection.length; offset += 8) {
+            await Promise.all(
+              selection.slice(offset, offset + 8).map(async (id) => {
+                try {
+                  const pkg = getPackage(id);
+                  if ((await check(profile, pkg)).state === 'installed') present.push(id);
+                } catch {
+                  /* Unavailable package is not installed proof. */
+                }
+              }),
+            );
+          }
+          if (liveActivitySnapshots.size >= 64)
+            liveActivitySnapshots.delete(liveActivitySnapshots.keys().next().value!);
+          liveActivitySnapshots.set(key, { until: Date.now() + 5000, value: present });
+          return present;
+        } finally {
+          // A slow check stays shared until completion, independently of the snapshot TTL.
+          liveActivityChecks.delete(key);
         }
-        return present;
       })();
-      if (liveActivitySnapshots.size > 64) liveActivitySnapshots.clear();
-      liveActivitySnapshots.set(key, { until: Date.now() + 5000, value });
+      liveActivityChecks.set(key, value);
       entry.installedPackageIds = await value;
     }),
   );
@@ -281,7 +295,8 @@ export async function previewDeviceInstall(
       await Promise.all(
         destinations.slice(offset, offset + 8).map((id) => refreshConsoleProfile(id, true)),
       );
-  else await refreshConsoleProfiles();
+  // An explicit installation review must not reuse a cached failed PS5 probe.
+  else await refreshConsoleProfiles(true);
   const checkInstalled = installedPackagePreviewChecker();
   const size = items.reduce((sum, item) => sum + item.size, 0);
   return {

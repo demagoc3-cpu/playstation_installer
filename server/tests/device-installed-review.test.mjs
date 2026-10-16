@@ -622,7 +622,11 @@ test('live two-game selection, insufficient space, changed reviews, explicit que
 
 test('live library badges use public connection state and an exact device catalog, never saved profile flags', async () => {
   const work = mkdtempSync(join(tmpdir(), 'pf-live-badges-'));
-  const previous = { data: process.env.PACKAGEFLOW_DATA_DIR, fetch: globalThis.fetch };
+  const previous = {
+    data: process.env.PACKAGEFLOW_DATA_DIR,
+    fetch: globalThis.fetch,
+    now: Date.now,
+  };
   const data = join(work, 'data');
   mkdirSync(data);
   process.env.PACKAGEFLOW_DATA_DIR = data;
@@ -688,6 +692,9 @@ test('live library badges use public connection state and an exact device catalo
     const unavailable = new Set([offline.ip]);
     const calls = [],
       catalogCalls = [];
+    let catalogGate,
+      catalogEntered,
+      abortCatalog = false;
     const cap = {
       service: 'PackegeFlowService',
       version: '0.4.0',
@@ -707,12 +714,18 @@ test('live library badges use public connection state and an exact device catalo
       if (unavailable.has(address.hostname)) throw Error('offline fixture');
       if (path.startsWith('/apps/title/')) {
         catalogCalls.push(address.hostname);
-        assert.equal(address.hostname, paired.ip, 'offline/unpaired consoles must not be queried');
-        assert.equal(options.headers.Authorization, `Bearer ${'a'.repeat(32)}`);
+        assert.notEqual(address.hostname, unpaired.ip, 'unpaired consoles must not be queried');
+        assert.equal(
+          options.headers.Authorization,
+          `Bearer ${(address.hostname === paired.ip ? 'a' : 'b').repeat(32)}`,
+        );
+        catalogEntered?.();
+        if (catalogGate) await catalogGate;
+        if (abortCatalog) throw new DOMException('Aborted fixture', 'AbortError');
         const titleId = path.split('/')[3];
         const candidate = candidates.find((item) => item.titleId === titleId);
         assert.ok(candidate);
-        const installed = candidate.id === 'installed';
+        const installed = address.hostname === paired.ip && candidate.id === 'installed';
         return response({
           service: cap.service,
           complete: true,
@@ -770,6 +783,66 @@ test('live library badges use public connection state and an exact device catalo
         [],
       );
     assert.deepEqual(catalogCalls, [paired.ip, paired.ip]);
+    const ids = candidates.map((item) => item.id);
+    let now = Date.now();
+    Date.now = () => now;
+    now += 6000;
+    let releaseCatalog;
+    const entered = new Promise((resolve) => {
+      catalogEntered = resolve;
+    });
+    catalogGate = new Promise((resolve) => {
+      releaseCatalog = resolve;
+    });
+    const first = api.deviceActivitiesLive(ids);
+    await entered;
+    assert.equal(catalogCalls.length, 4);
+    now += 6000;
+    const second = api.deviceActivitiesLive(ids);
+    const reordered = api.deviceActivitiesLive([...ids].reverse());
+    await new Promise(setImmediate);
+    assert.equal(catalogCalls.length, 4, 'a check slower than the TTL remains one shared flight');
+    catalogGate = undefined;
+    catalogEntered = undefined;
+    releaseCatalog();
+    for (const result of await Promise.all([first, second, reordered]))
+      assert.deepEqual(result.find((entry) => entry.consoleId === paired.id).installedPackageIds, [
+        'installed',
+      ]);
+    now += 4999;
+    await api.deviceActivitiesLive(ids);
+    assert.equal(catalogCalls.length, 4, 'the five-second snapshot starts when the check finishes');
+    now++;
+    await api.deviceActivitiesLive(ids);
+    assert.equal(catalogCalls.length, 6, 'a completed snapshot expires at five seconds');
+    await api.deviceActivitiesLive(['absent']);
+    assert.equal(catalogCalls.length, 7, 'different selections have independent checks');
+    now += 5000;
+    abortCatalog = true;
+    const abortedActivity = await api.deviceActivitiesLive(ids);
+    assert.deepEqual(
+      abortedActivity.find((entry) => entry.consoleId === paired.id).installedPackageIds,
+      [],
+      'an aborted live read never preserves an earlier installed result',
+    );
+    assert.equal(catalogCalls.length, 9);
+    abortCatalog = false;
+    now += 5000;
+    unavailable.delete(offline.ip);
+    await api.probeConsoleProfile(offline.id);
+    const multiDevice = await api.deviceActivitiesLive(ids);
+    assert.equal(catalogCalls.length, 13, 'each console checks its own selection independently');
+    assert.deepEqual(
+      multiDevice.find((entry) => entry.consoleId === paired.id).installedPackageIds,
+      ['installed'],
+      'a finished aborted flight does not block a later fresh check',
+    );
+    assert.deepEqual(
+      multiDevice.find((entry) => entry.consoleId === offline.id).installedPackageIds,
+      [],
+      'another console never reuses the first console installed proof',
+    );
+    const beforeOffline = catalogCalls.length;
     unavailable.add(paired.ip);
     await api.probeConsoleProfile(paired.id);
     const offlineActivity = await api.deviceActivitiesLive(candidates.map((item) => item.id));
@@ -778,13 +851,14 @@ test('live library badges use public connection state and an exact device catalo
       [],
       'a fresh offline status also prevents reuse of a recent installed snapshot',
     );
-    assert.equal(catalogCalls.length, 2);
+    assert.equal(catalogCalls.length, beforeOffline);
     assert.ok(
       calls.every((call) => call.method === 'GET'),
       'activity never starts an installation',
     );
   } finally {
     globalThis.fetch = previous.fetch;
+    Date.now = previous.now;
     if (previous.data === undefined) delete process.env.PACKAGEFLOW_DATA_DIR;
     else process.env.PACKAGEFLOW_DATA_DIR = previous.data;
     rmSync(work, { recursive: true, force: true });

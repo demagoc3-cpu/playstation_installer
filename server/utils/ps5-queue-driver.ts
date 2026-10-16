@@ -118,7 +118,12 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
     if (item.overwriteApproved === true) return;
     const source = getPackage(item.packageId),
       profile = getConsoleProfile(consoleId);
-    const check = await checkPs5InstalledPackage(consoleId, profile.ip, source, signal);
+    const check = await checkPs5InstalledPackage(
+      consoleId,
+      profile.ip,
+      { ...source, format: item.format },
+      signal,
+    );
     if (check.state === 'unavailable') return { state: 'waiting' as const, detail: check.detail };
     if (check.state === 'installed')
       return {

@@ -485,8 +485,39 @@ function ps5TransferInProgress(id: string) {
     )
   );
 }
+const ps5Probes = new Map<
+  string,
+  { ip: string; background: boolean; pending: Promise<ConsoleProfiles> }
+>();
+const ps5ProbeGenerations = new Map<string, number>();
+
+/** One PS5 has one synchronous HTTP listener. Join status callers and let a
+ * foreground check follow a deferred background check, rather than race it. */
 export async function probeConsoleProfile(id: unknown, background = false) {
   const profile = getConsoleProfile(id);
+  if (profile.platform !== 'ps5') return runConsoleProfileProbe(profile, background);
+  const existing = ps5Probes.get(profile.id);
+  if (existing?.ip === profile.ip && (background || !existing.background)) return existing.pending;
+  const run = () => {
+    const current = store().consoles.find((item) => item.id === profile.id);
+    if (!current || current.ip !== profile.ip || current.platform !== profile.platform)
+      return Promise.resolve(getConsoleProfiles());
+    const generation = (ps5ProbeGenerations.get(profile.id) || 0) + 1;
+    ps5ProbeGenerations.set(profile.id, generation);
+    return runConsoleProfileProbe(profile, background, generation);
+  };
+  const pending = (existing?.ip === profile.ip ? existing.pending.then(run) : run()).finally(() => {
+    if (ps5Probes.get(profile.id)?.pending === pending) ps5Probes.delete(profile.id);
+  });
+  ps5Probes.set(profile.id, { ip: profile.ip, background, pending });
+  return pending;
+}
+
+async function runConsoleProfileProbe(
+  profile: StoredProfile,
+  background = false,
+  generation?: number,
+) {
   const previous = snapshots.get(profile.id);
   let online = false,
     paired = false,
@@ -621,7 +652,12 @@ export async function probeConsoleProfile(id: unknown, background = false) {
   }
   const latest = store(),
     current = latest.consoles.find((item) => item.id === profile.id);
-  if (!current || current.ip !== profile.ip || current.platform !== profile.platform)
+  if (
+    !current ||
+    current.ip !== profile.ip ||
+    current.platform !== profile.platform ||
+    (generation !== undefined && ps5ProbeGenerations.get(profile.id) !== generation)
+  )
     return getConsoleProfiles();
   if (verified) {
     current.verified = true;
@@ -650,7 +686,9 @@ export async function probeConsoleProfile(id: unknown, background = false) {
 }
 
 const probes = new Map<string, Promise<ConsoleProfiles>>();
-export function refreshConsoleProfile(id: string, force = false, background = false) {
+export async function refreshConsoleProfile(id: string, force = false, background = false) {
+  const profile = getConsoleProfile(id);
+  if (profile.platform === 'ps5' && ps5Probes.has(id)) return probeConsoleProfile(id, background);
   const snapshot = snapshots.get(id);
   if (
     !force &&
@@ -659,6 +697,7 @@ export function refreshConsoleProfile(id: string, force = false, background = fa
     (background || !snapshot.capabilitiesDeferred)
   )
     return Promise.resolve(getConsoleProfiles());
+  if (profile.platform === 'ps5') return probeConsoleProfile(id, background);
   const probeKey = `${id}:${background ? 'background' : 'full'}`;
   const existing = probes.get(probeKey);
   if (existing) return existing;
@@ -667,14 +706,15 @@ export function refreshConsoleProfile(id: string, force = false, background = fa
   return pending;
 }
 /** No device-count limit; bound the number of simultaneous network probes. */
-export async function refreshConsoleProfiles() {
-  const ids = getConsoleProfiles().consoles.map((item) => item.id);
+export async function refreshConsoleProfiles(freshPs5 = false) {
+  const profiles = getConsoleProfiles().consoles;
   let next = 0;
   await Promise.all(
-    Array.from({ length: Math.min(8, ids.length) }, async () => {
-      while (next < ids.length) {
-        const id = ids[next++]!;
-        await refreshConsoleProfile(id, false, true).catch(() => {});
+    Array.from({ length: Math.min(8, profiles.length) }, async () => {
+      while (next < profiles.length) {
+        const profile = profiles[next++]!,
+          foreground = freshPs5 && profile.platform === 'ps5';
+        await refreshConsoleProfile(profile.id, foreground, !foreground).catch(() => {});
       }
     }),
   );
