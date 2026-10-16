@@ -328,6 +328,11 @@ export async function startPs5Queue(input: {
     }
   }
   assertNoConsoleSpeedTest(profile.id);
+  // A service launch/update may have begun while the preflight awaited PS5.
+  assertNoPs5Bootstrap(profile.id);
+  assertNoPs5ServiceUpdate(profile.id);
+  if (getConsoleProfile(profile.id).ip !== profile.ip)
+    throw createError({ statusCode: 409, message: 'Адрес PS5 изменился. Очередь не отправлена' });
   try {
     current.enqueue(
       items.map((item) => ({

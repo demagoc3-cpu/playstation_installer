@@ -10,6 +10,15 @@ export interface BootstrapFlow {
   state: 'checking' | 'sending' | 'verifying' | 'completed' | 'failed' | 'unconfirmed';
   message: string;
 }
+function causedByTimeout(error: unknown): boolean {
+  let cause = error;
+  // H3 preserves the fetch/DOMException as a cause; bound malformed/cyclic chains.
+  for (let depth = 0; depth < 8 && cause !== null && typeof cause === 'object'; depth++) {
+    if ('name' in cause && cause.name === 'TimeoutError') return true;
+    cause = 'cause' in cause ? cause.cause : undefined;
+  }
+  return false;
+}
 /** Closed PS5 ports may silently drop SYNs. Only an explicit first-start
  * confirmation permits that case; an accepted TCP connection is never absence. */
 export async function bootstrapHealth(
@@ -21,12 +30,14 @@ export async function bootstrapHealth(
     return await read();
   } catch (error: any) {
     if (error?.cause?.code === 'ECONNREFUSED' || error?.code === 'ECONNREFUSED') return null;
-    if (confirmedServiceStopped && error?.name === 'TimeoutError' && !(await connects()))
-      return null;
+    if (confirmedServiceStopped && causedByTimeout(error) && !(await connects())) return null;
     throw error;
   }
 }
-export function bootstrapReceipt(flow: BootstrapFlow, r: { status: number; body: any }) {
+export function bootstrapReceipt(
+  flow: Pick<BootstrapFlow, 'version' | 'buildId'>,
+  r: { status: number; body: any },
+) {
   const h = r.body,
     s = h?.serviceReport;
   return (

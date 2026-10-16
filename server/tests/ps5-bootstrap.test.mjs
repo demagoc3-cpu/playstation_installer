@@ -1,4 +1,5 @@
 import { test } from 'node:test';
+import { createError } from 'h3';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -205,5 +206,65 @@ test('silent closed port requires explicit first-start confirmation; connected o
     ),
     { status: 200, body: { service: 'existing' } },
   );
+});
+test('wrapped TimeoutError requires explicit confirmation and a negative service-port proof', async () => {
+  for (const nested of [false, true]) {
+    const timeout = new DOMException('service health timed out', 'TimeoutError');
+    const wrapped = createError({
+      statusCode: 503,
+      message: 'Service unavailable',
+      cause: timeout,
+    });
+    const failure = nested
+      ? createError({ statusCode: 503, message: 'Outer service wrapper', cause: wrapped })
+      : wrapped;
+    assert.notEqual(failure.name, 'TimeoutError', 'real H3 wrapper hides the timeout name');
+    const read = async () => {
+      throw failure;
+    };
+    let proofs = 0;
+    const stopped = async () => {
+      proofs++;
+      return false;
+    };
+    await assert.rejects(bootstrapHealth(read, stopped, false), (error) => error === failure);
+    assert.equal(proofs, 0, 'ordinary browser checks must not probe or infer timeout absence');
+    assert.equal(await bootstrapHealth(read, stopped, true), null);
+    assert.equal(proofs, 1, 'trusted Windows confirmation still requires a fresh TCP proof');
+    await assert.rejects(
+      bootstrapHealth(
+        read,
+        async () => {
+          proofs++;
+          return true;
+        },
+        true,
+      ),
+      (error) => error === failure,
+    );
+    assert.equal(proofs, 2, 'an accepted service connection always prevents absence');
+  }
+});
+test('a wrapped malformed response never permits a service-port absence check', async () => {
+  const failure = createError({
+    statusCode: 502,
+    message: 'Invalid service response',
+    cause: new SyntaxError('bad JSON'),
+  });
+  let proofs = 0;
+  await assert.rejects(
+    bootstrapHealth(
+      async () => {
+        throw failure;
+      },
+      async () => {
+        proofs++;
+        return false;
+      },
+      true,
+    ),
+    (error) => error === failure,
+  );
+  assert.equal(proofs, 0);
 });
 test.after(() => rm(work, { recursive: true, force: true }));

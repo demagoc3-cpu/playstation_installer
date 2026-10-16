@@ -76,17 +76,22 @@ const ready = computed(
       );
     }),
 );
-async function load() {
-  const token = ++generation,
+async function load(preserveSelection = false) {
+  if (preserveSelection && attempted.value) return;
+  const previous = preserveSelection ? preview.value : undefined,
+    previousSelected = preserveSelection ? [...selected.value] : [],
+    token = ++generation,
     captured = JSON.parse(JSON.stringify(selection));
   busy.value = true;
   message.value = '';
   panel.value = '';
-  preview.value = undefined;
-  selected.value = [];
-  reviewed.value = {};
-  queueReviewed.value = {};
-  overwrite.value = {};
+  if (!preserveSelection) {
+    preview.value = undefined;
+    selected.value = [];
+    reviewed.value = {};
+    queueReviewed.value = {};
+    overwrite.value = {};
+  }
   try {
     const value = await $fetch<DeviceInstallPreview>('/api/consoles/install-preview', {
       method: 'POST',
@@ -95,6 +100,29 @@ async function load() {
     if (token !== generation) return;
     preview.value = value;
     selection = { packageIds: [...value.selection.packageIds] };
+    if (preserveSelection) {
+      selected.value = previousSelected.filter((id) =>
+        value.devices.some((item) => item.profile.id === id),
+      );
+      overwrite.value = Object.fromEntries(
+        value.devices.map((item) => [
+          item.profile.id,
+          (overwrite.value[item.profile.id] || []).filter((id) =>
+            item.installedPackages.some(
+              (pkg) => pkg.packageId === id && (pkg.canOverwrite || pkg.canReinstall),
+            ),
+          ),
+        ]),
+      );
+      for (const item of value.devices) {
+        const old = previous?.devices.find((device) => device.profile.id === item.profile.id);
+        if (old?.reviewToken !== item.reviewToken) {
+          delete reviewed.value[item.profile.id];
+          delete queueReviewed.value[item.profile.id];
+        }
+      }
+      return;
+    }
     overwrite.value = Object.fromEntries(value.devices.map((item) => [item.profile.id, []]));
     let remembered: string[] = [];
     try {
@@ -219,7 +247,7 @@ async function install() {
     busy.value = false;
   }
 }
-onMounted(load);
+onMounted(() => load());
 onBeforeUnmount(() => {
   generation++;
 });
@@ -247,7 +275,7 @@ onBeforeUnmount(() => {
           <option value="all">{{ t('Все') }}</option>
           <option value="ps4">PS4</option>
           <option value="ps5">PS5</option></select
-        ><button :disabled="busy || attempted" @click="load">
+        ><button :disabled="busy || attempted" @click="load()">
           {{ t(busy ? 'Проверяем…' : 'Обновить') }}</button
         ><button v-if="preview" :disabled="busy || attempted" @click="openSelection">
           {{ t('Выбранные пакеты') }} · {{ preview.files }}
@@ -323,6 +351,14 @@ onBeforeUnmount(() => {
               </td>
               <td>
                 <span :class="{ ready: item.eligible }">{{ t(item.reason || 'Готово') }}</span>
+                <Ps5ServiceControl
+                  v-if="item.profile.platform === 'ps5' && !item.profile.online && !attempted"
+                  :key="item.profile.id + item.profile.ip"
+                  :console-id="item.profile.id"
+                  :online="item.profile.online"
+                  :disabled="busy"
+                  @ready="load(true)"
+                />
                 <div v-if="item.installedPackages.length" class="installed-packages">
                   <strong
                     >{{ t('Уже установлено на приставке:') }}

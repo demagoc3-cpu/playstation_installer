@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "acceptedBase": "19a58c520a6ea4ecab53cac0e187f359bb3b7460",
+  "checkpoint": "ad3a7a2",
+  "checks": {
+    "eslint": "pass",
+    "vueTsc": "pass",
+    "prettier": "pass",
+    "productionBuild": "pass",
+    "tests": {
+      "total": 413,
+      "pass": 412,
+      "fail": 0,
+      "skip": 1,
+      "skipReason": "existing private service/OpenOrbis test unavailable"
+    }
+  },
+  "browser": {
+    "mode": "actual Vue components with fixture APIs; no console network",
+    "design": "accepted glass CSS and background unchanged",
+    "serviceControlHeightBeforePx": 82.890625,
+    "serviceControlHeightStartingPx": 82.890625,
+    "serviceControlHeightCompletedPx": 82.890625,
+    "selectionAndReinstallApprovalPreserved": true,
+    "startupCommandsPerRequest": 1,
+    "polling": "GET only"
+  },
+  "regressions": [
+    "PS4 base+patch install and approved reinstall",
+    "two PS5 queues with isolated progress and cancellation",
+    "PS5 PKG Folder UFS2 exFAT PFS FFPFSC existing suite",
+    "same-IP WEB/Windows shared startup lock",
+    "lost launch replies never replayed",
+    "durable request IDs survive newer requests and restart",
+    "loader never probed by GET",
+    "queued zero-byte waiting work preserved",
+    "late preflight cannot enqueue during service startup/update",
+    "immutable ELF survives old launcher artifact staging"
+  ],
+  "notPerformed": [
+    "hardware qualification of embedded PKG",
+    "real game installation or reinstallation",
+    "ELF upload/replacement or console restart",
+    "Windows patch application",
+    "full Windows EXE build",
+    "git push"
+  ],
+  "logsDirectory": "/home/developer/projects/PS/.packageflow-unified-20261016"
+}

@@ -268,6 +268,13 @@ async function create() {
                       : 'Нужно сопряжение',
                 )
               }}</small>
+              <Ps5ServiceControl
+                v-if="profile.platform === 'ps5'"
+                :key="profile.id + profile.ip"
+                :console-id="profile.id"
+                :online="profile.online"
+                @ready="request('probe', { id: profile.id })"
+              />
             </td>
             <td>{{ bytes(profile.freeBytes) }}</td>
             <td>
