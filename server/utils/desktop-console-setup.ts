@@ -16,6 +16,7 @@ import { trackDesktopRequest } from './desktop-lifecycle';
 import { assertNoPs5ServiceUpdate } from './ps5-service-updates';
 import { beginPs5ServiceStart, ps5ServiceStartInfo } from './ps5-service-start';
 import { readPs5ServiceArtifact } from './ps5-service-artifact';
+import { assertNoPs5Bootstrap } from './ps5-bootstrap-journal';
 
 const flowPath = (id: string) => dataPath('console-setup', `bootstrap-${id}.json`);
 function target(id: unknown) {
@@ -340,6 +341,7 @@ async function installDesktopPs5AppInternal(id: unknown, requestId: unknown, upd
   const p = target(id),
     previous = await readDesktopPs5AppSetup(id, requestId, updateApp);
   if (previous) return previous;
+  assertNoPs5Bootstrap(p.id, p.ip);
   const receiptPath = dataPath('console-setup', `app-${p.id}-${requestId}.json`);
   assertNoPs5ServiceUpdate(p.id);
   const b = await consoleSetupBundle(),

@@ -219,7 +219,7 @@ export async function beginPs5ServiceUpdate(id: unknown) {
     }),
     previous = saved(p.id);
   assertNoConsoleSpeedTest(p.id);
-  assertNoPs5Bootstrap(p.id);
+  assertNoPs5Bootstrap(p.id, p.ip);
   if (!candidate)
     throw createError({ statusCode: 409, message: 'Проверенный ELF службы PS5 не подготовлен' });
   if (!p.verified || p.firmware !== candidate.firmware)

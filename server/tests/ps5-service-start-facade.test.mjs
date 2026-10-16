@@ -281,6 +281,7 @@ async function fixture(run) {
       hold,
       seedFlow,
       seedQueue,
+      expectedUserFiles: preserved,
     });
     for (const [file, contents] of Object.entries(preserved))
       assert.equal(
@@ -443,6 +444,128 @@ test('a legacy uncertain bootstrap is reconciled after restart without a second 
     assert.equal(journal(one).state, 'completed');
     assert.doesNotThrow(() => api.assertNoPs5Bootstrap(one.id));
     assert.deepEqual(actions, []);
+  });
+});
+
+test('an uncertain launch remains bound to its IP after a profile is deleted and recreated', async () => {
+  for (const journalKind of ['legacy', 'per-IP']) {
+    await fixture(
+      async ({
+        one,
+        two,
+        directory,
+        seedFlow,
+        journalPath,
+        expectedUserFiles,
+        actions,
+        connections,
+      }) => {
+        const original = seedFlow(one, {
+          state: 'unconfirmed',
+          dispatched: true,
+          action: 'start',
+        });
+        if (journalKind === 'per-IP') {
+          const ipDirectory = join(directory, 'consoles', one.ip);
+          mkdirSync(ipDirectory, { recursive: true });
+          writeFileSync(join(ipDirectory, 'service-start.json'), JSON.stringify(original));
+          rmSync(journalPath(one));
+        }
+        api.removeConsoleProfile(one.id);
+        const keysPath = join(directory, 'ps5-service-keys.json');
+        const keysAfterRemoval = readFileSync(keysPath, 'utf8');
+        assert.equal(
+          JSON.parse(keysAfterRemoval)[one.ip],
+          undefined,
+          'profile deletion removes its own key',
+        );
+        assert.equal(
+          JSON.parse(keysAfterRemoval)[two.ip],
+          'f'.repeat(64),
+          'other console key is retained',
+        );
+        expectedUserFiles['ps5-service-keys.json'] = keysAfterRemoval;
+        const recreated = api
+          .saveConsoleProfile({ name: 'Recreated PS5', ip: one.ip, platform: 'ps5' })
+          .consoles.find((profile) => profile.ip === one.ip);
+        assert.notEqual(recreated.id, one.id);
+        const info = await api.ps5ServiceStartInfo(recreated.id);
+        assert.equal(info.consoleId, recreated.id);
+        assert.equal(
+          info.canStart,
+          false,
+          `${journalKind} uncertain launch cannot be bypassed with a new profile ID`,
+        );
+        assert.equal(info.canInstall, false);
+        assert.equal(
+          info.operation.consoleId,
+          one.id,
+          'the original operation keeps its captured identity',
+        );
+        assert.equal(info.operation.state, 'unconfirmed');
+        assert.throws(() => api.assertNoPs5Bootstrap(recreated.id, one.ip), { statusCode: 409 });
+        assert.doesNotThrow(() => api.assertNoPs5Bootstrap(two.id, two.ip));
+        await assert.rejects(
+          api.beginPs5ServiceStart({
+            consoleId: recreated.id,
+            requestId: 'b'.repeat(32),
+            action: 'start',
+          }),
+          { statusCode: 409 },
+        );
+        assert.equal(
+          (await api.ps5ServiceStartInfo(two.id)).canStart,
+          true,
+          'another IP stays independent',
+        );
+        assert.deepEqual(actions, []);
+        assert.deepEqual(connections, []);
+        assert.equal(readFileSync(keysPath, 'utf8'), keysAfterRemoval);
+      },
+    );
+  }
+});
+
+test('corrupt per-IP journals block only the matching console and never authorize a new send', async () => {
+  await fixture(async ({ one, two, directory, seedFlow, actions, connections }) => {
+    const original = seedFlow(one, { state: 'unconfirmed', dispatched: true, action: 'start' });
+    const ipDirectory = join(directory, 'consoles', one.ip);
+    mkdirSync(ipDirectory, { recursive: true });
+    const ipPath = join(ipDirectory, 'service-start.json');
+    for (const contents of [
+      '{broken',
+      JSON.stringify({ ...original, ip: two.ip }),
+      JSON.stringify({ ...original, state: 'unknown-future-state' }),
+    ]) {
+      writeFileSync(ipPath, contents);
+      await assert.rejects(api.ps5ServiceStartInfo(one.id), { statusCode: 503 });
+      await assert.rejects(
+        api.beginPs5ServiceStart({ consoleId: one.id, requestId: 'b'.repeat(32), action: 'start' }),
+        { statusCode: 503 },
+      );
+      assert.throws(() => api.assertNoPs5Bootstrap(one.id, one.ip), { statusCode: 409 });
+      assert.equal((await api.ps5ServiceStartInfo(two.id)).canStart, true);
+      assert.doesNotThrow(() => api.assertNoPs5Bootstrap(two.id, two.ip));
+      assert.equal(readFileSync(ipPath, 'utf8'), contents);
+    }
+    assert.deepEqual(actions, []);
+    assert.deepEqual(connections, []);
+  });
+});
+
+test('an unrelated malformed legacy bootstrap never blocks a different IP globally', async () => {
+  await fixture(async ({ one, two, journalPath, actions, connections }) => {
+    for (const contents of [
+      '{broken',
+      JSON.stringify({ consoleId: two.id, ip: two.ip, state: 'unknown-future-state' }),
+    ]) {
+      writeFileSync(journalPath(two), contents);
+      assert.equal((await api.ps5ServiceStartInfo(one.id)).canStart, true);
+      assert.doesNotThrow(() => api.assertNoPs5Bootstrap(one.id, one.ip));
+      assert.equal(readFileSync(journalPath(two), 'utf8'), contents);
+    }
+    assert.deepEqual(actions, []);
+    assert.deepEqual(connections, []);
   });
 });
 

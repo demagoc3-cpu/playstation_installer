@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createConnection } from 'node:net';
 import { createError } from 'h3';
 import type { Ps5ServiceRelease, Ps5ServiceStartInfo } from '../../shared/types/ps5-service-start';
@@ -27,6 +27,7 @@ import {
 const running = new Set<string>();
 const terminal = (state: string) => state === 'completed' || state === 'failed';
 const journalPath = (id: string) => dataPath('console-setup', `bootstrap-${id}.json`);
+const ipJournalPath = (ip: string) => dataPath('consoles', ip, 'service-start.json');
 const requestPath = (id: string, request: string) =>
   dataPath('console-setup', 'service-start', `${id}-${request}.json`);
 const receiptPath = (id: string) => dataPath('console-setup', `saved-service-${id}.json`);
@@ -105,6 +106,8 @@ function savedFlow(id: string, path = journalPath(id)): Ps5ServiceLaunchRecord |
   };
 }
 function persist(flow: Ps5ServiceLaunchRecord) {
+  // Removing/recreating a profile must not forget an uncertain launch at its IP.
+  writeDurableJson(ipJournalPath(flow.ip), flow);
   // The existing queue/update/Windows admission gate reads this same journal.
   // Its legacy state spelling must remain compatible with installed launchers.
   writeDurableJson(journalPath(flow.consoleId), {
@@ -112,6 +115,38 @@ function persist(flow: Ps5ServiceLaunchRecord) {
     state: flow.state === 'starting' ? 'sending' : flow.state,
   });
   writeDurableJson(requestPath(flow.consoleId, flow.id), flow);
+}
+function previousForTarget(profile: ReturnType<typeof target>) {
+  const own = savedFlow(profile.id);
+  const ipValue = readJson(ipJournalPath(profile.ip));
+  if (
+    ipValue &&
+    (ipValue.ip !== profile.ip || !/^[a-zA-Z0-9_-]{1,64}$/.test(ipValue.consoleId || ''))
+  )
+    throw createError({
+      statusCode: 503,
+      message: 'Не удалось прочитать результат запуска по адресу PS5',
+    });
+  const indexed = ipValue ? savedFlow(ipValue.consoleId, ipJournalPath(profile.ip)) : null;
+  if (indexed && !terminal(indexed.state)) return indexed;
+  if (own && !terminal(own.state)) return own;
+  // Legacy Windows masters wrote only the profile journal. Inspect matching-IP
+  // records as well, without allowing an unrelated device's error to block all.
+  const directory = dataPath('console-setup');
+  if (existsSync(directory))
+    for (const name of readdirSync(directory)) {
+      const match = /^bootstrap-([a-zA-Z0-9_-]{1,64})\.json$/.exec(name);
+      if (!match || match[1] === profile.id) continue;
+      let value: any;
+      try {
+        value = readJson(dataPath('console-setup', name));
+      } catch {
+        continue;
+      }
+      if (value?.ip !== profile.ip || terminal(value.state)) continue;
+      return savedFlow(match[1]!, dataPath('console-setup', name));
+    }
+  return own;
 }
 function storedReceipt(profile: ReturnType<typeof target>) {
   const value = readJson(receiptPath(profile.id));
@@ -279,7 +314,7 @@ function publicOperation(flow: Ps5ServiceLaunchRecord) {
 /** Read/reconcile only: this path never contacts the ELF loader or sends a launch. */
 export async function ps5ServiceStartInfo(id: unknown): Promise<Ps5ServiceStartInfo> {
   const profile = target(id),
-    previous = savedFlow(profile.id);
+    previous = previousForTarget(profile);
   if (
     previous &&
     previous.ip === profile.ip &&
@@ -292,7 +327,7 @@ export async function ps5ServiceStartInfo(id: unknown): Promise<Ps5ServiceStartI
     const unlock = claimConsoleWorker('bootstrap', profile.ip);
     if (unlock)
       try {
-        const fresh = savedFlow(profile.id);
+        const fresh = previousForTarget(profile);
         assertTarget(profile);
         if (fresh?.id === previous.id && !fresh.dispatched && !terminal(fresh.state)) {
           previous.state = 'failed';
@@ -390,7 +425,7 @@ export async function beginPs5ServiceStart(
   )
     throw createError({ statusCode: 400, message: 'Проверьте параметры запуска службы' });
   const requestId = input.requestId,
-    previous = savedFlow(profile.id);
+    previous = previousForTarget(profile);
   if (previous && previous.ip !== profile.ip)
     throw createError({
       statusCode: 409,
@@ -430,14 +465,14 @@ export async function beginPs5ServiceStart(
   // Re-check after reading files. The lock is shared with updates and the Windows master.
   assertTarget(profile);
   assertIdle(profile);
-  const changed = savedFlow(profile.id);
+  const changed = previousForTarget(profile);
   if (changed && !terminal(changed.state))
     throw createError({ statusCode: 409, message: 'Другой клиент уже запускает службу PS5' });
   const unlock = claimConsoleWorker('bootstrap', profile.ip);
   if (!unlock)
     throw createError({ statusCode: 409, message: 'Другой клиент уже работает с этой PS5' });
   try {
-    const latest = savedFlow(profile.id);
+    const latest = previousForTarget(profile);
     const repeated = savedFlow(profile.id, requestPath(profile.id, requestId));
     if (repeated || latest?.id === requestId) {
       unlock();

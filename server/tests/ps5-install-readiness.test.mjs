@@ -202,6 +202,67 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
       undefined,
       'unavailable installer is detected before reading/hash/transfer',
     );
+    readiness = {
+      ...ready,
+      ready: false,
+      reason: 'embedded_backend_not_verified',
+      formats: [],
+      platforms: [],
+      folder: {
+        schemaVersion: 1,
+        route: 'staged-folder',
+        ready: true,
+        platforms: ['ps5'],
+        verificationWindow: 2,
+        streamProtocol: 'folder-stream-v2',
+        storageCopies: 1,
+        streamingHash: true,
+      },
+      images: {
+        schemaVersion: 1,
+        route: 'staged-image',
+        ready: true,
+        reason: 'ready',
+        protocol: 'image-registration-v1',
+        backend: 'ShadowMountPlus-1.7beta3',
+        registrationReceipt: true,
+        platforms: ['ps5'],
+        formats: ['ufs2', 'exfat', 'pfs', 'ffpfsc'],
+      },
+    };
+    profiles = (await api.probeConsoleProfile(ps5.id)).consoles;
+    const embedded = profiles[1].capabilities;
+    assert.equal(embedded.installation.reason, 'embedded_backend_not_verified');
+    assert.equal(
+      embedded.installation.ready,
+      false,
+      'legacy daemon capability flags cannot qualify the embedded PKG backend',
+    );
+    assert.equal(embedded.installPs4, false, 'PS4 PKG on PS5 also waits for the embedded backend');
+    assert.equal(
+      embedded.installPs5,
+      true,
+      'independent Folder/image installation remains available',
+    );
+    assert.equal(embedded.folder.ready, true);
+    assert.equal(embedded.images.ready, true);
+    assert.deepEqual(embedded.formats, ['folder', 'ufs2', 'exfat', 'pfs', 'ffpfsc']);
+    assert.equal(
+      api.ps5PkgInstallMessage(embedded),
+      'Встроенная установка PKG ещё не проверена на этой PS5',
+    );
+    calls.length = 0;
+    const embeddedWaiting = await driver.run(item, signal, (patch) => Object.assign(item, patch));
+    assert.equal(embeddedWaiting.state, 'waiting');
+    assert.equal(embeddedWaiting.detail, 'Встроенная установка PKG ещё не проверена на этой PS5');
+    assert.deepEqual(
+      calls,
+      ['/api/v1/install/readiness'],
+      'unverified embedded PKG never hashes, transfers or installs',
+    );
+    assert.equal(item.hash, undefined);
+    assert.equal(item.bytesSent, 0);
+    assert.equal(item.installDispatched, undefined);
     for (const invalid of [
       null,
       { ...ready, formats: ['pkg', 'ffpfsc'] },

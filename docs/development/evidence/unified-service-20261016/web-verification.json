@@ -8,8 +8,8 @@
     "prettier": "pass",
     "productionBuild": "pass",
     "tests": {
-      "total": 413,
-      "pass": 412,
+      "total": 416,
+      "pass": 415,
       "fail": 0,
       "skip": 1,
       "skipReason": "existing private service/OpenOrbis test unavailable"
@@ -23,7 +23,8 @@
     "serviceControlHeightCompletedPx": 82.890625,
     "selectionAndReinstallApprovalPreserved": true,
     "startupCommandsPerRequest": 1,
-    "polling": "GET only"
+    "polling": "GET only",
+    "lostReply": "One POST, explicit check-result GET reconciles without replay; height remains 82.890625px"
   },
   "regressions": [
     "PS4 base+patch install and approved reinstall",
@@ -35,7 +36,9 @@
     "loader never probed by GET",
     "queued zero-byte waiting work preserved",
     "late preflight cannot enqueue during service startup/update",
-    "immutable ELF survives old launcher artifact staging"
+    "immutable ELF survives old launcher artifact staging",
+    "Deleting and recreating a PS5 profile cannot bypass uncertainty recorded at the same IP",
+    "Unqualified embedded PKG remains waiting while tested Folder/images remain independently available"
   ],
   "notPerformed": [
     "hardware qualification of embedded PKG",
