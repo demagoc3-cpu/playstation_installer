@@ -15,7 +15,7 @@ mkdirSync(process.env.PACKAGEFLOW_DATA_DIR);
 await build({
   stdin: {
     contents:
-      "export * from './server/utils/installed-package-check'; export * from './server/utils/ps5-queue-driver'; export * from './server/utils/ps5-queue-core'; export * from './server/utils/console-profiles'; export * from './server/utils/package-library';",
+      "export * from './server/utils/installed-package-check'; export * from './server/utils/ps5-installed-read-coordinator'; export * from './server/utils/ps5-queue-driver'; export * from './server/utils/ps5-queue-core'; export * from './server/utils/console-profiles'; export * from './server/utils/package-library';",
     resolveDir: resolve('.'),
   },
   outfile: bundle,
@@ -305,6 +305,54 @@ test('a changed native PS5 catalog is retryable without claiming absence; invali
   );
   assert.equal(result.state, 'unavailable');
   assert.notEqual(result.transient, true);
+});
+test('a background lookup queued before installation starts never sends HTTP after the PS5 becomes busy', async () => {
+  let release,
+    entered,
+    busy = false;
+  const hold = new Promise((done) => {
+    release = done;
+  });
+  const started = new Promise((done) => {
+    entered = done;
+  });
+  const review = api.withPs5InstalledReview(['busy-at-dispatch'], async () => {
+    entered();
+    await hold;
+  });
+  await started;
+  const fixture = ps5CatalogReader([catalogPage([])]);
+  const candidate = { ...base, format: 'folder' };
+  const background = api.checkPs5InstalledPackage(
+    'busy-at-dispatch',
+    '192.168.1.5',
+    candidate,
+    undefined,
+    fixture.read,
+    { background: true, backgroundReadAllowed: () => !busy },
+  );
+  assert.equal(fixture.paths.length, 0);
+  busy = true;
+  release();
+  await review;
+  const deferred = await background;
+  assert.equal(deferred.state, 'unavailable');
+  assert.equal(deferred.transient, true);
+  assert.equal(
+    fixture.paths.length,
+    0,
+    'queued background reads recheck the live queue at dispatch',
+  );
+  const foreground = await api.checkPs5InstalledPackage(
+    'busy-at-dispatch',
+    '192.168.1.5',
+    candidate,
+    undefined,
+    fixture.read,
+    { backgroundReadAllowed: () => false },
+  );
+  assert.equal(foreground.state, 'absent', 'the worker still requires a real foreground read');
+  assert.deepEqual(fixture.paths, ['/api/v1/management/status', '/api/v1/console/catalog']);
 });
 test('a complete native PKG base registration allows manual review without claiming its files or version are installed', async () => {
   for (const registration of [

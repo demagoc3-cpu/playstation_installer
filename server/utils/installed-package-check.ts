@@ -41,7 +41,13 @@ const unavailable = (transient = false): InstalledCheck => ({
     'Не удалось проверить установленные пакеты на приставке. Ожидаем связь; повторная установка не отправлена',
 });
 const transientStatus = (status: number) => [408, 425, 429, 500, 502, 503, 504].includes(status);
+class DeferredPs5InstalledRead extends Error {}
+interface Ps5InstalledReadOptions {
+  background?: boolean;
+  backgroundReadAllowed?: (consoleId: string) => boolean;
+}
 function transientReadError(error: unknown) {
+  if (error instanceof DeferredPs5InstalledRead) return true;
   if (!(error instanceof Error)) return false;
   if (error.name === 'TimeoutError') return true;
   const code = (error.cause as { code?: unknown } | undefined)?.code;
@@ -349,13 +355,19 @@ export async function checkPs5InstalledPackage(
   pkg: InstalledCandidate,
   signal?: AbortSignal,
   read = readPs5,
-  { background = false }: { background?: boolean } = {},
+  { background = false, backgroundReadAllowed }: Ps5InstalledReadOptions = {},
 ): Promise<InstalledCheck> {
   const request: typeof readPs5 = (...args) =>
     readPs5Installed(
       consoleId,
       background ? 'background' : 'foreground',
-      () => read(...args),
+      () => {
+        // The queue can start after a background check queued this read.
+        // Recheck at dispatch so no delayed inventory poll competes with data.
+        if (background && backgroundReadAllowed?.(consoleId) === false)
+          throw new DeferredPs5InstalledRead('Background lookup deferred while PS5 is busy');
+        return read(...args);
+      },
       signal,
     );
   const check = () => readPs5InstalledPackage(consoleId, ip, pkg, signal, request);
@@ -365,7 +377,8 @@ export async function checkPs5InstalledPackage(
 /** Share a single read-only snapshot within one preview, never across submissions. */
 export function installedPackagePreviewChecker({
   background = false,
-}: { background?: boolean } = {}) {
+  backgroundReadAllowed,
+}: Ps5InstalledReadOptions = {}) {
   const snapshots = new Map<string, Promise<any>>();
   const memo = (key: string, call: () => Promise<any>) => {
     let value = snapshots.get(key);
@@ -394,7 +407,7 @@ export function installedPackagePreviewChecker({
           { ...pkg, format: contentFormat(pkg) },
           undefined,
           ps5,
-          { background },
+          { background, backgroundReadAllowed },
         )
       : checkPs4InstalledPackage(profile.ip, pkg, profile.transport === 'payload', ps4);
 }

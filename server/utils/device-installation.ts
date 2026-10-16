@@ -206,7 +206,15 @@ const liveActivitySnapshots = new Map<string, { until: number; value: string[] }
 const liveActivityChecks = new Map<string, Promise<string[]>>();
 export async function deviceActivitiesLive(packageIds: string[] = []): Promise<DeviceActivity[]> {
   const activity = deviceActivities(packageIds),
-    check = installedPackagePreviewChecker({ background: true }),
+    deferred = new Set<string>(),
+    check = installedPackagePreviewChecker({
+      background: true,
+      backgroundReadAllowed: (id) => {
+        const allowed = !['running', 'cancelling'].includes(getPs5Queue(id).status);
+        if (!allowed) deferred.add(id);
+        return allowed;
+      },
+    }),
     selection = [...new Set(packageIds)].sort();
   await Promise.all(
     activity.map(async (entry) => {
@@ -225,6 +233,9 @@ export async function deviceActivitiesLive(packageIds: string[] = []): Promise<D
         entry.installedPackageIds = cached.value;
         return;
       }
+      // Queue activity stays fresh. A busy PS5 may reuse only the existing
+      // unexpired badge snapshot; never wait for or start remote inventory.
+      if (profile.platform === 'ps5' && ['running', 'cancelling'].includes(entry.status)) return;
       const pending = liveActivityChecks.get(key);
       if (pending) {
         entry.installedPackageIds = await pending;
@@ -244,6 +255,16 @@ export async function deviceActivitiesLive(packageIds: string[] = []): Promise<D
                 }
               }),
             );
+          }
+          if (
+            profile.platform === 'ps5' &&
+            (deferred.has(profile.id) ||
+              ['running', 'cancelling'].includes(getPs5Queue(profile.id).status))
+          ) {
+            // A queue may start after this scan began. Deferred/partial replies
+            // never become a new badge snapshot or extend its previous TTL.
+            const previous = liveActivitySnapshots.get(key);
+            return previous && previous.until > Date.now() ? previous.value : [];
           }
           if (liveActivitySnapshots.size >= 64)
             liveActivitySnapshots.delete(liveActivitySnapshots.keys().next().value!);

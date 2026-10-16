@@ -899,6 +899,283 @@ test('live two-game selection, insufficient space, changed reviews, explicit que
   }
 });
 
+test('busy PS5 activity keeps local queue details without refreshing expired installed badges', async () => {
+  const work = mkdtempSync(join(tmpdir(), 'pf-busy-ps5-badges-')),
+    previous = {
+      data: process.env.PACKAGEFLOW_DATA_DIR,
+      fetch: globalThis.fetch,
+      now: Date.now,
+    },
+    data = join(work, 'data');
+  mkdirSync(data);
+  process.env.PACKAGEFLOW_DATA_DIR = data;
+  try {
+    const bundle = join(work, 'api.mjs');
+    await build({
+      stdin: {
+        contents:
+          "export * from './server/utils/device-installation';export * from './server/utils/console-profiles';export { activityFixtureQueue } from './server/utils/ps5-installation-queue';export { withPs5InstalledReview } from './server/utils/ps5-installed-read-coordinator';",
+        resolveDir: resolve('.'),
+      },
+      outfile: bundle,
+      bundle: true,
+      platform: 'node',
+      format: 'esm',
+      logLevel: 'silent',
+      plugins: [
+        {
+          name: 'activity-queue-fixture',
+          setup(plugin) {
+            // Mutate only the bundled fixture's queue: no worker wake or test hook in production.
+            plugin.onLoad({ filter: /\/ps5-installation-queue\.ts$/ }, ({ path }) => ({
+              contents: `${readFileSync(path, 'utf8')}\nexport function activityFixtureQueue(id, value) { Object.assign(runner(id).queue, value); }`,
+              loader: 'ts',
+              resolveDir: resolve('server/utils'),
+            }));
+          },
+        },
+      ],
+    });
+    const api = await import(pathToFileURL(bundle).href),
+      profiles = ['Running', 'Cancelling', 'Idle'].map((name, index) => {
+        const ip = `192.168.1.${50 + index}`;
+        return api
+          .saveConsoleProfile({ name, ip, platform: 'ps5' })
+          .consoles.find((p) => p.ip === ip);
+      }),
+      candidates = ['installed', 'queued'].map((id, index) => {
+        const titleId = `PPSA3608${index + 2}`,
+          path = join(work, `${id}.ffpfsc`);
+        writeFileSync(path, Buffer.alloc(8192));
+        return {
+          id,
+          title: id,
+          titleId,
+          contentId: `EP4484-${titleId}_00-0912328937643383`,
+          appVersion: '01.006.000',
+          platform: 'ps5',
+          format: 'ffpfsc',
+          contentType: 'PS5GD',
+          type: 'Игра',
+          installOrder: 0,
+          size: 8192,
+          path,
+          fileName: `${id}.ffpfsc`,
+          libraryRoot: work,
+          sourceModifiedAt: 1,
+          iconSize: 0,
+          icon: { offset: 0, size: 0 },
+        };
+      });
+    writeFileSync(
+      join(data, 'ps5-service-keys.json'),
+      JSON.stringify(Object.fromEntries(profiles.map((p) => [p.ip, 'a'.repeat(64)]))),
+    );
+    writeFileSync(
+      join(data, 'package-library.json'),
+      JSON.stringify({ version: 2, packages: candidates, deliveries: {} }),
+    );
+    const reads = [],
+      installed = candidates[0],
+      reply = (body) => new Response(JSON.stringify(body), { status: 200 });
+    let infoGate, infoEntered;
+    globalThis.fetch = async (url, options) => {
+      const { hostname: ip, pathname: path } = new URL(url);
+      assert.ok(profiles.some((p) => p.ip === ip));
+      assert.equal(options.method, 'GET', 'activity never dispatches installation work');
+      if (path === '/health')
+        return reply({
+          apiVersion: 'v1',
+          pid: 97,
+          firmwareRead: true,
+          firmwareRaw: '0x13600007',
+          serviceReport: {
+            service: 'PackageFlowService-PS5',
+            platform: 'ps5',
+            consoleVerified: true,
+            version: '0.1.24-dev',
+          },
+        });
+      if (path === '/api/v1/capabilities')
+        return reply({ service: 'PackageFlowService-PS5', capabilities: {} });
+      if (path === '/api/v1/system') return reply({ service: 'PackageFlowService-PS5' });
+      if (path === '/api/v1/install/readiness')
+        return reply({ service: 'PackageFlowService-PS5', ready: false });
+      reads.push({ ip, path });
+      if (path === '/api/v1/management/status')
+        return reply({ protocol: 'ps5-management-v1', ready: true, catalog: true });
+      if (path === '/api/v1/console/catalog')
+        return reply({
+          revision: 'a'.repeat(64),
+          entries: [
+            {
+              titleId: installed.titleId,
+              contentId: installed.contentId,
+              metadata: JSON.stringify({ contentVersion: installed.appVersion }),
+            },
+          ],
+          next: 1,
+          done: true,
+        });
+      if (path === '/api/v1/console/info') {
+        if (ip === profiles[0].ip) {
+          infoEntered?.();
+          if (infoGate) await infoGate;
+        }
+        return reply({
+          title_id: installed.titleId,
+          installed: true,
+          source_available: true,
+          content_id: installed.contentId,
+          version: installed.appVersion,
+          sourceIdentity: 'c'.repeat(64),
+        });
+      }
+      assert.fail(`Unexpected activity request: ${path}`);
+    };
+    for (const profile of profiles) await api.probeConsoleProfile(profile.id);
+    const ids = candidates.map((p) => p.id);
+    let now = Date.now();
+    Date.now = () => now;
+    const initial = await api.deviceActivitiesLive(ids);
+    for (const entry of initial) assert.deepEqual(entry.installedPackageIds, ['installed']);
+    const [running, cancelling, idle] = profiles;
+    for (const [profile, status] of [
+      [running, 'running'],
+      [cancelling, 'cancelling'],
+    ])
+      api.activityFixtureQueue(profile.id, {
+        id: `${status}-queue`,
+        status,
+        message: status,
+        items: candidates.map((candidate, index) => ({
+          ...candidate,
+          packageId: candidate.id,
+          state: index ? 'pending' : 'waiting',
+          bytesSent: 0,
+        })),
+      });
+    const assertBusy = (activity, expectedInstalled) => {
+      for (const profile of [running, cancelling]) {
+        const entry = activity.find((p) => p.consoleId === profile.id);
+        assert.equal(entry.status, profile === running ? 'running' : 'cancelling');
+        assert.equal(entry.queueId, `${entry.status}-queue`);
+        assert.equal(entry.message, entry.status);
+        assert.deepEqual(entry.counts, { active: 1, queued: 1, completed: 0, failed: 0 });
+        assert.deepEqual(entry.activePackageIds, ['installed']);
+        assert.deepEqual(entry.queuedPackageIds, ['queued']);
+        assert.deepEqual(entry.installedPackageIds, expectedInstalled);
+      }
+    };
+    reads.length = 0;
+    now += 4999;
+    assertBusy(await api.deviceActivitiesLive([...ids].reverse()), ['installed']);
+    assert.deepEqual(reads, [], 'busy PS5 reuses only its unexpired exact-selection snapshot');
+    now++;
+    const expired = await api.deviceActivitiesLive(ids);
+    assertBusy(expired, []);
+    assert.deepEqual(expired.find((p) => p.consoleId === idle.id).installedPackageIds, [
+      'installed',
+    ]);
+    assert.deepEqual(
+      reads.map((read) => read.ip),
+      [idle.ip, idle.ip, idle.ip],
+      'running/waiting and cancelling send no management/catalog/info reads; idle PS5 remains independent',
+    );
+    reads.length = 0;
+    assertBusy(await api.deviceActivitiesLive(ids), []);
+    assert.deepEqual(reads, [], 'busy polling never refills an expired installed snapshot');
+    api.activityFixtureQueue(running.id, { status: 'paused' });
+    const resumedLookup = await api.deviceActivitiesLive(ids);
+    assert.deepEqual(
+      resumedLookup.find((p) => p.consoleId === running.id).installedPackageIds,
+      ['installed'],
+      'ordinary live checking resumes when the PS5 queue is no longer busy',
+    );
+    assert.ok(reads.length > 0);
+    assert.ok(reads.every((read) => read.ip === running.ip));
+    now += 5000;
+    reads.length = 0;
+    let releaseReview, enterReview;
+    const reviewEntered = new Promise((resolve) => {
+        enterReview = resolve;
+      }),
+      review = api.withPs5InstalledReview([running.id, idle.id], async () => {
+        enterReview();
+        await new Promise((resolve) => {
+          releaseReview = resolve;
+        });
+      });
+    await reviewEntered;
+    const queuedBackground = api.deviceActivitiesLive(ids);
+    await new Promise(setImmediate);
+    assert.deepEqual(reads, [], 'background inventory waits behind the foreground review lease');
+    api.activityFixtureQueue(running.id, { status: 'running' });
+    releaseReview();
+    await review;
+    api.activityFixtureQueue(running.id, { status: 'paused' });
+    const deferredActivity = await queuedBackground;
+    assert.deepEqual(
+      deferredActivity.find((p) => p.consoleId === running.id).installedPackageIds,
+      [],
+      'reads queued while idle defer when the queue starts, even if it pauses before completion',
+    );
+    assert.ok(reads.length > 0);
+    assert.ok(
+      reads.every((read) => read.ip === idle.ip),
+      'deferred PS5 reads send no HTTP',
+    );
+    reads.length = 0;
+    const afterDeferral = await api.deviceActivitiesLive(ids);
+    assert.deepEqual(
+      afterDeferral.find((p) => p.consoleId === running.id).installedPackageIds,
+      ['installed'],
+      'deferred/partial inventory never creates a new five-second negative snapshot',
+    );
+    assert.deepEqual(
+      reads.map((read) => read.ip),
+      [running.ip, running.ip, running.ip],
+    );
+    now += 5000;
+    let releaseInfo;
+    const enteredInfo = new Promise((resolve) => {
+      infoEntered = resolve;
+    });
+    infoGate = new Promise((resolve) => {
+      releaseInfo = resolve;
+    });
+    const partialBackground = api.deviceActivitiesLive(ids);
+    await enteredInfo;
+    api.activityFixtureQueue(running.id, { status: 'running' });
+    releaseInfo();
+    const partial = await partialBackground;
+    assert.deepEqual(
+      partial.find((p) => p.consoleId === running.id).installedPackageIds,
+      [],
+      'even a completed installed reply cannot publish a new snapshot after the queue starts',
+    );
+    infoGate = undefined;
+    infoEntered = undefined;
+    api.activityFixtureQueue(running.id, { status: 'paused' });
+    reads.length = 0;
+    const afterPartial = await api.deviceActivitiesLive(ids);
+    assert.deepEqual(afterPartial.find((p) => p.consoleId === running.id).installedPackageIds, [
+      'installed',
+    ]);
+    assert.deepEqual(
+      reads.map((read) => read.ip),
+      [running.ip, running.ip, running.ip],
+      'the interrupted scan neither creates a partial positive snapshot nor resets its TTL',
+    );
+  } finally {
+    globalThis.fetch = previous.fetch;
+    Date.now = previous.now;
+    if (previous.data === undefined) delete process.env.PACKAGEFLOW_DATA_DIR;
+    else process.env.PACKAGEFLOW_DATA_DIR = previous.data;
+    rmSync(work, { recursive: true, force: true });
+  }
+});
+
 test('live library badges use public connection state and an exact device catalog, never saved profile flags', async () => {
   const work = mkdtempSync(join(tmpdir(), 'pf-live-badges-'));
   const previous = {
