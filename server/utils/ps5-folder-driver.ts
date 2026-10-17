@@ -6,7 +6,7 @@ import { ps5SourceStamp } from './ps5-source-hash';
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache';
 import { seedPs5SourceHashHistory } from './ps5-source-hash-history';
 import { ps5StreamHasher } from './ps5-stream-hash';
-import { ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks';
+import { ps5AckRejected, ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks';
 import { Ps5QueueFailure, type Ps5Item } from './ps5-queue-core';
 
 export type FolderRequest = ((
@@ -323,7 +323,7 @@ async function upload(
         signal,
       );
       if (r.status !== 200 || !valid(r.body) || r.body.bytesDurable !== position + bytes.length)
-        throw new Error('Folder acknowledgement lost; reconcile durable offset');
+        throw ps5AckRejected('Folder', r, position, bytes.length);
       request.onTransferProfile?.(r.body, position, bytes.length);
     },
     progress: (n) => {

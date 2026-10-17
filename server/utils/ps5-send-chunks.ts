@@ -1,4 +1,23 @@
+import { logEvent } from './event-log';
 import { Ps5QueueFailure } from './ps5-queue-core';
+
+/** A batch or chunk the service did not accept: record what it answered so a
+ * stalled transfer is diagnosable from the WEB journal, then reconcile. */
+export function ps5AckRejected(
+  kind: string,
+  ack: { status: number; body: any },
+  position: number,
+  bytes: number,
+) {
+  const reason =
+    typeof ack.body?.error === 'string' ? ack.body.error.slice(0, 80) : 'invalid acknowledgement';
+  const status = Number.isSafeInteger(ack.body?.status) ? ` (${ack.body.status})` : '';
+  logEvent(
+    'warn',
+    `PS5: ${kind} ${Math.round(bytes / 1048576)} МиБ со смещения ${position} не принят: HTTP ${ack.status}, ${reason}${status}. Повторяем с подтверждённого места.`,
+  );
+  return new Error(`${kind} acknowledgement lost; reconcile durable offset`);
+}
 
 /** Only the exact, hardware-qualified batch limit enables the pipelined route.
  * Older services keep their bounded chunk protocol. */

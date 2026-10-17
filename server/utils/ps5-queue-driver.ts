@@ -12,7 +12,7 @@ import {
 import { ps5BaseRegistration } from './ps5-registration';
 import { open } from 'node:fs/promises';
 import { ps5TransferProfile } from './ps5-transfer-profile';
-import { ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks';
+import { ps5AckRejected, ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks';
 import { ps5SourceStamp as stamp } from './ps5-source-hash';
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache';
 import { seedPs5SourceHashHistory } from './ps5-source-hash-history';
@@ -491,7 +491,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
               !valid(ack.body) ||
               ack.body.bytesDurable !== position + bytes.length
             )
-              throw new Error('Chunk acknowledgement lost; reconcile durable offset');
+              throw ps5AckRejected('Chunk', ack, position, bytes.length);
             capture(ack.body, position, bytes.length);
           },
           progress: (bytesSent) => save({ bytesSent }),

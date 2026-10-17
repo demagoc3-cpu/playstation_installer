@@ -4,7 +4,7 @@ import { createBLAKE3 } from 'hash-wasm';
 import { readPs5ImageMetadata } from './ps5-content-metadata';
 import { ps5SourceStamp } from './ps5-source-hash';
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache';
-import { ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks';
+import { ps5AckRejected, ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks';
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Item } from './ps5-queue-core';
 import type { FolderRequest } from './ps5-folder-driver';
 
@@ -186,7 +186,7 @@ async function upload(
         !valid(ack.body) ||
         ack.body.bytesDurable !== position + bytes.length
       )
-        throw new Error('Image acknowledgement lost; reconcile durable offset');
+        throw ps5AckRejected('Image', ack, position, bytes.length);
       request.onTransferProfile?.(ack.body, position, bytes.length);
     },
     progress,
