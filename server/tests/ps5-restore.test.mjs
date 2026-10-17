@@ -18,7 +18,8 @@ test('PS5 restore verifies backup, binds profile/layout, stages bytes, reconcile
     receipts = new Map();
   let applyCount = 0,
     lose = false,
-    corruptReceipt = false;
+    corruptReceipt = false,
+    forget = false;
   const entry = {
     path: 'sdimg_slot',
     fileId: 'a'.repeat(64),
@@ -97,6 +98,8 @@ test('PS5 restore verifies backup, binds profile/layout, stages bytes, reconcile
         if (lose) throw Error('lost response');
         return { status: 200, body: v };
       }
+      if (forget && /\/saves\/(restore\/status|rollback|finalize)$/.test(path))
+        return { status: 404, body: { error: 'request rejected' } };
       if (path === '/api/v1/saves/restore/status')
         return {
           status: 200,
@@ -233,6 +236,22 @@ test('PS5 restore verifies backup, binds profile/layout, stages bytes, reconcile
     corruptReceipt = false;
     assert.equal((await api.ps5RestoreJob('a', uncertain)).state, 'pending');
     await api.finishPs5Restore('a', uncertain, 'rollback', target.titleId);
+
+    // A restore the service no longer knows (404) cannot be rolled back; confirming
+    // progress closes only the WEB record so it stops blocking game commands.
+    const orphan = id();
+    api.startPs5Restore('a', copy.backupId, orphan, target.titleId);
+    assert.equal((await waitJob(orphan)).state, 'pending');
+    forget = true;
+    await assert.rejects(
+      api.finishPs5Restore('a', orphan, 'rollback', target.titleId),
+      /отката нет/,
+    );
+    assert.equal((await api.ps5RestoreJob('a', orphan)).state, 'pending');
+    const closed = await api.finishPs5Restore('a', orphan, 'finalize', target.titleId);
+    assert.equal(closed.state, 'confirmed');
+    assert.match(closed.message, /не изменялись/);
+    forget = false;
   } finally {
     delete globalThis.pfRestoreFixture;
     if (previous === undefined) delete process.env.PACKAGEFLOW_DATA_DIR;

@@ -1086,6 +1086,25 @@ export async function finishPs5Restore(
       action === 'rollback' ? '/api/v1/saves/rollback' : '/api/v1/saves/finalize',
       { ...headers(job.target), 'X-PackageFlow-Request-Id': job.id },
     );
+    if (r.status === 404) {
+      // The service keeps no record of this restore (for example it was applied by
+      // an earlier service build). Nothing on PS5 can be finished or rolled back;
+      // only a "progress checked" answer may close the stale WEB record.
+      const known = await ps5OperationRequest(job.consoleId, '/api/v1/saves/restore/status', {
+        'X-PackageFlow-Request-Id': job.id,
+      });
+      if (known.status === 404) {
+        if (action === 'rollback')
+          throw fail(
+            'PS5 не хранит это восстановление: прежних файлов для отката нет. Если прогресс в порядке, нажмите «Прогресс проверен».',
+          );
+        job.state = 'confirmed';
+        job.message =
+          'PS5 не хранит это восстановление (например, после обновления службы). Запись закрыта в WEB; файлы на PS5 не изменялись.';
+        writeDurableJson(restorePath(job.id), job);
+        return publicRestore(job);
+      }
+    }
     if (r.status !== 200)
       throw fail(`PS5 не завершила действие (${r.status}). Закройте игру и проверьте результат.`);
     return saveRestoreReceipt(job, r.body);
