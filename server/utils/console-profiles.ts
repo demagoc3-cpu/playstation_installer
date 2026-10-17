@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { logEvent } from './event-log';
+import { ps5QueueContext } from './ps5-transfer-context';
 import { existsSync } from 'node:fs';
 import { createError } from 'h3';
 import { assertNoConsoleSpeedTest } from './console-speed-lock';
@@ -175,6 +176,12 @@ const operationMethods = {
   '/api/v1/update/prepare': 'POST',
   '/api/v1/update/status': 'GET',
 } as const;
+/** Diagnostics: record every request that reaches a PS5 while it receives
+ * package data from someone other than its own installation queue. */
+function notePs5RequestDuringTransfer(consoleId: string, path: string) {
+  if (ps5QueueContext.getStore() === consoleId || !ps5TransferInProgress(consoleId)) return;
+  logEvent('warn', `PS5: запрос ${path} во время передачи пакета`);
+}
 export class Ps5OperationValidationError extends Error {}
 /** Fixed endpoints only. Callers cannot supply an address, credential or arbitrary path. */
 export async function ps5OperationRequest(
@@ -198,6 +205,7 @@ export async function ps5OperationRequest(
     )
   )
     throw new Ps5OperationValidationError('Invalid PS5 operation');
+  notePs5RequestDuringTransfer(profile.id, path);
   if (operationMethods[path] === 'POST') assertNoConsoleSpeedTest(consoleId);
   const timeout = path === '/api/v1/transfers/batch' ? 90000 : 15000;
   const response = await fetch(`http://${profile.ip}:8095${path}`, {
@@ -255,6 +263,7 @@ export async function ps5SaveChunk(consoleId: string, headers: Record<string, st
     throw Error('Invalid save headers');
   const size = Number(headers['X-PackageFlow-Size']);
   if (!Number.isSafeInteger(size) || size < 0 || size > 1048576) throw Error('Invalid chunk size');
+  notePs5RequestDuringTransfer(profile.id, '/api/v1/saves/read');
   const response = await fetch(`http://${profile.ip}:8095/api/v1/saves/read`, {
     headers: { ...headers, Authorization: `Bearer ${token}` },
     redirect: 'error',
@@ -426,6 +435,8 @@ export async function ps5ServiceRequest(
   signal?.throwIfAborted();
   if (!ps4ServiceIp(ip))
     throw createError({ statusCode: 400, message: 'Неверный адрес приставки' });
+  for (const c of getConsoleProfiles().consoles)
+    if (c.ip === ip && c.platform === 'ps5') notePs5RequestDuringTransfer(c.id, path);
   const headers: Record<string, string> = {};
   if (path === '/api/v1/pair') headers['X-PackageFlow-Pairing-Mode'] = 'automatic';
   else if (path !== '/health') {
@@ -1134,6 +1145,7 @@ export async function ps5ConsoleIcon(consoleId: string, titleId: string) {
     token = ps5Token(p.ip);
   if (p.platform !== 'ps5' || !token || !/^(PPSA|CUSA)\d{5}$/.test(titleId))
     throw createError({ statusCode: 404, message: 'Значок недоступен' });
+  notePs5RequestDuringTransfer(p.id, '/api/v1/console/icon');
   const r = await fetch(`http://${p.ip}:8095/api/v1/console/icon`, {
     headers: { Authorization: `Bearer ${token}`, 'X-PackageFlow-Title': titleId },
     redirect: 'error',

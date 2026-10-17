@@ -1,6 +1,7 @@
 import type { Ps5TransferProfile } from '../../shared/types/console-speed';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { logEvent } from './event-log';
+import { ps5QueueContext } from './ps5-transfer-context';
 import { TransferSpeed } from './transfer-speed';
 import type { ContentPlatform, ContentFormat } from '../../shared/types/consoles';
 import { installationTaskCategory } from '../../shared/types/tasks';
@@ -406,7 +407,10 @@ export class Ps5QueueRunner {
       try {
         if (item.cancelRequested) this.controller.abort();
         if (this.controller.signal.aborted) throw new Error('cancelled');
-        const result = await this.driver.run(item, this.controller.signal, checkpoint);
+        const signal = this.controller.signal;
+        const result = await ps5QueueContext.run(this.queue.consoleId, () =>
+          this.driver.run(item, signal, checkpoint),
+        );
         if (item.cancelRequested && !item.installDispatched) throw new Error('cancelled');
         checkpoint(result);
         if (item.state === 'installed' && item.confirmation !== 'user') {
@@ -420,7 +424,7 @@ export class Ps5QueueRunner {
           /* Retain durable offsets; never cancel receiver data. */
         } else if (item.cancelRequested && !item.installDispatched) {
           try {
-            await this.driver.cancel(item);
+            await ps5QueueContext.run(this.queue.consoleId, () => this.driver.cancel(item));
             checkpoint({
               state: 'cancelled',
               detail: 'Передача отменена',
