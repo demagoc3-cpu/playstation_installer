@@ -176,7 +176,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       };
       const profiledRequest: FolderRequest = Object.assign(
         (...args: Parameters<FolderRequest>) => folderRequest(...args),
-        { onTransferProfile: capture },
+        { onTransferProfile: capture, adaptiveKey: consoleId },
       );
       if (isPs5ImageFormat(item.format)) {
         let plan = readImagePlan(item);
@@ -475,6 +475,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
           size: item.size,
           offset,
           chunkSize: protocol.size,
+          adaptiveKey: protocol.path === '/api/v1/transfers/batch' ? consoleId : undefined,
           signal,
           validateSource: async () => stamp(await file.stat()) === identity,
           send: async (position, bytes) => {

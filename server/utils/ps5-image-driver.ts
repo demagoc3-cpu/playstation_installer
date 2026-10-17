@@ -171,6 +171,7 @@ async function upload(
     size,
     offset: r.body.bytesDurable,
     chunkSize: protocol.size,
+    adaptiveKey: protocol.path === '/api/v1/transfers/batch' ? request.adaptiveKey : undefined,
     signal,
     send: async (position, bytes) => {
       const ack = await request(

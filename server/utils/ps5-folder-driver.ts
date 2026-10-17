@@ -17,6 +17,8 @@ export type FolderRequest = ((
   signal?: AbortSignal,
 ) => Promise<{ status: number; body: any }>) & {
   onTransferProfile?: (body: any, offset: number, bytes: number) => void;
+  /** Console whose batch size is remembered across attempts. */
+  adaptiveKey?: string;
 };
 type Entry = {
   path: string;
@@ -309,6 +311,7 @@ async function upload(
     size,
     offset,
     chunkSize: protocol.size,
+    adaptiveKey: protocol.path === '/api/v1/transfers/batch' ? request.adaptiveKey : undefined,
     signal,
     validateSource: async () => true,
     send: async (position, bytes) => {
