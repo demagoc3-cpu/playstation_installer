@@ -86,7 +86,9 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
     if (r.status >= 500) {
       const reason = typeof r.body?.error === 'string' ? r.body.error.slice(0, 80) : 'no detail';
       logEvent('warn', `PS5: ${path} → HTTP ${r.status} (${reason})`);
-      throw new Error('PS5 operation unavailable');
+      throw Object.assign(new Error('PS5 operation unavailable'), {
+        batchRejected: path === '/api/v1/transfers/batch',
+      });
     }
     return r;
   };

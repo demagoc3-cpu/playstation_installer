@@ -54,6 +54,10 @@ const BATCH_TARGET_MS = 20000,
   BATCH_SLOW_FAILURE_MS = 30000,
   BATCH_MIN = 1024 * 1024;
 const batchSizes = new Map<string, number>();
+// A size the service rejected is not tried again for a while; growing back
+// into it would lose a batch on every attempt.
+const BATCH_CEILING_MS = 10 * 60 * 1000;
+const batchCeilings = new Map<string, { below: number; until: number }>();
 function batchFit(bytes: number, elapsedMs: number) {
   const ideal = (bytes * BATCH_TARGET_MS) / Math.max(1, elapsedMs);
   let fit = BATCH_MIN;
@@ -63,6 +67,7 @@ function batchFit(bytes: number, elapsedMs: number) {
 /** Test hook: forget remembered batch sizes. */
 export function resetPs5BatchSizes() {
   batchSizes.clear();
+  batchCeilings.clear();
 }
 
 /** Read one chunk ahead while PS5 receives/fsyncs the current chunk. The next
@@ -122,8 +127,12 @@ export async function ps5SendChunks(input: {
         // Only a batch that ran into a time limit shrinks: the service's receive
         // timeout (a stalled tunnel loses less with smaller batches) or a long
         // request. A quick lost ACK or reset keeps its size and is reconciled.
-        const timedOut = (error as { receiveTimeout?: boolean })?.receiveTimeout === true;
-        if (key && !signal.aborted && (timedOut || elapsed >= BATCH_SLOW_FAILURE_MS))
+        const timedOut = (error as { receiveTimeout?: boolean })?.receiveTimeout === true,
+          // The service accepted the body but could not store a batch this large.
+          rejected = (error as { batchRejected?: boolean })?.batchRejected === true;
+        if (key && !signal.aborted && rejected)
+          batchCeilings.set(key, { below: count, until: now() + BATCH_CEILING_MS });
+        if (key && !signal.aborted && (timedOut || rejected || elapsed >= BATCH_SLOW_FAILURE_MS))
           batchSizes.set(
             key,
             Math.max(
@@ -139,8 +148,12 @@ export async function ps5SendChunks(input: {
       if (key) {
         const elapsed = now() - started;
         if (elapsed > BATCH_TARGET_MS) length = Math.min(length, batchFit(count, elapsed));
-        else if (count === length && elapsed * 4 < BATCH_TARGET_MS)
-          length = Math.min(chunkSize, length * 2);
+        else if (count === length && elapsed * 4 < BATCH_TARGET_MS) {
+          const ceiling = batchCeilings.get(key);
+          if (ceiling && ceiling.until <= now()) batchCeilings.delete(key);
+          const limit = ceiling && ceiling.until > now() ? ceiling.below / 2 : chunkSize;
+          length = Math.max(length, Math.min(chunkSize, length * 2, limit));
+        }
         length = Math.max(Math.min(BATCH_MIN, chunkSize), length);
         if (length >= chunkSize) batchSizes.delete(key);
         else batchSizes.set(key, length);

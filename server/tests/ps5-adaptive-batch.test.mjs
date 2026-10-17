@@ -195,3 +195,37 @@ test('other rejections keep the batch size', async () => {
   const error = ps5AckRejected('Chunk', { status: 409, body: { error: 'busy' } }, 0, MiB);
   assert.equal(error.receiveTimeout, false);
 });
+
+test('a batch the service cannot store (500) shrinks and is not grown back into', async () => {
+  resetPs5BatchSizes();
+  const sent = [],
+    rejected = [];
+  let durable = 0,
+    clock = 0;
+  const size = 64 * MiB;
+  for (let attempt = 0; durable < size; attempt++) {
+    assert.ok(attempt < 6);
+    await ps5SendChunks({
+      read: async (buffer) => buffer.length,
+      size,
+      offset: durable,
+      chunkSize: 16 * MiB,
+      signal: new AbortController().signal,
+      validateSource: async () => true,
+      send: async (_position, bytes) => {
+        clock += 2000;
+        if (bytes.length > 4 * MiB) {
+          rejected.push(bytes.length);
+          throw Object.assign(new Error('PS5 operation unavailable'), { batchRejected: true });
+        }
+        sent.push(bytes.length);
+        durable += bytes.length;
+      },
+      progress: () => {},
+      adaptiveKey: 'store-limit',
+      now: () => clock,
+    }).catch(() => {});
+  }
+  assert.deepEqual(rejected, [16 * MiB, 8 * MiB]);
+  assert.ok(sent.every((bytes) => bytes === 4 * MiB));
+});
