@@ -1,5 +1,6 @@
 import type { Ps5TransferProfile } from '../../shared/types/console-speed';
 import { randomBytes, randomUUID } from 'node:crypto';
+import { logEvent } from './event-log';
 import { TransferSpeed } from './transfer-speed';
 import type { ContentPlatform, ContentFormat } from '../../shared/types/consoles';
 import { installationTaskCategory } from '../../shared/types/tasks';
@@ -432,11 +433,20 @@ export class Ps5QueueRunner {
           checkpoint({ state: 'failed', detail: error.message, completedAt: Date.now() });
         else if (error instanceof Ps5QueueUncertain)
           checkpoint({ state: 'unconfirmed', detail: error.message });
-        else
+        else {
+          // Retried automatically; keep the cause visible in the WEB journal.
+          const cause = (error as { cause?: { code?: unknown } })?.cause?.code;
+          logEvent(
+            'warn',
+            `PS5: попытка «${item.title || item.packageId}» прервана: ${
+              error instanceof Error ? `${error.name}: ${error.message}`.slice(0, 160) : 'unknown'
+            }${typeof cause === 'string' ? ` (${cause.slice(0, 40)})` : ''}. Повторяем.`,
+          );
           checkpoint({
             detail:
               'Не получено подтверждение запроса PS5. Проверяем состояние передачи; повторная установка не отправлялась',
           });
+        }
       }
       this.activeItem = undefined;
       this.controller = undefined;
