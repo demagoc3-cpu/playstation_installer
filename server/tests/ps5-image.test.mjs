@@ -326,6 +326,30 @@ test('lost publication reply is read-only on recovery even when the source was r
   );
   assert.equal(result.state, 'unconfirmed');
 });
+test('a publication the service reports as refused fails clearly instead of staying unknown', async () => {
+  const f = await fixture('refused-publish', 'ufs2'),
+    p = await api.createImagePlan(f.path, f.item, signal, () => {});
+  f.item.hash = p.imageHash;
+  f.item.sourceStamp = p.stamp;
+  f.item.installDispatched = true;
+  const request = async (id, path) =>
+    path.endsWith('/images/status')
+      ? { status: 404, body: {} }
+      : {
+          status: 200,
+          body: {
+            id,
+            running: false,
+            phase: 'publishing-image',
+            status: 409,
+            result: { error: 'image publication failed', status: 409, installed: false },
+          },
+        };
+  await assert.rejects(
+    api.runImagePlan(p, f.item, signal, request, () => {}),
+    /отказала в публикации образа \(409\)/,
+  );
+});
 for (const batchMax of [16777216, 33554432, 67108864, 134217728])
   for (const format of ['ufs2', 'exfat', 'pfs', 'ffpfsc'])
     test(`${format} ${batchMax / 1048576} MiB uses qualified batches, resumes lost ACK and preserves image registration protocol`, async () => {

@@ -348,6 +348,22 @@ export async function runImagePlan(
       op.body.running === true
     )
       return { state: 'installing', detail: 'Служба подготавливает образ на PS5' };
+    // The service finished this publication and reports it was refused: nothing
+    // was registered, so this is a definite failure, not an unknown result.
+    if (
+      op.status === 200 &&
+      op.body.id === p.id &&
+      op.body.phase === 'publishing-image' &&
+      op.body.running === false &&
+      Number.isSafeInteger(op.body.status) &&
+      op.body.status !== 200 &&
+      op.body.result?.installed === false
+    )
+      throw new Ps5QueueFailure(
+        op.body.status === 409
+          ? 'PS5 отказала в публикации образа (409): на приставке уже есть регистрация или файл этой игры. Образ не зарегистрирован'
+          : `PS5 отказала в публикации образа (${op.body.status}). Образ не зарегистрирован`,
+      );
     // Explicit resume can be added after inspecting a durable owned receipt.
     // A lost POST never silently publishes again or goes to the PKG installer.
     throw new Ps5QueueUncertain('Результат публикации образа неизвестен. Повтор не отправлен');

@@ -211,7 +211,7 @@ test('restart recovers durable dispatch intent and never resubmits an uncertain 
       assert.fail('accepted install cannot use transfer cancel');
     },
   });
-  a.runner.enqueue([input('base'), input('next', 'ps5:PPSA95002')]);
+  a.runner.enqueue([input('base'), input('patch', 'ps5:PPSA95001', 1)]);
   const saved = a.read();
   assert.equal(saved.items[0].installDispatched, true);
   a.runner.cancel(a.q.id);
@@ -236,9 +236,9 @@ test('restart recovers durable dispatch intent and never resubmits an uncertain 
   );
   restored.wake();
   await wait(() => saved.items[0].state === 'unconfirmed');
-  assert.equal(saved.items[1].state, 'pending', 'uncertain install blocks advancement');
+  assert.equal(saved.items[1].state, 'pending', 'an uncertain base holds its own patch');
   // Cancel remaining queue, then reconcile a strong simulated backend receipt.
-  restored.cancel(saved.id, ['next']);
+  restored.cancel(saved.id, ['patch']);
   finish = true;
   await wait(() => saved.status === 'completed');
   assert.ok(recovery >= 2);
@@ -247,6 +247,34 @@ test('restart recovers durable dispatch intent and never resubmits an uncertain 
   await wait(() => a.q.items[0].state === 'unconfirmed');
   // Stop test-only unknown runner without changing production semantics.
   a.q.status = 'failed';
+});
+
+test('an unconfirmed game does not stop other games in the queue', async () => {
+  const ran = [];
+  let finish = false;
+  const a = make({
+    async run(item, signal, save) {
+      ran.push(item.packageId);
+      if (item.packageId === 'first') {
+        save({ state: 'installing', installDispatched: true });
+        if (!finish) throw new api.Ps5QueueUncertain('unknown');
+      }
+      return { state: 'installed' };
+    },
+    async cancel() {},
+  });
+  a.runner.enqueue([
+    input('first'),
+    input('first-patch', 'ps5:PPSA95001', 1),
+    input('other', 'ps5:PPSA95002'),
+  ]);
+  await wait(() => a.q.items[2].state === 'installed');
+  assert.equal(a.q.items[0].state, 'unconfirmed');
+  assert.equal(a.q.items[1].state, 'pending', 'the patch waits for its unconfirmed base');
+  assert.ok(ran.indexOf('other') > ran.indexOf('first'));
+  finish = true;
+  await wait(() => a.q.status === 'completed');
+  assert.equal(a.q.items[1].state, 'installed');
 });
 
 test('durable write failure prevents dispatch and does not crash the WEB worker', async () => {
