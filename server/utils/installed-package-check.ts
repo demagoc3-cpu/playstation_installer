@@ -2,6 +2,7 @@ import { authenticatedServiceRequest, serviceKeyConfigured } from './ps4-service
 import { contentFormat } from '../../shared/content-platform';
 import type { ContentFormat } from '../../shared/types/consoles';
 import { readPs5Installed, withPs5InstalledReview } from './ps5-installed-read-coordinator';
+import { ps5SourceControlOverride } from './ps5-source-control';
 // Lazy loading keeps the PS4 queue independent of PS5 profile/runtime helpers.
 async function readPs5(
   ...args: Parameters<typeof import('./console-profiles').ps5OperationRequest>
@@ -20,10 +21,13 @@ export interface InstalledCandidate {
   format?: ContentFormat;
   contentType?: string;
 }
+
 export interface InstalledCheck {
   transient?: boolean;
   /** PS5 lists the title as registered but has no Folder/image source for it. */
   sourceMissing?: boolean;
+  /** Installed from a Folder/image source the service may delete on this PS5. */
+  replaceableSource?: boolean;
   revision?: string;
   components?: Array<{
     id: string;
@@ -342,6 +346,13 @@ async function readPs5InstalledPackage(
         return {
           ...matchPs5InstalledGame(pkg, row, false),
           revision: row.sourceIdentity || JSON.stringify([row.content_id, row.version, row.path]),
+          ...(pkg.installOrder === 0 &&
+          row.installed === true &&
+          row.can_manage_source === true &&
+          ['image', 'folder'].includes(row.source_type) &&
+          (status.body.consoleSourceControl === true || ps5SourceControlOverride(consoleId))
+            ? { replaceableSource: true }
+            : {}),
         };
       }
     }

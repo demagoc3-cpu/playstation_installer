@@ -25,7 +25,7 @@ const item = () => ({ titleId: 'PPSA95002', transferId: 'a'.repeat(32) });
 const signal = new AbortController().signal,
   noWait = async () => {};
 function console(options = {}) {
-  const state = { installed: true, source: false, commands: [], ...options };
+  const state = { installed: true, source: false, manage: true, commands: [], ...options };
   state.call = async (path, headers) => {
     if (path === '/api/v1/console/info' && state.unknown)
       return { status: 404, body: { error: 'console data unavailable or changed', status: 404 } };
@@ -36,13 +36,16 @@ function console(options = {}) {
           title_id: 'PPSA95002',
           installed: state.installed,
           source_available: state.source,
-          sourceIdentity: 'e'.repeat(64),
+          source_type: state.source ? 'image' : 'unknown',
+          can_manage_source: state.source && state.manage,
+          sourceIdentity: (state.source ? 'f' : 'e').repeat(64),
         },
       };
     if (path === '/api/v1/console/command') {
       state.commands.push(headers);
       if (state.refuse) return { status: 409, body: { error: 'console rejected operation' } };
-      state.installed = false;
+      if (headers['X-PackageFlow-Action'] === 'delete') state.source = false;
+      else state.installed = false;
       return { status: 200, body: { state: 'accepted' } };
     }
     assert.fail(`unexpected ${path}`);
@@ -80,8 +83,36 @@ test('an own orphaned registration is uninstalled once and confirmed before publ
   assert.equal(again.commands[0]['X-PackageFlow-Request-Id'], target.orphanClearId);
 });
 
-test('nothing is uninstalled when the source is present or the title is not registered', async () => {
-  for (const options of [{ source: true }, { installed: false }, { unknown: true }]) {
+test('an installed own image is deleted first, then its leftover registration is cleared', async () => {
+  const ps5 = console({ source: true }),
+    target = item();
+  await ps5ClearOwnOrphanRegistration(
+    ps5.call,
+    target,
+    signal,
+    (p) => Object.assign(target, p),
+    noWait,
+  );
+  assert.deepEqual(
+    ps5.commands.map((h) => [h['X-PackageFlow-Action'], h['X-PackageFlow-Source-Identity'][0]]),
+    [
+      ['delete', 'f'],
+      ['uninstall', 'e'],
+    ],
+    'each step uses the identity PS5 reports at that moment',
+  );
+  assert.match(target.sourceDeleteId, /^[a-f0-9]{32}$/);
+  assert.notEqual(target.sourceDeleteId, target.orphanClearId);
+  const locked = console({ source: true, manage: false });
+  await assert.rejects(
+    ps5ClearOwnOrphanRegistration(locked.call, item(), signal, () => {}, noWait),
+    /не разрешает удалить/,
+  );
+  assert.equal(locked.commands.length, 0, 'nothing is sent when files may not be deleted');
+});
+
+test('nothing is uninstalled when the title is not registered', async () => {
+  for (const options of [{ installed: false }, { unknown: true }]) {
     const ps5 = console(options);
     await ps5ClearOwnOrphanRegistration(ps5.call, item(), signal, () => {}, noWait);
     assert.equal(ps5.commands.length, 0);

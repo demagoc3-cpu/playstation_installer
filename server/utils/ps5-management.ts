@@ -20,7 +20,7 @@ import { getPs5Queue } from './ps5-installation-queue';
 import { assertNoPs5ServiceUpdate } from './ps5-service-updates';
 import { dataPath } from './data-path';
 import { writeDurableJson } from './durable-json';
-import { readJsonFile } from './json-store';
+import { ps5SourceControlOverride, ps5SourceControlPath } from './ps5-source-control';
 
 export interface SaveTarget {
   userId: string;
@@ -160,10 +160,8 @@ async function response(
 /* The owner may allow game file changes (delete/copy/move) on one PS5 before
  * the service has passed its hardware check there. Stored per console and
  * shown as unverified; launch control and image unpacking keep their own checks. */
-const sourceControlPath = (id: string) => dataPath('consoles', id, 'ps5-source-control.json');
-export function ps5SourceControlOverride(id: string) {
-  return readJsonFile<any>(sourceControlPath(id), null)?.enabled === true;
-}
+const sourceControlPath = ps5SourceControlPath;
+export { ps5SourceControlOverride };
 export function setPs5SourceControlOverride(id: unknown, enabled: unknown) {
   const p = profile(id);
   if (typeof enabled !== 'boolean') throw fail('Неверное значение переключателя');

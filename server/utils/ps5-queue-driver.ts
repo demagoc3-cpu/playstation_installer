@@ -89,10 +89,46 @@ export async function ps5ClearOwnOrphanRegistration(
       throw new Error('PS5 operation unavailable');
     return info.body;
   };
-  const row = await read();
+  const identity = (row: any) => {
+    if (typeof row.sourceIdentity !== 'string' || !/^[a-f0-9]{64}$/.test(row.sourceIdentity))
+      throw new Error('PS5 operation unavailable');
+    return row.sourceIdentity as string;
+  };
+  let row = await read();
+  // An installed own image/Folder: delete its files first (approved reinstall).
+  if (row.installed === true && row.source_available === true) {
+    if (row.can_manage_source !== true || !['image', 'folder'].includes(row.source_type))
+      throw new Ps5QueueFailure(
+        'PS5 не разрешает удалить прежние файлы этой игры. Переустановка не отправлена',
+      );
+    const deleteId = item.sourceDeleteId || randomBytes(16).toString('hex');
+    save({ sourceDeleteId: deleteId, detail: 'Удаляем прежние файлы игры на PS5' });
+    const d = await call(
+      '/api/v1/console/command',
+      {
+        'X-PackageFlow-Request-Id': deleteId,
+        'X-PackageFlow-Title': item.titleId,
+        'X-PackageFlow-Action': 'delete',
+        'X-PackageFlow-Source-Identity': identity(row),
+        'X-PackageFlow-Confirm-Title': item.titleId,
+      },
+      undefined,
+      signal,
+    );
+    if (d.status !== 200)
+      throw new Ps5QueueFailure(`PS5 не удалила прежние файлы этой игры (${d.status})`);
+    let gone = false;
+    for (let attempt = 0; attempt < 30 && !gone; attempt++) {
+      await wait(signal);
+      row = await read();
+      gone = row.source_available !== true;
+    }
+    if (!gone)
+      throw new Ps5QueueUncertain('Удаление прежних файлов не подтверждено. Повтор не отправлен');
+    save({ detail: 'Прежние файлы удалены' });
+  }
   if (row.installed !== true || row.source_available !== false) return;
-  if (typeof row.sourceIdentity !== 'string' || !/^[a-f0-9]{64}$/.test(row.sourceIdentity))
-    throw new Error('PS5 operation unavailable');
+  identity(row);
   const requestId = item.orphanClearId || randomBytes(16).toString('hex');
   save({ orphanClearId: requestId, detail: 'Снимаем прежнюю регистрацию игры на PS5' });
   const r = await call(
@@ -101,7 +137,7 @@ export async function ps5ClearOwnOrphanRegistration(
       'X-PackageFlow-Request-Id': requestId,
       'X-PackageFlow-Title': item.titleId,
       'X-PackageFlow-Action': 'uninstall',
-      'X-PackageFlow-Source-Identity': row.sourceIdentity,
+      'X-PackageFlow-Source-Identity': identity(row),
       'X-PackageFlow-Confirm-Title': item.titleId,
     },
     undefined,

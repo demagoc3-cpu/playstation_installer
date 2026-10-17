@@ -384,13 +384,14 @@ async function previewResolvedDeviceInstall(
           const installedPackages = checks
             .filter(({ check }) => ['installed', 'base-present'].includes(check.state))
             .map(({ item, check }) => {
-              // Our own Folder/image whose source was deleted on PS5: only the
-              // registration is left, so the same format can be installed again.
+              // Our own Folder/image: either its source was deleted on PS5 (only
+              // the registration is left) or the service may delete it, so the
+              // queue can replace it (delete, clear registration, publish).
               const sourceRestorable =
                 profile.platform === 'ps5' &&
                 contentFormat(item) !== 'pkg' &&
                 item.installOrder === 0 &&
-                check.sourceMissing === true &&
+                (check.sourceMissing === true || check.replaceableSource === true) &&
                 ownSources.has(item.titleId);
               const components = check.components || [];
               const relevant = components.filter(
@@ -415,7 +416,9 @@ async function previewResolvedDeviceInstall(
               return {
                 ...packageSummary(item),
                 detail: sourceRestorable
-                  ? 'Исходные файлы этой игры на PS5 удалены, осталась регистрация. Её можно установить заново'
+                  ? check.sourceMissing
+                    ? 'Исходные файлы этой игры на PS5 удалены, осталась регистрация. Её можно установить заново'
+                    : 'Установлено через PackageFlow. Переустановка удалит файлы игры на PS5 и установит её заново'
                   : check.detail,
                 canOverwrite:
                   profile.platform === 'ps5' &&

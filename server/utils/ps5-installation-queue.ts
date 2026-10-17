@@ -271,23 +271,31 @@ export async function startPs5Queue(input: {
       statusCode: 400,
       message: 'Повторная установка разрешается только для выбранных пакетов',
     });
-  // Folder/image: only our own title whose source PS5 confirms is gone right now.
+  // Folder/image: only our own title, live-checked now: its source is gone, or
+  // the service may delete it on this PS5 (verified or allowed by the owner).
   const restored = items.filter(
     (item) => overwrite.includes(item.id) && contentFormat(item) !== 'pkg',
   );
   if (restored.length) {
     const own = ps5OwnSourceTitles(profile.id);
     const { ps5ConsoleGameInfo } = await import('./ps5-console-games');
+    const { managementStatus } = await import('./ps5-management');
+    const sourceControl = await managementStatus(profile.id)
+      .then((v) => v.consoleSourceControl === true)
+      .catch(() => false);
     for (const item of restored) {
       const current =
         item.installOrder === 0 && own.has(item.titleId)
           ? await ps5ConsoleGameInfo(profile.id, item.titleId).catch(() => undefined)
           : undefined;
-      if (current?.installed !== true || current.sourceAvailable !== false)
+      const replaceable =
+        current?.installed === true &&
+        (current.sourceAvailable === false || (current.canManageSource === true && sourceControl));
+      if (!replaceable)
         throw createError({
           statusCode: 409,
           message:
-            'Повторная установка Folder и образов возможна, только если их файлы на PS5 удалены, а игра ставилась через PackageFlow',
+            'Переустановка Folder и образов доступна для игр, поставленных через PackageFlow, когда изменение файлов игр на этой PS5 разрешено',
         });
     }
   }
