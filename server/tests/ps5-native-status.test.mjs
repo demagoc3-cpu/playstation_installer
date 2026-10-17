@@ -114,7 +114,8 @@ test('known embedded status stays basic while native catalog learns full formats
     pid = 97,
     startedAt = 1792146534,
     fullCalls = 0,
-    helloCalls = 0;
+    helloCalls = 0,
+    consoleRequests = 0;
   let fullReady = true,
     pairAccepted = true,
     storageRead = true,
@@ -181,6 +182,7 @@ test('known embedded status stays basic while native catalog learns full formats
       },
     });
     globalThis.fetch = async (url, options) => {
+      consoleRequests++;
       const path = new URL(url).pathname;
       assert.equal(options.method, 'GET');
       let body,
@@ -294,7 +296,8 @@ test('known embedded status stays basic while native catalog learns full formats
       queuePath,
       JSON.stringify({ status: 'running', items: [{ state: 'sending', size: 10, bytesSent: 1 }] }),
     );
-    const beforeHello = helloCalls;
+    const beforeHello = helloCalls,
+      beforeRequests = consoleRequests;
     time += 16000;
     await api.status({});
     await api.index({});
@@ -304,14 +307,29 @@ test('known embedded status stays basic while native catalog learns full formats
       'background and catalog never compete with an active transfer via hello',
     );
     assert.equal(fullCalls, 3, 'native catalog defers SMP during data transfer');
+    assert.equal(
+      consoleRequests,
+      beforeRequests,
+      'automatic status and catalog reads send nothing to a PS5 receiving data, not even /health',
+    );
     pid++;
     time += 16000;
-    assert.deepEqual(
-      (await api.status({})).capabilities.formats,
-      [],
-      'a replacement process cannot inherit transferred readiness',
+    await api.status({});
+    assert.equal(consoleRequests, beforeRequests, 'still nothing while the transfer runs');
+    // A restarted service ends the transfer; the first automatic check after it
+    // sees the new process, which cannot inherit the earlier readiness.
+    writeFileSync(
+      queuePath,
+      JSON.stringify({ status: 'failed', items: [{ state: 'failed', size: 10, bytesSent: 1 }] }),
     );
-    assert.equal(helloCalls, beforeHello);
+    time += 16000;
+    const afterTransfer = await api.status({});
+    assert.equal(
+      helloCalls,
+      beforeHello + 1,
+      'a replacement process cannot inherit readiness: it is proven again by its own hello',
+    );
+    assert.deepEqual(afterTransfer.capabilities.formats, ['pkg']);
     writeFileSync(queuePath, JSON.stringify({ status: 'cancelled', items: [] }));
     fullReady = true;
     catalog = await api.index({});

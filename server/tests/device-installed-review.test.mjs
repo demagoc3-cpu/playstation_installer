@@ -685,6 +685,25 @@ test('live two-game selection, insufficient space, changed reviews, explicit que
         ],
       }),
     );
+    {
+      // Badges for a PS4 receiving package data never send installed-state reads.
+      await api.probeConsoleProfile(profile.id);
+      const realFetch = globalThis.fetch;
+      let reads = 0;
+      globalThis.fetch = (...args) => {
+        reads++;
+        return realFetch(...args);
+      };
+      try {
+        const busy = (await api.deviceActivitiesLive([fresh.id])).find(
+          (entry) => entry.consoleId === profile.id,
+        );
+        assert.equal(busy.status, 'running');
+        assert.equal(reads, 0, 'a running PS4 queue gets no live inventory requests');
+      } finally {
+        globalThis.fetch = realFetch;
+      }
+    }
     const withQueue = await api.previewDeviceInstall(selected, targets);
     assert.deepEqual(
       withQueue.packages.map((p) => p.packageId),

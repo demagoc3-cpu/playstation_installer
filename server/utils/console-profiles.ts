@@ -708,6 +708,31 @@ function ps5TransferInProgress(id: string) {
     )
   );
 }
+/** PS4 counterpart of ps5TransferInProgress: package data is being sent to the
+ * service right now (queue file per console, or the legacy single-console file). */
+function ps4TransferInProgress(ip: string) {
+  const scoped = dataPath('consoles', ip, 'installation-queue.json'),
+    legacy = dataPath('installation-queue.json');
+  const queue = existsSync(scoped)
+    ? readJsonFile<any>(scoped, null)
+    : readJsonFile<any>(legacy, null)?.psIp === ip
+      ? readJsonFile<any>(legacy, null)
+      : null;
+  return (
+    queue?.status === 'running' &&
+    Array.isArray(queue.items) &&
+    queue.items.some((item: any) => item.state === 'sending' || item.state === 'receiving')
+  );
+}
+/** A console receiving package data serves every request in line with the data
+ * (PS5: one synchronous HTTP handler). Nothing automatic may delay it, not even
+ * a /health round trip: background checks keep the last snapshot until it ends.
+ * Explicit checks and install admission stay full and fresh. */
+function consoleTransferInProgress(profile: Pick<StoredProfile, 'id' | 'ip' | 'platform'>) {
+  return profile.platform === 'ps5'
+    ? ps5TransferInProgress(profile.id)
+    : profile.platform === 'ps4' && ps4TransferInProgress(profile.ip);
+}
 export type Ps5ProbeScope = 'full' | 'pkg';
 const ps5Probes = new Map<
   string,
@@ -752,6 +777,11 @@ async function runConsoleProfileProbe(
   scope: Ps5ProbeScope = 'full',
 ) {
   const previous = snapshots.get(profile.id);
+  if (background && previous?.online && consoleTransferInProgress(profile)) {
+    // Marked deferred: a later explicit (non-background) check never reuses it.
+    snapshots.set(profile.id, { ...previous, checkedAt: Date.now(), capabilitiesDeferred: true });
+    return getConsoleProfiles();
+  }
   let online = false,
     paired = false,
     verified = false,

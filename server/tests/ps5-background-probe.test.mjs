@@ -97,44 +97,40 @@ test('background checks never block a sending PS5 on installer hello; explicit c
     const original = readFileSync(queuePath, 'utf8');
     calls = [];
     const active = (await api.probeConsoleProfile(profile.id, true)).consoles[0];
-    assert.deepEqual(calls, ['/health', '/api/v1/capabilities', '/api/v1/system']);
+    assert.deepEqual(calls, [], 'nothing automatic contacts a PS5 that is receiving data');
     assert.equal(active.online, true);
     assert.equal(active.paired, true);
-    assert.equal(active.capabilitiesDeferred, true);
     assert.deepEqual(active.capabilities.formats, full.capabilities.formats);
+    assert.equal(active.freeBytes, 4096, 'the last snapshot is kept');
+    assert.equal(active.transferFreeBytes, 3072);
     assert.equal(
       readFileSync(queuePath, 'utf8'),
       original,
       "status reads cannot change the user's queue",
     );
     calls = [];
-    await api.refreshConsoleProfile(profile.id);
-    assert.ok(
-      calls.includes('/api/v1/install/readiness'),
-      'an explicit full check cannot reuse deferred readiness',
-    );
-    pid++;
-    calls = [];
-    const replaced = (await api.probeConsoleProfile(profile.id, true)).consoles[0];
-    assert.equal(replaced.paired, true);
-    assert.deepEqual(replaced.capabilities.formats, []);
-    assert.ok(!calls.includes('/api/v1/install/readiness'));
-    await api.probeConsoleProfile(profile.id);
-    buildId = 'different-build-same-pid';
-    assert.deepEqual(
-      (await api.probeConsoleProfile(profile.id, true)).consoles[0].capabilities.formats,
-      [],
-    );
-    calls = [];
     await Promise.all([
       api.refreshConsoleProfile(profile.id, true, true),
       api.refreshConsoleProfile(profile.id, true, true),
     ]);
-    assert.equal(
-      calls.filter((path) => path === '/health').length,
-      1,
-      'duplicate background callers share one probe',
+    assert.deepEqual(calls, [], 'forced background refreshes do not contact it either');
+    calls = [];
+    await api.refreshConsoleProfile(profile.id);
+    assert.ok(
+      calls.includes('/api/v1/install/readiness'),
+      'an explicit full check stays fresh during a transfer',
     );
+    pid++;
+    calls = [];
+    const replacedQuiet = (await api.probeConsoleProfile(profile.id, true)).consoles[0];
+    assert.deepEqual(calls, []);
+    assert.equal(
+      replacedQuiet.servicePid,
+      88,
+      'a background check cannot learn about a restart mid-transfer',
+    );
+    const replaced = (await api.probeConsoleProfile(profile.id)).consoles[0];
+    assert.equal(replaced.servicePid, 89, 'an explicit check sees the new service process');
     queue.status = 'cancelled';
     writeFileSync(queuePath, JSON.stringify(queue));
     calls = [];
@@ -343,6 +339,111 @@ test('PS5 direct, background and foreground probes share one flight, escalate in
     assert.equal(updated.online, true, 'a stale queued probe cannot invalidate the new address');
     assert.equal(updated.capabilities.installation.ready, true);
   } finally {
+    globalThis.fetch = oldFetch;
+    if (oldData === undefined) delete process.env.PACKAGEFLOW_DATA_DIR;
+    else process.env.PACKAGEFLOW_DATA_DIR = oldData;
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('while a PS5 receives data, background refreshes never contact it; afterwards the 15 s interval resumes', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pf-sending-interval-'));
+  const oldData = process.env.PACKAGEFLOW_DATA_DIR,
+    oldFetch = globalThis.fetch,
+    realNow = Date.now;
+  process.env.PACKAGEFLOW_DATA_DIR = dir;
+  let offset = 0;
+  Date.now = () => realNow() + offset;
+  try {
+    const output = join(dir, 'probe.mjs');
+    await build({
+      stdin: {
+        contents: "export * from './server/utils/console-profiles'",
+        resolveDir: resolve('.'),
+      },
+      bundle: true,
+      platform: 'node',
+      format: 'esm',
+      outfile: output,
+      logLevel: 'silent',
+    });
+    const api = await import(pathToFileURL(output).href);
+    const profile = api.saveConsoleProfile({ name: 'Own', ip: '192.168.1.8', platform: 'ps5' })
+      .consoles[0];
+    writeFileSync(
+      join(dir, 'ps5-service-keys.json'),
+      JSON.stringify({ [profile.ip]: 'd'.repeat(64) }),
+    );
+    let calls = [];
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      calls.push(path);
+      const body =
+        path === '/health'
+          ? {
+              apiVersion: 'v1',
+              pid: 7,
+              firmwareRead: true,
+              firmwareRaw: '0x13600007',
+              serviceReport: {
+                service: 'PackageFlowService-PS5',
+                platform: 'ps5',
+                consoleVerified: true,
+                version: '0.1.26-dev',
+                buildId: 'own-interval',
+              },
+            }
+          : path === '/api/v1/capabilities'
+            ? { service: 'PackageFlowService-PS5', capabilities: { backgroundService: true } }
+            : path === '/api/v1/install/readiness'
+              ? {
+                  service: 'PackageFlowService-PS5',
+                  schemaVersion: 1,
+                  route: 'staged-pkg',
+                  exactVersionReceipt: false,
+                  ready: true,
+                  reason: 'ready',
+                  formats: ['pkg'],
+                  platforms: ['ps4', 'ps5'],
+                }
+              : {
+                  service: 'PackageFlowService-PS5',
+                  storageRead: true,
+                  freeBytes: 1,
+                  totalBytes: 2,
+                };
+      return new Response(JSON.stringify(body));
+    };
+    await api.refreshConsoleProfile(profile.id, false, true);
+    const queueDir = join(dir, 'consoles', profile.id);
+    mkdirSync(queueDir, { recursive: true });
+    const queuePath = join(queueDir, 'ps5-installation-queue.json');
+    writeFileSync(
+      queuePath,
+      JSON.stringify({ status: 'running', items: [{ state: 'sending', size: 8, bytesSent: 4 }] }),
+    );
+    calls = [];
+    for (const step of [20000, 41000, 600000]) {
+      offset += step;
+      await api.refreshConsoleProfile(profile.id, false, true);
+    }
+    assert.deepEqual(calls, [], 'no request during a long transfer, not even /health');
+    writeFileSync(
+      queuePath,
+      JSON.stringify({
+        status: 'completed',
+        items: [{ state: 'installed', size: 8, bytesSent: 8 }],
+      }),
+    );
+    calls = [];
+    offset += 16000;
+    await api.refreshConsoleProfile(profile.id, false, true);
+    assert.ok(
+      calls.includes('/api/v1/system'),
+      'without a transfer the 15 s background interval is unchanged',
+    );
+  } finally {
+    Date.now = realNow;
     globalThis.fetch = oldFetch;
     if (oldData === undefined) delete process.env.PACKAGEFLOW_DATA_DIR;
     else process.env.PACKAGEFLOW_DATA_DIR = oldData;

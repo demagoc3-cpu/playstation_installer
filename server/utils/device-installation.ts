@@ -233,9 +233,10 @@ export async function deviceActivitiesLive(packageIds: string[] = []): Promise<D
         entry.installedPackageIds = cached.value;
         return;
       }
-      // Queue activity stays fresh. A busy PS5 may reuse only the existing
-      // unexpired badge snapshot; never wait for or start remote inventory.
-      if (profile.platform === 'ps5' && ['running', 'cancelling'].includes(entry.status)) return;
+      // Queue activity stays fresh. A busy console (PS5 and PS4 alike: package
+      // data is being received) may reuse only the existing unexpired badge
+      // snapshot; never wait for or start remote inventory.
+      if (['running', 'cancelling'].includes(entry.status)) return;
       const pending = liveActivityChecks.get(key);
       if (pending) {
         entry.installedPackageIds = await pending;
@@ -256,10 +257,15 @@ export async function deviceActivitiesLive(packageIds: string[] = []): Promise<D
               }),
             );
           }
+          const busyNow = ['running', 'cancelling'].includes(
+            deviceActivities(packageIds).find((item) => item.consoleId === profile.id)?.status ||
+              '',
+          );
           if (
-            profile.platform === 'ps5' &&
-            (deferred.has(profile.id) ||
-              ['running', 'cancelling'].includes(getPs5Queue(profile.id).status))
+            busyNow ||
+            (profile.platform === 'ps5' &&
+              (deferred.has(profile.id) ||
+                ['running', 'cancelling'].includes(getPs5Queue(profile.id).status)))
           ) {
             // A queue may start after this scan began. Deferred/partial replies
             // never become a new badge snapshot or extend its previous TTL.
