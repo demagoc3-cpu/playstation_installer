@@ -22,6 +22,8 @@ export interface InstalledCandidate {
 }
 export interface InstalledCheck {
   transient?: boolean;
+  /** PS5 lists the title as registered but has no Folder/image source for it. */
+  sourceMissing?: boolean;
   revision?: string;
   components?: Array<{
     id: string;
@@ -330,6 +332,7 @@ async function readPs5InstalledPackage(
                 detail:
                   'Игра зарегистрирована на PS5; версия выбранного пакета не подтверждена. Для замены выберите переустановку',
                 revision: row.sourceIdentity,
+                sourceMissing: true,
               }
             : {
                 ...unavailable(),

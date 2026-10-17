@@ -32,6 +32,7 @@ import {
 } from './installation-queue';
 import {
   getPs5Queue,
+  ps5OwnSourceTitles,
   getPs5TaskCounts,
   getPs5PendingSpaceItems,
   startPs5Queue,
@@ -378,9 +379,19 @@ async function previewResolvedDeviceInstall(
                     .map(async (item) => ({ item, check: await checkInstalled(profile, item) })),
                 )),
               );
+          const ownSources =
+            profile.platform === 'ps5' ? ps5OwnSourceTitles(profile.id) : new Set<string>();
           const installedPackages = checks
             .filter(({ check }) => ['installed', 'base-present'].includes(check.state))
             .map(({ item, check }) => {
+              // Our own Folder/image whose source was deleted on PS5: only the
+              // registration is left, so the same format can be installed again.
+              const sourceRestorable =
+                profile.platform === 'ps5' &&
+                contentFormat(item) !== 'pkg' &&
+                item.installOrder === 0 &&
+                check.sourceMissing === true &&
+                ownSources.has(item.titleId);
               const components = check.components || [];
               const relevant = components.filter(
                 (c) =>
@@ -403,9 +414,13 @@ async function previewResolvedDeviceInstall(
                 covers;
               return {
                 ...packageSummary(item),
-                detail: check.detail,
+                detail: sourceRestorable
+                  ? 'Исходные файлы этой игры на PS5 удалены, осталась регистрация. Её можно установить заново'
+                  : check.detail,
                 canOverwrite:
-                  profile.platform === 'ps5' && !inQueueHistory && contentFormat(item) === 'pkg',
+                  profile.platform === 'ps5' &&
+                  !inQueueHistory &&
+                  (contentFormat(item) === 'pkg' || sourceRestorable),
                 canReinstall,
                 reinstallReason:
                   inQueueHistory || (running && profile.platform === 'ps4')
@@ -416,7 +431,7 @@ async function previewResolvedDeviceInstall(
                         : !removable
                           ? 'Служба не подтвердила возможность удаления компонента'
                           : ''
-                      : contentFormat(item) !== 'pkg'
+                      : contentFormat(item) !== 'pkg' && !sourceRestorable
                         ? 'Переустановка этого формата доступна через «На консоли»'
                         : '',
                 affected:
@@ -691,12 +706,9 @@ export async function installDeviceBatch(
       ([target, values]) =>
         !targets.includes(target) ||
         !Array.isArray(values) ||
-        values.some(
-          (value) =>
-            typeof value !== 'string' ||
-            !ids.includes(value) ||
-            contentFormat(getPackage(value)) !== 'pkg',
-        ),
+        // The live review (canOverwrite/canReinstall) and PS5 admission decide
+        // which formats may be replaced; here only the shape is checked.
+        values.some((value) => typeof value !== 'string' || !ids.includes(value)),
     )
   )
     throw createError({ statusCode: 400, message: 'Неверное подтверждение повторной установки' });

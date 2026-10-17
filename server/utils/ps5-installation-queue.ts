@@ -265,16 +265,32 @@ export async function startPs5Queue(input: {
   const overwrite = input.overwritePackageIds || [];
   if (
     !Array.isArray(overwrite) ||
-    overwrite.some(
-      (id) =>
-        typeof id !== 'string' ||
-        !items.some((item) => item.id === id && contentFormat(item) === 'pkg'),
-    )
+    overwrite.some((id) => typeof id !== 'string' || !items.some((item) => item.id === id))
   )
     throw createError({
       statusCode: 400,
-      message: 'Повторная установка разрешается только для выбранных PKG',
+      message: 'Повторная установка разрешается только для выбранных пакетов',
     });
+  // Folder/image: only our own title whose source PS5 confirms is gone right now.
+  const restored = items.filter(
+    (item) => overwrite.includes(item.id) && contentFormat(item) !== 'pkg',
+  );
+  if (restored.length) {
+    const own = ps5OwnSourceTitles(profile.id);
+    const { ps5ConsoleGameInfo } = await import('./ps5-console-games');
+    for (const item of restored) {
+      const current =
+        item.installOrder === 0 && own.has(item.titleId)
+          ? await ps5ConsoleGameInfo(profile.id, item.titleId).catch(() => undefined)
+          : undefined;
+      if (current?.installed !== true || current.sourceAvailable !== false)
+        throw createError({
+          statusCode: 409,
+          message:
+            'Повторная установка Folder и образов возможна, только если их файлы на PS5 удалены, а игра ставилась через PackageFlow',
+        });
+    }
+  }
   const repair = input.appSourceRepair;
   if (repair) {
     // Internal desktop recovery, never a general image overwrite option.
@@ -453,6 +469,20 @@ export function getPs5TaskCounts(id: string) {
   ).filter((item) => !item.hidden);
   for (const item of visible) counts[installationTaskCategory(item.state)]++;
   return counts;
+}
+/** Title IDs this WEB itself installed on a PS5 as Folder/image (queue records).
+ * A store or disc game with the same registration shape is never among them. */
+export function ps5OwnSourceTitles(id: string) {
+  try {
+    const queue = runner(id).queue;
+    return new Set(
+      [...queue.items, ...queue.history.flat()]
+        .filter((item) => item.state === 'installed' && item.format && item.format !== 'pkg')
+        .map((item) => item.titleId),
+    );
+  } catch {
+    return new Set<string>();
+  }
 }
 export function getPs5Tasks(
   id: string,

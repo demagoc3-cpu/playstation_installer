@@ -247,17 +247,16 @@ test(
       const [reviewAfterDrain] = await Promise.all([foreground, background]);
       assert.equal(reviewAfterDrain.devices[0].eligible, true);
       assert.equal(healthReads, beforeForeground + 1);
-      await assert.rejects(
-        api.installDeviceBatch(
-          '9'.repeat(32),
-          selection,
-          targets,
-          'localhost:3000',
-          { [profile.id]: [image.id] },
-          { [profile.id]: pending.reviewToken },
-        ),
-        { statusCode: 400 },
+      // An image the review does not mark replaceable is never queued for overwrite.
+      const refusedImage = await api.installDeviceBatch(
+        '9'.repeat(32),
+        selection,
+        targets,
+        'localhost:3000',
+        { [profile.id]: [image.id] },
+        { [profile.id]: pending.reviewToken },
       );
+      assert.notEqual(refusedImage.results[0].state, 'queued');
       formatsReady = false;
       const unqualified = (await api.previewDeviceInstall(selection, targets)).devices[0];
       assert.equal(unqualified.eligible, false);
