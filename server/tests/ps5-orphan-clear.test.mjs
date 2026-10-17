@@ -27,6 +27,8 @@ const signal = new AbortController().signal,
 function console(options = {}) {
   const state = { installed: true, source: false, commands: [], ...options };
   state.call = async (path, headers) => {
+    if (path === '/api/v1/console/info' && state.unknown)
+      return { status: 404, body: { error: 'console data unavailable or changed', status: 404 } };
     if (path === '/api/v1/console/info')
       return {
         status: 200,
@@ -79,7 +81,7 @@ test('an own orphaned registration is uninstalled once and confirmed before publ
 });
 
 test('nothing is uninstalled when the source is present or the title is not registered', async () => {
-  for (const options of [{ source: true }, { installed: false }]) {
+  for (const options of [{ source: true }, { installed: false }, { unknown: true }]) {
     const ps5 = console(options);
     await ps5ClearOwnOrphanRegistration(ps5.call, item(), signal, () => {}, noWait);
     assert.equal(ps5.commands.length, 0);

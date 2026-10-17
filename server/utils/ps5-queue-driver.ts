@@ -83,6 +83,8 @@ export async function ps5ClearOwnOrphanRegistration(
       undefined,
       signal,
     );
+    // 404: neither ShadowMount nor app.db knows the title, nothing to clear.
+    if (info.status === 404) return { installed: false, source_available: false };
     if (info.status !== 200 || info.body?.title_id !== item.titleId)
       throw new Error('PS5 operation unavailable');
     return info.body;
