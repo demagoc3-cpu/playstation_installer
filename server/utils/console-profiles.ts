@@ -183,6 +183,23 @@ function notePs5RequestDuringTransfer(consoleId: string, path: string) {
   logEvent('warn', `PS5: запрос ${path} во время передачи пакета`);
 }
 export class Ps5OperationValidationError extends Error {}
+/** Hands a package body to the socket in 1 MiB slices and reports how much has
+ * left WEB, so a long batch shows live progress. Same bytes, same Content-Length. */
+function uploadStream(body: Uint8Array, onUpload: (bytes: number) => void) {
+  let offset = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset >= body.length) {
+        controller.close();
+        return;
+      }
+      const part = body.subarray(offset, Math.min(offset + 1048576, body.length));
+      controller.enqueue(part);
+      onUpload(offset);
+      offset += part.length;
+    },
+  });
+}
 /** Fixed endpoints only. Callers cannot supply an address, credential or arbitrary path. */
 export async function ps5OperationRequest(
   consoleId: string,
@@ -190,6 +207,7 @@ export async function ps5OperationRequest(
   headers: Record<string, string> = {},
   body?: Uint8Array,
   signal?: AbortSignal,
+  onUpload?: (bytes: number) => void,
 ) {
   const profile = getConsoleProfile(consoleId),
     token = ps5Token(profile.ip);
@@ -208,16 +226,20 @@ export async function ps5OperationRequest(
   notePs5RequestDuringTransfer(profile.id, path);
   if (operationMethods[path] === 'POST') assertNoConsoleSpeedTest(consoleId);
   const timeout = path === '/api/v1/transfers/batch' ? 90000 : 15000;
+  const upload = body && onUpload ? uploadStream(body, onUpload) : undefined;
   const response = await fetch(`http://${profile.ip}:8095${path}`, {
     method: operationMethods[path],
     headers: {
       ...headers,
       Authorization: `Bearer ${token}`,
       ...(body ? { 'Content-Type': 'application/octet-stream' } : {}),
+      // A streamed body keeps the exact length; the service never accepts chunked bodies.
+      ...(upload ? { 'Content-Length': String(body!.length) } : {}),
       // Do not race the ELF's short idle lifetime while WEB saves progress.
       ...(path === '/api/v1/transfers/batch' ? { Connection: 'close' } : {}),
     },
-    body: body as BodyInit | undefined,
+    body: (upload ?? body) as BodyInit | undefined,
+    ...(upload ? { duplex: 'half' } : {}),
     redirect: 'error',
     signal: signal
       ? AbortSignal.any([signal, AbortSignal.timeout(timeout)])

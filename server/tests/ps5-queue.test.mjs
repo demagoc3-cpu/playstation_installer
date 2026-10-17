@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from 'esbuild';
+import { streamedBody } from './fixtures/streamed-body.mjs';
 import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -349,6 +350,7 @@ for (const batchMax of [0, 16777216, 33554432, 67108864, 134217728])
       const response = (body) =>
         new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
       globalThis.fetch = async (url, opts) => {
+        opts = await streamedBody(opts);
         assert.equal(new URL(url).hostname, profile.ip);
         if (new URL(url).pathname !== '/health')
           assert.equal(opts.headers.Authorization, `Bearer ${'a'.repeat(64)}`);

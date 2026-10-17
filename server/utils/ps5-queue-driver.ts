@@ -67,6 +67,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
     headers = {},
     body?: Uint8Array,
     signal?: AbortSignal,
+    onUpload?: (bytes: number) => void,
   ) => {
     const r = await ps5OperationRequest(
       consoleId,
@@ -74,6 +75,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       { 'X-PackageFlow-Transfer-Id': item.transferId, ...headers },
       body,
       signal,
+      onUpload,
     ).catch((error) => {
       if (error instanceof Ps5OperationValidationError)
         throw new Ps5QueueFailure(
@@ -102,13 +104,14 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       throw new Ps5QueueFailure('Не удалось прочитать сохранённый план Folder');
     }
   };
-  const folderRequest: FolderRequest = (id, path, headers, body, signal) =>
+  const folderRequest: FolderRequest = (id, path, headers, body, signal, onUpload) =>
     request(
       { transferId: id } as Ps5Item,
       path as Parameters<typeof ps5OperationRequest>[1],
       headers,
       body,
       signal,
+      onUpload,
     );
   const imagePlanPath = (item: Ps5Item) =>
     dataPath(`consoles/${consoleId}/${item.transferId}.image-plan.json`);
@@ -183,7 +186,12 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       };
       const profiledRequest: FolderRequest = Object.assign(
         (...args: Parameters<FolderRequest>) => folderRequest(...args),
-        { onTransferProfile: capture, adaptiveKey: consoleId },
+        {
+          onTransferProfile: capture,
+          adaptiveKey: consoleId,
+          // Images report live bytes of the batch on the way (display only).
+          onUpload: (bytes: number) => save({ bytesInFlight: bytes }),
+        },
       );
       if (isPs5ImageFormat(item.format)) {
         let plan = readImagePlan(item);
@@ -474,6 +482,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
           state: 'sending',
           progressPhase: 'transfer',
           bytesSent: offset,
+          bytesInFlight: 0,
           detail: 'Передаём пакет на PS5 с докачкой',
         });
         await ps5SendChunks({
@@ -492,6 +501,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
               { 'X-PackageFlow-Offset': String(position) },
               bytes,
               signal,
+              (sent) => save({ bytesInFlight: sent }),
             );
             if (
               ack.status !== 200 ||
@@ -501,7 +511,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
               throw ps5AckRejected('Chunk', ack, position, bytes.length);
             capture(ack.body, position, bytes.length);
           },
-          progress: (bytesSent) => save({ bytesSent }),
+          progress: (bytesSent) => save({ bytesSent, bytesInFlight: 0 }),
         });
         save({
           state: 'verifying',

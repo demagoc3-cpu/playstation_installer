@@ -180,6 +180,7 @@ async function upload(
         { 'X-PackageFlow-Offset': String(position) },
         bytes,
         signal,
+        request.onUpload,
       );
       if (
         ack.status !== 200 ||
@@ -375,7 +376,7 @@ export async function runImagePlan(
         ps5SourceStamp(await lstat(p.root)) === p.stamp,
       signal,
       request,
-      (bytesSent) => save({ bytesSent }),
+      (bytesSent) => save({ bytesSent, bytesInFlight: 0 }),
       () =>
         save({
           state: 'verifying',

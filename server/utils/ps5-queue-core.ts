@@ -36,6 +36,8 @@ export interface Ps5Item {
   state: Ps5State;
   detail: string;
   bytesSent: number;
+  /** Display only: bytes of the current batch already handed to the network. */
+  bytesInFlight?: number;
   completedAt?: number;
   installedAt?: number;
   hash?: string;
@@ -392,12 +394,15 @@ export class Ps5QueueRunner {
         if (item.confirmation === 'user' || item.observationStoppedAt) return;
         Object.assign(item, patch);
         if (!this.transmissionActive(item)) this.speed.reset();
-        else if (patch.bytesSent !== undefined) this.speed.observe(item.bytesSent);
+        else if (patch.bytesSent !== undefined || patch.bytesInFlight !== undefined)
+          this.speed.observe(item.bytesSent + (item.bytesInFlight || 0));
         // Byte offsets are already durable on PS5. Coalesce only WEB progress;
         // dispatch intents, hashes and state transitions always fsync immediately.
         if (
           Object.keys(patch).length === 1 &&
-          (patch.bytesSent !== undefined || patch.bytesChecked !== undefined) &&
+          (patch.bytesSent !== undefined ||
+            patch.bytesChecked !== undefined ||
+            patch.bytesInFlight !== undefined) &&
           Date.now() - this.progressSavedAt < 1000
         )
           return;
@@ -452,6 +457,8 @@ export class Ps5QueueRunner {
           });
         }
       }
+      // Bytes still on the way are never progress once the attempt has ended.
+      if (item.bytesInFlight) item.bytesInFlight = 0;
       this.activeItem = undefined;
       this.controller = undefined;
       if (this.queue.status !== 'running') return;

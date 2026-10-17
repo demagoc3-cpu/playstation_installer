@@ -482,6 +482,11 @@ export function getPs5Tasks(
       tasks.push({
         ...metadata,
         ...r.transferTelemetry(item),
+        // Live progress of the batch being sent; durable offsets stay in item.bytesSent.
+        bytesSent:
+          item.state === 'sending' && item.bytesInFlight
+            ? Math.min(item.size, item.bytesSent + item.bytesInFlight)
+            : item.bytesSent,
         id: item.transferId,
         queueId: item.queueId || (index === 0 ? q.id || '' : `history-${index}`),
         psIp: q.psIp,

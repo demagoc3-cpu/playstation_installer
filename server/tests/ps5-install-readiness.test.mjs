@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
+import { streamedBody } from './fixtures/streamed-body.mjs';
 import { createError } from 'h3';
 
 test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 installs without replay', async () => {
@@ -107,6 +108,7 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
       jobStatus = 200;
     const response = (body, status = 200) => new Response(JSON.stringify(body), { status });
     globalThis.fetch = async (url, options = {}) => {
+      options = await streamedBody(options);
       const address = new URL(url),
         path = address.pathname,
         headers = options.headers;

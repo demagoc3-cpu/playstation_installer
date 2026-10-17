@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createError } from 'h3';
 import { putPs5ParamPkg } from './ps5-param-pkg.mjs';
+import { streamedBody } from './streamed-body.mjs';
 
 const [bundle, work] = process.argv.slice(2);
 const data = join(work, 'data');
@@ -169,6 +170,7 @@ async function run() {
   );
   const calls = [];
   globalThis.fetch = async (url, options = {}) => {
+    options = await streamedBody(options);
     const u = new URL(url),
       ip = u.hostname,
       path = u.pathname;

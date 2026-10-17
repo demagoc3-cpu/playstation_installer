@@ -15,8 +15,11 @@ export type FolderRequest = ((
   headers?: Record<string, string>,
   body?: Uint8Array,
   signal?: AbortSignal,
+  onUpload?: (bytes: number) => void,
 ) => Promise<{ status: number; body: any }>) & {
   onTransferProfile?: (body: any, offset: number, bytes: number) => void;
+  /** Display only: bytes of the batch on the way (used for single-file images). */
+  onUpload?: (bytes: number) => void;
   /** Console whose batch size is remembered across attempts. */
   adaptiveKey?: string;
 };
