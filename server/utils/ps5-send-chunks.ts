@@ -16,7 +16,10 @@ export function ps5AckRejected(
     'warn',
     `PS5: ${kind} ${Math.round(bytes / 1048576)} МиБ со смещения ${position} не принят: HTTP ${ack.status}, ${reason}${status}. Повторяем с подтверждённого места.`,
   );
-  return new Error(`${kind} acknowledgement lost; reconcile durable offset`);
+  return Object.assign(new Error(`${kind} acknowledgement lost; reconcile durable offset`), {
+    // 408: the service stopped waiting for this body (link stalled or too slow).
+    receiveTimeout: ack.status === 408 || ack.body?.status === 408,
+  });
 }
 
 /** Only the exact, hardware-qualified batch limit enables the pipelined route.
@@ -116,10 +119,21 @@ export async function ps5SendChunks(input: {
         await input.send(offset, current.subarray(0, count));
       } catch (error) {
         const elapsed = now() - started;
-        // Only a batch that ran into the time limit shrinks; a quick lost ACK
-        // or reset keeps its size and is reconciled as before.
-        if (key && !signal.aborted && elapsed >= BATCH_SLOW_FAILURE_MS)
-          batchSizes.set(key, Math.max(BATCH_MIN, Math.min(count / 2, batchFit(count, elapsed))));
+        // Only a batch that ran into a time limit shrinks: the service's receive
+        // timeout (a stalled tunnel loses less with smaller batches) or a long
+        // request. A quick lost ACK or reset keeps its size and is reconciled.
+        const timedOut = (error as { receiveTimeout?: boolean })?.receiveTimeout === true;
+        if (key && !signal.aborted && (timedOut || elapsed >= BATCH_SLOW_FAILURE_MS))
+          batchSizes.set(
+            key,
+            Math.max(
+              BATCH_MIN,
+              Math.min(
+                count / 2,
+                elapsed >= BATCH_SLOW_FAILURE_MS ? batchFit(count, elapsed) : count / 2,
+              ),
+            ),
+          );
         throw error;
       }
       if (key) {

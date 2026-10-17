@@ -14,7 +14,7 @@ await build({
   outfile: join(dir, 'api.mjs'),
   logLevel: 'silent',
 });
-const { ps5SendChunks, resetPs5BatchSizes } = await import(
+const { ps5AckRejected, ps5SendChunks, resetPs5BatchSizes } = await import(
   pathToFileURL(join(dir, 'api.mjs')).href
 );
 test.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -152,4 +152,46 @@ test('without an adaptive key (chunk route) sizes are unchanged', async () => {
     now: () => clock,
   });
   assert.deepEqual(sent, [4 * MiB, 4 * MiB, 2 * MiB + 7]);
+});
+
+test('a stalled tunnel (service receive timeout) halves the batch even when it fails early', async () => {
+  resetPs5BatchSizes();
+  const sent = [];
+  let durable = 0,
+    clock = 0,
+    stalls = 2;
+  const size = 96 * MiB;
+  for (let attempt = 0; durable < size; attempt++) {
+    assert.ok(attempt < 6);
+    await ps5SendChunks({
+      read: async (buffer) => buffer.length,
+      size,
+      offset: durable,
+      chunkSize: 32 * MiB,
+      signal: new AbortController().signal,
+      validateSource: async () => true,
+      send: async (position, bytes) => {
+        clock += 12000;
+        if (stalls-- > 0)
+          throw ps5AckRejected(
+            'Chunk',
+            { status: 408, body: { error: 'transfer rejected', status: 408 } },
+            position,
+            bytes.length,
+          );
+        sent.push(bytes.length);
+        durable += bytes.length;
+      },
+      progress: () => {},
+      adaptiveKey: 'tunnel',
+      now: () => clock,
+    }).catch(() => {});
+  }
+  assert.equal(sent[0], 8 * MiB, '32 MiB → 16 MiB → 8 MiB after two stalls');
+});
+
+test('other rejections keep the batch size', async () => {
+  resetPs5BatchSizes();
+  const error = ps5AckRejected('Chunk', { status: 409, body: { error: 'busy' } }, 0, MiB);
+  assert.equal(error.receiveTimeout, false);
 });
