@@ -21,7 +21,10 @@ const busy = ref(false),
   typed = ref(''),
   destination = ref('/data/homebrew'),
   sort = ref('name'),
-  notPlayed = ref(false);
+  notPlayed = ref(false),
+  overrideDialog = ref(false),
+  overrideAccepted = ref(false),
+  overrideSaving = ref(false);
 const activity = ref<any>(),
   switching = ref(false),
   preparing = ref(false),
@@ -120,6 +123,25 @@ async function load() {
     if (!disposed) error.value = message(e);
   } finally {
     busy.value = false;
+  }
+}
+/** Owner switch for this PS5 only: allow game file changes before the
+ * service's hardware check. The server stores and enforces it. */
+async function setSourceOverride(enabled: boolean) {
+  overrideSaving.value = true;
+  error.value = '';
+  try {
+    await request('/api/ps5/management/source-control', {
+      method: 'POST',
+      body: { consoleId: target, enabled },
+    });
+    overrideDialog.value = false;
+    overrideAccepted.value = false;
+    await load();
+  } catch (e) {
+    error.value = message(e);
+  } finally {
+    overrideSaving.value = false;
   }
 }
 async function details(row: any) {
@@ -422,6 +444,19 @@ onBeforeUnmount(() => {
           'Запуск и остановка проверены. Изменения файлов включаются после отдельной проверки службы.',
         )
       }}
+      <button class="notice-action" @click="overrideDialog = true">
+        {{ t('Разрешить изменение файлов на этой PS5…') }}
+      </button>
+    </p>
+    <p v-if="capabilities.consoleSourceControlOverride && !busy" class="notice warning">
+      {{
+        t(
+          'Удаление, копирование и перемещение файлов игр включены вручную без проверки службы на этой PS5.',
+        )
+      }}
+      <button class="notice-action" :disabled="overrideSaving" @click="setSourceOverride(false)">
+        {{ t('Выключить') }}
+      </button>
     </p>
     <p v-if="preparing" role="status" aria-live="polite">
       {{ t('Проверяем состояние PS5 перед запуском…') }}
@@ -754,6 +789,52 @@ onBeforeUnmount(() => {
       </aside>
     </div>
     <div
+      v-if="overrideDialog"
+      class="backdrop"
+      @click.self="!overrideSaving && (overrideDialog = false)"
+    >
+      <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="ps5-source-override">
+        <h2 id="ps5-source-override">{{ t('Разрешить изменение файлов игр') }}</h2>
+        <p>
+          {{
+            t(
+              'Служба на этой PS5 ещё не прошла проверку удаления, копирования и перемещения файлов игр.',
+            )
+          }}
+        </p>
+        <p class="permanent-warning">
+          {{
+            t(
+              'Удаление стирает файлы игры безвозвратно. Ошибка службы может оставить игру частично удалённой или незарегистрированной.',
+            )
+          }}
+        </p>
+        <p>
+          {{
+            t(
+              'Разрешение действует только для этой приставки. Каждое удаление по-прежнему требует ввести Title ID. Распаковка образов остаётся выключенной.',
+            )
+          }}
+        </p>
+        <label class="check"
+          ><input v-model="overrideAccepted" type="checkbox" />{{
+            t('Понимаю риск и разрешаю изменение файлов игр на этой PS5')
+          }}</label
+        >
+        <div class="info-actions">
+          <button :disabled="overrideSaving" @click="overrideDialog = false">
+            {{ t('Отмена') }}</button
+          ><button
+            class="primary"
+            :disabled="overrideSaving || !overrideAccepted"
+            @click="setSourceOverride(true)"
+          >
+            {{ t(overrideSaving ? 'Сохраняем…' : 'Разрешить') }}
+          </button>
+        </div>
+      </section>
+    </div>
+    <div
       v-if="confirmation"
       class="backdrop"
       @click.self="!acting && !switching && (confirmation = undefined)"
@@ -907,6 +988,20 @@ p {
 }
 .error {
   color: #f2a7be;
+}
+.notice.warning {
+  border-color: #a8653f;
+  background: #2f2119;
+}
+.notice-action {
+  margin-left: 12px;
+}
+.permanent-warning {
+  color: #f2a7be;
+}
+.dialog label.check {
+  flex-direction: row;
+  align-items: center;
 }
 .game-info {
   position: fixed;

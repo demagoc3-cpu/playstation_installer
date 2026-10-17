@@ -1689,5 +1689,14 @@
   "Убрать из выбора": "Remove from selection",
   "Пока ничего не выбрано": "Nothing selected yet",
   "Отмечайте игры в библиотеке, чтобы собрать набор для установки.": "Select games in the library to build your installation list.",
-  "Продолжить выбор": "Continue selecting"
+  "Продолжить выбор": "Continue selecting",
+  "Разрешить изменение файлов на этой PS5…": "Allow file changes on this PS5…",
+  "Удаление, копирование и перемещение файлов игр включены вручную без проверки службы на этой PS5.": "Deleting, copying and moving game files was enabled manually on this PS5 without the service check.",
+  "Выключить": "Turn off",
+  "Разрешить изменение файлов игр": "Allow game file changes",
+  "Служба на этой PS5 ещё не прошла проверку удаления, копирования и перемещения файлов игр.": "The service on this PS5 has not passed the delete, copy and move check for game files yet.",
+  "Удаление стирает файлы игры безвозвратно. Ошибка службы может оставить игру частично удалённой или незарегистрированной.": "Deleting erases the game files permanently. A service error may leave the game partly deleted or unregistered.",
+  "Разрешение действует только для этой приставки. Каждое удаление по-прежнему требует ввести Title ID. Распаковка образов остаётся выключенной.": "The permission applies to this console only. Every deletion still asks for the Title ID. Image unpacking stays off.",
+  "Понимаю риск и разрешаю изменение файлов игр на этой PS5": "I understand the risk and allow game file changes on this PS5",
+  "Разрешить": "Allow"
 }

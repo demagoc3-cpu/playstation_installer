@@ -20,6 +20,7 @@ import { getPs5Queue } from './ps5-installation-queue';
 import { assertNoPs5ServiceUpdate } from './ps5-service-updates';
 import { dataPath } from './data-path';
 import { writeDurableJson } from './durable-json';
+import { readJsonFile } from './json-store';
 
 export interface SaveTarget {
   userId: string;
@@ -156,6 +157,23 @@ async function response(
     );
   return r.body;
 }
+/* The owner may allow game file changes (delete/copy/move) on one PS5 before
+ * the service has passed its hardware check there. Stored per console and
+ * shown as unverified; launch control and image unpacking keep their own checks. */
+const sourceControlPath = (id: string) => dataPath('consoles', id, 'ps5-source-control.json');
+export function ps5SourceControlOverride(id: string) {
+  return readJsonFile<any>(sourceControlPath(id), null)?.enabled === true;
+}
+export function setPs5SourceControlOverride(id: unknown, enabled: unknown) {
+  const p = profile(id);
+  if (typeof enabled !== 'boolean') throw fail('Неверное значение переключателя');
+  writeDurableJson(sourceControlPath(p.id), {
+    version: 1,
+    enabled,
+    changedAt: new Date().toISOString(),
+  });
+  return { consoleId: p.id, consoleSourceControlOverride: enabled };
+}
 export async function managementStatus(id: unknown) {
   const p = profile(id),
     v = await response(p.id, '/api/v1/management/status');
@@ -169,10 +187,18 @@ export async function managementStatus(id: unknown) {
     savesRestore: v.savesRestore === true,
     consoleGames: v.consoleGames === true,
     consoleControl: v.consoleControl === true,
-    consoleSourceControl:
-      v.consoleSourceControl === undefined
-        ? v.consoleControl === true
-        : v.consoleSourceControl === true,
+    ...(() => {
+      const verified =
+          v.consoleSourceControl === undefined
+            ? v.consoleControl === true
+            : v.consoleSourceControl === true,
+        override = !verified && ps5SourceControlOverride(p.id);
+      return {
+        consoleSourceControl: verified || override,
+        consoleSourceControlVerified: verified,
+        consoleSourceControlOverride: override,
+      };
+    })(),
     consoleUnpack: v.consoleUnpack === true,
     consoleActivity: v.consoleActivity === true,
   };

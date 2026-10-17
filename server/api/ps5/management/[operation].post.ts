@@ -13,6 +13,7 @@ import {
   startPs5Restore,
   ps5RestoreJob,
   finishPs5Restore,
+  setPs5SourceControlOverride,
 } from '../../../utils/ps5-management';
 import {
   ps5ConsoleActivity,
@@ -42,6 +43,8 @@ export default defineEventHandler(async (event) => {
       return ps5ConsoleStorageStatus(body?.consoleId, body?.requestId);
     case 'status':
       return managementStatus(body?.consoleId);
+    case 'source-control':
+      return setPs5SourceControlOverride(body?.consoleId, body?.enabled);
     case 'catalog':
       return consoleCatalog(body?.consoleId);
     case 'saves':
