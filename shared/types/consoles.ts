@@ -80,6 +80,7 @@ export interface DeviceInstallPreview {
     profile: ConsoleProfile;
     eligible: boolean;
     reason: string;
+    warning?: string;
     pending: number;
     requiredBytes: number;
     selectedBytes: number;

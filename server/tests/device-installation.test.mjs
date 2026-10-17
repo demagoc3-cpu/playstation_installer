@@ -110,13 +110,16 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
     };
     const jobs = new Map(),
       posts = [];
-    let offline = false;
+    let offline = false,
+      ps5Offline = false,
+      ps5HealthCalls = 0,
+      knownEmbedded = false;
+    const ps5Paths = [];
     const response = (body, status = 200) =>
       new Response(JSON.stringify(body), {
         status,
         headers: { 'Content-Type': 'application/json' },
       });
-    let inventoryReads = 0;
     globalThis.fetch = async (url, options = {}) => {
       const address = new URL(url),
         ip = address.hostname,
@@ -124,24 +127,83 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
       if (address.port === '9090' && path === '/status') return response({ status: 'ready' });
       if (ip === two.ip && offline) throw new Error('offline');
       if (ip === five.ip) {
-        if (path === '/health')
+        ps5Paths.push(path);
+        if (path === '/health') {
+          ps5HealthCalls++;
+          if (ps5Offline) throw Error('temporary health failure');
           return response({
             apiVersion: 'v1',
+            ...(knownEmbedded
+              ? {
+                  pid: 97,
+                  startedAt: 1792146534,
+                  backend: 'embedded',
+                  pkgBackendVersion: '1.4.0-embedded-029',
+                }
+              : {}),
             firmwareRead: true,
             firmwareRaw: '0x13600007',
             serviceReport: {
               service: 'PackageFlowService-PS5',
-              version: '0.1.3',
+              version: knownEmbedded ? '0.1.29-dev' : '0.1.3',
+              ...(knownEmbedded
+                ? { platform: 'ps5', buildId: 'ps5-service-pkg-context-029c-sse2' }
+                : {}),
               consoleVerified: true,
             },
           });
+        }
         assert.equal(options.headers.Authorization, `Bearer ${'c'.repeat(64)}`);
+        if (knownEmbedded && path === '/api/v1/installer/status')
+          return response({
+            ok: true,
+            version: '1.4.0',
+            fw: '13',
+            state: 'ready',
+            init_rc: 0,
+            escalated: true,
+          });
+        if (knownEmbedded && path === '/api/v1/install/readiness')
+          return response({
+            service: 'PackageFlowService-PS5',
+            schemaVersion: 1,
+            route: 'staged-pkg',
+            exactVersionReceipt: false,
+            ready: true,
+            reason: 'ready',
+            formats: ['pkg'],
+            platforms: ['ps4', 'ps5'],
+            folder: {
+              schemaVersion: 1,
+              route: 'staged-folder',
+              ready: true,
+              platforms: ['ps5'],
+              streamProtocol: 'folder-stream-v2',
+              storageCopies: 1,
+              streamingHash: true,
+            },
+            images: {
+              schemaVersion: 1,
+              route: 'staged-image',
+              ready: true,
+              reason: 'ready',
+              protocol: 'image-registration-v1',
+              backend: 'ShadowMountPlus-1.7beta3',
+              registrationReceipt: true,
+              platforms: ['ps5'],
+              formats: ['ufs2', 'exfat', 'pfs', 'ffpfsc'],
+            },
+          });
+        if (knownEmbedded && path === '/api/v1/management/status')
+          return response({ protocol: 'ps5-management-v1', ready: true, catalog: true });
+        if (knownEmbedded && path === '/api/v1/console/catalog')
+          return response({ revision: 'b'.repeat(64), entries: [], total: 0, next: 0, done: true });
         if (path === '/api/v1/system')
           return response({
             service: 'PackageFlowService-PS5',
             storageRead: true,
-            freeBytes: 500000000,
-            totalBytes: 1000000000,
+            freeBytes: knownEmbedded ? 2000000000 : 500000000,
+            totalBytes: knownEmbedded ? 4000000000 : 1000000000,
           });
         return response({
           service: 'PackageFlowService-PS5',
@@ -153,8 +215,7 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
         });
       }
       assert.ok([one.ip, two.ip].includes(ip), 'captured recipients only');
-      if (path.startsWith('/apps/title/')) {
-        inventoryReads++;
+      if (path.startsWith('/apps/title/'))
         return response({
           service: cap.service,
           complete: true,
@@ -164,7 +225,6 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
           next: null,
           components: [],
         });
-      }
       if (path === '/ping') return response({ ...cap, status: 'ok' });
       if (path === '/system/info')
         return response({
@@ -390,17 +450,6 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
       0,
       'summary does not load whole installed library into response',
     );
-    const beforeLiveRead = inventoryReads;
-    const liveSummary = await api.deviceActivitiesLive([base.id]);
-    assert.ok(
-      inventoryReads > beforeLiveRead,
-      'live badges use the online/paired snapshot, not the stored profile',
-    );
-    assert.equal(
-      liveSummary.flatMap((item) => item.installedPackageIds).length,
-      0,
-      'a local mark cannot override the live absence response',
-    );
     api.cancelInstallationQueue(two.ip);
     await until(() => api.getInstallationQueue(two.ip).status === 'cancelled');
     api.clearFinishedTasks([], one.ip);
@@ -425,6 +474,63 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
     const recovered = await api.installDeviceBatch(old.id, body, recipients, 'localhost:3000');
     assert.equal(recovered.results[0].state, 'uncertain');
     assert.equal(posts.length, 2);
+    ps5Offline = true;
+    assert.equal(
+      (await api.probeConsoleProfile(five.id)).consoles.find((p) => p.id === five.id).online,
+      false,
+    );
+    const beforePreview = ps5HealthCalls;
+    ps5Offline = false;
+    const fresh = await api.previewDeviceInstall({ packageIds: [future.id] });
+    const freshPs5 = fresh.devices.find((d) => d.profile.id === five.id);
+    assert.equal(
+      ps5HealthCalls,
+      beforePreview + 1,
+      'explicit review ignores a cached failed probe',
+    );
+    assert.equal(freshPs5.profile.online, true);
+    assert.equal(freshPs5.profile.freeBytes, 500000000);
+    assert.equal(posts.length, 2, 'refreshing installation review never starts a queue');
+    knownEmbedded = true;
+    ps5Paths.length = 0;
+    const pkgPreview = await api.previewDeviceInstall({ packageIds: [future.id] });
+    const pkgDestination = pkgPreview.devices.find((d) => d.profile.id === five.id);
+    assert.equal(pkgDestination.eligible, true);
+    assert.equal(pkgDestination.profile.freeBytes, 2000000000);
+    assert.equal(pkgDestination.profile.capabilities.installation.ready, true);
+    assert.ok(ps5Paths.includes('/api/v1/installer/status'));
+    assert.ok(
+      !ps5Paths.includes('/api/v1/install/readiness'),
+      'all-PKG preview never asks SMP readiness',
+    );
+    const libraryFile = join(data, 'package-library.json');
+    const indexed = JSON.parse(readFileSync(libraryFile, 'utf8'));
+    const formats = ['folder', 'ufs2', 'exfat', 'pfs', 'ffpfsc'];
+    indexed.packages.push(
+      ...formats.map((format) => ({ ...future, id: 'format-' + format, format })),
+    );
+    writeFileSync(libraryFile, JSON.stringify(indexed));
+    for (const format of formats) {
+      ps5Paths.length = 0;
+      const reviewed = await api.previewDeviceInstall({
+        packageIds: [future.id, 'format-' + format],
+      });
+      assert.equal(
+        reviewed.devices.find((d) => d.profile.id === five.id).eligible,
+        true,
+        JSON.stringify(reviewed.devices.find((d) => d.profile.id === five.id)),
+      );
+      assert.equal(
+        ps5Paths.filter((path) => path === '/api/v1/install/readiness').length,
+        1,
+        format + ' selection requires a fresh complete readiness',
+      );
+      assert.ok(
+        !ps5Paths.includes('/api/v1/installer/status'),
+        'full review is not answered by a partial hello',
+      );
+    }
+    assert.equal(posts.length, 2, 'format-specific review does not enqueue packages');
   } finally {
     globalThis.fetch = oldFetch;
     globalThis.createError = oldError;

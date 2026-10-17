@@ -227,7 +227,7 @@ async function enumerate(
   }
   steps.push(step('mkdir', destination));
   let offset = 0;
-  do {
+  for (;;) {
     const listing = (await consoleFileRequest(ip, 'list', { path: source, offset })) as {
       entries: { name: string; type: string }[];
       nextOffset: number;
@@ -252,8 +252,7 @@ async function enumerate(
     if (!Number.isSafeInteger(listing.nextOffset) || listing.nextOffset <= offset)
       fail('PS4 вернула неверную страницу папки', 502);
     offset = listing.nextOffset;
-    // eslint-disable-next-line no-constant-condition -- Retry loop exits through explicit return or break.
-  } while (true);
+  }
   if ((await stat(ip, source)).revision !== s.revision)
     fail('Состав исходной папки изменился. Повторите выбор', 409);
 }
@@ -279,7 +278,7 @@ async function enumerateDelete(ip: string, path: string, steps: Step[], depth = 
     fail('Для удаления обновите PackageFlowService до PKG 1.55', 409);
   if (s.type === 'directory') {
     let offset = 0;
-    do {
+    for (;;) {
       const listing = (await consoleFileRequest(ip, 'list', { path, offset })) as {
         entries: { name: string }[];
         nextOffset: number;
@@ -296,8 +295,7 @@ async function enumerateDelete(ip: string, path: string, steps: Step[], depth = 
       if (!Number.isSafeInteger(listing.nextOffset) || listing.nextOffset <= offset)
         fail('PS4 вернула неверную страницу папки', 502);
       offset = listing.nextOffset;
-      // eslint-disable-next-line no-constant-condition -- Retry loop exits through explicit return or break.
-    } while (true);
+    }
     if ((await stat(ip, path)).revision !== s.revision)
       fail('Состав папки изменился. Повторите выбор', 409);
   }

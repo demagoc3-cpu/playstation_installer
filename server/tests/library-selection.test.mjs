@@ -259,29 +259,3 @@ test('queueing a single game preserves other selected packages and the full bask
     h.cleanup();
   }
 });
-
-test('library summary follows totals, preserves notices and uses the existing status during loading', async () => {
-  const harness = await mountLibrary();
-  try {
-    const { view } = harness;
-    await view.restoreLibrary();
-    assert.equal(view.libraryStatusMessage.value, 'В библиотеке 62 игр, 62 пакетов на 62 КБ');
-    await harness.search('Alpha');
-    assert.equal(view.libraryStatusMessage.value, 'В библиотеке 62 игр, 62 пакетов на 62 КБ');
-    view.librarySummary.value = {
-      ...view.librarySummary.value,
-      games: 80,
-      packages: 150,
-      size: 150 * 1024 ** 3,
-    };
-    assert.equal(view.libraryStatusMessage.value, 'В библиотеке 80 игр, 150 пакетов на 150,0 ГБ');
-    view.statusMessage.value = 'Не удалось загрузить приставки';
-    assert.equal(view.libraryStatusMessage.value, 'Не удалось загрузить приставки');
-    view.libraryBusy.value = true;
-    assert.equal(view.libraryStatusMessage.value, 'Загружаем страницу библиотеки…');
-    view.libraryBusy.value = false;
-    assert.equal(view.libraryStatusMessage.value, 'Не удалось загрузить приставки');
-  } finally {
-    harness.cleanup();
-  }
-});

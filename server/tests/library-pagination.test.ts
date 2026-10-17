@@ -60,20 +60,20 @@ test('search filters the entire library before pagination, including file names 
     assert.equal(found.total, 1);
     assert.equal(found.page, 1);
     assert.equal(found.summary.packages, 2800, 'global counters do not shrink with a search');
-    assert.equal(found.packages[0]!.groupTitle, 'Игра 699');
-    assert.equal(found.packages[0]!.groupPackages, 4);
-    assert.equal(found.packages[0]!.groupReadyDlc, 1);
-    assert.equal(
-      found.packages[0]!.groupIconId,
-      'pkg-2796',
-      'base-game cover survives a patch/DLC-only search',
-    );
+    const first = found.packages[0];
+    assert.ok(first, 'the matching package is present');
+    assert.equal(first.groupTitle, 'Игра 699');
+    assert.equal(first.groupPackages, 4);
+    assert.equal(first.groupReadyDlc, 1);
+    assert.equal(first.groupIconId, 'pkg-2796', 'base-game cover survives a patch/DLC-only search');
   }
   assert.equal(paginateLibrary(items, { q: 'CUSA00699' }).total, 4);
   assert.equal(paginateLibrary(items, { q: 'Дополнение' }).total, 2100);
   assert.equal(paginateLibrary(items, { q: 'not-in-library' }).total, 0);
   assert.equal(paginateLibrary(items, { q: 'not-in-library' }).pages, 1);
-  assert.ok(matchesLibrarySearch({ ...items[0]!, title: 'Ёжик' }, librarySearchTokens('ежик')));
+  const first = items[0];
+  assert.ok(first, 'the library fixture has a first package');
+  assert.ok(matchesLibrarySearch({ ...first, title: 'Ёжик' }, librarySearchTokens('ежик')));
 });
 
 test('invalid page/size values are bounded and page overflow is clamped after removals', () => {
@@ -89,8 +89,10 @@ test('invalid page/size values are bounded and page overflow is clamped after re
     2,
     'off-page DLC remains available',
   );
+  const secondPageFirst = paginateLibrary(items, { page: 2 }).packages[0];
+  assert.ok(secondPageFirst, 'the second page contains packages');
   assert.equal(
-    paginateLibrary(items, { page: 2 }).packages[0]!.groupTitle,
+    secondPageFirst.groupTitle,
     'Игра 6',
     'branches split at a page boundary retain their full-library title',
   );

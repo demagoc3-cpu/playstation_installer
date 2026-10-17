@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -91,6 +91,34 @@ test('PS4 profile exposes actual system/package versions, model, HEN and validat
     assert.equal(stored.model, 'PS4 Pro');
     assert.equal(stored.totalBytes, undefined);
     assert.equal(stored.servicePid, undefined);
+    // While package data is sent to this PS4, a background check does not contact
+    // it at all; versions, model and capacity stay as last read.
+    mkdirSync(join(dir, 'consoles', profile.ip), { recursive: true });
+    const queuePath = join(dir, 'consoles', profile.ip, 'installation-queue.json');
+    writeFileSync(
+      queuePath,
+      JSON.stringify({ version: 1, status: 'running', items: [{ state: 'sending' }] }),
+    );
+    calls.length = 0;
+    const sending = (await api.probeConsoleProfile(profile.id, true)).consoles[0];
+    assert.deepEqual(calls, []);
+    assert.equal(sending.online, true);
+    assert.equal(sending.firmware, '11.00');
+    assert.equal(sending.pkgVersion, '2.14');
+    assert.equal(sending.model, 'PS4 Pro');
+    assert.equal(sending.henVersion, '2.4b18');
+    assert.equal(sending.freeBytes, 400);
+    assert.equal(sending.servicePid, 231);
+    const kept = JSON.parse(readFileSync(join(dir, 'console-profiles.json'), 'utf8')).consoles[0];
+    assert.equal(kept.firmware, '11.00', 'stored versions are not erased by the short check');
+    assert.equal(kept.pkgVersion, '2.14');
+    calls.length = 0;
+    await api.probeConsoleProfile(profile.id);
+    assert.ok(calls.includes('/system/info'), 'an explicit check during a transfer stays full');
+    writeFileSync(
+      queuePath,
+      JSON.stringify({ version: 1, status: 'completed', items: [{ state: 'installed' }] }),
+    );
     offline = true;
     const gone = (await api.probeConsoleProfile(profile.id)).consoles[0];
     assert.equal(gone.online, false);

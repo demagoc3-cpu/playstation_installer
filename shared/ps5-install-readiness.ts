@@ -4,6 +4,7 @@ export const ps5InstallReasons: Record<string, string> = {
   installer_unavailable: 'Установщик PS5 не запущен или недоступен',
   unrecognized_installer: 'Обновите установщик PS5 до согласованной версии',
   initialization_failed: 'Установщик PS5 не готов: системная инициализация не завершилась',
+  embedded_backend_not_verified: 'Встроенная установка PKG ещё не проверена на этой PS5',
   unsupported_firmware: 'Этот маршрут установки ещё не проверен на данной прошивке PS5',
   readiness_unavailable: 'Не удалось проверить готовность установки PS5',
   service_update_required: 'Обновите службу PS5 для проверки готовности установки',

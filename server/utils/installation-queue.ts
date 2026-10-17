@@ -554,7 +554,6 @@ async function runQueue(releaseWorker: () => void) {
         continue;
       }
       if (queue.status !== 'running' || !queue.psIp) return;
-      const psIp = queue.psIp;
       const index = queue.items.findIndex((item) => ACTIVE_STATES.includes(item.state));
       if (index < 0) {
         queue.status = 'completed';
@@ -604,7 +603,7 @@ async function runQueue(releaseWorker: () => void) {
         !item.dispatchedAt &&
         !item.cancelRequested
       ) {
-        const present = await checkPs4InstalledPackage(psIp, packageInfo);
+        const present = await checkPs4InstalledPackage(queue.psIp, packageInfo);
         const checked = stillCurrent(queue, index);
         if (!checked) return;
         queue = checked;
@@ -639,18 +638,18 @@ async function runQueue(releaseWorker: () => void) {
               continue;
             }
             const previous = await reconcileRemovedServiceJob(
-              psIp,
+              queue.psIp!,
               item.requestId,
-              await getServiceInstallJob(psIp, item.requestId),
+              await getServiceInstallJob(queue.psIp!, item.requestId),
             );
             const stopped =
               ['installed', 'failed', 'cancelled'].includes(previous.state) ||
               (previous.state === 'cancelling' && previous.errorHex.toUpperCase() === '0X80990019')
                 ? previous
                 : await reconcileRemovedServiceJob(
-                    psIp,
+                    queue.psIp!,
                     item.requestId,
-                    await cancelServiceInstallJob(psIp, item.requestId),
+                    await cancelServiceInstallJob(queue.psIp!, item.requestId),
                   );
             const latest = stillCurrent(queue, index);
             if (!latest) return;
@@ -665,7 +664,7 @@ async function runQueue(releaseWorker: () => void) {
           let job: ServiceInstallJob;
           if (!item.serviceDispatchedAt) {
             if (packageInfo.contentType === 'PS4GDE') {
-              const capability = await getServiceInstallerStatus(psIp);
+              const capability = await getServiceInstallerStatus(queue.psIp!);
               if (!capability.ready)
                 throw createError({ statusCode: 503, message: capability.message });
               if (!capability.contentTypes.includes('PS4GDE'))
@@ -685,7 +684,7 @@ async function runQueue(releaseWorker: () => void) {
                     () => packageInfo,
                   );
             const firmware = verifyPkg
-              ? await checkPs4Firmware(psIp, metadata)
+              ? await checkPs4Firmware(queue.psIp!, metadata)
               : { state: 'compatible', detail: '' };
             const checked = stillCurrent(queue, index);
             if (!checked) return;
@@ -704,7 +703,7 @@ async function runQueue(releaseWorker: () => void) {
               logEvent('warn', queue.message);
               continue;
             }
-            const space = await checkPs4InstallSpace(psIp, packageInfo.size);
+            const space = await checkPs4InstallSpace(queue.psIp!, packageInfo.size);
             const refreshed = stillCurrent(queue, index);
             if (!refreshed) return;
             queue = refreshed;
@@ -734,7 +733,7 @@ async function runQueue(releaseWorker: () => void) {
             // Wait before the dispatch boundary instead of rejecting the next game.
             let active: ServiceInstallJob | null = null;
             try {
-              active = await getActiveServiceInstallJob(psIp);
+              active = await getActiveServiceInstallJob(queue.psIp!);
             } catch (error: any) {
               if (error?.statusCode !== 404) throw error;
             }
@@ -759,7 +758,12 @@ async function runQueue(releaseWorker: () => void) {
             const icon = await readPackageIcon(item.packageId).catch(() => undefined);
             if (icon) {
               try {
-                await uploadServiceInstallIcon(psIp, packageInfo.titleId, item.requestId, icon);
+                await uploadServiceInstallIcon(
+                  queue.psIp!,
+                  packageInfo.titleId,
+                  item.requestId,
+                  icon,
+                );
               } catch (error: any) {
                 logEvent(
                   'warn',
@@ -774,7 +778,7 @@ async function runQueue(releaseWorker: () => void) {
             beforeDispatch.items[index]!.dispatchedAt = Date.now();
             writeQueue(beforeDispatch);
             dispatchAttempt = true;
-            job = await submitServicePackage(psIp, {
+            job = await submitServicePackage(queue.psIp!, {
               requestId: item.requestId,
               titleId: packageInfo.titleId,
               contentId: packageInfo.contentId,
@@ -792,9 +796,9 @@ async function runQueue(releaseWorker: () => void) {
                 message: 'Идентификатор принятого задания неизвестен; проверьте PS4',
               });
             job = await reconcileRemovedServiceJob(
-              psIp,
+              queue.psIp!,
               item.requestId,
-              await getServiceInstallJob(psIp, item.requestId),
+              await getServiceInstallJob(queue.psIp!, item.requestId),
             );
           }
           const updated = stillCurrent(queue, index) || stillCurrent(queue, index, 'cancelling');
@@ -815,7 +819,7 @@ async function runQueue(releaseWorker: () => void) {
             // error code. Stop it only after an extended period with no copy,
             // preparation, or AppInst activity; never infer installation.
             try {
-              const stopped = await cancelServiceInstallJob(psIp, item.requestId!);
+              const stopped = await cancelServiceInstallJob(queue.psIp!, item.requestId!);
               const latest = stillCurrent(updated, index);
               if (!latest) return;
               const stalledItem = latest.items[index]!;
@@ -949,7 +953,7 @@ async function runQueue(releaseWorker: () => void) {
         const savedFirmware = readJsonFile<{ consoles?: Array<{ ip: string; firmware?: string }> }>(
           dataPath('console-profiles.json'),
           {},
-        ).consoles?.find((profile) => profile.ip === psIp)?.firmware;
+        ).consoles?.find((profile) => profile.ip === queue.psIp)?.firmware;
         const firmware = bootstrap
           ? assessPackageFirmware('0.00', metadata)
           : getPs4InstallSettings().verifyPkgBeforeSend && savedFirmware
@@ -973,7 +977,7 @@ async function runQueue(releaseWorker: () => void) {
         queue.message = `Передаём ${index + 1} из ${queue.items.length}: «${packageInfo.title}»`;
         writeQueue(queue);
 
-        await startInstaller(psIp);
+        await startInstaller(queue.psIp!);
         if (!stillCurrent(queue, index)) return;
         resetPackageDelivery(item.packageId);
         const iconData = await readPackageIcon(item.packageId).catch(() => undefined);

@@ -56,12 +56,10 @@ test('WEB API returns only a page; bulk installation resolves off-page DLC and e
         items: [{ packageId: 'pkg-2797', state: 'failed' }],
       }),
     );
-    Object.assign(globalThis, { defineEventHandler: (handler) => handler });
-    Object.assign(globalThis, { getQuery: (event) => event.query });
-    Object.assign(globalThis, {
-      getHeader: (_event, name) => (name === 'host' ? '10.1.10.31:3100' : undefined),
-    });
-    Object.assign(globalThis, { createError: createError });
+    globalThis.defineEventHandler = (handler) => handler;
+    globalThis.getQuery = (event) => event.query;
+    globalThis.getHeader = (_event, name) => (name === 'host' ? '10.1.10.31:3100' : undefined);
+    globalThis.createError = createError;
     const pageBundle = join(work, 'pages.mjs'),
       installBundle = join(work, 'install.mjs');
     await build({

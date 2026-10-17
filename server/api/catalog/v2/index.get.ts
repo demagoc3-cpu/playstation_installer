@@ -1,4 +1,4 @@
-import { getConsoleProfile, getConsoleProfiles } from '../../../utils/console-profiles';
+import { getConsoleProfile, refreshPs5NativeCatalogProfile } from '../../../utils/console-profiles';
 import { getLibraryPackages } from '../../../utils/package-library';
 import { filterContent, contentPlatform, contentFormat } from '../../../../shared/content-platform';
 import { buildConsoleCatalog } from '../../../utils/console-catalog';
@@ -7,10 +7,12 @@ import { ps5InstallMessage } from '../../../../shared/ps5-install-readiness';
 import { nativeInstallReviewCapability } from '../../../utils/native-install-review';
 
 /** PS5 contract. The legacy PS4 app continues to use catalog/v1. */
-export default defineEventHandler((event) => {
+export default defineEventHandler(async (event) => {
   const query = getQuery(event),
     profile = getConsoleProfile(query.consoleId);
-  const snapshot = getConsoleProfiles().consoles.find((item) => item.id === profile.id)!;
+  const snapshot = (await refreshPs5NativeCatalogProfile(profile.id)).consoles.find(
+    (item) => item.id === profile.id,
+  )!;
   const packages = filterContent(getLibraryPackages(profile.ip), query.platform, profile.platform);
   const favoriteIds =
     typeof query.favorites === 'string'
@@ -24,6 +26,14 @@ export default defineEventHandler((event) => {
     groupByPlatform: true,
   });
   const index = new Map(packages.map((item) => [item.id, item]));
+  // Native 044 treats this optional PKG block as a global install gate. Keep
+  // independent content routes usable without claiming that PKG is ready.
+  const installation =
+    snapshot.capabilities.installation?.ready === false &&
+    !snapshot.capabilities.formats.includes('pkg') &&
+    snapshot.capabilities.formats.some((format) => format !== 'pkg')
+      ? undefined
+      : snapshot.capabilities.installation;
   setHeader(event, 'Cache-Control', 'no-store');
   return {
     ...result,
@@ -35,7 +45,7 @@ export default defineEventHandler((event) => {
       installReview: nativeInstallReviewCapability(),
       install: snapshot.online && snapshot.paired && snapshot.capabilities.formats.length > 0,
       formats: snapshot.capabilities.formats,
-      installation: snapshot.capabilities.installation,
+      installation,
       installationMessage:
         profile.platform === 'ps5' ? ps5InstallMessage(snapshot.capabilities) : undefined,
     },

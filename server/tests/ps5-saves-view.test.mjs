@@ -59,8 +59,14 @@ test('PS5 save view lists saves independently of backup errors and can clear gam
     assert.deepEqual(
       view.filtered.value.map((row) => [row.titleId, row.userId]),
       rows.map((row) => [row.titleId, row.userId]),
-      'the displayed rows retain every game and user after clearing filters',
+      'the save table retains each game/user row, including two profiles of the same game',
     );
+    assert.equal(new Set(view.filtered.value.map((row) => row.titleId)).size, 2);
+    assert.equal(new Set(view.filtered.value.map(view.keyOf)).size, 3);
+    view.selectedSave.value = view.keyOf(rows[1]);
+    await module.nextTick();
+    assert.equal(view.selectedRow.value.userId, '11223344');
+    assert.equal(view.detailTitle.value, 'Fixture PS5');
     view.kind.value = 'native';
     view.user.value = '11223344';
     assert.equal(view.filtered.value.length, 1);

@@ -17,6 +17,7 @@ import {
 } from './ps4-service-installer';
 import { ps5WebAddressHeaders, ps5WebAddressAccepted } from './ps5-web-address';
 import { ps5InstallCapabilities } from '../../shared/ps5-install-readiness';
+import { readPs5QualifiedRoutes, withPs5QualifiedRoutes } from './ps5-qualified-routes';
 import type {
   ConsoleProfile,
   ConsoleProfiles,
@@ -54,6 +55,14 @@ interface Store {
   activeId: string | null;
   consoles: StoredProfile[];
 }
+interface EmbeddedRuntime {
+  ip: string;
+  pid: number;
+  startedAt: number;
+  buildId: string;
+  version: string;
+  firmware: string;
+}
 const snapshots = new Map<
   string,
   Pick<
@@ -71,7 +80,7 @@ const snapshots = new Map<
     | 'servicePid'
     | 'serviceBuild'
     | 'capabilitiesDeferred'
-  >
+  > & { runtimeIdentity?: EmbeddedRuntime; fullCheckedAt?: number }
 >();
 
 function store(): Store {
@@ -137,6 +146,7 @@ const operationMethods = {
   '/api/v1/installer/job': 'GET',
   '/api/v1/install/verify': 'GET',
   '/api/v1/install/readiness': 'GET',
+  '/api/v1/installer/status': 'GET',
   '/api/v1/app/status': 'GET',
   '/api/v1/app/launch': 'POST',
   '/api/v1/app/stop': 'POST',
@@ -284,7 +294,12 @@ export async function ps5SaveChunk(consoleId: string, headers: Record<string, st
   return Buffer.concat(chunks);
 }
 function publicProfile(item: StoredProfile): ConsoleProfile {
-  const snapshot = snapshots.get(item.id);
+  const cached = snapshots.get(item.id);
+  const {
+    runtimeIdentity: _runtimeIdentity,
+    fullCheckedAt: _fullCheckedAt,
+    ...snapshot
+  } = cached || {};
   return {
     ...item,
     paired: false,
@@ -292,7 +307,7 @@ function publicProfile(item: StoredProfile): ConsoleProfile {
     ...snapshot,
     pairingConfigured:
       item.platform === 'ps5' ? !!ps5Token(item.ip) : serviceKeyConfigured(item.ip),
-    online: !!snapshot?.online && Date.now() - (snapshot.checkedAt || 0) < 60000,
+    online: !!cached?.online && Date.now() - (cached.checkedAt || 0) < 60000,
   };
 }
 export function getConsoleProfiles(): ConsoleProfiles {
@@ -406,7 +421,9 @@ export async function ps5ServiceRequest(
     | '/api/v1/system'
     | '/api/v1/pair'
     | '/api/v1/install/readiness',
+  signal?: AbortSignal,
 ) {
+  signal?.throwIfAborted();
   if (!ps4ServiceIp(ip))
     throw createError({ statusCode: 400, message: 'Неверный адрес приставки' });
   const headers: Record<string, string> = {};
@@ -425,7 +442,12 @@ export async function ps5ServiceRequest(
       method: path === '/api/v1/pair' ? 'POST' : 'GET',
       headers,
       redirect: 'error',
-      signal: AbortSignal.timeout(path === '/api/v1/install/readiness' ? 15000 : 3500),
+      signal: signal
+        ? AbortSignal.any([
+            signal,
+            AbortSignal.timeout(path === '/api/v1/install/readiness' ? 15000 : 3500),
+          ])
+        : AbortSignal.timeout(path === '/api/v1/install/readiness' ? 15000 : 3500),
     });
   } catch (error: any) {
     // Preserve the transport cause: update/bootstrap must distinguish a refused
@@ -468,6 +490,207 @@ export async function ps5ServiceRequest(
   }
 }
 
+function validPs5Health(response: { status: number; body: any }) {
+  const report = response.body?.serviceReport;
+  return (
+    response.status === 200 &&
+    response.body?.apiVersion === 'v1' &&
+    report?.service === 'PackageFlowService-PS5' &&
+    (!report.platform || report.platform === 'ps5') &&
+    report.consoleVerified === true
+  );
+}
+const claimsKnownEmbeddedBuild = (response: { status: number; body: any }) =>
+  response.body?.serviceReport?.buildId === 'ps5-service-pkg-context-029c-sse2';
+
+function embeddedRuntime(
+  response: { status: number; body: any },
+  ip: string,
+): EmbeddedRuntime | undefined {
+  const body = response.body,
+    report = body?.serviceReport;
+  if (
+    !validPs5Health(response) ||
+    report.platform !== 'ps5' ||
+    report.consoleVerified !== true ||
+    report.version !== '0.1.29-dev' ||
+    report.buildId !== 'ps5-service-pkg-context-029c-sse2' ||
+    body.backend !== 'embedded' ||
+    body.pkgBackendVersion !== '1.4.0-embedded-029' ||
+    body.firmwareRead !== true ||
+    String(body.firmwareRaw).toLowerCase() !== '0x13600007' ||
+    !Number.isSafeInteger(body.pid) ||
+    body.pid <= 0 ||
+    !Number.isSafeInteger(body.startedAt) ||
+    body.startedAt <= 0
+  )
+    return;
+  return {
+    ip,
+    pid: body.pid,
+    startedAt: body.startedAt,
+    buildId: report.buildId,
+    version: report.version,
+    firmware: '13.60',
+  };
+}
+const sameEmbeddedRuntime = (a?: EmbeddedRuntime, b?: EmbeddedRuntime) =>
+  !!a &&
+  !!b &&
+  a.ip === b.ip &&
+  a.pid === b.pid &&
+  a.startedAt === b.startedAt &&
+  a.buildId === b.buildId &&
+  a.version === b.version &&
+  a.firmware === b.firmware;
+
+async function activatedRuntimeStillCurrent(
+  consoleId: string,
+  before: EmbeddedRuntime,
+  signal?: AbortSignal,
+) {
+  const current = getConsoleProfile(consoleId);
+  if (current.ip !== before.ip || current.platform !== 'ps5') return false;
+  const after = embeddedRuntime(await ps5ServiceRequest(before.ip, '/health', signal), before.ip);
+  signal?.throwIfAborted();
+  const latest = getConsoleProfile(consoleId);
+  return latest.ip === before.ip && latest.platform === 'ps5' && sameEmbeddedRuntime(before, after);
+}
+
+/** Worker admission for explicitly activated, previously tested content routes.
+ * No PKG initialization or synchronous mount scan is required for these routes. */
+export async function readPs5ActivatedRouteCapabilities(consoleId: string, signal?: AbortSignal) {
+  signal?.throwIfAborted();
+  const profile = getConsoleProfile(consoleId);
+  if (profile.platform !== 'ps5') return;
+  const activation = readPs5QualifiedRoutes(profile.id, profile.ip);
+  if (!activation) return;
+  try {
+    const health = await ps5ServiceRequest(profile.ip, '/health', signal);
+    const current = getConsoleProfile(consoleId);
+    if (current.ip !== profile.ip || current.platform !== 'ps5') return emptyCapabilities();
+    const before = embeddedRuntime(health, profile.ip);
+    if (!before)
+      return validPs5Health(health) && !claimsKnownEmbeddedBuild(health)
+        ? undefined
+        : emptyCapabilities();
+    const auth = await ps5ServiceRequest(profile.ip, '/api/v1/capabilities', signal);
+    if (
+      auth.status !== 200 ||
+      auth.body?.service !== 'PackageFlowService-PS5' ||
+      !(await activatedRuntimeStillCurrent(consoleId, before, signal))
+    )
+      return emptyCapabilities();
+    return withPs5QualifiedRoutes(emptyCapabilities(), activation);
+  } catch {
+    signal?.throwIfAborted();
+    return emptyCapabilities();
+  }
+}
+
+function embeddedPkgCapabilities(reason: string) {
+  const ready = reason === 'ready';
+  return ps5InstallCapabilities(
+    200,
+    {
+      service: 'PackageFlowService-PS5',
+      schemaVersion: 1,
+      route: 'staged-pkg',
+      exactVersionReceipt: false,
+      ready,
+      reason,
+      formats: ready ? ['pkg'] : [],
+      platforms: ready ? ['ps4', 'ps5'] : [],
+    },
+    '13.60',
+  );
+}
+async function readEmbeddedPkgCapabilities(
+  consoleId: string,
+  before: EmbeddedRuntime,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  if (getConsoleProfile(consoleId).ip !== before.ip) throw Error('PS5 profile address changed');
+  const hello = await ps5OperationRequest(
+    consoleId,
+    '/api/v1/installer/status',
+    {},
+    undefined,
+    signal,
+  );
+  if (getConsoleProfile(consoleId).ip !== before.ip) throw Error('PS5 profile address changed');
+  const after = embeddedRuntime(await ps5ServiceRequest(before.ip, '/health', signal), before.ip);
+  signal?.throwIfAborted();
+  if (getConsoleProfile(consoleId).ip !== before.ip) throw Error('PS5 profile address changed');
+  if (!sameEmbeddedRuntime(before, after)) throw Error('PS5 runtime changed during PKG readiness');
+  if (hello.status !== 200) return embeddedPkgCapabilities('readiness_unavailable');
+  const body = hello.body;
+  if (
+    !body ||
+    Object.keys(body).sort().join(',') !== 'escalated,fw,init_rc,ok,state,version' ||
+    body.ok !== true ||
+    body.version !== '1.4.0' ||
+    body.fw !== '13' ||
+    !Number.isSafeInteger(body.init_rc) ||
+    body.init_rc < 0 ||
+    body.init_rc > 0xffffffff ||
+    typeof body.escalated !== 'boolean' ||
+    ![
+      'ready',
+      'unverified',
+      'initializing',
+      'stopped',
+      'context_unavailable',
+      'init_failed',
+    ].includes(body.state)
+  )
+    return embeddedPkgCapabilities('unrecognized_installer');
+  if (body.state === 'unverified') return embeddedPkgCapabilities('embedded_backend_not_verified');
+  return embeddedPkgCapabilities(
+    body.state === 'ready' && body.init_rc === 0 && body.escalated === true
+      ? 'ready'
+      : 'initialization_failed',
+  );
+}
+
+/** Only the measured embedded build may replace full SMP readiness with hello.
+ * Other builds retain the existing full readiness contract. */
+export async function readPs5PkgInstallCapabilities(consoleId: string, signal?: AbortSignal) {
+  signal?.throwIfAborted();
+  const profile = getConsoleProfile(consoleId);
+  let health: { status: number; body: any };
+  try {
+    health = await ps5ServiceRequest(profile.ip, '/health', signal);
+  } catch {
+    signal?.throwIfAborted();
+    return embeddedPkgCapabilities('readiness_unavailable');
+  }
+  const runtime = embeddedRuntime(health, profile.ip);
+  if (runtime) {
+    try {
+      return await readEmbeddedPkgCapabilities(consoleId, runtime, signal);
+    } catch {
+      signal?.throwIfAborted();
+      return embeddedPkgCapabilities('readiness_unavailable');
+    }
+  }
+  if (!validPs5Health(health) || claimsKnownEmbeddedBuild(health))
+    return embeddedPkgCapabilities('unrecognized_installer');
+  const readiness = await ps5OperationRequest(
+    consoleId,
+    '/api/v1/install/readiness',
+    {},
+    undefined,
+    signal,
+  );
+  return ps5InstallCapabilities(
+    readiness.status,
+    readiness.body,
+    getConsoleProfile(consoleId).firmware,
+  );
+}
+
 /** The polling path must not run the installer's synchronous hello while data
  * occupies the PS5's single HTTP handler. Explicit preflight remains fresh. */
 function ps5TransferInProgress(id: string) {
@@ -485,9 +708,80 @@ function ps5TransferInProgress(id: string) {
     )
   );
 }
-export async function probeConsoleProfile(id: unknown, background = false) {
+/** PS4 counterpart of ps5TransferInProgress: package data is being sent to the
+ * service right now (queue file per console, or the legacy single-console file). */
+function ps4TransferInProgress(ip: string) {
+  const scoped = dataPath('consoles', ip, 'installation-queue.json'),
+    legacy = dataPath('installation-queue.json');
+  const queue = existsSync(scoped)
+    ? readJsonFile<any>(scoped, null)
+    : readJsonFile<any>(legacy, null)?.psIp === ip
+      ? readJsonFile<any>(legacy, null)
+      : null;
+  return (
+    queue?.status === 'running' &&
+    Array.isArray(queue.items) &&
+    queue.items.some((item: any) => item.state === 'sending' || item.state === 'receiving')
+  );
+}
+/** A console receiving package data serves every request in line with the data
+ * (PS5: one synchronous HTTP handler). Nothing automatic may delay it, not even
+ * a /health round trip: background checks keep the last snapshot until it ends.
+ * Explicit checks and install admission stay full and fresh. */
+function consoleTransferInProgress(profile: Pick<StoredProfile, 'id' | 'ip' | 'platform'>) {
+  return profile.platform === 'ps5'
+    ? ps5TransferInProgress(profile.id)
+    : profile.platform === 'ps4' && ps4TransferInProgress(profile.ip);
+}
+export type Ps5ProbeScope = 'full' | 'pkg';
+const ps5Probes = new Map<
+  string,
+  { ip: string; background: boolean; scope: Ps5ProbeScope; pending: Promise<ConsoleProfiles> }
+>();
+const ps5ProbeGenerations = new Map<string, number>();
+
+/** One PS5 has one synchronous HTTP listener. Join status callers and let a
+ * foreground check follow a deferred background check, rather than race it. */
+export async function probeConsoleProfile(
+  id: unknown,
+  background = false,
+  scope: Ps5ProbeScope = 'full',
+) {
   const profile = getConsoleProfile(id);
+  if (profile.platform !== 'ps5') return runConsoleProfileProbe(profile, background);
+  const existing = ps5Probes.get(profile.id);
+  if (
+    existing?.ip === profile.ip &&
+    (background || (!existing.background && (existing.scope === 'full' || scope === 'pkg')))
+  )
+    return existing.pending;
+  const run = () => {
+    const current = store().consoles.find((item) => item.id === profile.id);
+    if (!current || current.ip !== profile.ip || current.platform !== profile.platform)
+      return Promise.resolve(getConsoleProfiles());
+    const generation = (ps5ProbeGenerations.get(profile.id) || 0) + 1;
+    ps5ProbeGenerations.set(profile.id, generation);
+    return runConsoleProfileProbe(profile, background, generation, scope);
+  };
+  const pending = (existing?.ip === profile.ip ? existing.pending.then(run) : run()).finally(() => {
+    if (ps5Probes.get(profile.id)?.pending === pending) ps5Probes.delete(profile.id);
+  });
+  ps5Probes.set(profile.id, { ip: profile.ip, background, scope, pending });
+  return pending;
+}
+
+async function runConsoleProfileProbe(
+  profile: StoredProfile,
+  background = false,
+  generation?: number,
+  scope: Ps5ProbeScope = 'full',
+) {
   const previous = snapshots.get(profile.id);
+  if (background && previous?.online && consoleTransferInProgress(profile)) {
+    // Marked deferred: a later explicit (non-background) check never reuses it.
+    snapshots.set(profile.id, { ...previous, checkedAt: Date.now(), capabilitiesDeferred: true });
+    return getConsoleProfiles();
+  }
   let online = false,
     paired = false,
     verified = false,
@@ -504,7 +798,9 @@ export async function probeConsoleProfile(id: unknown, background = false) {
     henSdk: string | undefined;
   let servicePid: number | undefined,
     serviceBuild: string | undefined,
-    capabilitiesDeferred = false;
+    capabilitiesDeferred = false,
+    runtimeIdentity: EmbeddedRuntime | undefined,
+    fullCheckedAt: number | undefined;
   try {
     if (profile.platform === 'ps4' && profile.transport === 'payload') {
       online = (await getGoldHenStatus(profile.ip)).ready;
@@ -563,6 +859,7 @@ export async function probeConsoleProfile(id: unknown, background = false) {
       servicePid =
         Number.isSafeInteger(health.body.pid) && health.body.pid > 0 ? health.body.pid : undefined;
       serviceBuild = typeof report.buildId === 'string' ? report.buildId : undefined;
+      runtimeIdentity = embeddedRuntime(health, profile.ip);
       const raw = /^0x([0-9a-f]{2})([0-9a-f]{2})[0-9a-f]{4}$/i.exec(health.body.firmwareRaw || '');
       if (health.body.firmwareRead && raw && /^\d{2}$/.test(raw[1]!) && /^\d{2}$/.test(raw[2]!))
         firmware = `${Number(raw[1])}.${raw[2]}`;
@@ -570,18 +867,61 @@ export async function probeConsoleProfile(id: unknown, background = false) {
         const response = await ps5ServiceRequest(profile.ip, '/api/v1/capabilities');
         paired = response.status === 200 && response.body?.service === 'PackageFlowService-PS5';
         if (paired) {
-          capabilitiesDeferred = background && ps5TransferInProgress(profile.id);
-          if (capabilitiesDeferred) {
-            // A replaced process never inherits a previous process's readiness.
-            if (
-              servicePid !== undefined &&
-              serviceBuild &&
-              previous?.online &&
-              previous.paired &&
-              previous.servicePid === servicePid &&
-              previous.serviceBuild === serviceBuild
-            )
+          const activation = runtimeIdentity && readPs5QualifiedRoutes(profile.id, profile.ip);
+          const pkgScope = claimsKnownEmbeddedBuild(health) && (background || scope === 'pkg');
+          const transferDeferred = background && ps5TransferInProgress(profile.id);
+          capabilitiesDeferred = pkgScope || transferDeferred;
+          if (transferDeferred) {
+            // The data path retains its existing polling guard: no hello or
+            // SMP request competes with receiving/verifying chunks.
+            const sameProcess = runtimeIdentity
+              ? sameEmbeddedRuntime(runtimeIdentity, previous?.runtimeIdentity)
+              : !claimsKnownEmbeddedBuild(health) &&
+                servicePid !== undefined &&
+                !!serviceBuild &&
+                previous?.servicePid === servicePid &&
+                previous?.serviceBuild === serviceBuild;
+            if (sameProcess && previous?.online && previous.paired) {
               capabilities = structuredClone(previous.capabilities);
+              fullCheckedAt = previous.fullCheckedAt;
+            }
+          } else if (activation) {
+            // Activated content routes are independent of PKG initialization.
+            // Keep PKG's fresh hello proof, but a failed PKG hello cannot remove
+            // explicitly enabled Folder/image routes from the same live service.
+            try {
+              capabilities = await readEmbeddedPkgCapabilities(profile.id, runtimeIdentity!);
+            } catch {
+              capabilities = embeddedPkgCapabilities('readiness_unavailable');
+            }
+            try {
+              if (!(await activatedRuntimeStillCurrent(profile.id, runtimeIdentity!)))
+                throw Error('PS5 runtime changed during activated route admission');
+              capabilities = withPs5QualifiedRoutes(capabilities, activation);
+              capabilitiesDeferred = false;
+              fullCheckedAt = Date.now();
+            } catch {
+              capabilities = emptyCapabilities();
+              runtimeIdentity = undefined;
+            }
+          } else if (pkgScope) {
+            try {
+              if (!runtimeIdentity) throw Error('Embedded PKG health is not recognized');
+              capabilities = await readEmbeddedPkgCapabilities(profile.id, runtimeIdentity);
+              if (sameEmbeddedRuntime(runtimeIdentity, previous?.runtimeIdentity)) {
+                const formats = previous!.capabilities.formats.filter((format) => format !== 'pkg');
+                capabilities.formats.push(...formats);
+                capabilities.installPs5 ||= formats.length > 0;
+                if (previous!.capabilities.folder)
+                  capabilities.folder = structuredClone(previous!.capabilities.folder);
+                if (previous!.capabilities.images)
+                  capabilities.images = structuredClone(previous!.capabilities.images);
+                fullCheckedAt = previous?.fullCheckedAt;
+              }
+            } catch {
+              capabilities = embeddedPkgCapabilities('readiness_unavailable');
+              runtimeIdentity = undefined;
+            }
           } else {
             try {
               const readiness = await ps5ServiceRequest(profile.ip, '/api/v1/install/readiness');
@@ -589,6 +929,9 @@ export async function probeConsoleProfile(id: unknown, background = false) {
             } catch {
               capabilities = ps5InstallCapabilities(503, null, firmware);
             }
+            // A completed full check may truthfully deny a route. Retain its
+            // short cache independently of later basic status snapshots.
+            fullCheckedAt = Date.now();
           }
           capabilities.background = response.body.capabilities?.backgroundService === true;
           const system = await ps5ServiceRequest(profile.ip, '/api/v1/system');
@@ -621,7 +964,12 @@ export async function probeConsoleProfile(id: unknown, background = false) {
   }
   const latest = store(),
     current = latest.consoles.find((item) => item.id === profile.id);
-  if (!current || current.ip !== profile.ip || current.platform !== profile.platform)
+  if (
+    !current ||
+    current.ip !== profile.ip ||
+    current.platform !== profile.platform ||
+    (generation !== undefined && ps5ProbeGenerations.get(profile.id) !== generation)
+  )
     return getConsoleProfiles();
   if (verified) {
     current.verified = true;
@@ -645,12 +993,22 @@ export async function probeConsoleProfile(id: unknown, background = false) {
     servicePid,
     serviceBuild,
     capabilitiesDeferred,
+    runtimeIdentity,
+    fullCheckedAt,
   });
   return getConsoleProfiles();
 }
 
 const probes = new Map<string, Promise<ConsoleProfiles>>();
-export function refreshConsoleProfile(id: string, force = false, background = false) {
+export async function refreshConsoleProfile(
+  id: string,
+  force = false,
+  background = false,
+  scope: Ps5ProbeScope = 'full',
+) {
+  const profile = getConsoleProfile(id);
+  if (profile.platform === 'ps5' && ps5Probes.has(id))
+    return probeConsoleProfile(id, background, scope);
   const snapshot = snapshots.get(id);
   if (
     !force &&
@@ -659,6 +1017,7 @@ export function refreshConsoleProfile(id: string, force = false, background = fa
     (background || !snapshot.capabilitiesDeferred)
   )
     return Promise.resolve(getConsoleProfiles());
+  if (profile.platform === 'ps5') return probeConsoleProfile(id, background, scope);
   const probeKey = `${id}:${background ? 'background' : 'full'}`;
   const existing = probes.get(probeKey);
   if (existing) return existing;
@@ -667,18 +1026,35 @@ export function refreshConsoleProfile(id: string, force = false, background = fa
   return pending;
 }
 /** No device-count limit; bound the number of simultaneous network probes. */
-export async function refreshConsoleProfiles(force = false) {
-  const ids = getConsoleProfiles().consoles.map((item) => item.id);
+export async function refreshConsoleProfiles(freshPs5 = false, scope: Ps5ProbeScope = 'full') {
+  const profiles = getConsoleProfiles().consoles;
   let next = 0;
   await Promise.all(
-    Array.from({ length: Math.min(8, ids.length) }, async () => {
-      while (next < ids.length) {
-        const id = ids[next++]!;
-        await refreshConsoleProfile(id, force, true).catch(() => {});
+    Array.from({ length: Math.min(8, profiles.length) }, async () => {
+      while (next < profiles.length) {
+        const profile = profiles[next++]!,
+          foreground = freshPs5 && profile.platform === 'ps5';
+        await refreshConsoleProfile(profile.id, foreground, !foreground, scope).catch(() => {});
       }
     }),
   );
   return getConsoleProfiles();
+}
+
+/** Native catalogs must learn real Folder/image routes before the 044 client
+ * applies its local format gate. Pagination shares a completed full check. */
+export async function refreshPs5NativeCatalogProfile(id: string) {
+  await refreshConsoleProfile(id, false, true);
+  const snapshot = snapshots.get(id);
+  if (
+    !snapshot?.runtimeIdentity ||
+    !snapshot.online ||
+    !snapshot.paired ||
+    ps5TransferInProgress(id) ||
+    (snapshot.fullCheckedAt !== undefined && Date.now() - snapshot.fullCheckedAt < 15000)
+  )
+    return getConsoleProfiles();
+  return refreshConsoleProfile(id, true, false, 'full');
 }
 
 /** The app obtains the paired server from its local service, as on PS4. */

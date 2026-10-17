@@ -266,7 +266,8 @@ export async function consoleFileWrite(ip: string, id: string, offset: number, d
       'Content-Type': 'application/octet-stream',
       'X-Offset': String(offset),
     },
-    body: new Uint8Array(data),
+    // Node accepts Buffer views; the DOM declaration assumes an ArrayBuffer backing store.
+    body: data as Buffer<ArrayBuffer>,
   });
   const result = (await response.json().catch(() => ({}))) as { offset?: number; error?: string };
   if (!response.ok)
@@ -276,7 +277,7 @@ export async function consoleFileWrite(ip: string, id: string, offset: number, d
     });
   if (result.offset !== offset + data.length)
     throw createError({ statusCode: 502, message: 'PS4 вернула неверное смещение файла' });
-  return { ...result, offset: offset + data.length };
+  return result as { offset: number; error?: string };
 }
 export async function getServiceIcon(ip: string, titleId: string) {
   if (!/^[A-Z0-9]{9}$/.test(titleId))
@@ -389,7 +390,7 @@ export async function getServiceInstallerStatus(ip: string): Promise<{
   configured: boolean;
   paired: boolean | null;
   localInstall?: boolean;
-  contentTypes: string[];
+  contentTypes: ServiceInstallCapabilities['contentTypes'];
   version?: string;
   message: string;
 }> {

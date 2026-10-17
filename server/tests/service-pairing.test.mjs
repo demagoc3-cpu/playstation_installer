@@ -69,7 +69,7 @@ test('pairing stores the credential privately and changes PS4 WEB host only afte
       });
     if (init.method === 'PUT') {
       writes++;
-      staged = Buffer.from(init.body).toString();
+      staged = init.body.toString();
       return Response.json({ offset: Buffer.byteLength(staged) });
     }
     if (path === '/files/mkdir')

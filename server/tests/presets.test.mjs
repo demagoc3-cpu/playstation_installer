@@ -10,10 +10,10 @@ process.chdir(dir);
 mkdirSync('.data');
 writeFileSync('base.pkg', Buffer.alloc(1024));
 const cover = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1S8AAAAASUVORK5CYII=',
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j7XcAAAAASUVORK5CYII=',
   'base64',
 );
-writeFileSync('cover.png', cover);
+writeFileSync('base.png', cover);
 registerHooks({
   resolve(specifier, context, next) {
     try {
@@ -28,7 +28,7 @@ registerHooks({
 const { createError } = await import(
   pathToFileURL(resolve(root, 'node_modules/h3/dist/index.mjs'))
 );
-Object.assign(globalThis, { createError: createError });
+globalThis.createError = createError;
 const util = await import(pathToFileURL(resolve(root, 'server/utils/presets.ts')));
 const base = {
   id: 'base',
@@ -40,8 +40,8 @@ const base = {
   contentId: 'EP0000-CUSA00001_00-ABCDEFGHIJKLMNOP',
   contentType: 'PS4GD',
   packageDigest: 'a'.repeat(64),
+  coverPath: resolve('base.png'),
   iconSize: cover.length,
-  coverPath: resolve('cover.png'),
   installOrder: 0,
   path: resolve('base.pkg'),
   libraryRoot: dir,
@@ -90,9 +90,9 @@ try {
   assert.equal(util.presetPage(preset.id).description, 'Любимые гонки');
   assert.equal(util.presetPage(preset.id).covers.length, 1, 'one thumbnail per game, not per DLC');
   const exportData = util.exportPresets(preset.id);
-  Object.assign(globalThis, { defineEventHandler: (handler) => handler });
-  Object.assign(globalThis, { readBody: async (event) => event.body });
-  Object.assign(globalThis, { setHeader: () => {} });
+  globalThis.defineEventHandler = (handler) => handler;
+  globalThis.readBody = async (event) => event.body;
+  globalThis.setHeader = () => {};
   const nativeHandler = (
     await import(pathToFileURL(resolve(root, 'server/api/catalog/v1/presets.post.ts')))
   ).default;

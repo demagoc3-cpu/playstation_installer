@@ -20,26 +20,24 @@ test('native connection requires a bearer accepted by PS4, with no credential ex
   });
   const previous = globalThis.fetch,
     ip = '10.1.10.32';
-  Object.assign(globalThis, { defineEventHandler: (fn) => fn });
-  Object.assign(globalThis, { setHeader: () => {} });
-  Object.assign(globalThis, { getQuery: () => ({ ip }) });
-  Object.assign(globalThis, { createError: createError });
+  globalThis.defineEventHandler = (fn) => fn;
+  globalThis.setHeader = () => {};
+  globalThis.getQuery = () => ({ ip });
+  globalThis.createError = createError;
   process.chdir(folder);
   mkdirSync('.data');
   let requests = 0,
     status = 200,
     offline = false;
-  Object.assign(globalThis, {
-    fetch: async (_, init) => {
-      requests++;
-      assert.equal(init.headers.Authorization, 'Bearer 0123456789abcdef0123456789abcdef');
-      if (offline) throw new Error('offline');
-      return new Response(
-        JSON.stringify(status === 200 ? { fileApi: 2 } : { error: 'service_key_required' }),
-        { status },
-      );
-    },
-  });
+  globalThis.fetch = async (_, init) => {
+    requests++;
+    assert.equal(init.headers.Authorization, 'Bearer 0123456789abcdef0123456789abcdef');
+    if (offline) throw new Error('offline');
+    return new Response(
+      JSON.stringify(status === 200 ? { fileApi: 2 } : { error: 'service_key_required' }),
+      { status },
+    );
+  };
   try {
     const route = (await import(bundle)).default;
     assert.deepEqual(await route({}), { paired: 0, online: 1 });
@@ -55,7 +53,7 @@ test('native connection requires a bearer accepted by PS4, with no credential ex
     assert.deepEqual(await route({}), { paired: 0, online: 0 });
   } finally {
     process.chdir(repo);
-    Object.assign(globalThis, { fetch: previous });
+    globalThis.fetch = previous;
     rmSync(folder, { recursive: true, force: true });
   }
 });

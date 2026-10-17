@@ -364,9 +364,7 @@ test('negotiated pipeline uploads the next file while verifying, bounds pending 
     (patch) => Object.assign(item, patch),
     2,
   );
-  const deadline = Date.now() + 5000;
-  while (gates.size < 2 && Date.now() < deadline)
-    await new Promise((resolve) => setTimeout(resolve, 5));
+  for (let i = 0; gates.size < 2 && i < 1000; i++) await new Promise((r) => setImmediate(r));
   assert.equal(gates.size, 2, 'second file is uploaded before first verification finishes');
   assert.deepEqual(
     begun,

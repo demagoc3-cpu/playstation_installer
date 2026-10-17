@@ -27,9 +27,9 @@ import {
 import type { ConsolePackagePreview } from '../../shared/types/console-file-install';
 import type { ConsoleFileStat } from '../../shared/types/console-files';
 const starting = new Set<string>();
-function fail(message: string, statusCode = 409): never {
+const fail: (message: string, statusCode?: number) => never = (message, statusCode = 409) => {
   throw createError({ statusCode, message });
-}
+};
 const issue = (cause: any) => cause?.data?.message || cause?.message || 'Нет ответа от PS4';
 async function inspect(value: unknown, source: unknown) {
   const ip = fileIp(value),

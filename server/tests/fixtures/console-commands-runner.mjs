@@ -76,10 +76,12 @@ registerHooks({
    export const getInstallationQueue=()=>globalThis.commandQueue;
    export const peekInstallationQueue=()=>globalThis.commandQueue;
    export const canManageInstallationQueue=()=>true;
-   export const canCancelInstallationItem=(queue,item,currentId)=>queue.id===currentId&&queue.status==='running'?['pending','sending','waiting','receiving','installing','verifying'].includes(item.state):!['running','cancelling'].includes(queue.status)&&item.state==='pending'&&!item.serviceDispatchedAt&&!item.dispatchedAt;
+   export const canCancelInstallationItem=(queue,item,currentId)=>queue.id===currentId&&queue.status==='running'
+     ? ['pending','sending','waiting','receiving','installing','verifying'].includes(item.state)
+     : !['running','cancelling'].includes(queue.status)&&item.state==='pending'&&!item.serviceDispatchedAt&&!item.dispatchedAt;
    export const getInstallationHistory=()=>[];
-   export const cancelInstallationItems=(id,pkgs,ip)=>{if(id!==globalThis.commandQueue.id)throw new Error('stale queue');globalThis.commandCalls.cancel++;globalThis.cancelledItems=pkgs;return globalThis.commandQueue};
-   export const cancelGameInstallations=(id,ip,games)=>{globalThis.commandCalls.cancel++;globalThis.cancelledGames=games;return globalThis.commandQueue};
+   export const cancelInstallationItems=(id,pkgs,ip)=>{if(id!==globalThis.commandQueue.id||ip!==globalThis.commandQueue.psIp)throw new Error('stale queue');globalThis.commandCalls.cancel++;globalThis.cancelledItems=pkgs;return globalThis.commandQueue};
+   export const cancelGameInstallations=(id,ip,games)=>{if(id!==globalThis.commandQueue.id||ip!==globalThis.commandQueue.psIp)throw new Error('stale queue');globalThis.commandCalls.cancel++;globalThis.cancelledGames=games;return globalThis.commandQueue};
    export const cancelInstallationItem=(id,pkg,ip)=>{if(id!==globalThis.commandQueue.id)throw new Error("stale queue");globalThis.commandCalls.cancel++;globalThis.cancelledItem=pkg;return globalThis.commandQueue};
    export const cancelGameInstallation=(id,ip,game)=>{if(game!=='CUSA00001')throw new Error('wrong game');globalThis.commandCalls.cancel++;globalThis.cancelledGame=game;return globalThis.commandQueue};
    export const cancelInstallationQueue=()=>{globalThis.commandCalls.cancel++;return globalThis.commandQueue};

@@ -48,7 +48,7 @@ export function removeInstallationTasks(
   );
   if (!queue)
     throw createError({ statusCode: 409, message: 'Очередь изменилась. Обновите задания' });
-  const selected = (item: { packageId: string; titleId?: string }) => {
+  const selected = (item: { titleId?: string; packageId: string }) => {
     let titleId = item.titleId;
     if (!titleId)
       try {

@@ -1,4 +1,7 @@
 import { authenticatedServiceRequest, serviceKeyConfigured } from './ps4-service-installer';
+import { contentFormat } from '../../shared/content-platform';
+import type { ContentFormat } from '../../shared/types/consoles';
+import { readPs5Installed, withPs5InstalledReview } from './ps5-installed-read-coordinator';
 // Lazy loading keeps the PS4 queue independent of PS5 profile/runtime helpers.
 async function readPs5(
   ...args: Parameters<typeof import('./console-profiles').ps5OperationRequest>
@@ -14,10 +17,11 @@ export interface InstalledCandidate {
   appVersion?: string;
   installOrder: number;
   type?: string;
-  platform?: string;
-  format?: string;
+  format?: ContentFormat;
+  contentType?: string;
 }
 export interface InstalledCheck {
+  transient?: boolean;
   revision?: string;
   components?: Array<{
     id: string;
@@ -30,11 +34,30 @@ export interface InstalledCheck {
   state: 'absent' | 'installed' | 'base-present' | 'unavailable';
   detail: string;
 }
-const unavailable = (): InstalledCheck => ({
+const unavailable = (transient = false): InstalledCheck => ({
   state: 'unavailable',
+  ...(transient ? { transient: true } : {}),
   detail:
-    'Не удалось подтвердить установленные пакеты на приставке. Повторите проверку; повторная установка не отправлена',
+    'Не удалось проверить установленные пакеты на приставке. Ожидаем связь; повторная установка не отправлена',
 });
+const transientStatus = (status: number) => [408, 425, 429, 500, 502, 503, 504].includes(status);
+class DeferredPs5InstalledRead extends Error {}
+interface Ps5InstalledReadOptions {
+  background?: boolean;
+  backgroundReadAllowed?: (consoleId: string) => boolean;
+}
+function transientReadError(error: unknown) {
+  if (error instanceof DeferredPs5InstalledRead) return true;
+  if (!(error instanceof Error)) return false;
+  if (error.name === 'TimeoutError') return true;
+  const code = (error.cause as { code?: unknown } | undefined)?.code;
+  return (
+    typeof code === 'string' &&
+    /^(?:UND_ERR_(?:CONNECT_TIMEOUT|HEADERS_TIMEOUT|BODY_TIMEOUT|SOCKET)|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|EPIPE)$/.test(
+      code,
+    )
+  );
+}
 const sameVersion = (a?: string, b?: string) =>
   !!a &&
   !!b &&
@@ -200,7 +223,7 @@ export function matchPs5InstalledGame(
     };
   return absent();
 }
-export async function checkPs5InstalledPackage(
+async function readPs5InstalledPackage(
   consoleId: string,
   ip: string,
   pkg: InstalledCandidate,
@@ -208,27 +231,16 @@ export async function checkPs5InstalledPackage(
   read = readPs5,
 ): Promise<InstalledCheck> {
   try {
-    signal?.throwIfAborted();
     const status = await read(consoleId, '/api/v1/management/status', {}, undefined, signal);
-    signal?.throwIfAborted();
     if (
       status.status !== 200 ||
       status.body?.protocol !== 'ps5-management-v1' ||
       status.body.ready !== true ||
       status.body.catalog !== true
     )
-      return unavailable();
-    // A base PKG only needs live registration for explicit reinstall review.
-    // Folder/image source details never prove this selected PKG or its version.
-    const catalogBase =
-      pkg.platform === 'ps5' &&
-      pkg.format === 'pkg' &&
-      pkg.installOrder === 0 &&
-      pkg.type !== 'DLC' &&
-      /^PPSA\d{5}$/.test(pkg.titleId);
+      return unavailable(transientStatus(status.status));
     let offset = 0,
-      revision: string | undefined,
-      total: number | undefined;
+      revision: string | undefined;
     let found: { installed: boolean; version: string; content_id: string } | undefined;
     for (let page = 0; page < 4096; page++) {
       const r = await read(
@@ -238,12 +250,10 @@ export async function checkPs5InstalledPackage(
         undefined,
         signal,
       );
-      signal?.throwIfAborted();
       const v = r.body;
+      if (r.status !== 200) return unavailable(transientStatus(r.status));
       if (
-        r.status !== 200 ||
         !/^[a-f0-9]{64}$/.test(v?.revision) ||
-        (revision !== undefined && revision !== v.revision) ||
         !Array.isArray(v.entries) ||
         v.entries.length > 1 ||
         v.next !== offset + v.entries.length ||
@@ -251,19 +261,6 @@ export async function checkPs5InstalledPackage(
         (!v.done && !v.entries.length)
       )
         return unavailable();
-      revision = v.revision;
-      if (catalogBase) {
-        if (
-          !Number.isSafeInteger(v.total) ||
-          v.total < 0 ||
-          v.total > 4096 ||
-          (total !== undefined && total !== v.total) ||
-          v.next > v.total ||
-          v.done !== (v.next === v.total)
-        )
-          return unavailable();
-        total = v.total;
-      }
       for (const row of v.entries) {
         if (
           !/^(PPSA|CUSA)\d{5}$/.test(row?.titleId) ||
@@ -272,34 +269,40 @@ export async function checkPs5InstalledPackage(
           row.metadata.length > 32768
         )
           return unavailable();
-        if (catalogBase && row.contentId.length > 128) return unavailable();
         if (row.titleId === pkg.titleId) {
-          if (catalogBase) {
-            // The live catalog guarantees a registered Title ID, not metadata
-            // JSON, Content ID identity, a source format or an installed version.
-            found = { installed: true, version: '', content_id: row.contentId };
-            continue;
-          }
           let meta: any = {};
           try {
             meta = JSON.parse(row.metadata);
-          } catch {}
+          } catch {
+            if (pkg.format === 'pkg' && pkg.installOrder === 0) return unavailable();
+          }
+          if (
+            pkg.format === 'pkg' &&
+            pkg.installOrder === 0 &&
+            (!meta || typeof meta !== 'object' || Array.isArray(meta))
+          )
+            return unavailable();
           const version = meta.contentVersion || meta.CONTENT_VERSION || '';
           if (typeof version !== 'string') return unavailable();
           const value = { installed: true, version, content_id: row.contentId };
           if (!found || row.contentId === pkg.contentId) found = value;
         }
       }
+      if (revision !== undefined && revision !== v.revision) return unavailable(true);
+      revision = v.revision;
       offset = v.next;
       if (v.done) {
         if (!found) return absent();
-        if (catalogBase)
+        if (pkg.format === 'pkg' && pkg.installOrder === 0) {
+          // A complete native catalog proves base registration, not that its
+          // files or the selected version are present. Keep manual overwrite.
           return {
-            state: 'base-present',
-            revision,
+            ...basePresent(),
             detail:
-              'Игра есть в каталоге PS5; версия пакета не подтверждена. Для замены явно выберите переустановку',
+              'Игра зарегистрирована на PS5; наличие файлов и версия выбранного пакета не подтверждены. Для замены выберите переустановку',
+            revision,
           };
+        }
         const info = await read(
           consoleId,
           '/api/v1/console/info',
@@ -307,10 +310,9 @@ export async function checkPs5InstalledPackage(
           undefined,
           signal,
         );
-        signal?.throwIfAborted();
         const row = info.body;
+        if (info.status !== 200) return unavailable(transientStatus(info.status));
         if (
-          info.status !== 200 ||
           row?.title_id !== pkg.titleId ||
           typeof row.installed !== 'boolean' ||
           typeof row.source_available !== 'boolean' ||
@@ -341,15 +343,42 @@ export async function checkPs5InstalledPackage(
       }
     }
     return unavailable();
-  } catch (error: any) {
+  } catch (error) {
     signal?.throwIfAborted();
-    if (error?.name === 'AbortError') throw error;
-    return unavailable();
+    return unavailable(transientReadError(error));
   }
 }
 
+export async function checkPs5InstalledPackage(
+  consoleId: string,
+  ip: string,
+  pkg: InstalledCandidate,
+  signal?: AbortSignal,
+  read = readPs5,
+  { background = false, backgroundReadAllowed }: Ps5InstalledReadOptions = {},
+): Promise<InstalledCheck> {
+  const request: typeof readPs5 = (...args) =>
+    readPs5Installed(
+      consoleId,
+      background ? 'background' : 'foreground',
+      () => {
+        // The queue can start after a background check queued this read.
+        // Recheck at dispatch so no delayed inventory poll competes with data.
+        if (background && backgroundReadAllowed?.(consoleId) === false)
+          throw new DeferredPs5InstalledRead('Background lookup deferred while PS5 is busy');
+        return read(...args);
+      },
+      signal,
+    );
+  const check = () => readPs5InstalledPackage(consoleId, ip, pkg, signal, request);
+  return background ? check() : withPs5InstalledReview([consoleId], check, signal);
+}
+
 /** Share a single read-only snapshot within one preview, never across submissions. */
-export function installedPackagePreviewChecker() {
+export function installedPackagePreviewChecker({
+  background = false,
+  backgroundReadAllowed,
+}: Ps5InstalledReadOptions = {}) {
   const snapshots = new Map<string, Promise<any>>();
   const memo = (key: string, call: () => Promise<any>) => {
     let value = snapshots.get(key);
@@ -372,6 +401,13 @@ export function installedPackagePreviewChecker() {
     pkg: InstalledCandidate,
   ) =>
     profile.platform === 'ps5'
-      ? checkPs5InstalledPackage(profile.id, profile.ip, pkg, undefined, ps5)
+      ? checkPs5InstalledPackage(
+          profile.id,
+          profile.ip,
+          { ...pkg, format: contentFormat(pkg) },
+          undefined,
+          ps5,
+          { background, backgroundReadAllowed },
+        )
       : checkPs4InstalledPackage(profile.ip, pkg, profile.transport === 'payload', ps4);
 }

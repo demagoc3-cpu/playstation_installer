@@ -350,9 +350,6 @@ export class Ps5QueueRunner {
   async settled() {
     await this.active;
   }
-  private isPaused() {
-    return this.queue.status === 'paused';
-  }
   private async run() {
     while (this.queue.status === 'running') {
       const item = this.queue.items.find((entry) => !terminal(entry));
@@ -418,7 +415,7 @@ export class Ps5QueueRunner {
       } catch (error) {
         if (item.observationStoppedAt) {
           /* Explicitly stopped observation: preserve its durable unresolved result. */
-        } else if (this.isPaused()) {
+        } else if ((this.queue.status as Ps5Queue['status']) === 'paused') {
           /* Retain durable offsets; never cancel receiver data. */
         } else if (item.cancelRequested && !item.installDispatched) {
           try {

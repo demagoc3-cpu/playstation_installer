@@ -22,6 +22,12 @@ export default defineNuxtConfig({
     },
   },
   nitro: {
+    typescript: {
+      tsConfig: {
+        // Node test mocks assign Nuxt globals; keep them outside the server type context.
+        exclude: ['../server/tests/**/*.mjs'],
+      },
+    },
     routeRules: {
       '/api/packages/file': { cors: true },
     },

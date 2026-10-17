@@ -14,6 +14,7 @@ import {
 } from './selected-reinstallation';
 import { readMaintenance } from './maintenance-store';
 import { installedPackagePreviewChecker } from './installed-package-check';
+import { withPs5InstalledReview } from './ps5-installed-read-coordinator';
 import { getPackage, getLibraryPackages } from './package-library';
 import { presetSelection } from './presets';
 import { filterContent, contentBranchKey, contentFormat } from '../../shared/content-platform';
@@ -201,10 +202,20 @@ export function deviceActivities(packageIds: string[] = []): DeviceActivity[] {
   });
 }
 // This short-lived memory cache contains only live device replies. It never reads installation marks.
-const liveActivitySnapshots = new Map<string, { until: number; value: Promise<string[]> }>();
+const liveActivitySnapshots = new Map<string, { until: number; value: string[] }>();
+const liveActivityChecks = new Map<string, Promise<string[]>>();
 export async function deviceActivitiesLive(packageIds: string[] = []): Promise<DeviceActivity[]> {
   const activity = deviceActivities(packageIds),
-    check = installedPackagePreviewChecker();
+    deferred = new Set<string>(),
+    check = installedPackagePreviewChecker({
+      background: true,
+      backgroundReadAllowed: (id) => {
+        const allowed = !['running', 'cancelling'].includes(getPs5Queue(id).status);
+        if (!allowed) deferred.add(id);
+        return allowed;
+      },
+    }),
+    selection = [...new Set(packageIds)].sort();
   await Promise.all(
     activity.map(async (entry) => {
       const profile = getConsoleProfiles().consoles.find((item) => item.id === entry.consoleId);
@@ -216,44 +227,62 @@ export async function deviceActivitiesLive(packageIds: string[] = []): Promise<D
         !packageIds.length
       )
         return;
-      const key = JSON.stringify([profile.id, profile.ip, profile.transport, packageIds]),
+      const key = JSON.stringify([profile.id, profile.ip, profile.transport, selection]),
         cached = liveActivitySnapshots.get(key);
       if (cached && cached.until > Date.now()) {
-        entry.installedPackageIds = await cached.value;
+        entry.installedPackageIds = cached.value;
+        return;
+      }
+      // Queue activity stays fresh. A busy console (PS5 and PS4 alike: package
+      // data is being received) may reuse only the existing unexpired badge
+      // snapshot; never wait for or start remote inventory.
+      if (['running', 'cancelling'].includes(entry.status)) return;
+      const pending = liveActivityChecks.get(key);
+      if (pending) {
+        entry.installedPackageIds = await pending;
         return;
       }
       const value = (async () => {
-        const present: string[] = [];
-        // The PS5 serves requests serially; leave room between passive source checks.
-        const width = profile.platform === 'ps5' ? 1 : 8;
-        for (let offset = 0; offset < packageIds.length; offset += width) {
-          await Promise.all(
-            packageIds.slice(offset, offset + width).map(async (id) => {
-              try {
-                const pkg = getPackage(id);
-                if ((await check(profile, pkg)).state === 'installed') present.push(id);
-              } catch {
-                /* Unavailable package is not installed proof. */
-              }
-            }),
+        try {
+          const present: string[] = [];
+          for (let offset = 0; offset < selection.length; offset += 8) {
+            await Promise.all(
+              selection.slice(offset, offset + 8).map(async (id) => {
+                try {
+                  const pkg = getPackage(id);
+                  if ((await check(profile, pkg)).state === 'installed') present.push(id);
+                } catch {
+                  /* Unavailable package is not installed proof. */
+                }
+              }),
+            );
+          }
+          const busyNow = ['running', 'cancelling'].includes(
+            deviceActivities(packageIds).find((item) => item.consoleId === profile.id)?.status ||
+              '',
           );
+          if (
+            busyNow ||
+            (profile.platform === 'ps5' &&
+              (deferred.has(profile.id) ||
+                ['running', 'cancelling'].includes(getPs5Queue(profile.id).status)))
+          ) {
+            // A queue may start after this scan began. Deferred/partial replies
+            // never become a new badge snapshot or extend its previous TTL.
+            const previous = liveActivitySnapshots.get(key);
+            return previous && previous.until > Date.now() ? previous.value : [];
+          }
+          if (liveActivitySnapshots.size >= 64)
+            liveActivitySnapshots.delete(liveActivitySnapshots.keys().next().value!);
+          liveActivitySnapshots.set(key, { until: Date.now() + 5000, value: present });
+          return present;
+        } finally {
+          // A slow check stays shared until completion, independently of the snapshot TTL.
+          liveActivityChecks.delete(key);
         }
-        return present;
       })();
-      // Pending scans must remain shared even when a slow device exceeds the TTL.
-      const snapshot = { until: Number.POSITIVE_INFINITY, value };
-      if (liveActivitySnapshots.size > 64)
-        for (const [oldKey, old] of liveActivitySnapshots)
-          if (Number.isFinite(old.until)) liveActivitySnapshots.delete(oldKey);
-      liveActivitySnapshots.set(key, snapshot);
-      try {
-        entry.installedPackageIds = await value;
-      } catch (error) {
-        if (liveActivitySnapshots.get(key) === snapshot) liveActivitySnapshots.delete(key);
-        throw error;
-      } finally {
-        snapshot.until = Date.now() + 5000;
-      }
+      liveActivityChecks.set(key, value);
+      entry.installedPackageIds = await value;
     }),
   );
   return activity;
@@ -286,16 +315,34 @@ const packageSummary = (item: ReturnType<typeof getPackage>) => ({
 export async function previewDeviceInstall(
   selection: DeviceSelection,
   destinations?: string[],
-  forceRefresh = false,
 ): Promise<DeviceInstallPreview> {
   const ids = resolveDeviceSelection(selection),
     items = ids.map((id) => getPackage(id));
+  const ps5Targets = getConsoleProfiles()
+    .consoles.filter(
+      (profile) =>
+        profile.platform === 'ps5' && (!destinations || destinations.includes(profile.id)),
+    )
+    .map((profile) => profile.id);
+  return withPs5InstalledReview(ps5Targets, () =>
+    previewResolvedDeviceInstall(ids, items, destinations),
+  );
+}
+async function previewResolvedDeviceInstall(
+  ids: string[],
+  items: Array<ReturnType<typeof getPackage>>,
+  destinations?: string[],
+): Promise<DeviceInstallPreview> {
+  const scope = items.every((item) => contentFormat(item) === 'pkg') ? 'pkg' : 'full';
   if (destinations)
     for (let offset = 0; offset < destinations.length; offset += 8)
       await Promise.all(
-        destinations.slice(offset, offset + 8).map((id) => refreshConsoleProfile(id, true)),
+        destinations
+          .slice(offset, offset + 8)
+          .map((id) => refreshConsoleProfile(id, true, false, scope)),
       );
-  else await refreshConsoleProfiles(forceRefresh);
+  // An explicit installation review must not reuse a cached failed PS5 probe.
+  else await refreshConsoleProfiles(true, scope);
   const checkInstalled = installedPackagePreviewChecker();
   const size = items.reduce((sum, item) => sum + item.size, 0);
   return {
@@ -437,6 +484,27 @@ export async function previewDeviceInstall(
                 ),
             );
           const maintenance = readMaintenance()[profile.ip];
+          const unknownInstalled = checks.filter(({ check }) => check.state === 'unavailable');
+          const pendingInstalledCheck =
+            profile.platform === 'ps5' &&
+            profile.online &&
+            profile.paired &&
+            profile.verified &&
+            items.every((item) => profile.capabilities.formats.includes(contentFormat(item))) &&
+            unknownInstalled.length > 0 &&
+            unknownInstalled.every(
+              ({ item, check }) =>
+                check.transient === true &&
+                item.type !== 'DLC' &&
+                item.installOrder === 0 &&
+                ['folder', 'ufs2', 'exfat', 'pfs', 'ffpfsc'].includes(contentFormat(item)),
+            );
+          const installedReason = pendingInstalledCheck
+            ? ''
+            : (
+                unknownInstalled.find(({ check }) => check.transient !== true) ||
+                unknownInstalled[0]
+              )?.check.detail;
           const reason =
             maintenance && !['completed', 'failed'].includes(maintenance.state)
               ? 'Дождитесь завершения переустановки или обновления службы'
@@ -451,7 +519,7 @@ export async function previewDeviceInstall(
                 profile.freeBytes === undefined
                   ? 'Не удалось прочитать свободное место с приставки'
                   : '') ||
-                checks.find(({ check }) => check.state === 'unavailable')?.check.detail ||
+                installedReason ||
                 transportConflict ||
                 (mixedPayload ? PS4_PARALLEL_SERVICE_REQUIRED : '') ||
                 (finishedRetry
@@ -499,6 +567,12 @@ export async function previewDeviceInstall(
             profile,
             eligible: !reason,
             reason,
+            ...(!reason && pendingInstalledCheck
+              ? {
+                  warning:
+                    'Проверка установленных пакетов продолжится в очереди. До её завершения файлы не передаются.',
+                }
+              : {}),
             selectedBytes: additional,
             queueBytes: pendingBytes,
             reviewToken,

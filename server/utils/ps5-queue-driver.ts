@@ -17,7 +17,12 @@ import { ps5SourceStamp as stamp } from './ps5-source-hash';
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache';
 import { seedPs5SourceHashHistory } from './ps5-source-hash-history';
 import { getPackage } from './package-library';
-import { ps5OperationRequest, Ps5OperationValidationError } from './console-profiles';
+import {
+  ps5OperationRequest,
+  Ps5OperationValidationError,
+  readPs5PkgInstallCapabilities,
+  readPs5ActivatedRouteCapabilities,
+} from './console-profiles';
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core';
 import { ps5InstallCapabilities, ps5PkgInstallMessage } from '../../shared/ps5-install-readiness';
 import { getConsoleProfile } from './console-profiles';
@@ -118,7 +123,12 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
     if (item.overwriteApproved === true) return;
     const source = getPackage(item.packageId),
       profile = getConsoleProfile(consoleId);
-    const check = await checkPs5InstalledPackage(consoleId, profile.ip, source, signal);
+    const check = await checkPs5InstalledPackage(
+      consoleId,
+      profile.ip,
+      { ...source, format: item.format },
+      signal,
+    );
     if (check.state === 'unavailable') return { state: 'waiting' as const, detail: check.detail };
     if (check.state === 'installed')
       return {
@@ -182,12 +192,15 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
           source.appVersion !== item.appVersion
         )
           throw new Ps5QueueFailure('Образ изменился в библиотеке');
-        const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal);
-        const capabilities = ps5InstallCapabilities(
-          readiness.status,
-          readiness.body,
-          getConsoleProfile(consoleId).firmware,
-        );
+        let capabilities = await readPs5ActivatedRouteCapabilities(consoleId, signal);
+        if (capabilities === undefined) {
+          const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal);
+          capabilities = ps5InstallCapabilities(
+            readiness.status,
+            readiness.body,
+            getConsoleProfile(consoleId).firmware,
+          );
+        }
         if (!capabilities.images?.ready || !capabilities.formats.includes(item.format))
           return {
             state: 'waiting',
@@ -227,12 +240,15 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
           source.appVersion !== item.appVersion
         )
           throw new Ps5QueueFailure('Folder изменился в библиотеке');
-        const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal);
-        const capabilities = ps5InstallCapabilities(
-          readiness.status,
-          readiness.body,
-          getConsoleProfile(consoleId).firmware,
-        );
+        let capabilities = await readPs5ActivatedRouteCapabilities(consoleId, signal);
+        if (capabilities === undefined) {
+          const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal);
+          capabilities = ps5InstallCapabilities(
+            readiness.status,
+            readiness.body,
+            getConsoleProfile(consoleId).firmware,
+          );
+        }
         if (!capabilities.formats.includes('folder'))
           return { state: 'waiting', detail: 'Служба ещё не подтвердила маршрут Folder' };
         const denied = await firmwareGate(source, signal);
@@ -272,7 +288,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       // An intent is durably recorded BEFORE dispatch. Recovery never submits it again.
       if (item.installDispatched) {
         const receipt = await request(item, '/api/v1/install/status', {}, undefined, signal).catch(
-          (_error) => {
+          () => {
             signal.throwIfAborted();
             throw new Ps5QueueUncertain(
               'Не удалось прочитать результат установки. Повтор не отправлен',
@@ -296,7 +312,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
           { 'X-PackageFlow-Installer-Job': receipt.body.job },
           undefined,
           signal,
-        ).catch((_error) => {
+        ).catch(() => {
           signal.throwIfAborted();
           throw new Ps5QueueUncertain(
             'Не удалось прочитать системное задание. Повтор не отправлен',
@@ -369,12 +385,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
         throw new Ps5QueueFailure('Backend этого формата ещё не проверен на PS5');
       // Check before hashing/transferring gigabytes. Recovery of accepted jobs
       // above does not depend on current admission and never resubmits them.
-      const readiness = await request(item, '/api/v1/install/readiness', {}, undefined, signal);
-      const capabilities = ps5InstallCapabilities(
-        readiness.status,
-        readiness.body,
-        getConsoleProfile(consoleId).firmware,
-      );
+      const capabilities = await readPs5PkgInstallCapabilities(consoleId, signal);
       if (!capabilities.installation?.ready || !capabilities.formats.includes('pkg'))
         return { state: 'waiting', detail: ps5PkgInstallMessage(capabilities) };
       if (

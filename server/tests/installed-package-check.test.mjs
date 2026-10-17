@@ -15,7 +15,7 @@ mkdirSync(process.env.PACKAGEFLOW_DATA_DIR);
 await build({
   stdin: {
     contents:
-      "export * from './server/utils/installed-package-check'; export * from './server/utils/ps5-queue-driver'; export * from './server/utils/ps5-queue-core'; export * from './server/utils/console-profiles'; export * from './server/utils/package-library';",
+      "export * from './server/utils/installed-package-check'; export * from './server/utils/ps5-installed-read-coordinator'; export * from './server/utils/ps5-queue-driver'; export * from './server/utils/ps5-queue-core'; export * from './server/utils/console-profiles'; export * from './server/utils/package-library';",
     resolveDir: resolve('.'),
   },
   outfile: bundle,
@@ -165,6 +165,349 @@ test('live built-in registration without a source is a base review, never proof 
   );
   assert.equal(failed.state, 'unavailable');
 });
+const catalogRegistration = (
+  candidate = base,
+  metadata = { contentVersion: candidate.appVersion },
+) => ({
+  titleId: candidate.titleId,
+  contentId: candidate.contentId,
+  metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata),
+});
+const catalogPage = (entries, next = entries.length, done = true, revision = 'c'.repeat(64)) => ({
+  revision,
+  entries,
+  next,
+  done,
+});
+function ps5CatalogReader(pages, info = { status: 503, body: {} }) {
+  const paths = [];
+  return {
+    paths,
+    read: async (_id, path, headers) => {
+      paths.push(path);
+      if (path === '/api/v1/management/status')
+        return { status: 200, body: { protocol: 'ps5-management-v1', ready: true, catalog: true } };
+      if (path === '/api/v1/console/catalog') {
+        const offset = Number(headers['X-PackageFlow-Offset']);
+        const page = typeof pages === 'function' ? pages(offset) : pages[offset];
+        return page?.status ? page : { status: 200, body: page };
+      }
+      assert.equal(path, '/api/v1/console/info');
+      return info;
+    },
+  };
+}
+test('PS5 temporary lookup failures stay unknown and retryable; malformed or unsupported replies do not', async () => {
+  const candidate = { ...base, format: 'ffpfsc' };
+  const pages = [catalogPage([catalogRegistration(candidate)])];
+  for (const status of [408, 429, 500, 502, 503, 504]) {
+    const fixture = ps5CatalogReader(pages, { status, body: {} });
+    const result = await api.checkPs5InstalledPackage(
+      'retryable',
+      '192.168.1.5',
+      candidate,
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.equal(result.transient, true);
+  }
+  for (const reply of [
+    { status: 401, body: {} },
+    { status: 404, body: {} },
+    { status: 200, body: { title_id: candidate.titleId, installed: 'true' } },
+  ]) {
+    const fixture = ps5CatalogReader(pages, reply);
+    const result = await api.checkPs5InstalledPackage(
+      'permanent',
+      '192.168.1.5',
+      candidate,
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.notEqual(result.transient, true);
+  }
+  for (const error of [
+    new DOMException('lookup deadline', 'TimeoutError'),
+    new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } }),
+  ]) {
+    const result = await api.checkPs5InstalledPackage(
+      'network',
+      '192.168.1.5',
+      candidate,
+      undefined,
+      async () => {
+        throw error;
+      },
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.equal(result.transient, true);
+  }
+  const invalid = await api.checkPs5InstalledPackage(
+    'invalid-json',
+    '192.168.1.5',
+    candidate,
+    undefined,
+    async () => {
+      throw new SyntaxError('invalid response');
+    },
+  );
+  assert.notEqual(invalid.transient, true);
+  for (const code of ['UND_ERR_INVALID_ARG', 'UND_ERR_NOT_SUPPORTED', 'UND_ERR_HEADERS_OVERFLOW']) {
+    const result = await api.checkPs5InstalledPackage(
+      'protocol-error',
+      '192.168.1.5',
+      candidate,
+      undefined,
+      async () => {
+        throw new TypeError('invalid protocol', { cause: { code } });
+      },
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.notEqual(result.transient, true);
+  }
+  assert.notEqual(
+    api.matchPs5InstalledGame(dlc, { installed: true, content_id: dlc.contentId, version: '01.00' })
+      .transient,
+    true,
+  );
+});
+test('a changed native PS5 catalog is retryable without claiming absence; invalid metadata stays blocked', async () => {
+  for (const [revision, transient] of [
+    ['d'.repeat(64), true],
+    ['invalid', false],
+  ]) {
+    const fixture = ps5CatalogReader([
+      catalogPage([catalogRegistration(base)], 1, false),
+      catalogPage([], 1, true, revision),
+    ]);
+    const result = await api.checkPs5InstalledPackage(
+      'changed-catalog',
+      '192.168.1.5',
+      { ...base, format: 'folder' },
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.equal(result.transient === true, transient);
+  }
+  const malformed = ps5CatalogReader([
+    catalogPage([catalogRegistration(base)], 1, false),
+    { revision: 'd'.repeat(64) },
+  ]);
+  const result = await api.checkPs5InstalledPackage(
+    'changed-invalid-catalog',
+    '192.168.1.5',
+    { ...base, format: 'folder' },
+    undefined,
+    malformed.read,
+  );
+  assert.equal(result.state, 'unavailable');
+  assert.notEqual(result.transient, true);
+});
+test('a background lookup queued before installation starts never sends HTTP after the PS5 becomes busy', async () => {
+  let release,
+    entered,
+    busy = false;
+  const hold = new Promise((done) => {
+    release = done;
+  });
+  const started = new Promise((done) => {
+    entered = done;
+  });
+  const review = api.withPs5InstalledReview(['busy-at-dispatch'], async () => {
+    entered();
+    await hold;
+  });
+  await started;
+  const fixture = ps5CatalogReader([catalogPage([])]);
+  const candidate = { ...base, format: 'folder' };
+  const background = api.checkPs5InstalledPackage(
+    'busy-at-dispatch',
+    '192.168.1.5',
+    candidate,
+    undefined,
+    fixture.read,
+    { background: true, backgroundReadAllowed: () => !busy },
+  );
+  assert.equal(fixture.paths.length, 0);
+  busy = true;
+  release();
+  await review;
+  const deferred = await background;
+  assert.equal(deferred.state, 'unavailable');
+  assert.equal(deferred.transient, true);
+  assert.equal(
+    fixture.paths.length,
+    0,
+    'queued background reads recheck the live queue at dispatch',
+  );
+  const foreground = await api.checkPs5InstalledPackage(
+    'busy-at-dispatch',
+    '192.168.1.5',
+    candidate,
+    undefined,
+    fixture.read,
+    { backgroundReadAllowed: () => false },
+  );
+  assert.equal(foreground.state, 'absent', 'the worker still requires a real foreground read');
+  assert.deepEqual(fixture.paths, ['/api/v1/management/status', '/api/v1/console/catalog']);
+});
+test('a complete native PKG base registration allows manual review without claiming its files or version are installed', async () => {
+  for (const registration of [
+    catalogRegistration(base),
+    catalogRegistration(base, { contentVersion: '01.03' }),
+    catalogRegistration(base, { contentVersion: '01.05' }),
+    { ...catalogRegistration(base), contentId: 'IV0000-CUSA95001_00-ANOTHERBASE00001' },
+  ]) {
+    const fixture = ps5CatalogReader([catalogPage([registration], 1, false), catalogPage([], 1)]);
+    const result = await api.checkPs5InstalledPackage(
+      'fixture',
+      '192.168.1.5',
+      { ...base, format: 'pkg' },
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, 'base-present');
+    assert.match(result.detail, /зарегистрирована.*наличие файлов.*не подтверждены.*переустановку/);
+    assert.equal(result.revision, 'c'.repeat(64));
+    assert.deepEqual(fixture.paths, [
+      '/api/v1/management/status',
+      '/api/v1/console/catalog',
+      '/api/v1/console/catalog',
+    ]);
+  }
+});
+test('a registered PKG base with an unknown version stays a manual overwrite review', async () => {
+  for (const metadata of [{}, { contentVersion: '0' }, { CONTENT_VERSION: '' }]) {
+    const fixture = ps5CatalogReader([catalogPage([catalogRegistration(base, metadata)])]);
+    const result = await api.checkPs5InstalledPackage(
+      'fixture',
+      '192.168.1.5',
+      { ...base, format: 'pkg' },
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, 'base-present');
+    assert.match(result.detail, /версия.*не подтверждены.*переустановку/);
+    assert.equal(result.revision, 'c'.repeat(64));
+    assert.ok(!fixture.paths.includes('/api/v1/console/info'));
+  }
+});
+test('PKG patches and DLC retain native source review and never use catalog registration as file presence', async () => {
+  for (const candidate of [patch, dlc]) {
+    const fixture = ps5CatalogReader([catalogPage([catalogRegistration(candidate)])]);
+    const result = await api.checkPs5InstalledPackage(
+      'fixture',
+      '192.168.1.5',
+      { ...candidate, format: 'pkg' },
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.equal(fixture.paths.at(-1), '/api/v1/console/info');
+  }
+  for (const { candidate, version, state } of [
+    { candidate: patch, version: patch.appVersion, state: 'installed' },
+    { candidate: patch, version: '01.03', state: 'absent' },
+    { candidate: patch, version: '01.05', state: 'base-present' },
+    { candidate: dlc, version: dlc.appVersion, state: 'unavailable' },
+  ]) {
+    // Legacy patch/DLC metadata handling stays unchanged; native game info
+    // remains the authority even when catalog metadata cannot be decoded.
+    const fixture = ps5CatalogReader([catalogPage([catalogRegistration(candidate, '{')])], {
+      status: 200,
+      body: {
+        title_id: candidate.titleId,
+        content_id: candidate.contentId,
+        version,
+        installed: true,
+        source_available: true,
+        path: '/data/games/fixture',
+        sourceIdentity: 'e'.repeat(64),
+      },
+    });
+    const result = await api.checkPs5InstalledPackage(
+      'fixture',
+      '192.168.1.5',
+      { ...candidate, format: 'pkg' },
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, state);
+    assert.equal(result.revision, 'e'.repeat(64));
+    assert.equal(fixture.paths.at(-1), '/api/v1/console/info');
+  }
+});
+test('PKG absence requires a complete stable catalog, including pages after a matching registration', async () => {
+  const row = catalogRegistration();
+  const invalid = [
+    [catalogPage([], 0, false)],
+    [catalogPage([row], 0)],
+    [catalogPage([row, row])],
+    [catalogPage([{ ...row, titleId: 'invalid' }])],
+    [catalogPage([{ ...row, metadata: '{' }])],
+    [catalogPage([{ ...row, metadata: 'null' }])],
+    [catalogPage([{ ...row, metadata: '[]' }])],
+    [catalogPage([catalogRegistration(base, { contentVersion: 4 })])],
+    [catalogPage([], 0, true, 'invalid')],
+    [catalogPage([row], 1, false), catalogPage([], 1, true, 'd'.repeat(64))],
+    [catalogPage([row], 1, false), { status: 503, body: {} }],
+    (offset) => catalogPage([{ ...row, titleId: 'CUSA95002' }], offset + 1, false),
+  ];
+  for (const pages of invalid) {
+    const fixture = ps5CatalogReader(pages);
+    const result = await api.checkPs5InstalledPackage(
+      'fixture',
+      '192.168.1.5',
+      { ...base, format: 'pkg' },
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, 'unavailable');
+    assert.ok(!fixture.paths.includes('/api/v1/console/info'));
+  }
+  const complete = ps5CatalogReader([catalogPage([])]);
+  assert.equal(
+    (
+      await api.checkPs5InstalledPackage(
+        'fixture',
+        '192.168.1.5',
+        { ...base, format: 'pkg' },
+        undefined,
+        complete.read,
+      )
+    ).state,
+    'absent',
+  );
+});
+test('Folder, images and direct legacy candidates retain their SMP source identity review', async () => {
+  for (const format of ['folder', 'ufs2', 'exfat', 'pfs', 'ffpfsc', undefined]) {
+    const fixture = ps5CatalogReader([catalogPage([catalogRegistration()])], {
+      status: 200,
+      body: {
+        title_id: base.titleId,
+        content_id: base.contentId,
+        version: base.appVersion,
+        installed: true,
+        source_available: true,
+        path: '/data/games/fixture',
+        sourceIdentity: 'e'.repeat(64),
+      },
+    });
+    const result = await api.checkPs5InstalledPackage(
+      'fixture',
+      '192.168.1.5',
+      { ...base, format },
+      undefined,
+      fixture.read,
+    );
+    assert.equal(result.state, 'installed');
+    assert.equal(result.revision, 'e'.repeat(64));
+    assert.equal(fixture.paths.at(-1), '/api/v1/console/info');
+  }
+});
 test('already present base continues to new patches and the next game without falsely marking its selected version installed', async () => {
   const q = api.ps5BlankQueue('test', '192.168.1.5'),
     seen = [],
@@ -257,7 +600,8 @@ test('production PS5 driver skips existing PKG/Folder before hashing, waits on u
     };
     const writes = [];
     let unavailable = false,
-      found = true;
+      found = true,
+      infoReads = 0;
     globalThis.fetch = async (url, opts = {}) => {
       const path = new URL(url).pathname;
       if (opts.method === 'POST') writes.push(path);
@@ -284,7 +628,6 @@ test('production PS5 driver skips existing PKG/Folder before hashing, waits on u
           ? response({}, 503)
           : response({
               revision: 'b'.repeat(64),
-              total: found ? 1 : 0,
               entries: found
                 ? [
                     {
@@ -297,7 +640,8 @@ test('production PS5 driver skips existing PKG/Folder before hashing, waits on u
               next: found ? 1 : 0,
               done: true,
             });
-      if (path === '/api/v1/console/info')
+      if (path === '/api/v1/console/info') {
+        infoReads++;
         return response({
           title_id: pkg.titleId,
           content_id: pkg.contentId,
@@ -306,6 +650,7 @@ test('production PS5 driver skips existing PKG/Folder before hashing, waits on u
           source_available: true,
           path: '/user/app/PPSA95001/app.pkg',
         });
+      }
       if (path === '/api/v1/transfers/begin') throw new Error('transfer reached explicitly');
       assert.fail(path);
     };
@@ -325,10 +670,17 @@ test('production PS5 driver skips existing PKG/Folder before hashing, waits on u
     let v = item();
     let result = await driver.run(v, signal, (x) => Object.assign(v, x));
     assert.equal(result.state, 'skipped');
-    assert.equal(result.alreadyPresent, true);
     assert.equal(result.confirmation, undefined);
+    assert.equal(result.alreadyPresent, true);
     assert.equal(v.hash, undefined);
     assert.deepEqual(writes, []);
+    assert.equal(infoReads, 0);
+    const legacyPreview = await api.installedPackagePreviewChecker()(p, {
+      ...pkg,
+      format: undefined,
+    });
+    assert.equal(legacyPreview.state, 'base-present');
+    assert.equal(infoReads, 0);
     const folder = {
       ...pkg,
       id: 'folder',
@@ -347,6 +699,7 @@ test('production PS5 driver skips existing PKG/Folder before hashing, waits on u
     assert.equal((await driver.run(f, signal, (x) => Object.assign(f, x))).state, 'installed');
     assert.equal(f.hash, undefined);
     assert.deepEqual(writes, []);
+    assert.equal(infoReads, 1);
     unavailable = true;
     v = item();
     assert.equal((await driver.run(v, signal, (x) => Object.assign(v, x))).state, 'waiting');

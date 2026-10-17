@@ -9,6 +9,7 @@ import { writeDurableJson } from './durable-json';
 import { assertNoPs5Bootstrap } from './ps5-bootstrap-journal';
 import { getConsoleProfile, ps5OperationRequest, ps5ServiceRequest } from './console-profiles';
 import { consoleSetupBundle } from './console-setup-artifacts';
+import { readPs5ServiceArtifact } from './ps5-service-artifact';
 import { claimConsoleWorker } from './console-worker-lock';
 import { trackDesktopRequest } from './desktop-lifecycle';
 import {
@@ -25,6 +26,13 @@ const folder = () => dataPath('ps5-service-updates');
 const flowFile = (id: string) => resolve(folder(), `${id}.json`);
 const pause = () => new Promise<void>((resolve) => setTimeout(resolve, 1000));
 async function release(verifyFiles = true) {
+  if (
+    existsSync(dataPath('ps5-service-artifacts', 'manifest.json')) ||
+    existsSync(dataPath('console-setup', 'service-manifest.json'))
+  ) {
+    const artifact = await readPs5ServiceArtifact();
+    return { ...artifact.manifest, bytes: artifact.bytes, source: 'bundle' as const };
+  }
   // The installer ships one qualified bundle. Never prefer a stale standalone
   // ELF, or silently fall back to it when the current bundle is damaged.
   if (existsSync(dataPath('console-setup', 'manifest.json'))) {
@@ -211,7 +219,7 @@ export async function beginPs5ServiceUpdate(id: unknown) {
     }),
     previous = saved(p.id);
   assertNoConsoleSpeedTest(p.id);
-  assertNoPs5Bootstrap(p.id);
+  assertNoPs5Bootstrap(p.id, p.ip);
   if (!candidate)
     throw createError({ statusCode: 409, message: 'Проверенный ELF службы PS5 не подготовлен' });
   if (!p.verified || p.firmware !== candidate.firmware)

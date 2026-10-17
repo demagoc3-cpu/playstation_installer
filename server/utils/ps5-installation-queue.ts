@@ -212,11 +212,7 @@ export async function startPs5Queue(input: {
   assertNoPs5Bootstrap(input.consoleId);
   const profile = getConsoleProfile(input.consoleId);
   if (profile.platform !== 'ps5') throw createError({ statusCode: 400, message: 'Выберите PS5' });
-  const snapshot = (await probeConsoleProfile(profile.id)).consoles.find(
-    (p) => p.id === profile.id,
-  )!;
-  if (!snapshot.online || !snapshot.paired)
-    throw createError({ statusCode: 409, message: 'Подключите и сопрягите сервис PS5' });
+  assertNoPs5Bootstrap(profile.id, profile.ip);
   const library = getLibraryPackages(profile.ip),
     current = runner(profile.id);
   let ids = input.packageIds;
@@ -257,6 +253,15 @@ export async function startPs5Queue(input: {
   )
     throw createError({ statusCode: 400, message: 'Выберите пакеты для установки' });
   const items = [...new Set(ids as string[])].map((id) => getPackage(id));
+  const snapshot = (
+    await probeConsoleProfile(
+      profile.id,
+      false,
+      items.every((item) => contentFormat(item) === 'pkg') ? 'pkg' : 'full',
+    )
+  ).consoles.find((p) => p.id === profile.id)!;
+  if (!snapshot.online || !snapshot.paired)
+    throw createError({ statusCode: 409, message: 'Подключите и сопрягите сервис PS5' });
   const overwrite = input.overwritePackageIds || [];
   if (
     !Array.isArray(overwrite) ||
@@ -273,10 +278,9 @@ export async function startPs5Queue(input: {
   const repair = input.appSourceRepair;
   if (repair) {
     // Internal desktop recovery, never a general image overwrite option.
-    const item = items[0];
+    const item = items[0]!;
     if (
       items.length !== 1 ||
-      !item ||
       repair.packageId !== item.id ||
       item.titleId !== 'PPSA95001' ||
       item.contentId !== 'IV0000-PPSA95001_00-PACKAGEFLOWUI001' ||
@@ -329,6 +333,11 @@ export async function startPs5Queue(input: {
     }
   }
   assertNoConsoleSpeedTest(profile.id);
+  // A service launch/update may have begun while the preflight awaited PS5.
+  assertNoPs5Bootstrap(profile.id, profile.ip);
+  assertNoPs5ServiceUpdate(profile.id);
+  if (getConsoleProfile(profile.id).ip !== profile.ip)
+    throw createError({ statusCode: 409, message: 'Адрес PS5 изменился. Очередь не отправлена' });
   try {
     current.enqueue(
       items.map((item) => ({

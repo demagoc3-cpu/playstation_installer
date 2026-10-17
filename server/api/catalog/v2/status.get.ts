@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: 'Выберите профиль PS5' });
   // Native clients also work while no WEB tab is open. The shared probe cache
   // coalesces concurrent callers and refreshes at most once every 15 seconds.
-  const current = (await refreshConsoleProfile(profile.id)).consoles.find(
+  const current = (await refreshConsoleProfile(profile.id, false, true)).consoles.find(
     (item) => item.id === profile.id,
   );
   if (!current) throw createError({ statusCode: 404, message: 'Профиль удалён' });
