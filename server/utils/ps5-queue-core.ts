@@ -36,6 +36,8 @@ export interface Ps5Item {
   state: Ps5State;
   detail: string;
   bytesSent: number;
+  /** Request id of the approved uninstall of an own orphaned registration. */
+  orphanClearId?: string;
   /** Display only: bytes of the current batch already handed to the network. */
   bytesInFlight?: number;
   completedAt?: number;

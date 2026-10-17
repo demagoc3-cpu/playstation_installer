@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 import { dataPath } from './data-path';
 import { writeDurableJson } from './durable-json';
 import {
@@ -59,6 +60,65 @@ export function ps5TransferChunkSize(reply: { chunkMax?: unknown }) {
     (size & (size - 1)) === 0
     ? size
     : 262144;
+}
+/** Approved replacement of an own Folder/image whose source is gone: the
+ * service refuses to publish over the leftover registration, so clear it
+ * first (only the service's own orphans are accepted) and wait for PS5. */
+export async function ps5ClearOwnOrphanRegistration(
+  call: (
+    path: Parameters<typeof ps5OperationRequest>[1],
+    headers?: Record<string, string>,
+    body?: Uint8Array,
+    signal?: AbortSignal,
+  ) => Promise<{ status: number; body: any }>,
+  item: Ps5Item,
+  signal: AbortSignal,
+  save: (patch: Partial<Ps5Item>) => void,
+  wait: (signal: AbortSignal) => Promise<void> = pause,
+) {
+  const read = async () => {
+    const info = await call(
+      '/api/v1/console/info',
+      { 'X-PackageFlow-Title': item.titleId },
+      undefined,
+      signal,
+    );
+    if (info.status !== 200 || info.body?.title_id !== item.titleId)
+      throw new Error('PS5 operation unavailable');
+    return info.body;
+  };
+  const row = await read();
+  if (row.installed !== true || row.source_available !== false) return;
+  if (typeof row.sourceIdentity !== 'string' || !/^[a-f0-9]{64}$/.test(row.sourceIdentity))
+    throw new Error('PS5 operation unavailable');
+  const requestId = item.orphanClearId || randomBytes(16).toString('hex');
+  save({ orphanClearId: requestId, detail: 'Снимаем прежнюю регистрацию игры на PS5' });
+  const r = await call(
+    '/api/v1/console/command',
+    {
+      'X-PackageFlow-Request-Id': requestId,
+      'X-PackageFlow-Title': item.titleId,
+      'X-PackageFlow-Action': 'uninstall',
+      'X-PackageFlow-Source-Identity': row.sourceIdentity,
+      'X-PackageFlow-Confirm-Title': item.titleId,
+    },
+    undefined,
+    signal,
+  );
+  if (r.status !== 200)
+    throw new Ps5QueueFailure(
+      r.status === 409
+        ? 'PS5 не сняла прежнюю регистрацию этой игры (409). Нужна служба PS5 с очисткой регистраций, закрытая игра и неизменная запись'
+        : `PS5 не сняла прежнюю регистрацию этой игры (${r.status})`,
+    );
+  for (let attempt = 0; attempt < 30; attempt++) {
+    await wait(signal);
+    if ((await read()).installed !== true) {
+      save({ detail: 'Прежняя регистрация снята. Публикуем игру заново' });
+      return;
+    }
+  }
+  throw new Ps5QueueUncertain('Снятие прежней регистрации не подтверждено. Повтор не отправлен');
 }
 export function ps5QueueDriver(consoleId: string): Ps5Driver {
   const request = async (
@@ -129,6 +189,11 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       return { state: 'waiting' as const, detail: assessment.detail };
     if (assessment.state !== 'compatible') throw new Ps5QueueFailure(assessment.detail);
   };
+  const clearOwnOrphanRegistration = (
+    item: Ps5Item,
+    signal: AbortSignal,
+    save: (patch: Partial<Ps5Item>) => void,
+  ) => ps5ClearOwnOrphanRegistration((...args) => request(item, ...args), item, signal, save);
   const installedGate = async (item: Ps5Item, signal: AbortSignal) => {
     if (item.overwriteApproved === true) return;
     const source = getPackage(item.packageId),
@@ -225,6 +290,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
         if (denied) return denied;
         const present = await installedGate(item, signal);
         if (present) return present;
+        if (item.overwriteApproved === true) await clearOwnOrphanRegistration(item, signal, save);
         if (plan) await verifyImagePlan(plan, item, source.path);
         else {
           save({
@@ -270,6 +336,7 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
         if (denied) return denied;
         const present = await installedGate(item, signal);
         if (present) return present;
+        if (item.overwriteApproved === true) await clearOwnOrphanRegistration(item, signal, save);
         if (plan) await verifyFolderSource(plan, item, source.path, signal);
         else {
           save({
