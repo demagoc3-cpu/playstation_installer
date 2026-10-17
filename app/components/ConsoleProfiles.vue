@@ -18,8 +18,7 @@ const draft = reactive({
 });
 const query = ref(''),
   filter = ref('all'),
-  onlyOnline = ref(false),
-  detailId = ref('');
+  onlyOnline = ref(false);
 const shown = computed(() =>
   props.profiles.consoles.filter(
     (item) =>
@@ -49,9 +48,31 @@ function edit(profile?: ConsoleProfiles['consoles'][number]) {
 const showConfig = ref(false),
   configHost = ref(''),
   configPort = ref('3000');
+const configId = ref('');
 const active = computed(() =>
-  props.profiles.consoles.find((item) => item.id === (detailId.value || props.profiles.activeId)),
+  props.profiles.consoles.find((item) => item.id === (configId.value || props.profiles.activeId)),
 );
+const serviceDialog = ref<{ id: string; action: string }>();
+const serviceDevice = computed(() =>
+  props.profiles.consoles.find((item) => item.id === serviceDialog.value?.id),
+);
+/** One handler for the «Сервис» menu of every row. */
+function serviceAction(profile: ConsoleProfiles['consoles'][number], action: string) {
+  if (action === 'pair') return request('pair', { id: profile.id });
+  if (action === 'probe') return request('probe', { id: profile.id });
+  if (action === 'config') {
+    configId.value = profile.id;
+    return openConfig();
+  }
+  if (action === 'ps4-update') {
+    updateId.value = profile.id;
+    return;
+  }
+  if (action === 'ps4-restart') return restartService(profile);
+  // The same live check the installation review uses refreshes the row.
+  if (action === 'status') void request('probe', { id: profile.id });
+  serviceDialog.value = { id: profile.id, action };
+}
 const updateId = ref(''),
   speedId = ref('');
 const speedDevice = computed(() =>
@@ -194,6 +215,16 @@ async function create() {
 
 <template>
   <section class="devices-workspace">
+    <Ps5ServiceDialog
+      v-if="serviceDevice && serviceDialog"
+      :key="serviceDialog.id + serviceDialog.action"
+      :console-id="serviceDevice.id"
+      :name="serviceDevice.name"
+      :ip="serviceDevice.ip"
+      :action="serviceDialog.action"
+      @close="serviceDialog = undefined"
+      @changed="request('probe', { id: serviceDevice.id })"
+    />
     <ConsoleSpeedModal
       v-if="speedDevice"
       :key="speedDevice.id"
@@ -209,7 +240,7 @@ async function create() {
         </p>
       </div>
       <div class="profile-actions">
-        <button :disabled="pending" @click="request('refresh', {})">
+        <button :disabled="pending" @click="request('refresh', { all: true })">
           {{ t(pending ? 'Проверяем…' : 'Обновить подключения') }}</button
         ><button class="primary" :disabled="pending" @click="edit()">
           ＋ {{ t('Добавить устройство') }}
@@ -241,7 +272,7 @@ async function create() {
           <tr
             v-for="profile in shown"
             :key="profile.id"
-            :class="{ selected: detailId === profile.id }"
+            :class="{ selected: profiles.activeId === profile.id }"
           >
             <td>
               <strong>{{ profile.name }}</strong
@@ -257,7 +288,13 @@ async function create() {
               >
             </td>
             <td>
-              <span :class="{ online: profile.online }"
+              <span
+                :class="{ online: profile.online }"
+                :title="
+                  profile.platform === 'ps5'
+                    ? t(ps5InstallMessage(profile.capabilities))
+                    : undefined
+                "
                 >● {{ t(profile.online ? 'В сети' : 'Нет связи') }}</span
               ><small>{{
                 t(
@@ -268,13 +305,6 @@ async function create() {
                       : 'Нужно сопряжение',
                 )
               }}</small>
-              <Ps5ServiceControl
-                v-if="profile.platform === 'ps5'"
-                :key="profile.id + profile.ip"
-                :console-id="profile.id"
-                :online="profile.online"
-                @ready="request('probe', { id: profile.id })"
-              />
             </td>
             <td>{{ bytes(profile.freeBytes) }}</td>
             <td>
@@ -284,31 +314,26 @@ async function create() {
               >
             </td>
             <td>
-              <div class="profile-actions">
-                <button @click="detailId = profile.id">{{ t('Подключение') }}</button
-                ><button v-if="profile.transport !== 'payload'" @click="updateId = profile.id">
-                  {{ t('Обновить сервис') }}</button
-                ><button
-                  v-if="profile.platform === 'ps4'"
-                  :disabled="
-                    pending ||
+              <div class="profile-actions row-actions">
+                <button
+                  :class="{ primary: profiles.activeId !== profile.id }"
+                  :disabled="pending || profiles.activeId === profile.id"
+                  @click="request('active', { id: profile.id })"
+                >
+                  {{ t(profiles.activeId === profile.id ? 'Открыто' : 'Открыть') }}</button
+                ><button @click="speedId = profile.id">{{ t('Тест скорости') }}</button
+                ><DeviceServiceMenu
+                  :platform="profile.platform"
+                  :transport="profile.transport"
+                  :paired="profile.paired"
+                  :busy="pending"
+                  :restart-blocked="
                     !!restartingId ||
                     (activityFor(profile.id)?.counts.active || 0) > 0 ||
                     (activityFor(profile.id)?.counts.queued || 0) > 0
                   "
-                  @click="restartService(profile)"
-                >
-                  {{
-                    t(restartingId === profile.id ? 'Ожидаем перезапуска…' : 'Перезапустить сервис')
-                  }}</button
-                ><button @click="speedId = profile.id">{{ t('Тест скорости') }}</button
-                ><button @click="edit(profile)">{{ t('Изменить') }}</button
-                ><button
-                  :disabled="pending || profiles.activeId === profile.id"
-                  @click="request('active', { id: profile.id })"
-                >
-                  {{ t(profiles.activeId === profile.id ? 'Открыто' : 'Открыть') }}
-                </button>
+                  @select="serviceAction(profile, $event)"
+                /><button @click="edit(profile)">{{ t('Изменить') }}</button>
               </div>
             </td>
           </tr>
@@ -318,32 +343,6 @@ async function create() {
         {{ t('Устройства не найдены. Добавьте приставку или измените фильтр.') }}
       </p>
     </div>
-    <section v-if="active" class="profile-details">
-      <div class="profile-heading">
-        <h2>{{ active.name }} · {{ active.platform.toUpperCase() }}</h2>
-        <button :disabled="pending" @click="request('probe', { id: active.id })">
-          {{ t('Проверить подключение') }}
-        </button>
-      </div>
-      <p>
-        {{ active.ip }} ·
-        {{ t(active.transport === 'payload' ? 'PyLoader' : 'PackageFlowService') }}
-      </p>
-      <form
-        v-if="active.transport !== 'payload'"
-        class="profile-actions"
-        @submit.prevent="request('pair', { id: active.id })"
-      >
-        <p>{{ t('Выбранная приставка подключается автоматически, без кода.') }}</p>
-        <button class="primary" :disabled="pending">
-          {{ t(pending ? 'Подключаем…' : active.paired ? 'Переподключить' : 'Подключить') }}
-        </button>
-      </form>
-      <button v-if="active.platform === 'ps5'" @click="openConfig">
-        {{ t('Конфигурация приложения PS5') }}
-      </button>
-      <p v-if="active.platform === 'ps5'">{{ t(ps5InstallMessage(active.capabilities)) }}</p>
-    </section>
     <p v-if="message" class="pf-notice" role="alert">{{ t(message) }}</p>
     <div v-if="updatingDevice" class="profile-modal" @click.self="updateId = ''">
       <section
@@ -502,30 +501,18 @@ small {
   margin-top: 6px;
 }
 .selected {
-  background: #25232b;
+  background: rgb(55 201 251 / 7%);
+}
+.row-actions {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+td:last-child {
+  width: 1%;
+  white-space: nowrap;
 }
 .online {
   color: #87d0a2;
-}
-.profile-details {
-  padding: 16px;
-  border: 1px solid #3b3941;
-  background: #19191c;
-  border-radius: 10px;
-  display: grid;
-  gap: 12px;
-}
-.profile-details label {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 12px;
-}
-.profile-details input {
-  width: 130px;
-}
-.profile-details > button {
-  justify-self: start;
 }
 button,
 input:not([type='checkbox']),

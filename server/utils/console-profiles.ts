@@ -1029,6 +1029,10 @@ async function runConsoleProfileProbe(
     runtimeIdentity,
     fullCheckedAt,
   });
+  // A paired PS5 that answers on the network but not with its service: try to
+  // start the saved service through PLDMGR (backed off, never during installs).
+  if (profile.platform === 'ps5' && !online && previous?.paired && ps5AutoStart)
+    void ps5AutoStart(profile.id).catch(() => {});
   return getConsoleProfiles();
 }
 
@@ -1058,9 +1062,31 @@ export async function refreshConsoleProfile(
   probes.set(probeKey, pending);
   return pending;
 }
+const OFFLINE_RECHECK_MS = 60000;
+let ps5AutoStart: ((id: string) => Promise<void>) | undefined;
+/** Registered by the service-control plugin; console checks stay independent of it. */
+export function setPs5ServiceAutoStart(handler: (id: string) => Promise<void>) {
+  ps5AutoStart = handler;
+}
 /** No device-count limit; bound the number of simultaneous network probes. */
-export async function refreshConsoleProfiles(freshPs5 = false, scope: Ps5ProbeScope = 'full') {
-  const profiles = getConsoleProfiles().consoles;
+export async function refreshConsoleProfiles(
+  freshPs5 = false,
+  scope: Ps5ProbeScope = 'full',
+  includeRecentOffline = false,
+) {
+  // A console found offline in the last minute is not waited on again by bulk
+  // checks (install review, periodic refresh); explicit per-device checks and
+  // install targets still probe it.
+  const profiles = getConsoleProfiles().consoles.filter((profile) => {
+    const snapshot = snapshots.get(profile.id);
+    return (
+      includeRecentOffline ||
+      !snapshot ||
+      snapshot.online ||
+      !snapshot.checkedAt ||
+      Date.now() - snapshot.checkedAt >= OFFLINE_RECHECK_MS
+    );
+  });
   let next = 0;
   await Promise.all(
     Array.from({ length: Math.min(8, profiles.length) }, async () => {

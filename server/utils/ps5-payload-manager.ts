@@ -379,3 +379,211 @@ export async function storePs5ServicePayload(
     );
   }
 }
+
+/* Owner-requested service management (Devices → «Сервис»), ported from the
+ * hardware-tested Python lifecycle prototype. Every mutation is followed by a
+ * read-back that must show exactly the intended change. */
+export const PS5_SERVICE_SLOT = 'local/packageflowservice';
+
+/** The one saved PackageFlow service record, or undefined. Ambiguity fails closed. */
+export function ownPs5ServicePayload(payloads: Ps5StoredPayload[]) {
+  const ours = payloads.filter((payload) => payload.filename === PS5_SERVICE_ELF_FILE_NAME);
+  if (ours.length > 1 || (ours[0] && !isPs5StoredServicePayload(ours[0])))
+    throw new PayloadManagerDispatchError(
+      'В PLDMGR несколько или неизвестные записи PackageFlow. Проверьте их вручную',
+      false,
+    );
+  return ours[0];
+}
+
+export async function readPs5PayloadManagerConfig(
+  ip: string,
+  makeRequest: RequestFactory = request,
+) {
+  const value = json(await managerRequest(ip, 'GET', '/get_config', undefined, makeRequest));
+  if (!object(value) || typeof value.AUTOLOAD_LIST !== 'string')
+    throw new PayloadManagerDispatchError('Настройки PLDMGR не прочитаны', false);
+  const list = value.AUTOLOAD_LIST.split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return { config: value, enabled: value.AUTOLOAD_ENABLED === true, list };
+}
+
+/** Add or remove only our slot in the boot autoload list; nothing else may change. */
+export async function setPs5ServiceAutoload(
+  ip: string,
+  enabled: boolean,
+  slot: string = PS5_SERVICE_SLOT,
+  makeRequest: RequestFactory = request,
+) {
+  const before = await readPs5PayloadManagerConfig(ip, makeRequest);
+  const foreign = before.list.filter((item) => /packageflow/i.test(item) && item !== slot);
+  if (foreign.length)
+    throw new PayloadManagerDispatchError(
+      `В автозапуске есть другие записи PackageFlow: ${foreign.join(', ')}`,
+      false,
+    );
+  const next = enabled
+    ? before.list.includes(slot)
+      ? before.list
+      : [...before.list, slot]
+    : before.list.filter((item) => item !== slot);
+  if (next.join(',') === before.list.join(',')) return next;
+  await managerRequest(
+    ip,
+    'POST',
+    '/set_config',
+    Buffer.from(
+      JSON.stringify({ AUTOLOAD_ENABLED: before.enabled, AUTOLOAD_LIST: next.join(',') }),
+    ),
+    makeRequest,
+  );
+  const after = await readPs5PayloadManagerConfig(ip, makeRequest);
+  const changed = Object.keys({ ...before.config, ...after.config }).filter(
+    (key) =>
+      key !== 'AUTOLOAD_LIST' &&
+      JSON.stringify(before.config[key]) !== JSON.stringify(after.config[key]),
+  );
+  if (after.list.join(',') !== next.join(',') || changed.length)
+    throw new PayloadManagerDispatchError(
+      'Настройки PLDMGR после изменения не совпали с запросом',
+      true,
+    );
+  return next;
+}
+
+/** Save the service, replacing only our own record; never adds a duplicate. */
+export async function replacePs5ServicePayload(
+  ip: string,
+  artifact: Artifact,
+  makeRequest: RequestFactory = request,
+): Promise<Ps5StoredPayload> {
+  if (
+    artifact.manifest.fileName !== PS5_SERVICE_ELF_FILE_NAME ||
+    artifact.bytes.length !== artifact.manifest.size ||
+    artifact.bytes.length < 4096 ||
+    artifact.bytes.length > 4 * 1024 ** 2 ||
+    !artifact.bytes.subarray(0, 6).equals(Buffer.from('7f454c460201', 'hex')) ||
+    artifact.bytes.readUInt16LE(18) !== 62 ||
+    createHash('sha256').update(artifact.bytes).digest('hex') !== artifact.manifest.sha256
+  )
+    throw new PayloadManagerDispatchError('ELF службы PS5 не прошёл проверку', false);
+  const before = await readPs5PayloadManager(ip, makeRequest);
+  const existing = ownPs5ServicePayload(before.payloads);
+  const check = json(
+    await managerRequest(
+      ip,
+      'GET',
+      `/manage:check?filename=${PS5_SERVICE_ELF_FILE_NAME}`,
+      undefined,
+      makeRequest,
+    ),
+  );
+  if (
+    !object(check) ||
+    check.status !== 'ok' ||
+    typeof check.folder_name !== 'string' ||
+    !OWN_LOCAL_FOLDERS.has(check.folder_name)
+  )
+    throw new PayloadManagerDispatchError('Папка PLDMGR для службы не подтверждена', false);
+  // PLDMGR modes: new | replace | keep_both; keep_both would add a duplicate.
+  const mode =
+    existing || check.existing || check.file_exists === true || check.folder_exists === true
+      ? 'replace'
+      : 'new';
+  const result = await managerRequest(
+    ip,
+    'POST',
+    `/manage:upload?filename=${PS5_SERVICE_ELF_FILE_NAME}&mode=${mode}`,
+    artifact.bytes,
+    makeRequest,
+  );
+  if (result.toString('utf8').trim() !== 'OK')
+    throw new PayloadManagerDispatchError('PLDMGR не подтвердил сохранение службы', true);
+  const after = await readPs5PayloadManager(ip, makeRequest);
+  const saved = ownPs5ServicePayload(after.payloads);
+  const others = (list: Ps5StoredPayload[]) =>
+    JSON.stringify(list.filter((payload) => payload.filename !== PS5_SERVICE_ELF_FILE_NAME));
+  if (!saved || others(after.payloads) !== others(before.payloads))
+    throw new PayloadManagerDispatchError(
+      'После сохранения записи PLDMGR не совпали с ожидаемыми',
+      true,
+    );
+  return saved;
+}
+
+/** Delete only our saved record; the remaining list must be the previous one minus ours. */
+export async function deletePs5ServicePayload(ip: string, makeRequest: RequestFactory = request) {
+  const before = await readPs5PayloadManager(ip, makeRequest);
+  const existing = ownPs5ServicePayload(before.payloads);
+  if (!existing) return false;
+  if (!existing.slot || !safePath(existing.slot))
+    throw new PayloadManagerDispatchError('Запись службы в PLDMGR без слота', false);
+  await managerRequest(
+    ip,
+    'POST',
+    `/manage:delete?slot=${existing.slot.split('/').map(encodeURIComponent).join('%2F')}`,
+    undefined,
+    makeRequest,
+  );
+  const after = await readPs5PayloadManager(ip, makeRequest);
+  if (
+    JSON.stringify(after.payloads) !==
+    JSON.stringify(before.payloads.filter((payload) => payload !== existing))
+  )
+    throw new PayloadManagerDispatchError('После удаления список PLDMGR не совпал', true);
+  return true;
+}
+
+/** Read-only launch diagnostics: launch history and buffered PLDMGR log lines. */
+export async function readPs5PayloadManagerHistory(
+  ip: string,
+  makeRequest: RequestFactory = request,
+) {
+  const value = json(await managerRequest(ip, 'GET', '/history_list', undefined, makeRequest));
+  if (!object(value) || !Array.isArray(value.history))
+    throw new PayloadManagerDispatchError('История PLDMGR не прочитана', false);
+  return value.history.filter((item): item is string => typeof item === 'string').slice(0, 50);
+}
+export function readPs5PayloadManagerEvents(ipValue: string, ms = 3000, limit = 400) {
+  const ip = ps4ServiceIp(ipValue);
+  if (!ip) return Promise.reject(new PayloadManagerDispatchError('Неверный IPv4 приставки', false));
+  return new Promise<string[]>((resolve) => {
+    const lines: string[] = [];
+    let buffer = '';
+    const done = () => {
+      clearTimeout(timer);
+      req.destroy();
+      resolve(lines);
+    };
+    const req = request(
+      {
+        host: ip,
+        port: 8084,
+        path: '/events',
+        method: 'GET',
+        agent: false,
+        headers: { Accept: 'text/event-stream', 'X-PLDMGR-Request': '1' },
+      },
+      (response) => {
+        if (response.statusCode !== 200) return done();
+        response.setEncoding('utf8');
+        response.on('data', (chunk: string) => {
+          buffer += chunk;
+          let at: number;
+          while ((at = buffer.indexOf('\n')) >= 0 && lines.length < limit) {
+            const line = buffer.slice(0, at).replace(/\r$/, '');
+            buffer = buffer.slice(at + 1);
+            if (line.startsWith('data: ')) lines.push(line.slice(6).slice(0, 500));
+          }
+          if (lines.length >= limit) done();
+        });
+        response.on('end', done);
+        response.on('error', done);
+      },
+    );
+    const timer = setTimeout(done, ms);
+    req.on('error', done);
+    req.end();
+  });
+}

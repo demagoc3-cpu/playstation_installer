@@ -353,11 +353,10 @@ onBeforeUnmount(() => {
                 <span :class="{ ready: item.eligible && !item.warning, warning: !!item.warning }">{{
                   t(item.reason || item.warning || 'Готово')
                 }}</span>
-                <Ps5ServiceControl
+                <Ps5ServiceQuickStart
                   v-if="item.profile.platform === 'ps5' && !item.profile.online && !attempted"
                   :key="item.profile.id + item.profile.ip"
                   :console-id="item.profile.id"
-                  :online="item.profile.online"
                   :disabled="busy"
                   @ready="load(true)"
                 />

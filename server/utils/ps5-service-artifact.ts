@@ -7,7 +7,7 @@ import { dataPath } from './data-path';
 export const PS5_SERVICE_ELF_FILE_NAME = 'PackageFlowService-PS5.elf';
 const MAX_ELF_BYTES = 4 * 1024 ** 2;
 
-function validateManifest(value: unknown): SetupElf {
+export function validatePs5ServiceManifest(value: unknown): SetupElf {
   const root = value as { schemaVersion?: unknown; elf?: Partial<SetupElf> } | null;
   const elf = root?.elf;
   if (
@@ -100,7 +100,7 @@ export async function readPs5ServiceArtifact(): Promise<{ manifest: SetupElf; by
     const location = await manifestPath();
     const { path } = location;
     const manifestBefore = await fingerprint(path, 16 * 1024);
-    const manifest = validateManifest(JSON.parse(await readFile(path, 'utf8')));
+    const manifest = validatePs5ServiceManifest(JSON.parse(await readFile(path, 'utf8')));
     // The digest is validated before it is used as a directory component.
     const directory = location.standalone
       ? dataPath('ps5-service-artifacts', manifest.sha256)

@@ -481,13 +481,17 @@ test('multi-device preflight, concurrent real PS4 queues, receipts, destination-
     );
     const beforePreview = ps5HealthCalls;
     ps5Offline = false;
-    const fresh = await api.previewDeviceInstall({ packageIds: [future.id] });
-    const freshPs5 = fresh.devices.find((d) => d.profile.id === five.id);
+    const skipped = await api.previewDeviceInstall({ packageIds: [future.id] });
     assert.equal(
       ps5HealthCalls,
-      beforePreview + 1,
-      'explicit review ignores a cached failed probe',
+      beforePreview,
+      'a console found offline a moment ago is not waited on again by the review',
     );
+    assert.equal(skipped.devices.find((d) => d.profile.id === five.id).profile.online, false);
+    // An explicit device check brings it back; the next review uses it.
+    await api.probeConsoleProfile(five.id);
+    const fresh = await api.previewDeviceInstall({ packageIds: [future.id] });
+    const freshPs5 = fresh.devices.find((d) => d.profile.id === five.id);
     assert.equal(freshPs5.profile.online, true);
     assert.equal(freshPs5.profile.freeBytes, 500000000);
     assert.equal(posts.length, 2, 'refreshing installation review never starts a queue');

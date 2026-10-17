@@ -488,3 +488,84 @@ test('transport rejects arbitrary hosts, redirects, oversized responses and inco
   }
 });
 test.after(() => rm(work, { recursive: true, force: true }));
+
+test('autoload changes only our slot and verifies that nothing else changed', async (t) => {
+  let config = {
+    AUTOLOAD_ENABLED: true,
+    AUTOLOAD_DELAY: 5,
+    AUTOLOAD_LIST: 'repo/kstuff-lite@e8cce5d1,repo/shadowmountplus@e8cce5d1',
+  };
+  const f = await fixture(t, ({ method, path, bytes }, res) => {
+    if (path === '/get_config') replyJson(res, config);
+    else if (method === 'POST' && path === '/set_config') {
+      config = { ...config, ...JSON.parse(bytes.toString('utf8')) };
+      res.end('OK');
+    } else res.writeHead(404).end();
+  });
+  assert.deepEqual(await api.setPs5ServiceAutoload(ip, true, own.slot, f.transport), [
+    'repo/kstuff-lite@e8cce5d1',
+    'repo/shadowmountplus@e8cce5d1',
+    own.slot,
+  ]);
+  assert.equal(config.AUTOLOAD_DELAY, 5);
+  const posts = f.calls.filter((call) => call.method === 'POST').length;
+  await api.setPs5ServiceAutoload(ip, true, own.slot, f.transport);
+  assert.equal(f.calls.filter((call) => call.method === 'POST').length, posts, 'no-op is not sent');
+  assert.deepEqual(await api.setPs5ServiceAutoload(ip, false, own.slot, f.transport), [
+    'repo/kstuff-lite@e8cce5d1',
+    'repo/shadowmountplus@e8cce5d1',
+  ]);
+  config.AUTOLOAD_LIST += ',local/packageflowservice-old';
+  await assert.rejects(
+    api.setPs5ServiceAutoload(ip, true, own.slot, f.transport),
+    /другие записи PackageFlow/,
+  );
+});
+
+test('replace keeps one service record and refuses when other records change', async (t) => {
+  let items = [own, other];
+  const f = await fixture(t, ({ method, path }, res) => {
+    if (path === '/version') res.end('0.6.1');
+    else if (path === '/list_payloads') replyJson(res, { items });
+    else if (path.startsWith('/manage:check'))
+      replyJson(res, { ...emptyCheck, folder_exists: true, file_exists: true });
+    else if (method === 'POST' && path.startsWith('/manage:upload')) res.end('OK');
+    else res.writeHead(404).end();
+  });
+  const saved = await api.replacePs5ServicePayload(ip, artifact, f.transport);
+  assert.equal(saved.slot, own.slot);
+  const upload = f.calls.find((call) => call.path.startsWith('/manage:upload'));
+  assert.match(upload.path, /mode=replace$/, 'an existing record is replaced, never duplicated');
+  assert.equal(upload.bytes.length, bytes.length);
+  // A changed foreign record after the upload fails closed.
+  const g = await fixture(t, ({ method, path }, res) => {
+    if (path === '/version') res.end('0.6.1');
+    else if (path === '/list_payloads') {
+      replyJson(res, { items });
+      if (g.calls.filter((call) => call.path === '/list_payloads').length === 1)
+        items = [own, { ...other, version: '2.0' }];
+    } else if (path.startsWith('/manage:check')) replyJson(res, emptyCheck);
+    else if (method === 'POST') res.end('OK');
+    else res.writeHead(404).end();
+  });
+  await assert.rejects(
+    api.replacePs5ServicePayload(ip, artifact, g.transport),
+    /не совпали с ожидаемыми/,
+  );
+});
+
+test('delete removes exactly our record and diagnostics read history', async (t) => {
+  let items = [own, other];
+  const f = await fixture(t, ({ method, path }, res) => {
+    if (path === '/version') res.end('0.6.1');
+    else if (path === '/list_payloads') replyJson(res, { items });
+    else if (method === 'POST' && path === '/manage:delete?slot=local%2Fpackageflowservice') {
+      items = [other];
+      res.end('OK');
+    } else if (path === '/history_list') replyJson(res, { history: [own.path, 7] });
+    else res.writeHead(404).end();
+  });
+  assert.equal(await api.deletePs5ServicePayload(ip, f.transport), true);
+  assert.equal(await api.deletePs5ServicePayload(ip, f.transport), false, 'absent is not an error');
+  assert.deepEqual(await api.readPs5PayloadManagerHistory(ip, f.transport), [own.path]);
+});
