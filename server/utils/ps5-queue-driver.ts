@@ -12,6 +12,7 @@ import {
 import { ps5BaseRegistration } from './ps5-registration';
 import { open } from 'node:fs/promises';
 import { ps5TransferProfile } from './ps5-transfer-profile';
+import { logEvent } from './event-log';
 import { ps5AckRejected, ps5SendChunks, ps5TransferProtocol } from './ps5-send-chunks';
 import { ps5SourceStamp as stamp } from './ps5-source-hash';
 import { Ps5SourceHashCache, cachedPs5SourceHash } from './ps5-source-hash-cache';
@@ -82,7 +83,11 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
     });
     if ([400, 401, 403, 413, 422].includes(r.status))
       throw new Ps5QueueFailure(`Сервис PS5 отклонил операцию (${r.status})`);
-    if (r.status >= 500) throw new Error('PS5 operation unavailable');
+    if (r.status >= 500) {
+      const reason = typeof r.body?.error === 'string' ? r.body.error.slice(0, 80) : 'no detail';
+      logEvent('warn', `PS5: ${path} → HTTP ${r.status} (${reason})`);
+      throw new Error('PS5 operation unavailable');
+    }
     return r;
   };
   const planPath = (item: Ps5Item) =>
