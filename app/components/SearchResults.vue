@@ -892,7 +892,9 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 .release-layout {
-  flex: 1;
+  /* auto basis: WebKitGTK (Linux app) resolves a 0% basis in this
+     height-less dialog to zero and hid the whole card body. */
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
   display: grid;

@@ -43,6 +43,29 @@ def status(timeout: float = 2.0) -> dict | None:
     return s if s.get("application") == "PackageFlow" else None
 
 
+def foreign_port(timeout: float = 2.0) -> bool:
+    """True when another program answers HTTP on the WEB port, so our service cannot bind it.
+
+    Refused connections and timeouts are not proof (ours may be starting or busy)."""
+    s = cfg.load()
+    conn = http.client.HTTPConnection("127.0.0.1", s.port, timeout=timeout)
+    try:
+        conn.request("GET", "/api/desktop/status",
+                     headers={"X-PackageFlow-Launcher-Key": cfg.launcher_key(), "Connection": "close"})
+        r = conn.getresponse()
+        raw = r.read()
+        try:
+            body = json.loads(raw.decode("utf-8") or "{}")
+        except ValueError:
+            body = None
+        # A wrong launcher key answers 404 too: another PackageFlow copy is just as foreign.
+        return not (r.status == 200 and isinstance(body, dict) and body.get("application") == "PackageFlow")
+    except (OSError, http.client.HTTPException):
+        return False
+    finally:
+        conn.close()
+
+
 def prepare_stop() -> dict:
     """Drains new requests; {'busy': true, ...} means active jobs would be interrupted."""
     return request("/api/desktop/prepare-stop", "POST", {}, timeout=10.0)

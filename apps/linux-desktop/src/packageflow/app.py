@@ -99,12 +99,24 @@ class MainWindow(Gtk.ApplicationWindow):
         self.show_all()
 
     def load(self):
-        if self.view:
-            self.view.load_uri(self.app.url())
+        if not self.view:
+            return
+
+        def done(foreign, _e):
+            if foreign:  # do not show another program's page as PackageFlow
+                text = GLib.markup_escape_text(self.app.port_text())
+                self.view.load_html("<body style='font:15px sans-serif;background:#10131c;color:#e8ecf6;"
+                                    "display:grid;place-items:center;height:90vh'><div style='max-width:560px'>"
+                                    f"<h2>Порт занят</h2><p>{text}</p></div></body>", None)
+            else:
+                self.view.load_uri(self.app.url())
+        run_async(lambda: not api.status(timeout=1.5) and api.foreign_port(), done)
 
     def reload(self):
-        if self.view:
+        if self.view and (self.view.get_uri() or "").startswith("http://127.0.0.1"):
             self.view.reload()
+        else:
+            self.load()  # the port message page: check the port again
 
     def _keys(self, _w, event):
         from gi.repository import Gdk
@@ -268,6 +280,10 @@ class App(Gtk.Application):
     def url(self) -> str:
         return f"http://127.0.0.1:{cfg.load().port}/"
 
+    def port_text(self) -> str:
+        return (f"Порт {cfg.load().port} занят другой программой или другой копией PackageFlow, поэтому служба "
+                "не запускается. Закройте её или выберите другой порт WEB в «Настройки…».")
+
     def show_window(self):
         if not self.window:
             self.window = MainWindow(self)
@@ -360,7 +376,8 @@ class App(Gtk.Application):
     # ---------------------------------------------------------------- tray menu
     def refresh(self):
         def work():
-            return {"service": self.service_state(), "web": api.status(timeout=1.5)}
+            web = api.status(timeout=1.5)
+            return {"service": self.service_state(), "web": web, "foreignPort": not web and api.foreign_port()}
 
         def done(result, _e):
             if result:
@@ -373,6 +390,8 @@ class App(Gtk.Application):
         svc, web = self.state["service"], self.state["web"]
         if self.busy:
             return "Служба: выполняется действие…"
+        if self.state.get("foreignPort"):
+            return f"Порт {cfg.load().port} занят другой программой"
         if svc == "active" and web:
             return f"Служба работает · порт {cfg.load().port}"
         if svc in ("active", "activating"):
@@ -548,6 +567,9 @@ class App(Gtk.Application):
     def open_search_wizard(self):
         if getattr(self, "search_wizard", None):
             self.search_wizard.present()
+            return
+        if self.state.get("foreignPort"):
+            self.error("Порт занят", self.port_text())
             return
         if self.state.get("service") not in ("active", "activating") or not self.state.get("web"):
             self.error("Служба не запущена", "Запустите службу PackageFlow, затем откройте настройку поиска.")

@@ -320,3 +320,45 @@ class SupportTest(TempHome):
         from packageflow import support
         with mock.patch.dict(os.environ, {"PACKAGEFLOW_ROOT": str(self.home)}):
             self.assertEqual(support.load(), [])
+
+
+class ForeignPortTest(TempHome):
+    """The service cannot bind a port another program (or PackageFlow copy) answers on."""
+
+    def serve(self, status, body):
+        import http.server
+        import threading
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                data = json.dumps(body).encode()
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def log_message(self, *_):
+                pass
+        server_ = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server_.serve_forever, daemon=True).start()
+        self.addCleanup(server_.shutdown)
+        cfg.save(cfg.Settings(port=server_.server_address[1], payload_port=3001))
+
+    def test_other_program(self):
+        from packageflow import api
+        self.serve(404, {"error": True})
+        self.assertTrue(api.foreign_port())
+
+    def test_own_service(self):
+        from packageflow import api
+        self.serve(200, {"application": "PackageFlow"})
+        self.assertFalse(api.foreign_port())
+
+    def test_nothing_listening(self):
+        import socket
+        from packageflow import api
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+        cfg.save(cfg.Settings(port=port, payload_port=3001))
+        self.assertFalse(api.foreign_port())
