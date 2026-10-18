@@ -40,7 +40,9 @@ def verify(bundle: Path) -> dict | None:
     if m.get("schemaVersion") != 1:
         raise BundleError("Неподдерживаемая версия комплекта приставок")
     elf = m.get("elf") or {}
-    if elf.get("firmware") != "13.60" or not re.match(r"^\d+\.\d+\.\d+(?:-dev)?$", str(elf.get("version", ""))) \
+    # Optional since 030b: the firmware list the ELF was checked on, never a gate.
+    firmware = elf.get("firmware")
+    if (firmware is not None and not (isinstance(firmware, str) and re.match(r"^\d{1,2}\.\d{2}(?:,\d{1,2}\.\d{2}){0,15}$", firmware))) or not re.match(r"^\d+\.\d+\.\d+(?:-dev)?$", str(elf.get("version", ""))) \
             or not re.match(r"^[a-z0-9-]{1,64}$", str(elf.get("buildId", ""))):
         raise BundleError("Неверная версия ELF в комплекте")
     for role in (("elf", "app", "ps4") if "ps4" in m else ("elf", "app")):
@@ -87,6 +89,6 @@ def stage(bundle: Path, data_dir: Path) -> dict | None:
     _copy(bundle / elf["fileName"], updates / "PackageFlowService-PS5.elf", elf["sha256"])
     _write(updates / "release.json", json.dumps({
         "service": "PackageFlowService-PS5", "fileName": "PackageFlowService-PS5.elf",
-        "version": elf["version"], "buildId": elf["buildId"], "sha256": elf["sha256"], "firmware": elf["firmware"],
+        "version": elf["version"], "buildId": elf["buildId"], "sha256": elf["sha256"], "firmware": elf.get("firmware", ""),
     }, separators=(",", ":")))
     return m

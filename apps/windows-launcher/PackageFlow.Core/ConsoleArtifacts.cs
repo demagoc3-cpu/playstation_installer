@@ -15,7 +15,8 @@ public static class ConsoleArtifacts
         var json = JsonNode.Parse(File.ReadAllText(manifest)) ?? throw new InvalidDataException("Invalid console manifest.");
         if (json["schemaVersion"]?.GetValue<int>() != 1) throw new InvalidDataException("Unsupported console manifest.");
         var elfEntry=json["elf"];
-        if(elfEntry?["firmware"]?.GetValue<string>()!="13.60" || !Regex.IsMatch(elfEntry?["version"]?.GetValue<string>() ?? "",@"^\d+\.\d+\.\d+(?:-dev)?$") || !Regex.IsMatch(elfEntry?["buildId"]?.GetValue<string>() ?? "", "^[a-z0-9-]{1,64}$"))throw new InvalidDataException("Invalid ELF release identity.");
+        // Optional since 030b: the firmware list the ELF was checked on, never a gate.
+        if(!(elfEntry?["firmware"] is null || Regex.IsMatch(elfEntry!["firmware"]!.GetValue<string>(),@"^\d{1,2}\.\d{2}(?:,\d{1,2}\.\d{2}){0,15}$")) || !Regex.IsMatch(elfEntry?["version"]?.GetValue<string>() ?? "",@"^\d+\.\d+\.\d+(?:-dev)?$") || !Regex.IsMatch(elfEntry?["buildId"]?.GetValue<string>() ?? "", "^[a-z0-9-]{1,64}$"))throw new InvalidDataException("Invalid ELF release identity.");
         var files = new List<(string Source, string Target)>();
         foreach (var role in json["ps4"] == null ? new[] { "elf", "app" } : new[] { "elf", "app", "ps4" }) {
             var entry = json[role] ?? throw new InvalidDataException("Incomplete PS5 release bundle.");
@@ -45,7 +46,7 @@ public static class ConsoleArtifacts
         var release=new JsonObject {
             ["service"]="PackageFlowService-PS5",["fileName"]="PackageFlowService-PS5.elf",
             ["version"]=elf["version"]!.DeepClone(),["buildId"]=elf["buildId"]!.DeepClone(),
-            ["sha256"]=elf["sha256"]!.DeepClone(),["firmware"]=elf["firmware"]!.DeepClone()
+            ["sha256"]=elf["sha256"]!.DeepClone(),["firmware"]=elf["firmware"]?.DeepClone() ?? (JsonNode)""
         };
         File.WriteAllText(Path.Combine(updates,"release.json.tmp"),release.ToJsonString());
         File.Move(Path.Combine(updates,"release.json.tmp"),Path.Combine(updates,"release.json"),true);

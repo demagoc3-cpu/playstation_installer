@@ -35,7 +35,12 @@ export async function packageConsoleBundle(source, target) {
       role === 'elf' &&
       (!bytes.subarray(0, 6).equals(Buffer.from('7f454c460201', 'hex')) ||
         bytes.readUInt16LE(18) !== 62 ||
-        a.firmware !== '13.60' ||
+        // Optional since 030b: the firmware list the ELF was checked on, never a gate.
+        !(
+          a.firmware === undefined ||
+          (typeof a.firmware === 'string' &&
+            /^\d{1,2}\.\d{2}(?:,\d{1,2}\.\d{2}){0,15}$/.test(a.firmware))
+        ) ||
         !/^\d+\.\d+\.\d+(?:-dev)?$/.test(a.version) ||
         !/^[a-z0-9-]{1,64}$/.test(a.buildId))
     )

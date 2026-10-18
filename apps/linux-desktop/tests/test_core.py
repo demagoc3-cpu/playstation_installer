@@ -95,13 +95,21 @@ class BundleTest(TempHome):
     def test_missing_bundle_allowed(self):
         self.assertIsNone(bundle.stage(self.home / "none", self.home / "web"))
 
-    def test_bad_firmware_refused(self):
-        src = make_bundle(self.home / "b")
-        m = json.loads((src / "manifest.json").read_text())
-        m["elf"]["firmware"] = "12.00"
-        (src / "manifest.json").write_text(json.dumps(m))
-        with self.assertRaises(bundle.BundleError):
-            bundle.verify(src)
+    def test_firmware_is_described_not_gated(self):
+        # Since 030b the manifest may omit firmware or list several; a malformed value is refused.
+        for value, ok in (("12.20", True), ("12.20,13.60", True), (None, True), ("any", False), (13.6, False)):
+            src = make_bundle(self.home / f"b-{value}")
+            m = json.loads((src / "manifest.json").read_text())
+            if value is None:
+                m["elf"].pop("firmware", None)
+            else:
+                m["elf"]["firmware"] = value
+            (src / "manifest.json").write_text(json.dumps(m))
+            if ok:
+                bundle.verify(src)
+            else:
+                with self.assertRaises(bundle.BundleError):
+                    bundle.verify(src)
 
 
 class ServiceTest(TempHome):
