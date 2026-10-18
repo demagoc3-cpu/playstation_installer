@@ -224,12 +224,8 @@ export function matchPs5InstalledGame(
     newerVersion(row.version, pkg.appVersion)
   )
     return newerPresent();
-  if (pkg.type === 'DLC')
-    return {
-      ...unavailable(),
-      detail:
-        'Служба PS5 пока не подтверждает состав DLC с устройства. Локальные отметки WEB не используются',
-    };
+  // The service cannot list DLC yet: send it; the PS5 installer reports a
+  // duplicate in the task instead of blocking the whole device here.
   return absent();
 }
 async function readPs5InstalledPackage(

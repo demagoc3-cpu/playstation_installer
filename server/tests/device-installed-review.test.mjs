@@ -293,8 +293,8 @@ test(
       mode = 'known';
       const unsupportedDlc = (await api.previewDeviceInstall({ packageIds: [dlc.id] }, targets))
         .devices[0];
-      assert.equal(unsupportedDlc.eligible, false);
-      assert.match(unsupportedDlc.reason, /DLC/);
+      // The service cannot list DLC: it is sent, the installer reports duplicates.
+      assert.equal(unsupportedDlc.eligible, true, unsupportedDlc.reason);
       mode = 'temporary';
       const beforeChange = (await api.previewDeviceInstall(selection, targets)).devices[0];
       mode = 'known';

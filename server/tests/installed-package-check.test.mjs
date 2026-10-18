@@ -122,8 +122,9 @@ test('live PS5 version proves a patch; Title ID alone never proves a DLC', () =>
     api.matchPs5InstalledGame({ ...patch, appVersion: '01.03' }, row, false).state,
     'base-present',
   );
-  assert.equal(api.matchPs5InstalledGame(dlc, row, false).state, 'unavailable');
-  assert.equal(api.matchPs5InstalledGame(dlc, row, true).state, 'unavailable');
+  // Not proven installed, so it is sent; the PS5 installer reports a duplicate.
+  assert.equal(api.matchPs5InstalledGame(dlc, row, false).state, 'absent');
+  assert.equal(api.matchPs5InstalledGame(dlc, row, true).state, 'absent');
   assert.equal(api.matchPs5InstalledGame(dlc, { ...row, installed: false }, true).state, 'absent');
 });
 test('live built-in registration without a source is a base review, never proof of selected version or a disconnected console', async () => {
@@ -412,7 +413,7 @@ test('PKG patches and DLC retain native source review and never use catalog regi
     { candidate: patch, version: patch.appVersion, state: 'installed' },
     { candidate: patch, version: '01.03', state: 'absent' },
     { candidate: patch, version: '01.05', state: 'base-present' },
-    { candidate: dlc, version: dlc.appVersion, state: 'unavailable' },
+    { candidate: dlc, version: dlc.appVersion, state: 'absent' },
   ]) {
     // Legacy patch/DLC metadata handling stays unchanged; native game info
     // remains the authority even when catalog metadata cannot be decoded.
