@@ -65,13 +65,17 @@ export function ps5TransferChunkSize(reply: { chunkMax?: unknown }) {
 /** How an installed patch or DLC is confirmed after its installer job, or
  * undefined while that is not proven yet. */
 export function ps5ComponentConfirmation(
-  item: Pick<Ps5Item, 'order' | 'type' | 'titleId' | 'contentId' | 'appVersion'>,
-  job: { phase?: unknown; code?: unknown },
+  item: Pick<Ps5Item, 'order' | 'type' | 'titleId' | 'contentId' | 'appVersion' | 'size'>,
+  job: { phase?: unknown; code?: unknown; total?: unknown; bytes_served?: unknown },
   info?: { status: number; body: any },
 ) {
   if (item.order <= 0) return undefined;
   if (item.type === 'DLC')
-    return job.phase === 'done' && job.code === 0
+    // The last job stays «serving» until the next one starts: a whole file read
+    // without an error code counts like a finished job.
+    return job.code === 0 &&
+      (job.phase === 'done' ||
+        (job.phase === 'serving' && job.total === item.size && job.bytes_served === item.size))
       ? {
           confirmation: 'installer-result' as const,
           detail: 'Системный установщик PS5 завершил DLC без ошибки',

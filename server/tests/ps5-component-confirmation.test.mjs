@@ -52,9 +52,18 @@ test('a PS5 patch is confirmed by the live game version, a DLC by a clean instal
     assert.equal(confirm(patch, done, { status: 503, body: {} }), undefined);
     assert.equal(confirm(patch, done, undefined), undefined);
 
-    const dlc = { ...patch, type: 'DLC', order: 2 };
+    const dlc = { ...patch, type: 'DLC', order: 2, size: 100 };
     assert.equal(confirm(dlc, done).confirmation, 'installer-result');
-    assert.equal(confirm(dlc, { phase: 'serving', code: 0 }), undefined, 'still reading');
+    assert.equal(
+      confirm(dlc, { phase: 'serving', code: 0, total: 100, bytes_served: 40 }),
+      undefined,
+      'still reading',
+    );
+    assert.equal(
+      confirm(dlc, { phase: 'serving', code: 0, total: 100, bytes_served: 100 }).confirmation,
+      'installer-result',
+      'the last job in a queue keeps serving after a whole read',
+    );
     assert.equal(confirm(dlc, { phase: 'done', code: 0x80990001 }), undefined, 'error code');
 
     assert.equal(
