@@ -21,15 +21,20 @@ export const ps5BuildQualified = (buildId: unknown) =>
 export const ps5BuildClearsOwnOrphans = (buildId: unknown) =>
   typeof buildId === 'string' && ORPHAN_CLEANUP_BUILDS.has(buildId);
 
-/** A bundle manifest names the firmware its ELF was checked on ("13.60" or
- * "12.20,13.60"). It describes the artifact; it does not gate a console: the
- * running service reports what it can do on its own firmware. */
+/** A bundle manifest may name the firmware its ELF was checked on ("13.60",
+ * "12.20,13.60") or omit it for an untested candidate (030b+). It describes the
+ * artifact; it does not gate a console: the running service reports what it can
+ * do on its own firmware. */
 export const ps5ManifestFirmware = (value: unknown) =>
-  typeof value === 'string' && /^\d{1,2}\.\d{2}(?:,\d{1,2}\.\d{2}){0,15}$/.test(value);
+  value === undefined ||
+  value === '' ||
+  (typeof value === 'string' && /^\d{1,2}\.\d{2}(?:,\d{1,2}\.\d{2}){0,15}$/.test(value));
 
-/** Clears an orphaned registration: an explicit capability flag of the running
- * service, or for builds before flags, the measured build list. */
+/** Clears an orphaned registration. A service with capability flags (030b+)
+ * decides by them, and a present false is final; only a service without the
+ * flags falls back to the measured build list (029d/029e). */
 export const ps5ClearsOwnOrphans = (buildId: unknown, capabilities?: any) =>
-  capabilities?.orphanCleanup === true ||
-  capabilities?.systemUninstall === true ||
-  ps5BuildClearsOwnOrphans(buildId);
+  typeof capabilities?.orphanCleanup === 'boolean' ||
+  typeof capabilities?.systemUninstall === 'boolean'
+    ? capabilities.orphanCleanup === true || capabilities.systemUninstall === true
+    : ps5BuildClearsOwnOrphans(buildId);

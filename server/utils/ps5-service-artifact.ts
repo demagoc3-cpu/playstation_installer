@@ -36,7 +36,7 @@ export function validatePs5ServiceManifest(value: unknown): SetupElf {
     sha256: elf.sha256,
     version: elf.version,
     buildId: elf.buildId,
-    firmware: elf.firmware as string,
+    firmware: (elf.firmware as string | undefined) ?? '',
   };
 }
 
