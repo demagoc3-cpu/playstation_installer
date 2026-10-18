@@ -384,15 +384,16 @@ async function previewResolvedDeviceInstall(
           const installedPackages = checks
             .filter(({ check }) => ['installed', 'base-present'].includes(check.state))
             .map(({ item, check }) => {
-              // Our own Folder/image: either its source was deleted on PS5 (only
-              // the registration is left) or the service may delete it, so the
-              // queue can replace it (delete, clear registration, publish).
+              // Our own Folder/image: the service manages its source (proof from
+              // the PS5 itself, whichever WEB installed it), or its source was
+              // deleted on PS5 and this WEB's queue installed it. The queue can
+              // then replace it (delete, clear registration, publish).
               const sourceRestorable =
                 profile.platform === 'ps5' &&
                 contentFormat(item) !== 'pkg' &&
                 item.installOrder === 0 &&
-                (check.sourceMissing === true || check.replaceableSource === true) &&
-                ownSources.has(item.titleId);
+                (check.replaceableSource === true ||
+                  (check.sourceMissing === true && ownSources.has(item.titleId)));
               const components = check.components || [];
               const relevant = components.filter(
                 (c) =>
@@ -435,7 +436,11 @@ async function previewResolvedDeviceInstall(
                           ? 'Служба не подтвердила возможность удаления компонента'
                           : ''
                       : contentFormat(item) !== 'pkg' && !sourceRestorable
-                        ? 'Переустановка этого формата доступна через «На консоли»'
+                        ? check.sourceBlock === 'control'
+                          ? 'Разрешите изменение файлов игр для этой PS5 в «На консоли», затем откройте установку снова'
+                          : check.sourceBlock === 'foreign'
+                            ? 'Файлами этой игры служба PS5 не управляет: она установлена не через PackageFlow. Удалите её в «На консоли» и установите заново'
+                            : 'Переустановка этого формата доступна через «На консоли»'
                         : '',
                 affected:
                   item.installOrder === 0

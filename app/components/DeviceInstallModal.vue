@@ -192,6 +192,13 @@ async function applyPanel() {
   } else queueReviewed.value[item.profile.id] = item.reviewToken;
   panel.value = '';
   message.value = '';
+  // «Переустановить» is the decision: start right away unless another selected
+  // device still needs its own review or lacks space.
+  if (overwrite.value[item.profile.id]?.length) {
+    if (item.eligible && !selected.value.includes(item.profile.id))
+      selected.value = [...selected.value, item.profile.id];
+    if (ready.value) await install();
+  }
 }
 async function receive(value: any) {
   results.value = value.results;
@@ -584,7 +591,20 @@ onBeforeUnmount(() => {
           <span>{{ t('Выбрано:') }} {{ draft.length }}</span
           ><button @click="panel = ''">{{ t('Назад') }}</button
           ><button class="primary" @click="applyPanel">
-            {{ t(panel === 'queue' ? 'Добавить новый набор в эту очередь' : 'Подтвердить выбор') }}
+            {{
+              t(
+                panel === 'queue'
+                  ? 'Добавить новый набор в эту очередь'
+                  : panel === 'installed' &&
+                      draft.some((id) =>
+                        current?.installedPackages.some(
+                          (p) => p.packageId === id && (p.canOverwrite || p.canReinstall),
+                        ),
+                      )
+                    ? 'Переустановить'
+                    : 'Подтвердить выбор',
+              )
+            }}
           </button>
         </footer>
       </section>

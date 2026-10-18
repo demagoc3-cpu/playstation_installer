@@ -2856,5 +2856,7 @@
   "Неверный список загрузок": "Invalid download list",
   "Выберите приставку для автоустановки": "Select a console for automatic installation",
   "Неверный адрес автоустановки": "Invalid automatic installation address",
-  "Автоустановка на PS5 станет доступна после подключения собственного backend. Торрент можно скачать без автоустановки.": "Automatic installation on PS5 becomes available once its own backend is connected. The torrent can be downloaded without automatic installation."
+  "Автоустановка на PS5 станет доступна после подключения собственного backend. Торрент можно скачать без автоустановки.": "Automatic installation on PS5 becomes available once its own backend is connected. The torrent can be downloaded without automatic installation.",
+  "Разрешите изменение файлов игр для этой PS5 в «На консоли», затем откройте установку снова": "Allow game file changes for this PS5 in “On console”, then open the installation again",
+  "Файлами этой игры служба PS5 не управляет: она установлена не через PackageFlow. Удалите её в «На консоли» и установите заново": "The PS5 service does not manage this game's files: it was not installed through PackageFlow. Delete it in “On console” and install it again"
 }

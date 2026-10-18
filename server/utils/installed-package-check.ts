@@ -28,6 +28,9 @@ export interface InstalledCheck {
   sourceMissing?: boolean;
   /** Installed from a Folder/image source the service may delete on this PS5. */
   replaceableSource?: boolean;
+  /** Why an installed Folder/image source is not replaceable: game file changes
+   * are not allowed on this PS5, or the service does not manage that source. */
+  sourceBlock?: 'control' | 'foreign';
   revision?: string;
   components?: Array<{
     id: string;
@@ -343,16 +346,22 @@ async function readPs5InstalledPackage(
                 detail:
                   'PS5 отвечает, но версия установленного пакета не подтверждена. Передача этого пакета не отправлена',
               };
+        const ownShape =
+          pkg.installOrder === 0 &&
+          row.installed === true &&
+          ['image', 'folder'].includes(row.source_type);
+        const controlled =
+          status.body.consoleSourceControl === true || ps5SourceControlOverride(consoleId);
         return {
           ...matchPs5InstalledGame(pkg, row, false),
           revision: row.sourceIdentity || JSON.stringify([row.content_id, row.version, row.path]),
-          ...(pkg.installOrder === 0 &&
-          row.installed === true &&
-          row.can_manage_source === true &&
-          ['image', 'folder'].includes(row.source_type) &&
-          (status.body.consoleSourceControl === true || ps5SourceControlOverride(consoleId))
-            ? { replaceableSource: true }
-            : {}),
+          ...(!ownShape
+            ? {}
+            : row.can_manage_source !== true
+              ? { sourceBlock: 'foreign' as const }
+              : controlled
+                ? { replaceableSource: true }
+                : { sourceBlock: 'control' as const }),
         };
       }
     }

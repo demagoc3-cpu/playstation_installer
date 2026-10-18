@@ -271,26 +271,30 @@ export async function startPs5Queue(input: {
       statusCode: 400,
       message: 'Повторная установка разрешается только для выбранных пакетов',
     });
-  // Folder/image: only our own title, live-checked now: its source is gone, or
-  // the service may delete it on this PS5 (verified or allowed by the owner).
+  // Folder/image, live-checked now: the service manages its source and game
+  // file changes are allowed on this PS5 (verified or allowed by the owner),
+  // whichever WEB installed it; or its source is gone and this WEB installed it.
   const restored = items.filter(
     (item) => overwrite.includes(item.id) && contentFormat(item) !== 'pkg',
   );
   if (restored.length) {
     const own = ps5OwnSourceTitles(profile.id);
     const { ps5ConsoleGameInfo } = await import('./ps5-console-games');
-    const { managementStatus } = await import('./ps5-management');
-    const sourceControl = await managementStatus(profile.id)
-      .then((v) => v.consoleSourceControl === true)
-      .catch(() => false);
+    const { managementStatus, ps5SourceControlOverride } = await import('./ps5-management');
+    const sourceControl =
+      ps5SourceControlOverride(profile.id) ||
+      (await managementStatus(profile.id)
+        .then((v) => v.consoleSourceControl === true)
+        .catch(() => false));
     for (const item of restored) {
       const current =
-        item.installOrder === 0 && own.has(item.titleId)
+        item.installOrder === 0
           ? await ps5ConsoleGameInfo(profile.id, item.titleId).catch(() => undefined)
           : undefined;
       const replaceable =
         current?.installed === true &&
-        (current.sourceAvailable === false || (current.canManageSource === true && sourceControl));
+        ((current.sourceAvailable === false && own.has(item.titleId)) ||
+          (current.canManageSource === true && sourceControl));
       if (!replaceable)
         throw createError({
           statusCode: 409,
