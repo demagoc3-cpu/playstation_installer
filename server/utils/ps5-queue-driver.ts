@@ -27,7 +27,8 @@ import {
 } from './console-profiles';
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core';
 import { ps5InstallCapabilities, ps5PkgInstallMessage } from '../../shared/ps5-install-readiness';
-import { getConsoleProfile } from './console-profiles';
+import { getConsoleProfile, ps5ServiceRequest } from './console-profiles';
+import { ps5BuildClearsOwnOrphans } from './ps5-qualified-builds';
 import { checkPs5InstalledPackage } from './installed-package-check';
 import { checkPs5SourceFirmware } from './ps5-installation-firmware';
 import {
@@ -75,6 +76,7 @@ export async function ps5ClearOwnOrphanRegistration(
   signal: AbortSignal,
   save: (patch: Partial<Ps5Item>) => void,
   wait: (signal: AbortSignal) => Promise<void> = pause,
+  clearsOrphans: () => Promise<boolean> = async () => true,
 ) {
   const read = async () => {
     const info = await call(
@@ -100,6 +102,12 @@ export async function ps5ClearOwnOrphanRegistration(
     if (row.can_manage_source !== true || !['image', 'folder'].includes(row.source_type))
       throw new Ps5QueueFailure(
         'PS5 не разрешает удалить прежние файлы этой игры. Переустановка не отправлена',
+      );
+    // Files go first, then the registration: a service that cannot clear the
+    // leftover registration would leave the game in the menu without files.
+    if (!(await clearsOrphans()))
+      throw new Ps5QueueFailure(
+        'Служба PS5 старше сборки 029d не снимает регистрацию после удаления файлов. Файлы игры не удалялись; обновите службу: «Сервис ▾» → «Проверить обновления»',
       );
     const deleteId = item.sourceDeleteId || randomBytes(16).toString('hex');
     save({ sourceDeleteId: deleteId, detail: 'Удаляем прежние файлы игры на PS5' });
@@ -231,7 +239,18 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
     item: Ps5Item,
     signal: AbortSignal,
     save: (patch: Partial<Ps5Item>) => void,
-  ) => ps5ClearOwnOrphanRegistration((...args) => request(item, ...args), item, signal, save);
+  ) =>
+    ps5ClearOwnOrphanRegistration(
+      (...args) => request(item, ...args),
+      item,
+      signal,
+      save,
+      undefined,
+      async () => {
+        const health = await ps5ServiceRequest(getConsoleProfile(consoleId).ip, '/health', signal);
+        return ps5BuildClearsOwnOrphans(health.body?.serviceReport?.buildId);
+      },
+    );
   const installedGate = async (item: Ps5Item, signal: AbortSignal) => {
     if (item.overwriteApproved === true) return;
     const source = getPackage(item.packageId),

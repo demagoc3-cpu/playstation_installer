@@ -109,6 +109,20 @@ test('an installed own image is deleted first, then its leftover registration is
     /не разрешает удалить/,
   );
   assert.equal(locked.commands.length, 0, 'nothing is sent when files may not be deleted');
+  // A service before 029d could delete the files but not clear the registration.
+  const old = console({ source: true, manage: true });
+  await assert.rejects(
+    ps5ClearOwnOrphanRegistration(
+      old.call,
+      item(),
+      signal,
+      () => {},
+      noWait,
+      async () => false,
+    ),
+    /029d.*Файлы игры не удалялись/,
+  );
+  assert.equal(old.commands.length, 0, 'no file is deleted on an old service');
 });
 
 test('nothing is uninstalled when the title is not registered', async () => {

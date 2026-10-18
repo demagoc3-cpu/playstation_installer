@@ -32,7 +32,6 @@ import {
 } from './installation-queue';
 import {
   getPs5Queue,
-  ps5OwnSourceTitles,
   getPs5TaskCounts,
   getPs5PendingSpaceItems,
   startPs5Queue,
@@ -47,7 +46,6 @@ import { requiredPs5InstallSpace } from '../../shared/ps5-installation-space';
 import { requiredInstallSpace } from './installation-space';
 import { getPs4InstallSettings } from './ps4-install-settings';
 import { ps4TransportConflict, PS4_PARALLEL_SERVICE_REQUIRED } from './ps4-transport-admission';
-import { ps5BuildClearsOwnOrphans } from './ps5-qualified-builds';
 
 export function resolveDeviceSelection(selection: DeviceSelection): string[] {
   if (
@@ -380,25 +378,15 @@ async function previewResolvedDeviceInstall(
                     .map(async (item) => ({ item, check: await checkInstalled(profile, item) })),
                 )),
               );
-          const ownSources =
-            profile.platform === 'ps5' ? ps5OwnSourceTitles(profile.id) : new Set<string>();
           const installedPackages = checks
             .filter(({ check }) => ['installed', 'base-present'].includes(check.state))
             .map(({ item, check }) => {
-              // Our own Folder/image: the service manages its source (proof from
-              // the PS5 itself, whichever WEB installed it), or its source was
-              // deleted on PS5 and this WEB's queue installed it. The queue can
-              // then replace it (delete, clear registration, publish).
-              // Deleting files first is safe only when the service can clear the
-              // leftover registration afterwards (029d+); otherwise the game
-              // would stay in the menu without files.
-              const cleansOrphans = ps5BuildClearsOwnOrphans(profile.serviceBuild);
+              // Any installed Folder/image may be reinstalled; the PS5 itself
+              // refuses what it cannot replace, and the task shows that error.
               const sourceRestorable =
                 profile.platform === 'ps5' &&
                 contentFormat(item) !== 'pkg' &&
-                item.installOrder === 0 &&
-                ((check.replaceableSource === true && cleansOrphans) ||
-                  (check.sourceMissing === true && ownSources.has(item.titleId)));
+                item.installOrder === 0;
               const components = check.components || [];
               const relevant = components.filter(
                 (c) =>
@@ -424,7 +412,7 @@ async function previewResolvedDeviceInstall(
                 detail: sourceRestorable
                   ? check.sourceMissing
                     ? 'Исходные файлы этой игры на PS5 удалены, осталась регистрация. Её можно установить заново'
-                    : 'Установлено через PackageFlow. Переустановка удалит файлы игры на PS5 и установит её заново'
+                    : 'Переустановка удалит файлы игры на PS5 и установит её заново'
                   : check.detail,
                 canOverwrite:
                   profile.platform === 'ps5' &&
@@ -440,15 +428,7 @@ async function previewResolvedDeviceInstall(
                         : !removable
                           ? 'Служба не подтвердила возможность удаления компонента'
                           : ''
-                      : contentFormat(item) !== 'pkg' && !sourceRestorable
-                        ? check.replaceableSource === true
-                          ? 'Для переустановки обновите службу PS5 до сборки 029d или новее: «Сервис ▾» → «Проверить обновления»'
-                          : check.sourceBlock === 'control'
-                            ? 'Разрешите изменение файлов игр для этой PS5 в «На консоли», затем откройте установку снова'
-                            : check.sourceBlock === 'foreign'
-                              ? 'Файлами этой игры служба PS5 не управляет: она установлена не через PackageFlow. Удалите её в «На консоли» и установите заново'
-                              : 'Переустановка этого формата доступна через «На консоли»'
-                        : '',
+                      : '',
                 affected:
                   item.installOrder === 0
                     ? relevant

@@ -33,7 +33,6 @@ import { ps5QueueDriver } from './ps5-queue-driver';
 import { assessPs5SourceFirmware } from './ps5-installation-firmware';
 import type { LibraryInstallationSelection } from './library-installation';
 import type { Ps5SpaceItem } from '../../shared/ps5-installation-space';
-import { ps5BuildClearsOwnOrphans } from './ps5-qualified-builds';
 const runners = new Map<string, Ps5QueueRunner>();
 const path = (id: string) => dataPath(`consoles/${id}/ps5-installation-queue.json`);
 function validItems(value: unknown): value is Ps5Item[] {
@@ -272,39 +271,6 @@ export async function startPs5Queue(input: {
       statusCode: 400,
       message: 'Повторная установка разрешается только для выбранных пакетов',
     });
-  // Folder/image, live-checked now: the service manages its source and game
-  // file changes are allowed on this PS5 (verified or allowed by the owner),
-  // whichever WEB installed it; or its source is gone and this WEB installed it.
-  const restored = items.filter(
-    (item) => overwrite.includes(item.id) && contentFormat(item) !== 'pkg',
-  );
-  if (restored.length) {
-    const own = ps5OwnSourceTitles(profile.id);
-    const { ps5ConsoleGameInfo } = await import('./ps5-console-games');
-    const { managementStatus, ps5SourceControlOverride } = await import('./ps5-management');
-    const sourceControl =
-      ps5SourceControlOverride(profile.id) ||
-      (await managementStatus(profile.id)
-        .then((v) => v.consoleSourceControl === true)
-        .catch(() => false));
-    for (const item of restored) {
-      const current =
-        item.installOrder === 0
-          ? await ps5ConsoleGameInfo(profile.id, item.titleId).catch(() => undefined)
-          : undefined;
-      const cleansOrphans = ps5BuildClearsOwnOrphans(snapshot.serviceBuild);
-      const replaceable =
-        current?.installed === true &&
-        ((current.sourceAvailable === false && own.has(item.titleId)) ||
-          (current.canManageSource === true && sourceControl && cleansOrphans));
-      if (!replaceable)
-        throw createError({
-          statusCode: 409,
-          message:
-            'Переустановка Folder и образов доступна для игр, поставленных через PackageFlow, когда изменение файлов игр на этой PS5 разрешено',
-        });
-    }
-  }
   const repair = input.appSourceRepair;
   if (repair) {
     // Internal desktop recovery, never a general image overwrite option.

@@ -260,19 +260,10 @@ test('an own PS5 image whose source was deleted can be installed again; a store 
     assert.equal(ownDevice.installedPackages[0].canOverwrite, true);
     assert.match(ownDevice.installedPackages[0].detail, /удалены/);
     assert.equal(storeDevice.installedPackages.length, 1);
-    assert.equal(storeDevice.installedPackages[0].canOverwrite, false);
-    assert.match(storeDevice.installedPackages[0].reinstallReason, /На консоли/);
-
-    // A store-like registration cannot be overwritten even if the browser asks.
-    const refused = await api.installDeviceBatch(
-      'b'.repeat(32),
-      { packageIds: [image.id] },
-      [store.id],
-      'localhost:3000',
-      { [store.id]: [image.id] },
-      { [store.id]: storeDevice.reviewToken },
-    );
-    assert.notEqual(refused.results[0].state, 'queued');
+    // Reinstall is always offered; the PS5 refuses what it cannot replace and
+    // the task shows that error.
+    assert.equal(storeDevice.installedPackages[0].canOverwrite, true);
+    assert.equal(storeDevice.installedPackages[0].reinstallReason, '');
 
     const result = await api.installDeviceBatch(
       'a'.repeat(32),
@@ -473,19 +464,11 @@ test('an image installed by another WEB is reinstallable on service proof; block
     const ids = profiles.map((p) => p.id);
     const preview = await api.previewDeviceInstall({ packageIds: [image.id] }, ids);
     const row = (ip) => preview.devices.find((d) => d.profile.ip === ip).installedPackages[0];
-    assert.equal(row('192.0.2.7').canOverwrite, true, 'service proof is enough');
-    assert.equal(row('192.0.2.8').canOverwrite, false);
-    assert.match(row('192.0.2.8').reinstallReason, /Разрешите изменение файлов игр/);
-    assert.equal(row('192.0.2.9').canOverwrite, false);
-    assert.match(row('192.0.2.9').reinstallReason, /не управляет/);
-
-    // 029c would delete the files and then refuse to clear the registration.
-    serviceBuild = 'ps5-service-pkg-context-029c-sse2';
-    const old = await api.previewDeviceInstall({ packageIds: [image.id] }, ids);
-    const oldRow = old.devices.find((d) => d.profile.ip === '192.0.2.7').installedPackages[0];
-    assert.equal(oldRow.canOverwrite, false);
-    assert.match(oldRow.reinstallReason, /029d/);
-    serviceBuild = 'ps5-service-pkg-context-029d-sse2';
+    // The checkbox is always there; refusals come from the PS5 in the task.
+    for (const ip of ['192.0.2.7', '192.0.2.8', '192.0.2.9']) {
+      assert.equal(row(ip).canOverwrite, true, ip);
+      assert.equal(row(ip).reinstallReason, '', ip);
+    }
 
     managed = profiles.find((p) => p.ip === '192.0.2.7');
     const device = preview.devices.find((d) => d.profile.id === managed.id);
