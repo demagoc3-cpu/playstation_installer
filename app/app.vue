@@ -250,6 +250,22 @@ async function refreshDeviceActivity() {
   }
 }
 async function confirmedSelectionQueued() {
+  // Sent packages leave the library selection, so the next install does not
+  // send them again.
+  const sent = new Set(
+    installSelection.value && 'packageIds' in installSelection.value
+      ? installSelection.value.packageIds || []
+      : [],
+  );
+  if (sent.size) {
+    const next = new Set(selected.value);
+    for (const [rowId, item] of selectedPackages)
+      if (sent.has(item.id)) {
+        next.delete(rowId);
+        selectedPackages.delete(rowId);
+      }
+    selected.value = next;
+  }
   await devicesQueued();
 }
 async function devicesQueued() {

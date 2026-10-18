@@ -321,6 +321,29 @@ test('games install in the order they were added; base, patch and DLC inside a g
   assert.deepEqual(ran, ['zeta', 'zeta-patch', 'alpha', 'alpha-dlc']);
 });
 
+test('a queue with only unconfirmed results is released after the re-check window', async () => {
+  const window = api.Ps5QueueRunner.unconfirmedWindowMs;
+  api.Ps5QueueRunner.unconfirmedWindowMs = 60;
+  try {
+    let checks = 0;
+    const a = make({
+      async run(item, signal, save) {
+        checks++;
+        save({ state: 'installing', installDispatched: true });
+        throw new api.Ps5QueueUncertain('unknown');
+      },
+      async cancel() {},
+    });
+    a.runner.enqueue([input('only')]);
+    await wait(() => a.q.status === 'completed');
+    assert.equal(a.q.items[0].state, 'unconfirmed', 'the result stays for the user');
+    assert.ok(checks > 1, 're-checked during the window');
+    assert.match(a.q.message, /без подтверждения/);
+  } finally {
+    api.Ps5QueueRunner.unconfirmedWindowMs = window;
+  }
+});
+
 test('durable write failure prevents dispatch and does not crash the WEB worker', async () => {
   let dispatched = 0,
     durable;

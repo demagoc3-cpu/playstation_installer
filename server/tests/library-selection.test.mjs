@@ -241,7 +241,7 @@ test('selection review can remove an off-page package, cancel installation witho
   }
 });
 
-test('queueing a single game preserves other selected packages and the full basket until explicit clear', async () => {
+test('queueing a game drops only the sent packages from the selection; the rest stays until explicit clear', async () => {
   const h = await mountLibrary();
   try {
     const v = h.view;
@@ -250,9 +250,10 @@ test('queueing a single game preserves other selected packages and the full bask
     assert.deepEqual(v.installSelection.value, { packageIds: ['alpha'] });
     await v.confirmedSelectionQueued();
     assert.ok(h.requests.some((request) => request.url === '/api/ps4/installation'));
-    assertSelection(v, ['alpha', 'beta']);
+    // Sent packages leave the selection, so the next install does not resend them.
+    assertSelection(v, ['beta']);
     v.installItems(v.selectedItems.value);
-    assert.deepEqual(v.installSelection.value, { packageIds: ['alpha', 'beta'] });
+    assert.deepEqual(v.installSelection.value, { packageIds: ['beta'] });
     v.clearSelection();
     assertSelection(v, []);
   } finally {

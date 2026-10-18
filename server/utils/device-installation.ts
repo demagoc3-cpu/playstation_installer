@@ -4,6 +4,7 @@ import { createError } from 'h3';
 import {
   getConsoleProfile,
   getConsoleProfiles,
+  ps5TransferInProgress,
   refreshConsoleProfileForInstall,
   refreshConsoleProfiles,
 } from './console-profiles';
@@ -379,7 +380,20 @@ async function previewResolvedDeviceInstall(
           );
           const checks = [];
           // PyLoader has no inventory API and must work independently of our service.
-          if (
+          if (profile.platform === 'ps5' && profile.online && ps5TransferInProgress(profile.id))
+            // The PS5 is receiving our package: asking it now only waits behind the
+            // data. The queue checks each package before sending it.
+            for (const item of items)
+              checks.push({
+                item,
+                check: {
+                  state: 'unavailable' as const,
+                  transient: true,
+                  detail:
+                    'Проверка установленных пакетов продолжится в очереди. До её завершения файлы не передаются.',
+                },
+              });
+          else if (
             profile.online &&
             profile.paired &&
             !(profile.platform === 'ps4' && profile.transport === 'payload')

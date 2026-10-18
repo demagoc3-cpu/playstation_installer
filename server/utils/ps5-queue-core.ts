@@ -375,6 +375,9 @@ export class Ps5QueueRunner {
   async settled() {
     await this.active;
   }
+  /** How long only-unconfirmed items keep a queue running (re-checked meanwhile). */
+  static unconfirmedWindowMs = 2 * 60 * 1000;
+  private unconfirmedSince?: number;
   private async run() {
     while (this.queue.status === 'running') {
       // An unconfirmed base holds only its own game (patches/DLC need the
@@ -390,6 +393,21 @@ export class Ps5QueueRunner {
         this.queue.items.find(
           (entry) => !terminal(entry) && entry.state !== 'unconfirmed' && !held.has(entry.branch),
         ) ?? this.queue.items.find((entry) => !terminal(entry));
+      // Only unconfirmed results left: re-check them for a while, then release
+      // the queue so a new installation starts its own. They stay in «Задания»
+      // with «Установлено на PS5» / «Снять ожидание».
+      if (item?.state === 'unconfirmed') {
+        this.unconfirmedSince ??= Date.now();
+        if (Date.now() - this.unconfirmedSince > Ps5QueueRunner.unconfirmedWindowMs) {
+          this.unconfirmedSince = undefined;
+          this.queue.status = this.queue.items.some((entry) => entry.state === 'failed')
+            ? 'failed'
+            : 'completed';
+          this.queue.message = 'Очередь PS5 завершена; есть пакеты без подтверждения';
+          this.save();
+          return;
+        }
+      } else this.unconfirmedSince = undefined;
       if (!item) {
         this.queue.status = this.queue.items.every((entry) => entry.state === 'cancelled')
           ? 'cancelled'

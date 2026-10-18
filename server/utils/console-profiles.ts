@@ -727,7 +727,7 @@ export async function readPs5PkgInstallCapabilities(consoleId: string, signal?: 
 
 /** The polling path must not run the installer's synchronous hello while data
  * occupies the PS5's single HTTP handler. Explicit preflight remains fresh. */
-function ps5TransferInProgress(id: string) {
+export function ps5TransferInProgress(id: string) {
   const path = dataPath('consoles', id, 'ps5-installation-queue.json');
   if (!existsSync(path)) return false;
   const queue = readJsonFile<any>(path, null);
