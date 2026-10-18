@@ -77,9 +77,14 @@ function validItems(value: unknown): value is Ps5Item[] {
             item.bytesChecked >= 0 &&
             item.bytesChecked <= item.size)) &&
         (item.confirmation === undefined ||
-          (['user', 'service-registration', 'service-existing', 'recorded-existing'].includes(
-            item.confirmation,
-          ) &&
+          ([
+            'user',
+            'service-registration',
+            'service-existing',
+            'recorded-existing',
+            'service-version',
+            'installer-result',
+          ].includes(item.confirmation) &&
             Number.isSafeInteger(item.confirmedAt) &&
             item.confirmedAt > 0 &&
             item.state === 'installed')) &&

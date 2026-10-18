@@ -52,7 +52,15 @@ export interface Ps5Item {
   hidden?: boolean;
   queueId?: string;
   createdAt?: number;
-  confirmation?: 'user' | 'service-registration' | 'service-existing' | 'recorded-existing';
+  confirmation?:
+    | 'user'
+    | 'service-registration'
+    | 'service-existing'
+    | 'recorded-existing'
+    // A patch: PS5 reports the game at this version or newer.
+    | 'service-version'
+    // A DLC: the system installer finished the job without an error code.
+    | 'installer-result';
   confirmedAt?: number;
   imagePublishedAt?: number;
   observationStoppedAt?: number;

@@ -62,6 +62,45 @@ export function ps5TransferChunkSize(reply: { chunkMax?: unknown }) {
     ? size
     : 262144;
 }
+/** How an installed patch or DLC is confirmed after its installer job, or
+ * undefined while that is not proven yet. */
+export function ps5ComponentConfirmation(
+  item: Pick<Ps5Item, 'order' | 'type' | 'titleId' | 'contentId' | 'appVersion'>,
+  job: { phase?: unknown; code?: unknown },
+  info?: { status: number; body: any },
+) {
+  if (item.order <= 0) return undefined;
+  if (item.type === 'DLC')
+    return job.phase === 'done' && job.code === 0
+      ? {
+          confirmation: 'installer-result' as const,
+          detail: 'Системный установщик PS5 завершил DLC без ошибки',
+        }
+      : undefined;
+  const row = info?.status === 200 ? info.body : undefined;
+  return item.contentId &&
+    item.appVersion &&
+    row?.title_id === item.titleId &&
+    row.installed === true &&
+    row.content_id === item.contentId &&
+    versionAtLeast(row.version, item.appVersion)
+    ? {
+        confirmation: 'service-version' as const,
+        detail: `PS5 сообщает версию игры ${row.version}`,
+      }
+    : undefined;
+}
+/** '01.02' >= '01.02', '01.10' >= '01.02'; a malformed version never matches. */
+function versionAtLeast(current: unknown, wanted: string) {
+  const parse = (v: unknown) =>
+    typeof v === 'string' && /^\d+(?:\.\d+)*$/.test(v) ? v.split('.').map(Number) : undefined;
+  const a = parse(current),
+    b = parse(wanted);
+  if (!a || !b) return false;
+  for (let i = 0; i < Math.max(a.length, b.length); i++)
+    if ((a[i] || 0) !== (b[i] || 0)) return (a[i] || 0) > (b[i] || 0);
+  return true;
+}
 /** Approved replacement of an own Folder/image whose source is gone: the
  * service refuses to publish over the leftover registration, so clear it
  * first (only the service's own orphans are accepted) and wait for PS5. */
@@ -495,6 +534,22 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
               detail: `PS5 подтвердила регистрацию игры, версия ${item.appVersion}`,
             };
         }
+        // A patch is confirmed by the version PS5 reports for the game; a DLC
+        // (PS5 cannot list them yet) by a finished installer job without an
+        // error. Until then the item stays unconfirmed and is re-checked.
+        const info =
+          item.order > 0 && item.type !== 'DLC'
+            ? await request(
+                item,
+                '/api/v1/console/info',
+                { 'X-PackageFlow-Title': item.titleId },
+                undefined,
+                signal,
+              ).catch(() => undefined)
+            : undefined;
+        signal.throwIfAborted();
+        const component = ps5ComponentConfirmation(item, job.body, info);
+        if (component) return { state: 'installed', confirmedAt: Date.now(), ...component };
         // Full coverage alone never confirms a patch/DLC or a different version.
         if (
           job.body.phase === 'done' ||
