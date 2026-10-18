@@ -1,7 +1,8 @@
 name: Linux packages
 # Builds the .deb and AppImage from this repository like the Windows installer:
 # WEB from source, the Linux desktop shell from apps/linux-desktop and the
-# pinned console bundle from the console-bundle-<version> release.
+# pinned console bundle from the GitHub releases (scripts/fetch-console-bundle.mjs).
+# A v* tag attaches everything, console files included, to the release vX.Y.Z.
 on:
   workflow_dispatch:
     inputs:
@@ -12,7 +13,7 @@ on:
   push:
     tags: ['v*']
 permissions:
-  contents: read
+  contents: write
 jobs:
   linux:
     runs-on: ubuntu-24.04
@@ -35,9 +36,21 @@ jobs:
       - name: Desktop shell tests
         run: python3 -m unittest discover -s apps/linux-desktop/tests
       - name: Console bundle
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/fetch-console-bundle.mjs "${{ steps.version.outputs.value }}" dist/console-bundle
       - name: Build .deb and AppImage
         run: python3 packaging/linux/build.py --version "${{ steps.version.outputs.value }}" --bundle dist/console-bundle
+      - name: Console files for the release
+        run: |
+          mkdir -p dist/release
+          for f in $(jq -r '.elf.fileName, .app.fileName, (.ps4.fileName // empty)' dist/console-bundle/manifest.json); do
+            cp "dist/console-bundle/$f" dist/release/
+          done
+          # PS5 service update check (server/utils/ps5-service-github.ts).
+          jq '{schemaVersion: 1, elf: .elf}' dist/console-bundle/manifest.json > dist/release/PackageFlowService-PS5.json
+          cp dist/linux/SHA256SUMS dist/release/SHA256SUMS-linux.txt
+          (cd dist/release && sha256sum $(ls | grep -v '^SHA256SUMS') > SHA256SUMS-console.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: PackageFlow-Linux-x64
@@ -46,3 +59,16 @@ jobs:
             dist/linux/packageflow_*_amd64.deb
             dist/linux/PackageFlow-*-x86_64.AppImage
             dist/linux/SHA256SUMS
+      - name: Attach to the release vX.Y.Z
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # One release per version carries every file; the first workflow to
+          # get here creates it, the other attaches to it.
+          gh release view "$TAG" >/dev/null 2>&1 ||
+            gh release create "$TAG" --verify-tag --title "PackageFlow ${TAG#v}" --generate-notes ||
+            gh release view "$TAG" >/dev/null
+          gh release upload "$TAG" --clobber dist/linux/packageflow_*_amd64.deb dist/linux/PackageFlow-*-x86_64.AppImage dist/release/*

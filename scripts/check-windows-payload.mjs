@@ -47,14 +47,19 @@ const release = JSON.parse(
 if (release.version !== version || Object.keys(release).some((k) => k !== 'version'))
   throw Error('Windows release metadata includes obsolete options or wrong version');
 const bundle = JSON.parse(await readFile(join(root, 'console-setup/manifest.json'), 'utf8'));
-const pinned = unifiedPs5
-  ? JSON.parse(
-      await readFile(
-        new URL(`../packaging/windows/console-bundle-${version}.json`, import.meta.url),
-        'utf8',
-      ),
-    )
-  : undefined;
+// A version without its own pin uses the newest older one, like
+// scripts/fetch-console-bundle.mjs.
+async function pinFor(v) {
+  const dir = new URL('../packaging/windows/', import.meta.url);
+  const key = (x) => x.split('.').reduce((n, part) => n * 1000 + Number(part), 0);
+  const found = (await readdir(dir))
+    .map((name) => name.match(/^console-bundle-(\d+\.\d+\.\d+)\.json$/)?.[1])
+    .filter((p) => p && key(p) <= key(v))
+    .sort((a, b) => key(b) - key(a))[0];
+  if (!found) throw Error(`No console bundle pin for ${v} or older`);
+  return JSON.parse(await readFile(new URL(`console-bundle-${found}.json`, dir), 'utf8'));
+}
+const pinned = unifiedPs5 ? await pinFor(version) : undefined;
 if (pinned && !isDeepStrictEqual(bundle, pinned))
   throw Error(`Console bundle differs from the pinned Windows ${version} manifest`);
 const expected = pinned

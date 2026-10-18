@@ -1,28 +1,95 @@
 // CI input: download the pinned console bundle (PS5 service ELF, PS5 app,
-// PS4 service) for a release and verify every file against
-// packaging/windows/console-bundle-<version>.json before packaging.
+// PS4 service) for a release and verify every file against its pin before
+// packaging.
 //
 //   node scripts/fetch-console-bundle.mjs <version> <destination>
 //
-// Files are taken from the GitHub release tagged console-bundle-<version> of
-// GITHUB_REPOSITORY (or PF_BUNDLE_BASE_URL when set). Nothing is trusted that
-// the pin does not name.
+// Pin: packaging/windows/console-bundle-<version>.json, or the newest older
+// pin when this version has none, so tagging v1.10.29 reuses the 1.10.28
+// console files without a new pin.
+//
+// Files: one GitHub release per version (vX.Y.Z) carries everything. Each
+// pinned file is taken from the release of this version when it is attached
+// there, otherwise from any earlier release that has an asset with the same
+// name and SHA-256. Nothing is trusted that the pin does not name.
+// PF_BUNDLE_BASE_URL overrides the lookup with a plain directory URL.
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 const [version, destination] = process.argv.slice(2);
 if (!/^\d+\.\d+\.\d+$/.test(version || '') || !destination)
   throw new Error('Usage: node scripts/fetch-console-bundle.mjs <version> <destination>');
-const pinText = await readFile(
-  new URL(`../packaging/windows/console-bundle-${version}.json`, import.meta.url),
-  'utf8',
-);
+
+const pins = new URL('../packaging/windows/', import.meta.url);
+const key = (v) => v.split('.').map(Number);
+const older = (a, b) => {
+  const x = key(a),
+    y = key(b);
+  for (let i = 0; i < 3; ++i) if (x[i] !== y[i]) return x[i] < y[i];
+  return false;
+};
+const pinVersion = (await readdir(pins))
+  .map((name) => name.match(/^console-bundle-(\d+\.\d+\.\d+)\.json$/)?.[1])
+  .filter((v) => v && !older(version, v))
+  .sort((a, b) => (older(a, b) ? 1 : -1))[0];
+if (!pinVersion) throw new Error(`No console bundle pin for ${version} or older`);
+if (pinVersion !== version) console.log(`Using console bundle pin ${pinVersion} for ${version}`);
+const pinText = await readFile(new URL(`console-bundle-${pinVersion}.json`, pins), 'utf8');
 const pin = JSON.parse(pinText);
+
 const repository = process.env.GITHUB_REPOSITORY || 'demagoc3-cpu/playstation_installer';
-const base =
-  process.env.PF_BUNDLE_BASE_URL ||
-  `https://github.com/${repository}/releases/download/console-bundle-${version}`;
+const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
+const headers = (accept) => ({
+  Accept: accept,
+  'User-Agent': 'PackageFlow-CI',
+  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+});
+
+let releases;
+async function allReleases() {
+  if (releases) return releases;
+  releases = [];
+  for (let page = 1; page <= 10; ++page) {
+    const response = await fetch(
+      `https://api.github.com/repos/${repository}/releases?per_page=100&page=${page}`,
+      { headers: headers('application/vnd.github+json'), signal: AbortSignal.timeout(30000) },
+    );
+    if (!response.ok) throw new Error(`GitHub releases: ${response.status}`);
+    const batch = await response.json();
+    releases.push(...batch);
+    if (batch.length < 100) break;
+  }
+  // The release of this version first, then the newest others.
+  const own = `v${version}`;
+  releases.sort((a, b) => (a.tag_name === own ? -1 : b.tag_name === own ? 1 : 0));
+  return releases;
+}
+
+async function source(entry) {
+  if (process.env.PF_BUNDLE_BASE_URL)
+    return {
+      url: `${process.env.PF_BUNDLE_BASE_URL}/${encodeURIComponent(entry.fileName)}`,
+      accept: '*/*',
+    };
+  for (const release of await allReleases()) {
+    const asset = (release.assets || []).find(
+      (a) =>
+        a.name === entry.fileName &&
+        a.size === entry.size &&
+        (!a.digest || a.digest === `sha256:${entry.sha256}`),
+    );
+    if (asset) {
+      console.log(`${entry.fileName}: from release ${release.tag_name}`);
+      return { url: asset.url, accept: 'application/octet-stream' };
+    }
+  }
+  throw new Error(
+    `${entry.fileName} (sha256 ${entry.sha256}) is not attached to any release. ` +
+      `Attach it to the release v${version} and run the build again.`,
+  );
+}
+
 const target = resolve(destination);
 await rm(target, { recursive: true, force: true });
 await mkdir(target, { recursive: true });
@@ -30,7 +97,9 @@ for (const role of ['elf', 'app', ...(pin.ps4 ? ['ps4'] : [])]) {
   const entry = pin[role];
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(entry.fileName))
     throw new Error(`Invalid file name in pin: ${entry.fileName}`);
-  const response = await fetch(`${base}/${encodeURIComponent(entry.fileName)}`, {
+  const { url, accept } = await source(entry);
+  const response = await fetch(url, {
+    headers: headers(accept),
     redirect: 'follow',
     signal: AbortSignal.timeout(300000),
   });
@@ -44,4 +113,4 @@ for (const role of ['elf', 'app', ...(pin.ps4 ? ['ps4'] : [])]) {
   console.log(`verified ${entry.fileName} ${digest}`);
 }
 await writeFile(join(target, 'manifest.json'), pinText);
-console.log(`Console bundle ${version} ready in ${target}`);
+console.log(`Console bundle ${pinVersion} ready in ${target}`);
