@@ -43,14 +43,8 @@ jobs:
         run: python3 packaging/linux/build.py --version "${{ steps.version.outputs.value }}" --bundle dist/console-bundle
       - name: Console files for the release
         run: |
-          mkdir -p dist/release
-          for f in $(jq -r '.elf.fileName, .app.fileName, (.ps4.fileName // empty)' dist/console-bundle/manifest.json); do
-            cp "dist/console-bundle/$f" dist/release/
-          done
-          # PS5 service update check (server/utils/ps5-service-github.ts).
-          jq '{schemaVersion: 1, elf: .elf}' dist/console-bundle/manifest.json > dist/release/PackageFlowService-PS5.json
+          node scripts/console-release-files.mjs dist/console-bundle dist/release
           cp dist/linux/SHA256SUMS dist/release/SHA256SUMS-linux.txt
-          (cd dist/release && sha256sum $(ls | grep -v '^SHA256SUMS') > SHA256SUMS-console.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: PackageFlow-Linux-x64

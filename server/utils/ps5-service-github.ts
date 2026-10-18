@@ -11,6 +11,9 @@ import { PS5_SERVICE_ELF_FILE_NAME, validatePs5ServiceManifest } from './ps5-ser
  * PackageFlowService-PS5.json ({ schemaVersion: 1, elf: { … } }, the same
  * schema as .data/ps5-service-artifacts/manifest.json). */
 export const PS5_SERVICE_MANIFEST_ASSET = 'PackageFlowService-PS5.json';
+/* From 1.10.28 the release names the ELF with its version; it is still saved
+ * and loaded into PLDMGR as PackageFlowService-PS5.elf. */
+export const ps5ServiceReleaseName = (version: string) => `PackageFlowPayload-PS5_${version}.elf`;
 const repository = () =>
   /^[\w.-]+\/[\w.-]+$/.test(process.env.PACKAGEFLOW_RELEASE_REPOSITORY || '')
     ? process.env.PACKAGEFLOW_RELEASE_REPOSITORY!
@@ -67,13 +70,13 @@ export async function latestPs5ServiceRelease(force = false) {
       release.assets.find(
         (item: any) => item?.name === name && typeof item.browser_download_url === 'string',
       );
-    const elf = asset(PS5_SERVICE_ELF_FILE_NAME),
-      manifestAsset = asset(PS5_SERVICE_MANIFEST_ASSET);
-    if (!elf || !manifestAsset) continue;
+    const manifestAsset = asset(PS5_SERVICE_MANIFEST_ASSET);
+    if (!manifestAsset) continue;
     const manifest = validatePs5ServiceManifest(
       JSON.parse((await download(manifestAsset.browser_download_url, 16 * 1024)).toString('utf8')),
     );
-    if (elf.size !== manifest.size) continue;
+    const elf = asset(ps5ServiceReleaseName(manifest.version)) || asset(PS5_SERVICE_ELF_FILE_NAME);
+    if (!elf || elf.size !== manifest.size) continue;
     value = {
       tag: String(release.tag_name || ''),
       publishedAt: String(release.published_at || ''),

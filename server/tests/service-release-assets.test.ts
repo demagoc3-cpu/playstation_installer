@@ -36,3 +36,14 @@ test('release discovery picks the newest versioned PKG over legacy attachments',
     'PackageFlowService.pkg',
   );
 });
+
+test('release discovery reads the readable PS4 name used from 1.10.28', () => {
+  assert.equal(
+    selectServiceReleaseAsset([
+      asset('PackageFlowService-2.01.pkg'),
+      asset('PackageFlow-PS4_2.14.pkg'),
+    ])?.name,
+    'PackageFlow-PS4_2.14.pkg',
+  );
+  assert.equal(selectServiceReleaseAsset([asset('PackageFlow-PS4_latest.pkg')]), undefined);
+});

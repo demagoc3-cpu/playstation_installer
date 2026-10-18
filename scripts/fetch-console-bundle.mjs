@@ -11,11 +11,14 @@
 // Files: one GitHub release per version (vX.Y.Z) carries everything. Each
 // pinned file is taken from the release of this version when it is attached
 // there, otherwise from any earlier release that has an asset with the same
-// name and SHA-256. Nothing is trusted that the pin does not name.
+// SHA-256 under its release name (PackageFlow-PS4_2.14.pkg, see
+// console-release-names.mjs) or its pinned name. It is saved under the pinned
+// name. Nothing is trusted that the pin does not name.
 // PF_BUNDLE_BASE_URL overrides the lookup with a plain directory URL.
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { consoleReleaseName } from './console-release-names.mjs';
 
 const [version, destination] = process.argv.slice(2);
 if (!/^\d+\.\d+\.\d+$/.test(version || '') || !destination)
@@ -66,7 +69,7 @@ async function allReleases() {
   return releases;
 }
 
-async function source(entry) {
+async function source(role, entry) {
   if (process.env.PF_BUNDLE_BASE_URL)
     return {
       url: `${process.env.PF_BUNDLE_BASE_URL}/${encodeURIComponent(entry.fileName)}`,
@@ -75,17 +78,17 @@ async function source(entry) {
   for (const release of await allReleases()) {
     const asset = (release.assets || []).find(
       (a) =>
-        a.name === entry.fileName &&
+        (a.name === consoleReleaseName(role, entry) || a.name === entry.fileName) &&
         a.size === entry.size &&
         (!a.digest || a.digest === `sha256:${entry.sha256}`),
     );
     if (asset) {
-      console.log(`${entry.fileName}: from release ${release.tag_name}`);
+      console.log(`${entry.fileName}: ${asset.name} from release ${release.tag_name}`);
       return { url: asset.url, accept: 'application/octet-stream' };
     }
   }
   throw new Error(
-    `${entry.fileName} (sha256 ${entry.sha256}) is not attached to any release. ` +
+    `${consoleReleaseName(role, entry)} (sha256 ${entry.sha256}) is not attached to any release. ` +
       `Attach it to the release v${version} and run the build again.`,
   );
 }
@@ -97,7 +100,7 @@ for (const role of ['elf', 'app', ...(pin.ps4 ? ['ps4'] : [])]) {
   const entry = pin[role];
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(entry.fileName))
     throw new Error(`Invalid file name in pin: ${entry.fileName}`);
-  const { url, accept } = await source(entry);
+  const { url, accept } = await source(role, entry);
   const response = await fetch(url, {
     headers: headers(accept),
     redirect: 'follow',

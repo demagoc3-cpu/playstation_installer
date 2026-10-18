@@ -24,10 +24,14 @@ export function comparePkgVersions(a: string, b: string) {
   }
   return 0;
 }
+// Release names: PackageFlow-PS4_2.14.pkg from 1.10.28; PackageFlowService-2.14.pkg
+// and an unversioned PackageFlowService.pkg in earlier releases.
+const serviceAssetName = /^(?:Pack[ea]geFlowService(?:-\d+\.\d+)?|PackageFlow-PS4_\d+\.\d+)\.pkg$/;
+export const serviceAssetVersion = (name: string) => name.match(/[-_](\d+\.\d+)\.pkg$/)?.[1];
 export function selectServiceReleaseAsset(assets: any[]) {
   const valid = assets.filter(
     (a: any) =>
-      /^Pack[ea]geFlowService(?:-\d+\.\d+)?\.pkg$/.test(a.name) &&
+      serviceAssetName.test(a.name) &&
       Number.isSafeInteger(a.size) &&
       a.size > 0 &&
       a.size <= updateLimit &&
@@ -38,8 +42,8 @@ export function selectServiceReleaseAsset(assets: any[]) {
   // Versioned assets take precedence over a legacy unversioned PKG. This
   // lets the user keep old release attachments without hiding a newer build.
   return valid.sort((a: any, b: any) => {
-    const av = a.name.match(/-(\d+\.\d+)\.pkg$/)?.[1];
-    const bv = b.name.match(/-(\d+\.\d+)\.pkg$/)?.[1];
+    const av = serviceAssetVersion(a.name);
+    const bv = serviceAssetVersion(b.name);
     return av && bv ? comparePkgVersions(bv, av) : av ? -1 : bv ? 1 : 0;
   })[0];
 }
@@ -131,7 +135,7 @@ export async function latestServiceRelease(current: string) {
         releaseUrl: `https://github.com/${repository}/releases`,
       };
     const hash = asset.digest.slice(7);
-    const namedVersion = asset.name.match(/-(\d+\.\d+)\.pkg$/)?.[1];
+    const namedVersion = serviceAssetVersion(asset.name);
     let staged = stagedByHash(hash, asset.size);
     if (!namedVersion && !staged) {
       const data = await bytes(asset.browser_download_url, updateLimit);
