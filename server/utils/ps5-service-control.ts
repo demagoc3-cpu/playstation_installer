@@ -184,8 +184,9 @@ async function launchSaved(ip: string, op: Ps5ServiceOperation, expectBuild?: st
   const pm = await readPs5PayloadManager(ip);
   const saved = ownPs5ServicePayload(pm.payloads);
   if (!saved) throw new Error('Служба не сохранена в PLDMGR. Выберите «Установить службу»');
-  op.steps.push(`Запускаем ${saved.slot || saved.path}`);
-  await launchPs5StoredPayload(ip, saved.slot || saved.path);
+  op.steps.push(`Запускаем ${saved.path}`);
+  // PLDMGR 0.6.1 loads by the stored file path (as the tested prototype did).
+  await launchPs5StoredPayload(ip, saved.path);
   const up = await waitHealth(ip, (h) => h.state === 'running', 40);
   if (!up || up.state !== 'running') throw new Error('Служба запущена, но не ответила за 40 с');
   if (expectBuild && up.buildId !== expectBuild)
