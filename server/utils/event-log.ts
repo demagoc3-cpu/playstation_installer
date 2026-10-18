@@ -4,6 +4,9 @@ export interface LogEntry {
   time: number;
   level: LogLevel;
   text: string;
+  /** text without the appended details, so the UI can translate both parts */
+  message: string;
+  detail?: string;
   count: number;
 }
 
@@ -27,14 +30,23 @@ function describe(value: unknown) {
 export function logEvent(level: LogLevel, text: string, ...extra: unknown[]) {
   const print = level === 'info' ? console.log : level === 'warn' ? console.warn : console.error;
   print(`[PackageFlow] ${text}`, ...extra);
-  const full = [text, ...extra.map(describe)].filter(Boolean).join(' ');
+  const detail = extra.map(describe).filter(Boolean).join(' ');
+  const full = [text, detail].filter(Boolean).join(' ');
   const last = entries.at(-1);
   if (last && last.text === full && last.level === level) {
     entries.pop();
     entries.push({ ...last, id: nextId++, time: Date.now(), count: last.count + 1 });
     return;
   }
-  entries.push({ id: nextId++, time: Date.now(), level, text: full, count: 1 });
+  entries.push({
+    id: nextId++,
+    time: Date.now(),
+    level,
+    text: full,
+    message: text,
+    ...(detail ? { detail } : {}),
+    count: 1,
+  });
   if (entries.length > MAX_ENTRIES) entries.splice(0, entries.length - MAX_ENTRIES);
 }
 

@@ -193,9 +193,9 @@ onBeforeUnmount(() => {
           ><label
             >{{ t('Объём для каждого теста')
             }}<select v-model.number="sizeMiB">
-              <option :value="64">64 МиБ</option>
-              <option :value="128">128 МиБ</option>
-              <option :value="256">256 МиБ</option>
+              <option :value="64">{{ t('64 МиБ') }}</option>
+              <option :value="128">{{ t('128 МиБ') }}</option>
+              <option :value="256">{{ t('256 МиБ') }}</option>
             </select></label
           >
         </fieldset>
@@ -245,8 +245,8 @@ onBeforeUnmount(() => {
                   >
                 </td>
                 <td>
-                  {{ r.mode === 'latency' ? '8 запросов' : `${r.bytes / 1048576} МиБ` }} ·
-                  {{ (r.elapsedMs / 1000).toFixed(2) }} с
+                  {{ t(r.mode === 'latency' ? '8 запросов' : `${r.bytes / 1048576} МиБ`) }} ·
+                  {{ t(`${(r.elapsedMs / 1000).toFixed(2)} с`) }}
                 </td>
               </tr>
             </tbody>
@@ -259,7 +259,7 @@ onBeforeUnmount(() => {
           <h3>{{ t('Последний блок передачи игры') }}</h3>
           <p>
             {{ new Date(info.lastTransferProfile.measuredAt).toLocaleString() }} ·
-            {{ info.lastTransferProfile.bytes / 1048576 }} МиБ · BLAKE3
+            {{ t(`${info.lastTransferProfile.bytes / 1048576} МиБ`) }} · BLAKE3
             {{ info.lastTransferProfile.hashMode.toUpperCase() }} ·
             {{ ms(info.lastTransferProfile.elapsedMs) }}
           </p>

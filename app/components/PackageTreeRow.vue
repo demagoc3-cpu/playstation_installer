@@ -56,7 +56,7 @@ function show(event: Event) {
         alt=""
         loading="lazy"
         decoding="async"
-      /><span v-else>{{ item.type === 'Игра' ? item.title.charAt(0) : item.type }}</span>
+      /><span v-else>{{ item.type === 'Игра' ? item.title.charAt(0) : t(item.type) }}</span>
     </div>
     <div class="pf-package-name">
       <strong :title="item.fileName">{{ item.title }}</strong>
@@ -131,7 +131,7 @@ function show(event: Event) {
       >
     </div>
     <span class="pf-size">{{ bytes(item.size) }}</span
-    ><span class="pf-state" :class="state || item.state" :title="detail || item.detail">{{
+    ><span class="pf-state" :class="state || item.state" :title="t(detail || item.detail || '')">{{
       t(detail || item.detail || '')
     }}</span>
     <div class="pf-package-actions"><slot name="actions" /></div>

@@ -498,7 +498,7 @@ onBeforeUnmount(() => {
     <p v-else-if="capabilities.consoleControl && !runtimeReady && !busy" class="notice">
       {{ t('Запуск недоступен, пока служба не подтвердит состояние запущенной игры.') }}
     </p>
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
+    <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
     <p v-if="busy" role="status">{{ t('Читаем игры выбранной PS5…') }}</p>
     <section v-if="command" class="notice" aria-live="polite">
       <strong>{{ command.titleId }} · {{ t(labels[command.action] || command.action) }}</strong>
@@ -691,7 +691,7 @@ onBeforeUnmount(() => {
               ×
             </button>
           </header>
-          <p v-if="error" class="error" role="alert">{{ error }}</p>
+          <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
           <p
             v-if="command?.titleId === info.titleId && command.state === 'failed'"
             class="error"
@@ -700,7 +700,7 @@ onBeforeUnmount(() => {
             {{ t('PS5 отклонила команду') }} ·
             {{
               command.result?.code === undefined
-                ? command.state
+                ? t(command.state)
                 : `0x${(command.result.code >>> 0).toString(16).toUpperCase()}`
             }}
           </p>

@@ -4,6 +4,8 @@ interface Entry {
   time: number;
   level: 'info' | 'warn' | 'error';
   text: string;
+  message?: string;
+  detail?: string;
   count: number;
 }
 const props = defineProps<{ entries: Entry[] }>(),
@@ -23,7 +25,7 @@ const visible = computed(() =>
     .filter(
       (e) =>
         (filter.value === 'all' || e.level === filter.value) &&
-        `${e.text} ${new Date(e.time).toLocaleString(formatLocale.value)}`
+        `${e.text} ${shown(e)} ${new Date(e.time).toLocaleString(formatLocale.value)}`
           .toLowerCase()
           .includes(query.value.trim().toLowerCase()),
     )
@@ -33,6 +35,11 @@ const visible = computed(() =>
 const labels = { info: 'Информация', warn: 'Предупреждение', error: 'Ошибка' };
 function date(time: number) {
   return new Date(time).toLocaleString(formatLocale.value);
+}
+// The message and its appended details (often an error) are translated apart.
+function shown(entry: Entry) {
+  if (entry.message === undefined) return t(entry.text);
+  return [t(entry.message), entry.detail && t(entry.detail)].filter(Boolean).join(' ');
 }
 function summary(text: string) {
   return text.split('\n', 1)[0]?.slice(0, 180) ?? '';
@@ -74,13 +81,13 @@ function summary(text: string) {
           ><time>{{ date(entry.time) }}</time
           ><span class="event-level">{{ t(labels[entry.level]) }}</span
           ><span class="event-summary"
-            >{{ t(summary(entry.text))
+            >{{ summary(shown(entry))
             }}<small v-if="entry.count > 1"> ×{{ entry.count }}</small></span
           ><span class="event-chevron" aria-hidden="true">⌄</span>
         </summary>
         <div class="event-detail">
           <small>{{ t('Подробности события') }}</small>
-          <pre>{{ t(entry.text) }}</pre>
+          <pre>{{ shown(entry) }}</pre>
         </div>
       </details>
       <div v-if="!visible.length" class="glass-empty">

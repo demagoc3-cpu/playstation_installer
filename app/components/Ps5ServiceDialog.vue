@@ -129,7 +129,7 @@ const operation = computed(() =>
           {{
             status?.manager.available
               ? `${status.manager.version} · ${status.manager.saved ? status.manager.saved.slot : t('служба не сохранена')}`
-              : status?.manager.message || t('недоступен')
+              : t(status?.manager.message || 'недоступен')
           }}
         </dd>
         <dt>{{ t('Автозапуск') }}</dt>
@@ -151,7 +151,7 @@ const operation = computed(() =>
               >{{ status.release.tag }} · {{ status.release.version }} ·
               {{ status.release.buildId }}</template
             ><template v-else>{{
-              status?.releaseError || t('В релизах пока нет службы PS5')
+              t(status?.releaseError || 'В релизах пока нет службы PS5')
             }}</template>
           </dd>
         </template>
@@ -198,9 +198,11 @@ const operation = computed(() =>
         <ol>
           <li v-for="(step, index) in operation.steps" :key="index">{{ step }}</li>
         </ol>
-        <pre v-if="operation.details?.length">{{ operation.details.join('\n') }}</pre>
+        <pre v-if="operation.details?.length">{{
+          operation.details.map((line) => t(line)).join('\n')
+        }}</pre>
       </section>
-      <p v-if="error" class="service-warning" role="alert">{{ error }}</p>
+      <p v-if="error" class="service-warning" role="alert">{{ t(error) }}</p>
       <div class="profile-actions">
         <button :disabled="loading" @click="load(action === 'check-update')">
           {{ t(loading ? 'Проверяем…' : 'Проверить ещё раз') }}

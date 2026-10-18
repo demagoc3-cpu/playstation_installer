@@ -468,6 +468,8 @@ interface LogEntry {
   time: number;
   level: 'info' | 'warn' | 'error';
   text: string;
+  message?: string;
+  detail?: string;
   count: number;
 }
 const logEntries = ref<LogEntry[]>([]);
@@ -1915,7 +1917,7 @@ onMounted(() => {
       <ConsoleFiles :ps-ip="psIp" />
     </section>
     <section v-if="['console', 'saves'].includes(activeSection)" class="content tool-page">
-      <p v-if="consoleSelectionError" role="alert">{{ consoleSelectionError }}</p>
+      <p v-if="consoleSelectionError" role="alert">{{ t(consoleSelectionError) }}</p>
       <template v-if="activeConsole">
         <ConsoleApps
           v-if="activeSection === 'console' && consolePlatform === 'ps4'"

@@ -321,7 +321,7 @@ async function cancelAll(id: string, resolve = false) {
             </div>
             <article v-for="item in filteredTorrents" :key="item.hash">
               <strong>{{ item.name }}</strong
-              ><span>{{ Math.round(item.progress * 100) }}% · {{ item.state }}</span
+              ><span>{{ Math.round(item.progress * 100) }}% · {{ t(item.state) }}</span
               ><button
                 v-if="item.progress < 1"
                 @click="

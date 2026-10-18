@@ -80,7 +80,7 @@ const canStart = computed(
 
 <template>
   <div class="quick-service">
-    <small>{{ text }}</small>
+    <small>{{ t(text) }}</small>
     <button v-if="canStart" :disabled="disabled || sending" @click="start">
       {{ t('Запустить службу') }}
     </button>

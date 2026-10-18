@@ -51,7 +51,7 @@ const size = computed(() =>
         ><span v-if="size">{{ size }}</span>
       </div>
       <small v-if="version">{{ version }}</small>
-      <p class="pf-console-status">{{ status || t('Состояние запуска неизвестно') }}</p>
+      <p class="pf-console-status">{{ t(status || 'Состояние запуска неизвестно') }}</p>
       <div class="pf-console-actions"><slot /></div>
     </div>
   </div>

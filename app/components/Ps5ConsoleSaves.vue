@@ -411,10 +411,10 @@ onBeforeUnmount(() => {
         <option v-for="id in users" :key="id" :value="id">{{ id }}</option></select
       ><button v-if="hasFilters" @click="resetFilters">{{ t('Сбросить фильтры') }}</button>
     </div>
-    <p v-if="error" class="glass-notice error" role="alert">{{ error }}</p>
-    <p v-if="restoreError" class="glass-notice error" role="alert">{{ restoreError }}</p>
+    <p v-if="error" class="glass-notice error" role="alert">{{ t(error) }}</p>
+    <p v-if="restoreError" class="glass-notice error" role="alert">{{ t(restoreError) }}</p>
     <p v-if="copiesError" class="glass-notice error" role="alert">
-      {{ t('Не удалось загрузить резервные копии') }}: {{ copiesError }}
+      {{ t('Не удалось загрузить резервные копии') }}: {{ t(copiesError) }}
     </p>
     <p v-if="uncertain" class="glass-notice" role="status">
       {{
@@ -618,7 +618,7 @@ onBeforeUnmount(() => {
             v-if="['checking', 'uploading'].includes(job.state)"
             :value="job.state === 'checking' ? job.checked : job.bytes"
             :max="job.total || 1"
-          /><small v-if="job.message">{{ job.message }}</small>
+          /><small v-if="job.message">{{ t(job.message) }}</small>
           <p v-if="job.state === 'pending'">
             {{
               t(
@@ -660,7 +660,7 @@ onBeforeUnmount(() => {
           </p>
           <progress v-if="job.state === 'running'" :value="job.bytes" :max="job.total || 1" /><small
             v-if="job.message"
-            >{{ job.message }}</small
+            >{{ t(job.message) }}</small
           >
         </div>
       </article>

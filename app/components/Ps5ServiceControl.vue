@@ -185,7 +185,7 @@ onBeforeUnmount(() => {
       role="status"
       aria-live="polite"
     >
-      {{ status }}
+      {{ t(status) }}
     </p>
   </div>
 </template>

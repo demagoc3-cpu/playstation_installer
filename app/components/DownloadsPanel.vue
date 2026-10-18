@@ -211,9 +211,9 @@ async function batch(action: 'pause' | 'resume') {
                   ></small
                 >
               </td>
-              <td class="numeric">{{ bytes(item.speed) }}/с</td>
+              <td class="numeric">{{ bytes(item.speed) }}{{ t('/с') }}</td>
               <td class="numeric">
-                {{ item.uploadSpeed === undefined ? '—' : bytes(item.uploadSpeed) + '/с' }}
+                {{ item.uploadSpeed === undefined ? '—' : bytes(item.uploadSpeed) + t('/с') }}
               </td>
               <td class="numeric">{{ eta(item) }}</td>
               <td>
