@@ -59,7 +59,13 @@ async function pinFor(v) {
   if (!found) throw Error(`No console bundle pin for ${v} or older`);
   return JSON.parse(await readFile(new URL(`console-bundle-${found}.json`, dir), 'utf8'));
 }
-const pinned = unifiedPs5 ? await pinFor(version) : undefined;
+// The release workflow passes the bundle it built from the console CI for a
+// version without a committed pin.
+const pinned = !unifiedPs5
+  ? undefined
+  : process.env.PF_CONSOLE_PIN
+    ? JSON.parse(await readFile(process.env.PF_CONSOLE_PIN, 'utf8'))
+    : await pinFor(version);
 if (pinned && !isDeepStrictEqual(bundle, pinned))
   throw Error(`Console bundle differs from the pinned Windows ${version} manifest`);
 const expected = pinned

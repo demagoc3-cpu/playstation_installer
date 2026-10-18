@@ -1,7 +1,7 @@
 name: Windows installer
 # Independent from docker.yml: packages the WEB build and Windows runtime.
-# No Docker image is built or pushed by this workflow. A v* tag triggers both
-# workflows separately; workflow_dispatch builds only this Windows artifact.
+# release.yml calls it for a v* tag with the release's console bundle;
+# workflow_dispatch builds only this Windows artifact from the console pin.
 on:
   workflow_dispatch:
     inputs:
@@ -9,8 +9,16 @@ on:
         description: 'Installer version (three numbers, for example 1.11.0)'
         required: true
         default: '1.10.28'
-  push:
-    tags: ['v*']
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      console-artifact:
+        description: 'Console bundle artifact of the calling release run'
+        type: string
+        required: false
+        default: ''
 permissions:
   contents: write
 jobs:
@@ -24,19 +32,31 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - uses: actions/download-artifact@v4
+        if: inputs.console-artifact != ''
+        with:
+          name: ${{ inputs.console-artifact }}
+          path: dist/console-bundle
       - name: Install NSIS compiler
         run: choco install nsis --yes --no-progress
       - name: Build installer
         shell: pwsh
         env:
           INPUT_VERSION: ${{ inputs.version }}
+          CONSOLE_ARTIFACT: ${{ inputs.console-artifact }}
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { $env:INPUT_VERSION }
-          # The PS5/PS4 binaries come from the GitHub releases, verified against
-          # the console bundle pin (see scripts/fetch-console-bundle.mjs).
-          node scripts/fetch-console-bundle.mjs $version dist/console-bundle
-          if ($LASTEXITCODE) { throw 'Console bundle download failed' }
+          $version = $env:INPUT_VERSION
+          if (-not $env:CONSOLE_ARTIFACT) {
+            # The PS5/PS4 binaries come from the GitHub releases, verified against
+            # the console bundle pin (see scripts/fetch-console-bundle.mjs).
+            node scripts/fetch-console-bundle.mjs $version dist/console-bundle
+            if ($LASTEXITCODE) { throw 'Console bundle download failed' }
+          }
+          # A version without its own pin is checked against the bundle it ships.
+          if (-not (Test-Path "packaging/windows/console-bundle-$version.json")) {
+            $env:PF_CONSOLE_PIN = (Resolve-Path dist/console-bundle/manifest.json).Path
+          }
           ./packaging/windows/build.ps1 -Version $version -Ps5Bundle (Resolve-Path dist/console-bundle).Path
           Get-FileHash dist/windows/PackageFlowSetup-*-x64.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist/windows/SHA256SUMS-windows.txt
       - uses: actions/upload-artifact@v4
@@ -46,16 +66,10 @@ jobs:
           path: |
             dist/windows/PackageFlowSetup-*-x64.exe
             dist/windows/SHA256SUMS-windows.txt
-      - name: Attach to the release vX.Y.Z
-        if: github.ref_type == 'tag'
+      - name: Attach to the release
+        if: inputs.console-artifact != '' && github.ref_type == 'tag'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-        run: |
-          # One release per version carries every file; the first workflow to
-          # get here creates it, the other attaches to it.
-          gh release view "$TAG" >/dev/null 2>&1 ||
-            gh release create "$TAG" --verify-tag --title "PackageFlow ${TAG#v}" --generate-notes ||
-            gh release view "$TAG" >/dev/null
-          gh release upload "$TAG" --clobber dist/windows/PackageFlowSetup-*-x64.exe dist/windows/SHA256SUMS-windows.txt
+        run: gh release upload "$TAG" --clobber dist/windows/PackageFlowSetup-*-x64.exe dist/windows/SHA256SUMS-windows.txt

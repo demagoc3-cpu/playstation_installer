@@ -1,0 +1,79 @@
+name: Release
+# A v* tag publishes one release vX.Y.Z that carries every file: the Windows
+# installer, the Linux packages and the console files with readable names.
+#
+# Console files come from the committed pin packaging/windows/console-bundle-
+# <version>.json when this version has one. Otherwise they are the newest
+# successful main builds of PackageFlowPayload-PS5, PackageFlowService-PS5 and
+# PackageFlowService, read with the repository secret PACKAGEFLOW_REPOS_TOKEN
+# (Actions: read, Contents: read on those three repositories). Windows and
+# Linux then package exactly that bundle.
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  console:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Version
+        id: version
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          [[ $v =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Tag must be vX.Y.Z" >&2; exit 1; }
+          echo "value=$v" >> "$GITHUB_OUTPUT"
+      - name: Console bundle
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PACKAGEFLOW_REPOS_TOKEN: ${{ secrets.PACKAGEFLOW_REPOS_TOKEN }}
+        run: |
+          if [ ! -f "packaging/windows/console-bundle-$VERSION.json" ] && [ -n "$PACKAGEFLOW_REPOS_TOKEN" ]; then
+            node scripts/console-bundle-from-ci.mjs dist/console-bundle
+          else
+            node scripts/fetch-console-bundle.mjs "$VERSION" dist/console-bundle
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: console-bundle
+          if-no-files-found: error
+          path: dist/console-bundle
+      - name: Create the release and attach the console files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          node scripts/console-release-files.mjs dist/console-bundle dist/release
+          cp dist/console-bundle/manifest.json dist/release/console-bundle.json
+          notes="docs/releases/release-notes-$VERSION.md"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            if [ -f "$notes" ]; then
+              gh release create "$TAG" --verify-tag --title "PackageFlow $VERSION" --notes-file "$notes"
+            else
+              gh release create "$TAG" --verify-tag --title "PackageFlow $VERSION" --generate-notes
+            fi
+          fi
+          gh release upload "$TAG" --clobber dist/release/*
+  windows:
+    needs: console
+    uses: ./.github/workflows/windows.yml
+    with:
+      version: ${{ needs.console.outputs.version }}
+      console-artifact: console-bundle
+  linux:
+    needs: console
+    uses: ./.github/workflows/linux.yml
+    with:
+      version: ${{ needs.console.outputs.version }}
+      console-artifact: console-bundle

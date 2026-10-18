@@ -1,8 +1,8 @@
 name: Linux packages
 # Builds the .deb and AppImage from this repository like the Windows installer:
 # WEB from source, the Linux desktop shell from apps/linux-desktop and the
-# pinned console bundle from the GitHub releases (scripts/fetch-console-bundle.mjs).
-# A v* tag attaches everything, console files included, to the release vX.Y.Z.
+# console bundle of the calling release run (release.yml), or for
+# workflow_dispatch the pinned bundle from the GitHub releases.
 on:
   workflow_dispatch:
     inputs:
@@ -10,8 +10,16 @@ on:
         description: 'Package version (three numbers, for example 1.10.28)'
         required: true
         default: '1.10.28'
-  push:
-    tags: ['v*']
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      console-artifact:
+        description: 'Console bundle artifact of the calling release run'
+        type: string
+        required: false
+        default: ''
 permissions:
   contents: write
 jobs:
@@ -30,21 +38,21 @@ jobs:
         id: version
         env:
           INPUT_VERSION: ${{ inputs.version }}
-        run: |
-          if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"; else v="$INPUT_VERSION"; fi
-          echo "value=$v" >> "$GITHUB_OUTPUT"
+        run: echo "value=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
       - name: Desktop shell tests
         run: python3 -m unittest discover -s apps/linux-desktop/tests
+      - uses: actions/download-artifact@v4
+        if: inputs.console-artifact != ''
+        with:
+          name: ${{ inputs.console-artifact }}
+          path: dist/console-bundle
       - name: Console bundle
+        if: inputs.console-artifact == ''
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/fetch-console-bundle.mjs "${{ steps.version.outputs.value }}" dist/console-bundle
       - name: Build .deb and AppImage
         run: python3 packaging/linux/build.py --version "${{ steps.version.outputs.value }}" --bundle dist/console-bundle
-      - name: Console files for the release
-        run: |
-          node scripts/console-release-files.mjs dist/console-bundle dist/release
-          cp dist/linux/SHA256SUMS dist/release/SHA256SUMS-linux.txt
       - uses: actions/upload-artifact@v4
         with:
           name: PackageFlow-Linux-x64
@@ -53,16 +61,11 @@ jobs:
             dist/linux/packageflow_*_amd64.deb
             dist/linux/PackageFlow-*-x86_64.AppImage
             dist/linux/SHA256SUMS
-      - name: Attach to the release vX.Y.Z
-        if: github.ref_type == 'tag'
-        shell: bash
+      - name: Attach to the release
+        if: inputs.console-artifact != '' && github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          # One release per version carries every file; the first workflow to
-          # get here creates it, the other attaches to it.
-          gh release view "$TAG" >/dev/null 2>&1 ||
-            gh release create "$TAG" --verify-tag --title "PackageFlow ${TAG#v}" --generate-notes ||
-            gh release view "$TAG" >/dev/null
-          gh release upload "$TAG" --clobber dist/linux/packageflow_*_amd64.deb dist/linux/PackageFlow-*-x86_64.AppImage dist/release/*
+          cp dist/linux/SHA256SUMS dist/linux/SHA256SUMS-linux.txt
+          gh release upload "$TAG" --clobber dist/linux/packageflow_*_amd64.deb dist/linux/PackageFlow-*-x86_64.AppImage dist/linux/SHA256SUMS-linux.txt
