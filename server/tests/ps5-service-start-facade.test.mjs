@@ -863,7 +863,11 @@ test('a stopped observation of a dispatched system job does not authorize restar
     );
     assert.equal(readFileSync(queue.path, 'utf8'), queue.contents);
     assert.deepEqual(actions, []);
-    assert.deepEqual(connections, []);
+    // Only the service port is probed: a live service keeps blocking the start.
+    assert.ok(
+      connections.every((c) => c.port === 8095) && connections.length <= 1,
+      JSON.stringify(connections),
+    );
   });
 });
 

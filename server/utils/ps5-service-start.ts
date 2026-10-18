@@ -295,46 +295,52 @@ function assertTarget(profile: ReturnType<typeof target>) {
       message: 'Адрес или прошивка PS5 изменились. Запуск остановлен',
     });
 }
-function assertIdle(profile: ReturnType<typeof target>) {
-  assertDesktopWritable();
-  assertNoConsoleSpeedTest(profile.id);
-  assertNoPs5ServiceUpdate(profile.id);
+/** Unfinished queue items that a restart of a live service could race. */
+function queueBlocksStart(profile: ReturnType<typeof target>) {
   const queue = readJson(
     dataPath('consoles', profile.id, 'ps5-installation-queue.json'),
     32 * 1024 ** 2,
   );
-  if (queue) {
-    const settled = (item: any) =>
-      ['installed', 'failed', 'skipped', 'cancelled'].includes(item.state) &&
-      !item.observationStoppedAt;
-    const terminalQueue =
-      ['idle', 'completed', 'failed', 'cancelled'].includes(queue.status) &&
-      Array.isArray(queue.items) &&
-      queue.items.every(settled);
-    // An already authorised queue waiting for a missing service can resume.
-    // Never reclassify a partial transfer or a dispatched Sony task as idle.
-    const awaitingService =
-      ['running', 'paused'].includes(queue.status) &&
-      Array.isArray(queue.items) &&
-      queue.items.every(
-        (item: any) =>
-          settled(item) ||
-          (['pending', 'waiting'].includes(item.state) &&
-            item.bytesSent === 0 &&
-            !item.installDispatched &&
-            !item.observationStoppedAt),
-      );
-    if (!(
-      queue.version === 1 &&
-      queue.consoleId === profile.id &&
-      queue.psIp === profile.ip &&
-      (terminalQueue || awaitingService)
-    ))
-      throw createError({
-        statusCode: 409,
-        message: 'У PS5 есть незавершённые задания. Дождитесь их завершения',
-      });
-  }
+  if (!queue) return false;
+  const settled = (item: any) =>
+    ['installed', 'failed', 'skipped', 'cancelled'].includes(item.state) &&
+    !item.observationStoppedAt;
+  const terminalQueue =
+    ['idle', 'completed', 'failed', 'cancelled'].includes(queue.status) &&
+    Array.isArray(queue.items) &&
+    queue.items.every(settled);
+  // An already authorised queue waiting for a missing service can resume.
+  // Never reclassify a partial transfer or a dispatched Sony task as idle.
+  const awaitingService =
+    ['running', 'paused'].includes(queue.status) &&
+    Array.isArray(queue.items) &&
+    queue.items.every(
+      (item: any) =>
+        settled(item) ||
+        (['pending', 'waiting'].includes(item.state) &&
+          item.bytesSent === 0 &&
+          !item.installDispatched &&
+          !item.observationStoppedAt),
+    );
+  return !(
+    queue.version === 1 &&
+    queue.consoleId === profile.id &&
+    queue.psIp === profile.ip &&
+    (terminalQueue || awaitingService)
+  );
+}
+/** `serviceDown`: nothing answers on the service port, so a start cannot race
+ * a live transfer. Unfinished items then wait for the started service, which
+ * resumes or re-checks them without sending anything again. */
+function assertIdle(profile: ReturnType<typeof target>, serviceDown = false) {
+  assertDesktopWritable();
+  assertNoConsoleSpeedTest(profile.id);
+  assertNoPs5ServiceUpdate(profile.id);
+  if (!serviceDown && queueBlocksStart(profile))
+    throw createError({
+      statusCode: 409,
+      message: 'У PS5 есть незавершённые задания. Дождитесь их завершения',
+    });
 }
 function servicePortConnects(ip: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
@@ -525,7 +531,10 @@ export async function beginPs5ServiceStart(
       message: 'Проверьте результат прежнего запуска. Повтор не отправлен',
     });
   assertTarget(profile);
-  assertIdle(profile);
+  // Only when unfinished items would block: is the service process gone?
+  const serviceDown =
+    queueBlocksStart(profile) && !(await servicePortConnects(profile.ip).catch(() => true));
+  assertIdle(profile, serviceDown);
   let artifact: Awaited<ReturnType<typeof readPs5ServiceArtifact>> | undefined;
   try {
     artifact = await readPs5ServiceArtifact();
@@ -545,7 +554,7 @@ export async function beginPs5ServiceStart(
     });
   // Re-check after reading files. The lock is shared with updates and the Windows master.
   assertTarget(profile);
-  assertIdle(profile);
+  assertIdle(profile, serviceDown);
   const changed = previousForTarget(profile);
   if (changed && !terminal(changed.state))
     throw createError({ statusCode: 409, message: 'Другой клиент уже запускает службу PS5' });
@@ -611,7 +620,7 @@ export async function beginPs5ServiceStart(
           });
   void runPs5ServiceLaunch(flow, {
     assertTarget: () => assertTarget(profile),
-    assertIdle: () => assertIdle(profile),
+    assertIdle: () => assertIdle(profile, serviceDown),
     health: readHealth,
     manager: () => manager(profile, release),
     register: async () => {
@@ -621,7 +630,7 @@ export async function beginPs5ServiceStart(
         if (await readHealth()) throw new Error('Служба уже отвечает. Сохранение не отправлено');
         assertOtherRouteAllowed();
         assertTarget(profile);
-        assertIdle(profile);
+        assertIdle(profile, serviceDown);
       });
       writeDurableJson(receiptPath(profile.id), {
         consoleId: profile.id,
