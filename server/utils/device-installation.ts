@@ -516,13 +516,10 @@ async function previewResolvedDeviceInstall(
             profile.verified &&
             items.every((item) => profile.capabilities.formats.includes(contentFormat(item))) &&
             unknownInstalled.length > 0 &&
-            unknownInstalled.every(
-              ({ item, check }) =>
-                check.transient === true &&
-                item.type !== 'DLC' &&
-                item.installOrder === 0 &&
-                ['folder', 'ufs2', 'exfat', 'pfs', 'ffpfsc'].includes(contentFormat(item)),
-            );
+            // A temporary failure (e.g. the PS5 is receiving a package) does not
+            // block: the queue checks each package again before sending it and
+            // waits while the check is unavailable.
+            unknownInstalled.every(({ check }) => check.transient === true);
           const installedReason = pendingInstalledCheck
             ? ''
             : (

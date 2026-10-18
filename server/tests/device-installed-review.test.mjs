@@ -276,20 +276,13 @@ test(
       mode = 'temporary';
       const unavailableDlc = (await api.previewDeviceInstall({ packageIds: [dlc.id] }, targets))
         .devices[0];
-      assert.equal(
-        unavailableDlc.eligible,
-        false,
-        'DLC is not admitted by a transient connection error',
-      );
+      // A transient check waits in the queue for every format: the queue checks
+      // each package again before sending and sends nothing while unavailable.
+      assert.equal(unavailableDlc.eligible, true, unavailableDlc.reason);
       const mixedPatch = (
         await api.previewDeviceInstall({ packageIds: [image.id, patch.id] }, targets)
       ).devices[0];
-      assert.equal(
-        mixedPatch.eligible,
-        false,
-        'a temporary PKG patch check still blocks the mixed selection',
-      );
-      assert.equal(mixedPatch.warning, undefined);
+      assert.equal(mixedPatch.eligible, true, mixedPatch.reason);
       mode = 'known';
       const unsupportedDlc = (await api.previewDeviceInstall({ packageIds: [dlc.id] }, targets))
         .devices[0];
