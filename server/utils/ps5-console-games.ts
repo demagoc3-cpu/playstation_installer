@@ -351,8 +351,11 @@ export async function ps5ConsoleGameCommand(
             !current.canManageSource)))
     )
       throw fail('Источник приложения PackageFlow не подтверждён для обновления');
+    // Uninstall goes to the PS5 for any registered title: the service refuses
+    // what it may not remove and the user sees that answer. The bundled app
+    // updater keeps its own narrower rule.
     if (
-      (action === 'uninstall' && !current.canUninstall && !ownOrphan) ||
+      (bundledUpdate && action === 'uninstall' && !current.canUninstall && !ownOrphan) ||
       (!['launch', 'stop', 'uninstall'].includes(action) && !current.canManageSource)
     )
       throw fail('Эта операция недоступна для выбранной игры');

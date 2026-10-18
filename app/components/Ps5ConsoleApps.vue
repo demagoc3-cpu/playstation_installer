@@ -577,12 +577,7 @@ onBeforeUnmount(() => {
               ><button @click="details(row)">{{ t('Сведения') }}</button
               ><button
                 class="danger"
-                :disabled="
-                  pending ||
-                  preparing ||
-                  !sourceControl ||
-                  (!row.canUninstall && !row.canManageSource)
-                "
+                :disabled="pending || preparing || !sourceControl"
                 @click="prepare(row, row.canManageSource ? 'delete' : 'uninstall')"
               >
                 {{ t('Удалить') }}
@@ -759,7 +754,7 @@ onBeforeUnmount(() => {
               >
                 {{ t(labels[a]) }}</button
               ><button
-                :disabled="pending || preparing || !sourceControl || !info.canUninstall"
+                :disabled="pending || preparing || !sourceControl"
                 @click="prepare(info, 'uninstall')"
               >
                 {{ t('Удалить регистрацию') }}
