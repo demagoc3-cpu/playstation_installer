@@ -25,6 +25,7 @@ import type {
   ConsoleCapabilities,
   ConsolePlatform,
 } from '../../shared/types/consoles';
+import { ps5BuildQualified } from './ps5-qualified-builds';
 
 const profilePath = () => dataPath('console-profiles.json');
 const keyPath = () => dataPath('ps5-service-keys.json');
@@ -534,7 +535,7 @@ function validPs5Health(response: { status: number; body: any }) {
   );
 }
 const claimsKnownEmbeddedBuild = (response: { status: number; body: any }) =>
-  response.body?.serviceReport?.buildId === 'ps5-service-pkg-context-029c-sse2';
+  ps5BuildQualified(response.body?.serviceReport?.buildId);
 
 function embeddedRuntime(
   response: { status: number; body: any },
@@ -547,7 +548,7 @@ function embeddedRuntime(
     report.platform !== 'ps5' ||
     report.consoleVerified !== true ||
     report.version !== '0.1.29-dev' ||
-    report.buildId !== 'ps5-service-pkg-context-029c-sse2' ||
+    !ps5BuildQualified(report.buildId) ||
     body.backend !== 'embedded' ||
     body.pkgBackendVersion !== '1.4.0-embedded-029' ||
     body.firmwareRead !== true ||

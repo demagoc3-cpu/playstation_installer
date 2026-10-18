@@ -44,6 +44,9 @@ function ufs2(param) {
   return b;
 }
 
+// Services before 029d cannot clear an orphaned registration after deletion.
+let serviceBuild = 'ps5-service-pkg-context-029d-sse2';
+
 test('an own PS5 image whose source was deleted can be installed again; a store game with the same shape cannot', async () => {
   const work = mkdtempSync(join(tmpdir(), 'pf-ps5-image-reinstall-')),
     oldData = process.env.PACKAGEFLOW_DATA_DIR,
@@ -177,6 +180,7 @@ test('an own PS5 image whose source was deleted can be installed again; a store 
             platform: 'ps5',
             consoleVerified: true,
             version: '0.1.29-dev',
+            buildId: serviceBuild,
           },
         });
       if (path === '/api/v1/capabilities')
@@ -392,6 +396,7 @@ test('an image installed by another WEB is reinstallable on service proof; block
             platform: 'ps5',
             consoleVerified: true,
             version: '0.1.29-dev',
+            buildId: serviceBuild,
           },
         });
       if (path === '/api/v1/capabilities')
@@ -473,6 +478,14 @@ test('an image installed by another WEB is reinstallable on service proof; block
     assert.match(row('192.0.2.8').reinstallReason, /Разрешите изменение файлов игр/);
     assert.equal(row('192.0.2.9').canOverwrite, false);
     assert.match(row('192.0.2.9').reinstallReason, /не управляет/);
+
+    // 029c would delete the files and then refuse to clear the registration.
+    serviceBuild = 'ps5-service-pkg-context-029c-sse2';
+    const old = await api.previewDeviceInstall({ packageIds: [image.id] }, ids);
+    const oldRow = old.devices.find((d) => d.profile.ip === '192.0.2.7').installedPackages[0];
+    assert.equal(oldRow.canOverwrite, false);
+    assert.match(oldRow.reinstallReason, /029d/);
+    serviceBuild = 'ps5-service-pkg-context-029d-sse2';
 
     managed = profiles.find((p) => p.ip === '192.0.2.7');
     const device = preview.devices.find((d) => d.profile.id === managed.id);

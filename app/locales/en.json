@@ -2864,5 +2864,6 @@
   "Приставка уже выполняет системную установку. Дождитесь результата или снимите ожидание в «Заданиях», затем удалите устройство": "The console is already running the system installation. Wait for the result or dismiss the waiting in “Tasks”, then remove the device",
   "С этой PS5 сейчас выполняется операция с сохранениями, играми или службой. Дождитесь её окончания": "An operation with saves, games or the service is running on this PS5. Wait for it to finish",
   "На этом устройстве идёт установка. Остановите или отмените её в «Заданиях», затем удалите устройство": "An installation is running on this device. Stop or cancel it in “Tasks”, then remove the device",
-  "На этой PS4 идёт обновление службы. Дождитесь его окончания": "A service update is running on this PS4. Wait for it to finish"
+  "На этой PS4 идёт обновление службы. Дождитесь его окончания": "A service update is running on this PS4. Wait for it to finish",
+  "Для переустановки обновите службу PS5 до сборки 029d или новее: «Сервис ▾» → «Проверить обновления»": "To reinstall, update the PS5 service to build 029d or later: “Service ▾” → “Check for updates”"
 }

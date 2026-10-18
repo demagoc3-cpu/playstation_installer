@@ -1,6 +1,7 @@
 import { lstatSync, readFileSync } from 'node:fs';
 import { dataPath } from './data-path';
 import type { ConsoleCapabilities, ContentFormat } from '../../shared/types/consoles';
+import { ps5BuildQualified } from './ps5-qualified-builds';
 
 const formats = ['folder', 'ufs2', 'exfat', 'pfs', 'ffpfsc'] as const;
 export interface Ps5QualifiedRoutes {
@@ -24,7 +25,7 @@ export function readPs5QualifiedRoutes(
       saved.consoleId !== consoleId ||
       saved.ip !== ip ||
       saved.firmware !== '13.60' ||
-      saved.serviceBuild !== 'ps5-service-pkg-context-029c-sse2' ||
+      !ps5BuildQualified(saved.serviceBuild) ||
       saved.serviceVersion !== '0.1.29-dev' ||
       saved.folderProtocol !== 'folder-stream-v2' ||
       saved.imageProtocol !== 'image-registration-v1' ||

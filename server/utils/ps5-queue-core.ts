@@ -360,11 +360,14 @@ export class Ps5QueueRunner {
   }
   private async run() {
     while (this.queue.status === 'running') {
-      // An unconfirmed result holds only its own game (patches/DLC wait for the
-      // base); other games keep moving. Unconfirmed items are re-checked when
-      // nothing else can run.
+      // An unconfirmed base holds only its own game (patches/DLC need the
+      // base); an unconfirmed patch or DLC holds nothing, since the base is
+      // already confirmed. Unconfirmed items are re-checked when nothing else
+      // can run.
       const held = new Set(
-        this.queue.items.filter((entry) => entry.state === 'unconfirmed').map((e) => e.branch),
+        this.queue.items
+          .filter((entry) => entry.state === 'unconfirmed' && entry.order === 0)
+          .map((e) => e.branch),
       );
       const item =
         this.queue.items.find(

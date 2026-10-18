@@ -33,6 +33,7 @@ import { ps5QueueDriver } from './ps5-queue-driver';
 import { assessPs5SourceFirmware } from './ps5-installation-firmware';
 import type { LibraryInstallationSelection } from './library-installation';
 import type { Ps5SpaceItem } from '../../shared/ps5-installation-space';
+import { ps5BuildClearsOwnOrphans } from './ps5-qualified-builds';
 const runners = new Map<string, Ps5QueueRunner>();
 const path = (id: string) => dataPath(`consoles/${id}/ps5-installation-queue.json`);
 function validItems(value: unknown): value is Ps5Item[] {
@@ -291,10 +292,11 @@ export async function startPs5Queue(input: {
         item.installOrder === 0
           ? await ps5ConsoleGameInfo(profile.id, item.titleId).catch(() => undefined)
           : undefined;
+      const cleansOrphans = ps5BuildClearsOwnOrphans(snapshot.serviceBuild);
       const replaceable =
         current?.installed === true &&
         ((current.sourceAvailable === false && own.has(item.titleId)) ||
-          (current.canManageSource === true && sourceControl));
+          (current.canManageSource === true && sourceControl && cleansOrphans));
       if (!replaceable)
         throw createError({
           statusCode: 409,

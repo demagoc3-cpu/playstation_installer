@@ -277,6 +277,30 @@ test('an unconfirmed game does not stop other games in the queue', async () => {
   assert.equal(a.q.items[1].state, 'installed');
 });
 
+test('an unconfirmed patch does not hold the DLC of its installed game', async () => {
+  let finish = false;
+  const a = make({
+    async run(item, signal, save) {
+      if (item.packageId === 'patch') {
+        save({ state: 'installing', installDispatched: true });
+        if (!finish) throw new api.Ps5QueueUncertain('unknown');
+      }
+      return { state: 'installed' };
+    },
+    async cancel() {},
+  });
+  a.runner.enqueue([
+    input('base'),
+    input('patch', 'ps5:PPSA95001', 1),
+    input('dlc', 'ps5:PPSA95001', 2),
+  ]);
+  await wait(() => a.q.items[2].state === 'installed');
+  assert.equal(a.q.items[0].state, 'installed');
+  assert.equal(a.q.items[1].state, 'unconfirmed', 'the patch still waits for its result');
+  finish = true;
+  await wait(() => a.q.status === 'completed');
+});
+
 test('durable write failure prevents dispatch and does not crash the WEB worker', async () => {
   let dispatched = 0,
     durable;
