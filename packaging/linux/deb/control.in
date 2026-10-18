@@ -1,0 +1,13 @@
+Package: packageflow
+Version: @VERSION@-@REVISION@
+Architecture: amd64
+Maintainer: PackageFlow <packageflow@localhost>
+Installed-Size: @SIZE@
+Depends: python3 (>= 3.10), python3-gi, gir1.2-gtk-3.0, systemd
+Recommends: gir1.2-webkit2-4.1, zenity, xvfb, gnome-shell-extension-appindicator | plasma-workspace | xfce4-statusnotifier-plugin
+Section: utils
+Priority: optional
+Description: PackageFlow — library and installation service for PS4/PS5
+ Runs the PackageFlow WEB server as a systemd user service with a tray icon
+ and an application window. Includes the verified console bundle
+ (PS5 service @ELF@, PS5 app @APP@, PS4 service @PS4@) and Node.js @NODE@.

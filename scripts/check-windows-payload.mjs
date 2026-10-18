@@ -4,7 +4,12 @@ import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 const root = resolve(process.argv[2] || 'dist/windows/payload'),
   version = process.argv[3] || '1.10.15';
-const unifiedPs5 = version === '1.10.27';
+// 1.10.27 and later ship the unified PS5 service; each release pins its bundle
+// in packaging/windows/console-bundle-<version>.json.
+const unifiedPs5 = (() => {
+  const [major, minor, patch] = version.split('.').map(Number);
+  return major > 1 || (major === 1 && (minor > 10 || (minor === 10 && patch >= 27)));
+})();
 let files = 0,
   total = 0;
 async function check(dir) {
@@ -45,13 +50,13 @@ const bundle = JSON.parse(await readFile(join(root, 'console-setup/manifest.json
 const pinned = unifiedPs5
   ? JSON.parse(
       await readFile(
-        new URL('../packaging/windows/console-bundle-1.10.27.json', import.meta.url),
+        new URL(`../packaging/windows/console-bundle-${version}.json`, import.meta.url),
         'utf8',
       ),
     )
   : undefined;
 if (pinned && !isDeepStrictEqual(bundle, pinned))
-  throw Error('Console bundle differs from the pinned Windows 1.10.27 manifest');
+  throw Error(`Console bundle differs from the pinned Windows ${version} manifest`);
 const expected = pinned
   ? Object.fromEntries(
       ['ps4', 'elf', 'app'].map((role) => [

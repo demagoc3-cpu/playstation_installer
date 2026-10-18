@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+if [ "$1" = "configure" ]; then
+  cat <<'EOF'
+PackageFlow установлен. Запустите «PackageFlow» из меню приложений: при первом
+запуске включатся служба packageflow.service (systemd --user) и значок в трее.
+Без графического окружения: packageflow --install-service
+После обновления пакета перезапустите службу из меню трея или командой:
+  systemctl --user restart packageflow.service
+EOF
+fi
+exit 0

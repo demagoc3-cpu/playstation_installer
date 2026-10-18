@@ -1,0 +1,10 @@
+#!/bin/sh
+# AppImage entry point. The runtime sets APPIMAGE (path of the .AppImage file);
+# the systemd unit and login autostart start that file again with --server/--tray.
+HERE="$(dirname "$(readlink -f "$0")")"
+export PACKAGEFLOW_ROOT="$HERE/usr/lib/packageflow"
+if ! command -v "${PACKAGEFLOW_PYTHON:-python3}" >/dev/null 2>&1; then
+  echo "PackageFlow: нужен python3 (есть во всех настольных Ubuntu/Debian/Fedora)." >&2
+  exit 1
+fi
+exec "${PACKAGEFLOW_PYTHON:-python3}" -I "$PACKAGEFLOW_ROOT/app/main.py" "$@"

@@ -8,7 +8,7 @@ on:
       version:
         description: 'Installer version (three numbers, for example 1.11.0)'
         required: true
-        default: '1.10.15'
+        default: '1.10.28'
   push:
     tags: ['v*']
 permissions:
@@ -32,7 +32,11 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:GITHUB_REF_NAME.TrimStart('v') } else { $env:INPUT_VERSION }
-          ./packaging/windows/build.ps1 -Version $version
+          # The PS5/PS4 binaries come from the release console-bundle-<version>,
+          # verified against packaging/windows/console-bundle-<version>.json.
+          node scripts/fetch-console-bundle.mjs $version dist/console-bundle
+          if ($LASTEXITCODE) { throw 'Console bundle download failed' }
+          ./packaging/windows/build.ps1 -Version $version -Ps5Bundle (Resolve-Path dist/console-bundle).Path
           Get-FileHash dist/windows/PackageFlowSetup-*-x64.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($_.Path))" } | Set-Content dist/windows/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:

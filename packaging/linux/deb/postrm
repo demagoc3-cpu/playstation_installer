@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+  cat <<'EOF'
+PackageFlow удалён. Уже запущенная служба пользователя завершится при выходе из
+системы; остановить сразу: systemctl --user stop packageflow.service
+Данные WEB и настройки сохранены в ~/.local/share/PackageFlow и ~/.config/PackageFlow.
+EOF
+fi
+exit 0

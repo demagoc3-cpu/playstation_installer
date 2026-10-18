@@ -1,0 +1,12 @@
+{
+  "node": {
+    "version": "22.23.3",
+    "archive": "node-v22.23.3-linux-x64.tar.xz"
+  },
+  "appimageRuntime": {
+    "url": "https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64",
+    "sha256": "156f4bdbde9c52d01814600013e0a273f0118dc2de98975f3c8c63427ec79074",
+    "note": "Pinned on first download; later builds refuse a different runtime."
+  },
+  "note": "Version, WEB commit and console bundle come from build.py arguments; see packaging/linux/README.md"
+}

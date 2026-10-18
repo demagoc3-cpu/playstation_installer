@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "elf": {
+    "fileName": "PackageFlowService-PS5.elf",
+    "size": 4132248,
+    "sha256": "b37f91cbc6bb9f550187cf8d9f5b7654c802c0abb7f625e615553275ff7937fd",
+    "version": "0.1.29-dev",
+    "buildId": "ps5-service-pkg-context-029d-sse2",
+    "firmware": "13.60"
+  },
+  "app": {
+    "fileName": "PPSA95001-01.000.044.ffpkg",
+    "size": 22020096,
+    "sha256": "7ecf378d3c49c30dfdbf6a692432cf2e276fd340ce98d6bf6b31c15e046b3612",
+    "name": "PackageFlow",
+    "titleId": "PPSA95001",
+    "contentId": "IV0000-PPSA95001_00-PACKAGEFLOWUI001",
+    "version": "01.000.044",
+    "format": "ufs2",
+    "buildId": "6c32b25"
+  },
+  "ps4": {
+    "fileName": "PackageFlowService-2.14.pkg",
+    "size": 6619136,
+    "sha256": "83995a02c90e8dc6fb775243f911573dc3e2b0acd390e0f3d2d591c1dc554abf",
+    "name": "PackageFlow",
+    "titleId": "PFLS00001",
+    "version": "2.14"
+  }
+}

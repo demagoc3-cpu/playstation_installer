@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=PackageFlow
+GenericName=PS4/PS5 Package Manager
+GenericName[ru]=Установка игр на PS4 и PS5
+Comment=Library, installation and service for PlayStation consoles
+Comment[ru]=Библиотека, установка и служба для приставок PlayStation
+Exec=packageflow
+Icon=packageflow
+Terminal=false
+Categories=Utility;
+Keywords=PS4;PS5;PlayStation;PKG;
+StartupNotify=true
+StartupWMClass=io.packageflow.PackageFlow

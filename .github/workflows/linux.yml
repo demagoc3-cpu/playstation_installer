@@ -1,0 +1,48 @@
+name: Linux packages
+# Builds the .deb and AppImage from this repository like the Windows installer:
+# WEB from source, the Linux desktop shell from apps/linux-desktop and the
+# pinned console bundle from the console-bundle-<version> release.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (three numbers, for example 1.10.28)'
+        required: true
+        default: '1.10.28'
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-gdkpixbuf-2.0 librsvg2-common squashfs-tools dpkg-dev
+      - name: Version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then v="${GITHUB_REF_NAME#v}"; else v="$INPUT_VERSION"; fi
+          echo "value=$v" >> "$GITHUB_OUTPUT"
+      - name: Desktop shell tests
+        run: python3 -m unittest discover -s apps/linux-desktop/tests
+      - name: Console bundle
+        run: node scripts/fetch-console-bundle.mjs "${{ steps.version.outputs.value }}" dist/console-bundle
+      - name: Build .deb and AppImage
+        run: python3 packaging/linux/build.py --version "${{ steps.version.outputs.value }}" --bundle dist/console-bundle
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PackageFlow-Linux-x64
+          if-no-files-found: error
+          path: |
+            dist/linux/packageflow_*_amd64.deb
+            dist/linux/PackageFlow-*-x86_64.AppImage
+            dist/linux/SHA256SUMS
