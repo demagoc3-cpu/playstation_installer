@@ -106,6 +106,20 @@ async function request(path: string, body: Record<string, unknown>) {
     pending.value = false;
   }
 }
+async function forget() {
+  const id = draft.id;
+  if (
+    !id ||
+    !confirm(
+      t(
+        'Удалить устройство из WEB? Ключ сопряжения будет удалён с этого компьютера. Игры и файлы на приставке сохранятся.',
+      ),
+    )
+  )
+    return;
+  await request('forget', { id, confirmed: true });
+  if (!message.value) showCreate.value = false;
+}
 async function restartService(profile: ConsoleProfiles['consoles'][number]) {
   if (
     pending.value ||
@@ -404,7 +418,9 @@ async function create() {
           </select></label
         >
         <div class="profile-actions">
-          <button type="button" @click="showCreate = false">{{ t('Отмена') }}</button
+          <button v-if="draft.id" type="button" class="danger" :disabled="pending" @click="forget">
+            {{ t('Удалить устройство') }}</button
+          ><button type="button" @click="showCreate = false">{{ t('Отмена') }}</button
           ><button class="primary" :disabled="pending">{{ t('Сохранить') }}</button>
         </div>
         <p v-if="message" role="alert">{{ t(message) }}</p>
@@ -572,5 +588,10 @@ input {
 }
 .update-dialog {
   width: min(900px, 100%);
+}
+.profile-actions .danger {
+  margin-right: auto;
+  border-color: #8b3a4a;
+  color: #ffb3c0;
 }
 </style>

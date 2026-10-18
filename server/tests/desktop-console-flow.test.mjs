@@ -665,7 +665,7 @@ test('a later same-version build or unresolved upgrade invalidates an older succ
     mode = 'installed';
     for (const path of [receiptPath(requestA), receiptPath(requestB), upgradePath])
       rmSync(path, { force: true });
-    api.forgetConsole(history.id, true);
+    await api.forgetConsole(history.id, true);
   }
 });
 test('app removal is source deletion, bound to its exact identity; replay never dispatches again', async () => {
@@ -686,15 +686,15 @@ test('app removal is source deletion, bound to its exact identity; replay never 
   assert.equal((await api.removeDesktopPs5App(p.id, '3'.repeat(32), true)).state, 'accepted');
   assert.equal(writes, 1);
 });
-test('forgetting one offline device erases its key only, and re-adding it cannot restore trusted access', () => {
-  assert.throws(() => api.forgetConsole(p.id, false), { statusCode: 400 });
+test('forgetting one offline device erases its key only, and re-adding it cannot restore trusted access', async () => {
+  await assert.rejects(api.forgetConsole(p.id, false), { statusCode: 400 });
   mkdirSync(join(data, 'ps5-save-restores'), { recursive: true });
   const pending = join(data, 'ps5-save-restores', '4'.repeat(32) + '.json');
   writeFileSync(pending, JSON.stringify({ consoleId: p.id, state: 'pending' }));
-  assert.throws(() => api.forgetConsole(p.id, true), { statusCode: 409 });
+  await assert.rejects(api.forgetConsole(p.id, true), { statusCode: 409 });
   assert.equal(api.consolePairConfigured(p.id), true, 'unfinished restoration must retain the key');
   rmSync(pending);
-  const result = api.forgetConsole(p.id, true);
+  const result = await api.forgetConsole(p.id, true);
   assert.equal(result.remotePairing, 'unchanged');
   assert.equal(result.profiles.consoles.length, 1);
   assert.equal(
