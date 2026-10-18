@@ -120,6 +120,11 @@ test('background checks never block a sending PS5 on installer hello; explicit c
       calls.includes('/api/v1/install/readiness'),
       'an explicit full check stays fresh during a transfer',
     );
+    calls = [];
+    const review = (await api.refreshConsoleProfileForInstall(profile.id, 'pkg')).consoles[0];
+    assert.deepEqual(calls, [], 'install review and queue additions never compete with the data');
+    assert.equal(review.online, true);
+    assert.equal(review.capabilitiesDeferred, true);
     pid++;
     calls = [];
     const replacedQuiet = (await api.probeConsoleProfile(profile.id, true)).consoles[0];

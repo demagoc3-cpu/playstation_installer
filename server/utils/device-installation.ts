@@ -4,7 +4,7 @@ import { createError } from 'h3';
 import {
   getConsoleProfile,
   getConsoleProfiles,
-  refreshConsoleProfile,
+  refreshConsoleProfileForInstall,
   refreshConsoleProfiles,
 } from './console-profiles';
 import {
@@ -339,10 +339,10 @@ async function previewResolvedDeviceInstall(
       await Promise.all(
         destinations
           .slice(offset, offset + 8)
-          .map((id) => refreshConsoleProfile(id, true, false, scope)),
+          .map((id) => refreshConsoleProfileForInstall(id, scope)),
       );
   // An explicit installation review must not reuse a cached failed PS5 probe.
-  else await refreshConsoleProfiles(true, scope);
+  else await refreshConsoleProfiles(true, scope, false, true);
   const checkInstalled = installedPackagePreviewChecker();
   const size = items.reduce((sum, item) => sum + item.size, 0);
   return {
@@ -567,8 +567,10 @@ async function previewResolvedDeviceInstall(
                       .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
                   ])
                   .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
+                // The queue's package set, not which item is active now: a
+                // package finishing during the review must not void it.
                 queue: running
-                  ? { id: queue.id, items: queuedPackages.map((item) => item.packageId) }
+                  ? { id: queue.id, items: queue.items.map((item) => item.packageId).sort() }
                   : null,
               }),
             )

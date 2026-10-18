@@ -1070,10 +1070,29 @@ export function setPs5ServiceAutoStart(handler: (id: string) => Promise<void>) {
   ps5AutoStart = handler;
 }
 /** No device-count limit; bound the number of simultaneous network probes. */
+/** Install review and adding to a queue while this PS5 receives our own
+ * package: reuse its last verified state. A full probe would compete with the
+ * package data on the PS5's single handler and time out; a manual check still
+ * probes it. */
+export function refreshConsoleProfileForInstall(id: string, scope: Ps5ProbeScope = 'full') {
+  const profile = getConsoleProfile(id),
+    previous = snapshots.get(profile.id);
+  if (
+    profile.platform === 'ps5' &&
+    previous?.online &&
+    previous.paired &&
+    ps5TransferInProgress(profile.id)
+  ) {
+    snapshots.set(profile.id, { ...previous, checkedAt: Date.now(), capabilitiesDeferred: true });
+    return Promise.resolve(getConsoleProfiles());
+  }
+  return refreshConsoleProfile(id, true, false, scope);
+}
 export async function refreshConsoleProfiles(
   freshPs5 = false,
   scope: Ps5ProbeScope = 'full',
   includeRecentOffline = false,
+  installReview = false,
 ) {
   // A console found offline in the last minute is not waited on again by bulk
   // checks (install review, periodic refresh); explicit per-device checks and
@@ -1094,7 +1113,11 @@ export async function refreshConsoleProfiles(
       while (next < profiles.length) {
         const profile = profiles[next++]!,
           foreground = freshPs5 && profile.platform === 'ps5';
-        await refreshConsoleProfile(profile.id, foreground, !foreground, scope).catch(() => {});
+        await (
+          installReview && foreground
+            ? refreshConsoleProfileForInstall(profile.id, scope)
+            : refreshConsoleProfile(profile.id, foreground, !foreground, scope)
+        ).catch(() => {});
       }
     }),
   );

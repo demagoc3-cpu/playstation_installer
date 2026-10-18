@@ -7,7 +7,11 @@ import { latestInstallationAttempts } from '../../shared/latest-installation-att
 import { assertNoPs5ServiceUpdate } from './ps5-service-updates';
 import { assertNoPs5Bootstrap } from './ps5-bootstrap-journal';
 import { writeDurableJson } from './durable-json';
-import { getConsoleProfile, getConsoleProfiles, probeConsoleProfile } from './console-profiles';
+import {
+  getConsoleProfile,
+  getConsoleProfiles,
+  refreshConsoleProfileForInstall,
+} from './console-profiles';
 import { getLibraryPackages, getPackage, markPackageInstalled } from './package-library';
 import {
   contentBranchKey,
@@ -259,9 +263,8 @@ export async function startPs5Queue(input: {
     throw createError({ statusCode: 400, message: 'Выберите пакеты для установки' });
   const items = [...new Set(ids as string[])].map((id) => getPackage(id));
   const snapshot = (
-    await probeConsoleProfile(
+    await refreshConsoleProfileForInstall(
       profile.id,
-      false,
       items.every((item) => contentFormat(item) === 'pkg') ? 'pkg' : 'full',
     )
   ).consoles.find((p) => p.id === profile.id)!;
