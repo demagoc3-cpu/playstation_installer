@@ -9,7 +9,11 @@ on:
       version:
         description: 'Package version (three numbers, for example 1.10.28)'
         required: true
-        default: '1.10.28'
+        default: '1.10.29'
+      attach:
+        description: 'Attach the build to the existing release vX.Y.Z'
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       version:
@@ -62,10 +66,10 @@ jobs:
             dist/linux/PackageFlow-*-x86_64.AppImage
             dist/linux/SHA256SUMS
       - name: Attach to the release
-        if: inputs.console-artifact != '' && github.ref_type == 'tag'
+        if: (inputs.console-artifact != '' && github.ref_type == 'tag') || inputs.attach
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: v${{ inputs.version }}
         run: |
           cp dist/linux/SHA256SUMS dist/linux/SHA256SUMS-linux.txt
           gh release upload "$TAG" --clobber dist/linux/packageflow_*_amd64.deb dist/linux/PackageFlow-*-x86_64.AppImage dist/linux/SHA256SUMS-linux.txt

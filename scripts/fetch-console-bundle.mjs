@@ -4,9 +4,9 @@
 //
 //   node scripts/fetch-console-bundle.mjs <version> <destination>
 //
-// Pin: packaging/windows/console-bundle-<version>.json, or the newest older
-// pin when this version has none, so tagging v1.10.29 reuses the 1.10.28
-// console files without a new pin.
+// Pin: packaging/windows/console-bundle-<version>.json, else the
+// console-bundle.json that release.yml attached to the release vX.Y.Z, else
+// the newest older committed pin.
 //
 // Files: one GitHub release per version (vX.Y.Z) carries everything. Each
 // pinned file is taken from the release of this version when it is attached
@@ -32,14 +32,6 @@ const older = (a, b) => {
   for (let i = 0; i < 3; ++i) if (x[i] !== y[i]) return x[i] < y[i];
   return false;
 };
-const pinVersion = (await readdir(pins))
-  .map((name) => name.match(/^console-bundle-(\d+\.\d+\.\d+)\.json$/)?.[1])
-  .filter((v) => v && !older(version, v))
-  .sort((a, b) => (older(a, b) ? 1 : -1))[0];
-if (!pinVersion) throw new Error(`No console bundle pin for ${version} or older`);
-if (pinVersion !== version) console.log(`Using console bundle pin ${pinVersion} for ${version}`);
-const pinText = await readFile(new URL(`console-bundle-${pinVersion}.json`, pins), 'utf8');
-const pin = JSON.parse(pinText);
 
 const repository = process.env.GITHUB_REPOSITORY || 'demagoc3-cpu/playstation_installer';
 const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
@@ -68,6 +60,35 @@ async function allReleases() {
   releases.sort((a, b) => (a.tag_name === own ? -1 : b.tag_name === own ? 1 : 0));
   return releases;
 }
+
+const committed = (await readdir(pins))
+  .map((name) => name.match(/^console-bundle-(\d+\.\d+\.\d+)\.json$/)?.[1])
+  .filter((v) => v && !older(version, v))
+  .sort((a, b) => (older(a, b) ? 1 : -1));
+// A release built by release.yml records its bundle as console-bundle.json, so
+// a rebuild of that version packages the same console files.
+async function releasedPin() {
+  const release = (await allReleases()).find((r) => r.tag_name === `v${version}`);
+  const asset = release?.assets?.find((a) => a.name === 'console-bundle.json');
+  if (!asset) return undefined;
+  const response = await fetch(asset.url, {
+    headers: headers('application/octet-stream'),
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!response.ok) throw new Error(`console-bundle.json: download failed (${response.status})`);
+  return response.text();
+}
+let pinVersion = committed[0],
+  pinText;
+if (pinVersion !== version && (pinText = await releasedPin())) {
+  pinVersion = version;
+  console.log(`Using console-bundle.json of the release v${version}`);
+} else {
+  if (!pinVersion) throw new Error(`No console bundle pin for ${version} or older`);
+  if (pinVersion !== version) console.log(`Using console bundle pin ${pinVersion} for ${version}`);
+  pinText = await readFile(new URL(`console-bundle-${pinVersion}.json`, pins), 'utf8');
+}
+const pin = JSON.parse(pinText);
 
 async function source(role, entry) {
   if (process.env.PF_BUNDLE_BASE_URL)

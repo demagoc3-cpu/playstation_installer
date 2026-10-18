@@ -268,7 +268,8 @@ def build_web() -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("targets", nargs="*", choices=["deb", "appimage"], default=["deb", "appimage"])
+    # No default list here: Python 3.12 argparse checks it as one choice.
+    ap.add_argument("targets", nargs="*", choices=["deb", "appimage"])
     ap.add_argument("--version", required=True, help="версия как у Windows, например 1.10.28")
     ap.add_argument("--deb-revision", default="1")
     ap.add_argument("--bundle", default=os.environ.get("PF_PS5_BUNDLE", ""),
@@ -286,9 +287,10 @@ def main() -> int:
         build_web()
     node = node_runtime(pins)
     outputs = []
-    if "deb" in a.targets:
+    targets = a.targets or ["deb", "appimage"]
+    if "deb" in targets:
         outputs.append(build_deb(pins, node))
-    if "appimage" in a.targets:
+    if "appimage" in targets:
         outputs.append(build_appimage(pins, node))
     lines = [f"{sha256(p)}  {p.name}" for p in outputs]
     (DIST / "SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="utf-8")

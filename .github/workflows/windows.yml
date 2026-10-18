@@ -8,7 +8,11 @@ on:
       version:
         description: 'Installer version (three numbers, for example 1.11.0)'
         required: true
-        default: '1.10.28'
+        default: '1.10.29'
+      attach:
+        description: 'Attach the build to the existing release vX.Y.Z'
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       version:
@@ -67,9 +71,9 @@ jobs:
             dist/windows/PackageFlowSetup-*-x64.exe
             dist/windows/SHA256SUMS-windows.txt
       - name: Attach to the release
-        if: inputs.console-artifact != '' && github.ref_type == 'tag'
+        if: (inputs.console-artifact != '' && github.ref_type == 'tag') || inputs.attach
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: v${{ inputs.version }}
         run: gh release upload "$TAG" --clobber dist/windows/PackageFlowSetup-*-x64.exe dist/windows/SHA256SUMS-windows.txt
