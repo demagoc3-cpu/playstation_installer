@@ -301,6 +301,26 @@ test('an unconfirmed patch does not hold the DLC of its installed game', async (
   await wait(() => a.q.status === 'completed');
 });
 
+test('games install in the order they were added; base, patch and DLC inside a game', async () => {
+  const ran = [];
+  const a = make({
+    async run(item) {
+      ran.push(item.packageId);
+      return { state: 'installed' };
+    },
+    async cancel() {},
+  });
+  // Added: Zeta first, then Alpha with its DLC before its base.
+  a.runner.enqueue([
+    input('zeta', 'ps5:PPSA99999'),
+    input('alpha-dlc', 'ps5:PPSA00001', 2),
+    input('alpha', 'ps5:PPSA00001'),
+    input('zeta-patch', 'ps5:PPSA99999', 1),
+  ]);
+  await wait(() => a.q.status === 'completed');
+  assert.deepEqual(ran, ['zeta', 'zeta-patch', 'alpha', 'alpha-dlc']);
+});
+
 test('durable write failure prevents dispatch and does not crash the WEB worker', async () => {
   let dispatched = 0,
     durable;

@@ -24,6 +24,7 @@ import {
   ps5ServiceLaunchReceipt,
   type Ps5ServiceLaunchRecord,
 } from './ps5-service-start-driver';
+import { ps5ManifestFirmware } from './ps5-qualified-builds';
 
 const running = new Set<string>();
 const terminal = (state: string) => state === 'completed' || state === 'failed';
@@ -68,7 +69,7 @@ function validRelease(value: any): value is Ps5ServiceRelease {
     /^[a-f0-9]{64}$/.test(value.sha256 || '') &&
     /^\d+\.\d+\.\d+(?:-dev)?$/.test(value.version || '') &&
     /^[a-z0-9-]{1,64}$/.test(value.buildId || '') &&
-    value.firmware === '13.60'
+    ps5ManifestFirmware(value.firmware)
   );
 }
 function savedFlow(id: string, path = journalPath(id)): Ps5ServiceLaunchRecord | null {
@@ -81,7 +82,7 @@ function savedFlow(id: string, path = journalPath(id)): Ps5ServiceLaunchRecord |
     !/^[a-f0-9]{64}$/.test(value.sha256 || '') ||
     typeof value.version !== 'string' ||
     typeof value.buildId !== 'string' ||
-    value.firmware !== '13.60' ||
+    !ps5ManifestFirmware(value.firmware) ||
     !Number.isSafeInteger(value.startedAt) ||
     ![
       'checking',
@@ -285,7 +286,10 @@ async function serviceHealth(
 }
 function assertTarget(profile: ReturnType<typeof target>) {
   const current = target(profile.id);
-  if (current.ip !== profile.ip || (current.firmware && current.firmware !== '13.60'))
+  if (
+    current.ip !== profile.ip ||
+    (current.firmware && profile.firmware && current.firmware !== profile.firmware)
+  )
     throw createError({
       statusCode: 409,
       message: 'Адрес или прошивка PS5 изменились. Запуск остановлен',

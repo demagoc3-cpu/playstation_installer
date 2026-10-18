@@ -120,7 +120,7 @@ test('lost upload response and wrong build/firmware remain unconfirmed without r
   assert.equal(bootstrapReceipt(f, receipt(f)), true);
   for (const mutate of [
     (r) => (r.body.firmwareRead = false),
-    (r) => (r.body.firmwareRaw = '0x12600000'),
+    (r) => (r.body.firmwareRaw = 'unknown'),
     (r) => (r.body.pid = 0),
     (r) => (r.body.serviceReport.platform = 'ps4'),
     (r) => (r.body.serviceReport.consoleVerified = false),

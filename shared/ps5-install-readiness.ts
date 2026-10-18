@@ -11,11 +11,12 @@ export const ps5InstallReasons: Record<string, string> = {
 };
 
 /** The service admits a specific tested route. No image support is inferred
- * from a package installer or from the console being paired. */
+ * from a package installer or from the console being paired. Firmware does not
+ * gate it: the running service reports what it can do on its own firmware. */
 export function ps5InstallCapabilities(
   status: number,
   body: any,
-  firmware?: string,
+  _firmware?: string,
 ): ConsoleCapabilities {
   let reason = status === 404 ? 'service_update_required' : 'readiness_unavailable';
   let platforms: string[] = [];
@@ -41,10 +42,8 @@ export function ps5InstallCapabilities(
       Array.isArray(body.formats) &&
       body.formats.length === 1 &&
       body.formats[0] === 'pkg' &&
-      JSON.stringify(body.platforms) ===
-        JSON.stringify(
-          firmware === '13.60' ? ['ps4', 'ps5'] : firmware === '12.60' ? ['ps4'] : null,
-        )
+      // The service reports what it installs on its own firmware.
+      ['["ps4"]', '["ps5"]', '["ps4","ps5"]'].includes(JSON.stringify(body.platforms))
     ) {
       reason = 'ready';
       platforms = body.platforms;
@@ -53,7 +52,6 @@ export function ps5InstallCapabilities(
   const ready = reason === 'ready';
   const folder =
     status === 200 &&
-    firmware === '13.60' &&
     body?.service === 'PackageFlowService-PS5' &&
     body.schemaVersion === 1 &&
     body.folder?.schemaVersion === 1 &&
@@ -62,7 +60,6 @@ export function ps5InstallCapabilities(
     JSON.stringify(body.folder.platforms) === '["ps5"]';
   const images =
     status === 200 &&
-    firmware === '13.60' &&
     body?.service === 'PackageFlowService-PS5' &&
     body.schemaVersion === 1 &&
     body.images?.schemaVersion === 1 &&

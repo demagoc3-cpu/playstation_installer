@@ -522,7 +522,13 @@ test('only exact verified image backend admits the four formats; image patches a
         .formats,
       [],
     );
-  assert.deepEqual(api.ps5InstallCapabilities(200, body, '12.60').formats, []);
+  // Image routes the service reports are accepted on any firmware.
+  assert.deepEqual(api.ps5InstallCapabilities(200, body, '12.60').formats, [
+    'ufs2',
+    'exfat',
+    'pfs',
+    'ffpfsc',
+  ]);
   const profile = {
     platform: 'ps5',
     firmware: '13.60',

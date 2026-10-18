@@ -438,7 +438,7 @@ test('an unfinished launch on one console does not block another console or inhe
   assert.equal(one.state, 'completed');
 });
 
-test('launch completion requires the exact build, actual process, platform and qualified firmware', () => {
+test('launch completion requires the exact build, actual process, platform and a read firmware', () => {
   const flow = record();
   assert.equal(ps5ServiceLaunchReceipt(flow, receipt(flow)), true);
   for (const mutate of [
@@ -446,7 +446,7 @@ test('launch completion requires the exact build, actual process, platform and q
     (value) => (value.body.apiVersion = 'v2'),
     (value) => (value.body.pid = 0),
     (value) => (value.body.firmwareRead = false),
-    (value) => (value.body.firmwareRaw = '0x12600000'),
+    (value) => (value.body.firmwareRaw = 'unknown'),
     (value) => (value.body.serviceReport.service = 'different'),
     (value) => (value.body.serviceReport.platform = 'ps4'),
     (value) => (value.body.serviceReport.consoleVerified = false),
@@ -460,7 +460,7 @@ test('launch completion requires the exact build, actual process, platform and q
 });
 
 test('a delivered ELF remains unconfirmed when the responding process cannot prove its release', async () => {
-  for (const scenario of ['wrong-build', 'wrong-firmware', 'malformed']) {
+  for (const scenario of ['wrong-build', 'wrong-version', 'malformed']) {
     const flow = record();
     let sent = false;
     const { dependencies, calls } = harness(flow, {
@@ -469,7 +469,7 @@ test('a delivered ELF remains unconfirmed when the responding process cannot pro
         if (scenario === 'malformed') return { status: 200, body: {} };
         const response = receipt(flow);
         if (scenario === 'wrong-build') response.body.serviceReport.buildId = 'other-build';
-        if (scenario === 'wrong-firmware') response.body.firmwareRaw = '0x12600000';
+        if (scenario === 'wrong-version') response.body.serviceReport.version = '0.0.1';
         return response;
       },
     });

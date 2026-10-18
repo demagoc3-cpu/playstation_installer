@@ -186,11 +186,15 @@ export class Ps5QueueRunner {
     const known = new Set(
       this.queue.items.filter((item) => item.state !== 'cancelled').map((item) => item.packageId),
     );
+    // Games keep the order they were added in; inside one game the base comes
+    // first, then patches and DLC.
+    const rank = new Map<string, number>();
+    for (const item of items) if (!rank.has(item.branch)) rank.set(item.branch, rank.size);
     const additions = items
       .filter((item) => !known.has(item.packageId) && (known.add(item.packageId), true))
       .sort(
         (a, b) =>
-          a.branch.localeCompare(b.branch) ||
+          rank.get(a.branch)! - rank.get(b.branch)! ||
           a.order - b.order ||
           (a.appVersion || '').localeCompare(b.appVersion || '', undefined, { numeric: true }) ||
           a.fileName.localeCompare(b.fileName),
@@ -207,11 +211,16 @@ export class Ps5QueueRunner {
     if (this.queue.items.length + additions.length > 10000)
       throw new Ps5QueueFailure('В очереди может быть не больше 10000 пакетов');
     this.queue.items.push(...additions);
+    // Waiting items: games in the order they first entered this queue (a later
+    // patch joins its game), base before patches and DLC inside a game.
+    const queueRank = new Map<string, number>();
+    for (const item of this.queue.items.filter((entry) => !terminal(entry)))
+      if (!queueRank.has(item.branch)) queueRank.set(item.branch, queueRank.size);
     const waiting = this.queue.items
       .filter((item) => item.state === 'pending' && item !== this.activeItem)
       .sort(
         (a, b) =>
-          a.branch.localeCompare(b.branch) ||
+          queueRank.get(a.branch)! - queueRank.get(b.branch)! ||
           a.order - b.order ||
           (a.appVersion || '').localeCompare(b.appVersion || '', undefined, { numeric: true }),
       );

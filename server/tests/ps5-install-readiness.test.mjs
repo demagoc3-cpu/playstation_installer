@@ -352,19 +352,26 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
     for (const invalid of [
       null,
       { ...ready, formats: ['pkg', 'ffpfsc'] },
-      { ...ready, platforms: ['ps5'] },
+      { ...ready, platforms: [] },
+      { ...ready, platforms: ['ps3'] },
+      { ...ready, platforms: ['ps5', 'ps4'] },
       { ...ready, ready: 'true' },
       { ...ready, exactVersionReceipt: true },
       { ...ready, route: 'image' },
     ]) {
       assert.equal(api.ps5InstallCapabilities(200, invalid, '13.60').installation.ready, false);
     }
-    assert.equal(api.ps5InstallCapabilities(200, ready, '12.60').installation.ready, false);
+    // Firmware does not gate a route: the running service reports it.
+    assert.equal(api.ps5InstallCapabilities(200, ready, '12.60').installation.ready, true);
     assert.equal(
       api.ps5InstallCapabilities(200, { ...ready, platforms: ['ps4'] }, '12.60').installPs4,
       true,
     );
-    assert.equal(api.ps5InstallCapabilities(200, ready).installation.ready, false);
+    const fw1220 = api.ps5InstallCapabilities(200, { ...ready, platforms: ['ps5'] }, '12.20');
+    assert.equal(fw1220.installation.ready, true);
+    assert.equal(fw1220.installPs5, true);
+    assert.equal(fw1220.installPs4, false, 'only the platforms the service reports');
+    assert.equal(api.ps5InstallCapabilities(200, ready).installation.ready, true);
     readinessStatus = 404;
     profiles = (await api.probeConsoleProfile(ps5.id)).consoles;
     assert.equal(profiles[1].capabilities.installation.reason, 'service_update_required');

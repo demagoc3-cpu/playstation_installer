@@ -3,6 +3,7 @@ import { lstat, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { dataPath } from './data-path';
 import { readPs5ImageMetadata } from './ps5-content-metadata';
+import { ps5ManifestFirmware } from './ps5-qualified-builds';
 
 export interface SetupElf {
   fileName: string;
@@ -45,7 +46,7 @@ export function validateSetupManifest(v: any): SetupBundle {
         throw new Error('Неверный манифест комплекта PS5');
     }
   if (
-    v.elf.firmware !== '13.60' ||
+    !ps5ManifestFirmware(v.elf.firmware) ||
     !/^\d+\.\d+\.\d+(?:-dev)?$/.test(v.elf.version) ||
     !/^[a-z0-9-]{1,64}$/.test(v.elf.buildId) ||
     !/\.elf$/.test(v.elf.fileName)

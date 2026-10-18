@@ -284,7 +284,8 @@ test('Folder admission is independent of PKG; untested firmware and malformed re
     ),
     '',
   );
-  assert.deepEqual(api.ps5InstallCapabilities(200, body, '12.60').formats, []);
+  // A Folder route the service reports is accepted on any firmware.
+  assert.deepEqual(api.ps5InstallCapabilities(200, body, '12.60').formats, ['folder']);
   assert.deepEqual(
     api.ps5InstallCapabilities(
       200,

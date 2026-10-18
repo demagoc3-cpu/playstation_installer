@@ -20,6 +20,7 @@ import {
   type Ps5ServiceUpdateFlow,
   type UpdateConnection,
 } from './ps5-service-update-driver';
+import { ps5ManifestFirmware } from './ps5-qualified-builds';
 
 const running = new Set<string>();
 const folder = () => dataPath('ps5-service-updates');
@@ -47,7 +48,7 @@ async function release(verifyFiles = true) {
       !/^[a-z0-9-]{1,64}$/.test(value.buildId) ||
       !/^[a-f0-9]{64}$/.test(value.sha256) ||
       value.fileName !== 'PackageFlowService-PS5.elf' ||
-      value.firmware !== '13.60'
+      !ps5ManifestFirmware(value.firmware)
     )
       throw new Error('Invalid service artifact');
     const bytes = readFileSync(resolve(folder(), value.fileName));

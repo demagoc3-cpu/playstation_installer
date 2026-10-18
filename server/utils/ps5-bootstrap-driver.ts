@@ -51,24 +51,13 @@ export function bootstrapReceipt(
     Number.isSafeInteger(h.pid) &&
     h.pid > 0 &&
     h.firmwareRead === true &&
-    /^0x1360[0-9a-f]{4}$/i.test(h.firmwareRaw || '')
+    /^0x[0-9a-f]{8}$/i.test(h.firmwareRaw || '')
   );
 }
-function unsupportedBootstrapFirmware(flow: BootstrapFlow, r: { status: number; body: any }) {
-  const h = r.body,
-    s = h?.serviceReport;
-  return (
-    r.status === 200 &&
-    h?.apiVersion === 'v1' &&
-    s?.service === 'PackageFlowService-PS5' &&
-    s.platform === 'ps5' &&
-    s.consoleVerified === true &&
-    s.version === flow.version &&
-    s.buildId === flow.buildId &&
-    h.firmwareRead === true &&
-    /^0x[0-9a-f]{8}$/i.test(h.firmwareRaw || '') &&
-    !/^0x1360[0-9a-f]{4}$/i.test(h.firmwareRaw)
-  );
+/** Every firmware is accepted: the started service reports what it supports
+ * there, and WEB follows its readiness instead of a firmware list. */
+function unsupportedBootstrapFirmware(_flow: BootstrapFlow, _r: { status: number; body: any }) {
+  return false;
 }
 export async function runPs5Bootstrap(
   flow: BootstrapFlow,

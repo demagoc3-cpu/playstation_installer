@@ -114,7 +114,13 @@ const elf = {
   ...(await take(elfBuild.directory, 'PackageFlowService-PS5.elf', 'PackageFlowService-PS5.elf')),
   version: elfVersion,
   buildId: elfBuildId,
-  firmware: '13.60',
+  // Firmware the ELF was checked on, as its build declares it ("12.20,13.60");
+  // builds before that declaration were checked on 13.60.
+  firmware:
+    [elfSource.firmware]
+      .flat()
+      .filter((v) => typeof v === 'string' && /^\d{1,2}\.\d{2}$/.test(v))
+      .join(',') || '13.60',
 };
 
 // PS5 app: PackageFlow-PS5_<contentVersion>.ffpkg.

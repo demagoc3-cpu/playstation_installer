@@ -28,7 +28,7 @@ import {
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core';
 import { ps5InstallCapabilities, ps5PkgInstallMessage } from '../../shared/ps5-install-readiness';
 import { getConsoleProfile, ps5ServiceRequest } from './console-profiles';
-import { ps5BuildClearsOwnOrphans } from './ps5-qualified-builds';
+import { ps5ClearsOwnOrphans } from './ps5-qualified-builds';
 import { checkPs5InstalledPackage } from './installed-package-check';
 import { checkPs5SourceFirmware } from './ps5-installation-firmware';
 import {
@@ -290,8 +290,15 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       save,
       undefined,
       async () => {
-        const health = await ps5ServiceRequest(getConsoleProfile(consoleId).ip, '/health', signal);
-        return ps5BuildClearsOwnOrphans(health.body?.serviceReport?.buildId);
+        const ip = getConsoleProfile(consoleId).ip;
+        const health = await ps5ServiceRequest(ip, '/health', signal);
+        const capabilities = await ps5ServiceRequest(ip, '/api/v1/capabilities', signal).catch(
+          () => undefined,
+        );
+        return ps5ClearsOwnOrphans(
+          health.body?.serviceReport?.buildId,
+          capabilities?.body?.capabilities,
+        );
       },
     );
   const installedGate = async (item: Ps5Item, signal: AbortSignal) => {

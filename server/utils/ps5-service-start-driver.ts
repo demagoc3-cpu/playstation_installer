@@ -3,6 +3,7 @@ import type {
   Ps5ServiceRelease,
 } from '../../shared/types/ps5-service-start';
 import { bootstrapReceipt } from './ps5-bootstrap-driver';
+import { ps5ManifestFirmware } from './ps5-qualified-builds';
 
 export interface Ps5ServiceLaunchRecord extends Ps5ServiceStartOperation {
   ip: string;
@@ -31,7 +32,7 @@ export function ps5ServiceLaunchReceipt(
   release: Pick<Ps5ServiceRelease, 'version' | 'buildId' | 'firmware'>,
   response: { status: number; body: any },
 ) {
-  return release.firmware === '13.60' && bootstrapReceipt(release, response);
+  return ps5ManifestFirmware(release.firmware) && bootstrapReceipt(release, response);
 }
 
 /** All mutations have a durable intent. A lost response never selects another transport. */

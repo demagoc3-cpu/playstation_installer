@@ -1352,13 +1352,22 @@ function appendInstallationQueueScoped(input: {
     }
     return item;
   };
+  // Games keep the order they were first added in among unfinished items (a
+  // later patch joins its game); inside one game the base first, then patches
+  // and DLC. Finished items of earlier runs do not decide the order.
+  const rank = new Map<string, number>();
+  for (const item of queue.items.filter((entry) => ACTIVE_STATES.includes(entry.state))) {
+    const meta = packageFor(item.packageId),
+      game = meta.titleId || meta.id;
+    if (!rank.has(game)) rank.set(game, rank.size);
+  }
   const pending = queue.items
     .filter((item, index) => item.state === 'pending' && index !== queue.currentIndex)
     .sort((a, b) => {
       const left = packageFor(a.packageId),
         right = packageFor(b.packageId);
       return (
-        (left.titleId || left.id).localeCompare(right.titleId || right.id) ||
+        rank.get(left.titleId || left.id)! - rank.get(right.titleId || right.id)! ||
         left.installOrder - right.installOrder ||
         (left.appVersion || '').localeCompare(right.appVersion || '', undefined, { numeric: true })
       );

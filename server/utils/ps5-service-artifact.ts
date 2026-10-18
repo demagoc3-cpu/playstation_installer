@@ -3,6 +3,7 @@ import { lstat, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { SetupElf } from './console-setup-artifacts';
 import { dataPath } from './data-path';
+import { ps5ManifestFirmware } from './ps5-qualified-builds';
 
 export const PS5_SERVICE_ELF_FILE_NAME = 'PackageFlowService-PS5.elf';
 const MAX_ELF_BYTES = 4 * 1024 ** 2;
@@ -24,10 +25,10 @@ export function validatePs5ServiceManifest(value: unknown): SetupElf {
     !/^\d+\.\d+\.\d+(?:-dev)?$/.test(elf.version) ||
     typeof elf.buildId !== 'string' ||
     !/^[a-z0-9-]{1,64}$/.test(elf.buildId) ||
-    elf.firmware !== '13.60'
+    !ps5ManifestFirmware(elf.firmware)
   )
     throw new Error(
-      'Неверный манифест службы PS5: требуется проверенная PackageFlowService-PS5.elf для 13.60',
+      'Неверный манифест службы PS5: требуется проверенная PackageFlowService-PS5.elf',
     );
   return {
     fileName: elf.fileName,
@@ -35,7 +36,7 @@ export function validatePs5ServiceManifest(value: unknown): SetupElf {
     sha256: elf.sha256,
     version: elf.version,
     buildId: elf.buildId,
-    firmware: elf.firmware,
+    firmware: elf.firmware as string,
   };
 }
 

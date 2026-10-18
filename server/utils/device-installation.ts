@@ -47,6 +47,20 @@ import { requiredInstallSpace } from './installation-space';
 import { getPs4InstallSettings } from './ps4-install-settings';
 import { ps4TransportConflict, PS4_PARALLEL_SERVICE_REQUIRED } from './ps4-transport-admission';
 
+/** Games in the order they were added (first appearance in the selection);
+ * inside one game the base first, then patches and DLC by version. */
+function addedOrder(ids: string[]) {
+  const rank = new Map<string, number>();
+  for (const id of ids) {
+    const key = contentBranchKey(getPackage(id));
+    if (!rank.has(key)) rank.set(key, rank.size);
+  }
+  return (a: ReturnType<typeof getPackage>, b: ReturnType<typeof getPackage>) =>
+    (rank.get(contentBranchKey(a)) ?? 0) - (rank.get(contentBranchKey(b)) ?? 0) ||
+    a.installOrder - b.installOrder ||
+    (a.appVersion || '').localeCompare(b.appVersion || '', undefined, { numeric: true }) ||
+    a.fileName.localeCompare(b.fileName, undefined, { numeric: true });
+}
 export function resolveDeviceSelection(selection: DeviceSelection): string[] {
   if (
     !selection ||
@@ -618,13 +632,7 @@ export async function dispatchDeviceInstall(
   const ids = packageIds
     .filter((id) => !seen.has(id))
     .map((id) => getPackage(id))
-    .sort(
-      (a, b) =>
-        contentBranchKey(a).localeCompare(contentBranchKey(b)) ||
-        a.installOrder - b.installOrder ||
-        (a.appVersion || '').localeCompare(b.appVersion || '', undefined, { numeric: true }) ||
-        a.fileName.localeCompare(b.fileName, undefined, { numeric: true }),
-    )
+    .sort(addedOrder(packageIds))
     .map((item) => item.id);
   if (!ids.length) return queue;
   if (profile.platform === 'ps5')
@@ -694,7 +702,8 @@ export async function installDeviceBatch(
     throw createError({ statusCode: 400, message: 'Выберите устройства' });
   const targets = [...new Set(destinations)].sort();
   targets.forEach(getConsoleProfile);
-  const ids = resolveDeviceSelection(selection).sort();
+  // Selection order is the install order; the fingerprint uses a sorted copy.
+  const ids = resolveDeviceSelection(selection);
   if (
     !overwrite ||
     Array.isArray(overwrite) ||
@@ -728,7 +737,7 @@ export async function installDeviceBatch(
     .update(
       JSON.stringify({
         targets,
-        ids,
+        ids: [...ids].sort(),
         ...(Object.keys(overwriteBinding).length ? { overwrite: overwriteBinding } : {}),
         ...(Object.keys(reviewTokens).length ? { reviewTokens } : {}),
       }),
@@ -871,14 +880,7 @@ export async function installDeviceBatch(
                   approved.includes(id),
               )
               .map(getPackage)
-              .sort(
-                (a, b) =>
-                  contentBranchKey(a).localeCompare(contentBranchKey(b)) ||
-                  a.installOrder - b.installOrder ||
-                  (a.appVersion || '').localeCompare(b.appVersion || '', undefined, {
-                    numeric: true,
-                  }),
-              )
+              .sort(addedOrder(ids))
               .map((pkg) => pkg.id);
             if (!sendIds.length) {
               result.state = 'queued';

@@ -124,7 +124,8 @@ test('service artifact rejects altered bytes, non-x64 ELF, firmware, filename an
   for (const mutate of [
     (value) => (value.elf.fileName = '../PackageFlowService-PS5.elf'),
     (value) => (value.elf.fileName = 'PackageFlowInstaller-PS5.elf'),
-    (value) => (value.elf.firmware = '12.00'),
+    (value) => (value.elf.firmware = 'any'),
+    (value) => (value.elf.firmware = '13.60;rm'),
     (value) => (value.elf.size = 4 * 1024 ** 2 + 1),
     (value) => (value.elf.sha256 = 'x'.repeat(64)),
     (value) => (value.elf.sha256 = '../outside'),

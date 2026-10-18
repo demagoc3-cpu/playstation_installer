@@ -23,7 +23,8 @@ export function ps5PkgQueueSupported(
   return (
     profile.platform === 'ps5' &&
     profile.verified &&
-    profile.firmware === '13.60' &&
+    // The service read the console firmware (any version, not a fixed one).
+    !!profile.firmware &&
     profile.capabilities.installation?.reason === 'installer_unavailable' &&
     contentFormat(item) === 'pkg' &&
     contentForConsole(item, 'ps5')
