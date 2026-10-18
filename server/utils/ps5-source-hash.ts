@@ -1,5 +1,6 @@
 import type { FileHandle } from 'node:fs/promises';
 import { createBLAKE3 } from 'hash-wasm';
+import { ps5HashFileInWorker } from './ps5-hash-worker';
 
 export const ps5SourceStamp = (s: { size: number; mtimeMs: number; ino: number }) =>
   `${s.size}:${s.mtimeMs}:${s.ino}`;
@@ -14,6 +15,16 @@ export async function ps5SourceHash(
   now: () => number = Date.now,
 ) {
   signal.throwIfAborted();
+  // Off the main thread when possible: the same digest, without slowing WEB.
+  const inWorker = ps5HashFileInWorker(file.fd, size, signal, progress);
+  if (inWorker) {
+    progress(0);
+    const digest = await inWorker;
+    if (ps5SourceStamp(await file.stat()) !== identity)
+      throw new Error('Исходный файл изменился во время проверки');
+    signal.throwIfAborted();
+    return digest;
+  }
   const hash = await createBLAKE3(256),
     buffer = Buffer.alloc(1024 * 1024);
   let position = 0,
