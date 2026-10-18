@@ -20,7 +20,8 @@ export interface ConsoleCapabilities {
     route: 'staged-image';
     ready: true;
     protocol: 'image-registration-v1';
-    backend: 'ShadowMountPlus-1.7beta3';
+    /** As the service reports it, e.g. ShadowMountPlus-1.7beta3. */
+    backend: string;
     registrationReceipt: true;
   };
   installation?: {

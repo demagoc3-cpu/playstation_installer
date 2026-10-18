@@ -67,7 +67,8 @@ export function ps5InstallCapabilities(
     body.images.ready === true &&
     body.images.reason === 'ready' &&
     body.images.protocol === 'image-registration-v1' &&
-    body.images.backend === 'ShadowMountPlus-1.7beta3' &&
+    // The service checks the ShadowMount API it talks to; any version it accepts.
+    /^ShadowMountPlus-[A-Za-z0-9._-]{1,32}$/.test(body.images.backend || '') &&
     body.images.registrationReceipt === true &&
     JSON.stringify(body.images.platforms) === '["ps5"]' &&
     JSON.stringify(body.images.formats) === '["ufs2","exfat","pfs","ffpfsc"]';
@@ -100,7 +101,7 @@ export function ps5InstallCapabilities(
             route: 'staged-image' as const,
             ready: true as const,
             protocol: 'image-registration-v1' as const,
-            backend: 'ShadowMountPlus-1.7beta3' as const,
+            backend: String(body.images.backend),
             registrationReceipt: true as const,
           },
         }

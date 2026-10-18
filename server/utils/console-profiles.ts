@@ -26,6 +26,7 @@ import type {
   ConsolePlatform,
 } from '../../shared/types/consoles';
 import { ps5BuildQualified } from './ps5-qualified-builds';
+import { reconcileStalePs5StartJournals } from './ps5-bootstrap-journal';
 
 const profilePath = () => dataPath('console-profiles.json');
 const keyPath = () => dataPath('ps5-service-keys.json');
@@ -893,6 +894,8 @@ async function runConsoleProfileProbe(
       servicePid =
         Number.isSafeInteger(health.body.pid) && health.body.pid > 0 ? health.body.pid : undefined;
       serviceBuild = typeof report.buildId === 'string' ? report.buildId : undefined;
+      // A verified service answers: close old unconfirmed launch journals of this IP.
+      reconcileStalePs5StartJournals(profile.ip, serviceBuild || '');
       runtimeIdentity = embeddedRuntime(health, profile.ip);
       const raw = /^0x([0-9a-f]{2})([0-9a-f]{2})[0-9a-f]{4}$/i.exec(health.body.firmwareRaw || '');
       if (health.body.firmwareRead && raw && /^\d{2}$/.test(raw[1]!) && /^\d{2}$/.test(raw[2]!))

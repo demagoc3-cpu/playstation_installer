@@ -83,7 +83,7 @@ export async function desktopConsoleSetupInfo(id: unknown) {
       if (r.status === 200 && r.body?.service === 'PackageFlowService-PS5') {
         installReady = profile.capabilities.formats.includes(release?.app?.format);
         shadowMount =
-          r.body?.images?.backend === 'ShadowMountPlus-1.7beta3' && r.body.images.ready === true
+          /^ShadowMountPlus-/.test(r.body?.images?.backend || '') && r.body.images.ready === true
             ? true
             : null;
       }
