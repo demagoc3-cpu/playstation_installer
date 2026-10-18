@@ -45,7 +45,7 @@ function ufs2(param) {
 }
 
 // Services before 029d cannot clear an orphaned registration after deletion.
-let serviceBuild = 'ps5-service-pkg-context-029d-sse2';
+let serviceBuild = 'ps5-service-pkg-context-029e-sse2';
 
 test('an own PS5 image whose source was deleted can be installed again; a store game with the same shape cannot', async () => {
   const work = mkdtempSync(join(tmpdir(), 'pf-ps5-image-reinstall-')),
