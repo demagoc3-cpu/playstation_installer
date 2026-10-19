@@ -5,7 +5,7 @@ import {
   type ContentIdentity,
 } from './content-platform';
 import type { ConsoleProfile } from './types/consoles';
-import { ps5PkgInstallMessage } from './ps5-install-readiness';
+import { ps5PkgInstallMessage, ps5ShadowMountMessage } from './ps5-install-readiness';
 import { assessContentFirmware } from './installation-firmware';
 
 export function installationSpaceSupported(
@@ -63,7 +63,9 @@ export function deviceInstallReason(
         ),
     )
   )
-    return 'Установка этого формата ещё не подтверждена сервисом';
+    return profile.platform === 'ps5' && profile.capabilities.shadowMountUnavailable
+      ? ps5ShadowMountMessage
+      : 'Установка этого формата ещё не подтверждена сервисом';
   if (
     items.some(
       (item) =>

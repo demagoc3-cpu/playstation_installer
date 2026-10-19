@@ -2872,5 +2872,6 @@
   "PS5 в режиме покоя. Передача продолжится после пробуждения": "PS5 is in rest mode. The transfer resumes after it wakes up",
   "Передача остановилась без движения. Продолжаем с места, которое PS5 уже подтвердила": "The transfer stopped moving. Resuming from the point the PS5 already confirmed",
   "На PS5 нет места. Освободите место и запустите установку снова": "No space left on the PS5. Free up space and start the installation again",
-  "На PS5 нет места. Результат установки не подтверждён": "No space left on the PS5. The installation result is unconfirmed"
+  "На PS5 нет места. Результат установки не подтверждён": "No space left on the PS5. The installation result is unconfirmed",
+  "ShadowMount на PS5 не отвечает, поэтому Folder и образы сейчас не ставятся. Перезапустите ShadowMount или PS5, затем нажмите «Обновить» в окне установки. PKG ставятся как обычно": "ShadowMount on the PS5 is not responding, so Folder and images cannot be installed now. Restart ShadowMount or the PS5, then press “Refresh” in the installation window. PKG installs work as usual"
 }

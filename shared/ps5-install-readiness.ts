@@ -72,7 +72,16 @@ export function ps5InstallCapabilities(
     body.images.registrationReceipt === true &&
     JSON.stringify(body.images.platforms) === '["ps5"]' &&
     JSON.stringify(body.images.formats) === '["ufs2","exfat","pfs","ffpfsc"]';
+  // ShadowMount is configured (prepared) but its API does not answer.
+  const shadowMountUnavailable =
+    status === 200 &&
+    body?.service === 'PackageFlowService-PS5' &&
+    body.images?.route === 'staged-image' &&
+    body.images.prepared === true &&
+    body.images.ready === false &&
+    /^ShadowMountPlus-[A-Za-z0-9._-]{1,32}$/.test(body.images.backend || '');
   return {
+    ...(shadowMountUnavailable ? { shadowMountUnavailable: true as const } : {}),
     formats: [
       ...(ready ? ['pkg' as const] : []),
       ...(folder ? ['folder' as const] : []),
@@ -109,6 +118,9 @@ export function ps5InstallCapabilities(
     installation: { route: 'staged-pkg', ready, reason, exactVersionReceipt: false },
   };
 }
+
+export const ps5ShadowMountMessage =
+  'ShadowMount на PS5 не отвечает, поэтому Folder и образы сейчас не ставятся. Перезапустите ShadowMount или PS5, затем нажмите «Обновить» в окне установки. PKG ставятся как обычно';
 
 export function ps5InstallMessage(capabilities: ConsoleCapabilities) {
   if (capabilities.images?.ready && !capabilities.installation?.ready)

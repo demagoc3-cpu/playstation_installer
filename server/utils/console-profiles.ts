@@ -961,6 +961,8 @@ async function runConsoleProfileProbe(
                   capabilities.folder = structuredClone(previous!.capabilities.folder);
                 if (previous!.capabilities.images)
                   capabilities.images = structuredClone(previous!.capabilities.images);
+                if (previous!.capabilities.shadowMountUnavailable)
+                  capabilities.shadowMountUnavailable = true;
                 fullCheckedAt = previous?.fullCheckedAt;
               }
             } catch {

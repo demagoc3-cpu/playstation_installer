@@ -529,3 +529,86 @@ test('route readiness gates transfers, preserves PS4 and recovers accepted PS5 i
     rmSync(work, { recursive: true, force: true });
   }
 });
+
+test('a hung ShadowMount is named in the install reason; admission stays the same', async () => {
+  const work = mkdtempSync(join(tmpdir(), 'pf-shadowmount-reason-'));
+  try {
+    const bundle = join(work, 'reason.mjs');
+    await build({
+      stdin: {
+        contents: `export * from './shared/ps5-install-readiness'; export * from './shared/device-eligibility';`,
+        resolveDir: resolve('.'),
+      },
+      outfile: bundle,
+      bundle: true,
+      platform: 'node',
+      format: 'esm',
+      logLevel: 'silent',
+    });
+    const api = await import(pathToFileURL(bundle).href);
+    // The reply PS5 13.60 with service 030i gives while ShadowMount hangs.
+    const hung = {
+      service: 'PackageFlowService-PS5',
+      schemaVersion: 1,
+      route: 'staged-pkg',
+      ready: true,
+      reason: 'ready',
+      formats: ['pkg'],
+      platforms: ['ps4', 'ps5'],
+      exactVersionReceipt: false,
+      folder: {
+        schemaVersion: 1,
+        route: 'staged-folder',
+        ready: false,
+        platforms: [],
+        formats: [],
+        reason: 'backend_not_verified_or_unavailable',
+      },
+      images: {
+        schemaVersion: 1,
+        route: 'staged-image',
+        protocol: 'image-registration-v1',
+        backend: 'ShadowMountPlus-1.7beta3',
+        prepared: true,
+        ready: false,
+        reason: 'backend_not_verified_or_unavailable',
+        formats: [],
+        platforms: [],
+        registrationReceipt: false,
+      },
+    };
+    const capabilities = api.ps5InstallCapabilities(200, hung);
+    assert.equal(capabilities.shadowMountUnavailable, true);
+    assert.deepEqual(capabilities.formats, ['pkg'], 'the service still decides the formats');
+    const profile = {
+      id: 'p',
+      name: 'PS5',
+      ip: '192.168.1.5',
+      platform: 'ps5',
+      verified: true,
+      online: true,
+      paired: true,
+      firmware: '13.60',
+      capabilities,
+    };
+    const item = (format, contentType = 'PS5GD') => ({
+      platform: 'ps5',
+      format,
+      contentType,
+      size: 1,
+      installOrder: 0,
+    });
+    assert.equal(api.deviceInstallReason(profile, [item('folder')], 1), api.ps5ShadowMountMessage);
+    assert.equal(api.deviceInstallReason(profile, [item('exfat')], 1), api.ps5ShadowMountMessage);
+    assert.notEqual(api.deviceInstallReason(profile, [item('pkg')], 1), api.ps5ShadowMountMessage);
+    // Without a configured ShadowMount the old wording stays.
+    const plain = api.ps5InstallCapabilities(200, { ...hung, images: undefined });
+    assert.equal(plain.shadowMountUnavailable, undefined);
+    assert.equal(
+      api.deviceInstallReason({ ...profile, capabilities: plain }, [item('folder')], 1),
+      'Установка этого формата ещё не подтверждена сервисом',
+    );
+  } finally {
+    rmSync(work, { recursive: true, force: true });
+  }
+});

@@ -9,6 +9,9 @@ export interface ConsoleCapabilities {
   installPs5: boolean;
   background: boolean;
   contentTypes?: string[];
+  /** The service has ShadowMount set up, but it does not answer: Folder and
+   * images are unavailable until it works again. A reason only, never a gate. */
+  shadowMountUnavailable?: true;
   folder?: {
     route: 'staged-folder';
     ready: true;
