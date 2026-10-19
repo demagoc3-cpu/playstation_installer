@@ -340,7 +340,14 @@ test('PS5 Games targets a concrete profile, rejects partial/stale source data an
     sourceStatus = 503;
     await assert.rejects(api.ps5ConsoleGames('a'), /отклонила чтение/);
     sourceError = 'shadowmount_api_unavailable';
-    await assert.rejects(api.ps5ConsoleGames('a'), /API ShadowMount недоступен/);
+    const lostBackend = await api.ps5ConsoleGames('a');
+    assert.equal(lostBackend.entries[0].title, 'Fallback');
+    assert.match(lostBackend.sourceMessage, /API ShadowMount недоступен/);
+    assert.equal(lostBackend.capabilities.consoleGames, false);
+    assert.equal(lostBackend.capabilities.consoleSourcesRead, false);
+    assert.equal(lostBackend.capabilities.consoleSourceControl, false);
+    assert.equal(lostBackend.capabilities.consoleControl, true);
+    assert.equal(lostBackend.capabilities.consoleActivity, true);
     controls = false;
     const unavailable = await api.ps5ConsoleGames('a');
     assert.match(unavailable.sourceMessage, /API ShadowMount недоступен/);

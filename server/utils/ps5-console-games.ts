@@ -124,11 +124,21 @@ export async function ps5ConsoleGames(id: unknown) {
     if (reply.status !== 200) {
       const shadowUnavailable =
         reply.status === 503 && reply.body?.error === 'shadowmount_api_unavailable';
-      if (!capabilities.consoleGames && page === 0 && [404, 405, 410, 503].includes(reply.status)) {
+      if (
+        (!capabilities.consoleGames || shadowUnavailable) &&
+        page === 0 &&
+        [404, 405, 410, 503].includes(reply.status)
+      ) {
         const value = await consoleCatalog(p.id);
         return {
           ...value,
-          capabilities: { ...capabilities, consoleSourcesRead: false },
+          capabilities: {
+            ...capabilities,
+            consoleGames: false,
+            consoleSourcesRead: false,
+            consoleSourceControl: false,
+            consoleSourceControlVerified: false,
+          },
           sourceMessage: shadowUnavailable
             ? 'API ShadowMount недоступен. Процесс может быть запущен, но не отвечать. Показаны зарегистрированные игры из системной базы; сведения о папках и образах недоступны.'
             : reply.status === 503

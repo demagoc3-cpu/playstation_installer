@@ -499,6 +499,7 @@ onBeforeUnmount(() => {
       {{ t('Запуск недоступен, пока служба не подтвердит состояние запущенной игры.') }}
     </p>
     <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
+    <p v-if="sourceMessage && !busy" class="notice" role="status">{{ t(sourceMessage) }}</p>
     <p v-if="busy" role="status">{{ t('Читаем игры выбранной PS5…') }}</p>
     <section v-if="command" class="notice" aria-live="polite">
       <strong>{{ command.titleId }} · {{ t(labels[command.action] || command.action) }}</strong>
@@ -535,7 +536,7 @@ onBeforeUnmount(() => {
           <h2>
             {{ group.title }} <small>{{ group.rows.length }}</small>
           </h2>
-          <p v-if="!group.rows.length && !busy">
+          <p v-if="!group.rows.length && !busy && !(tab === 'files' && sourceMessage)">
             {{
               t(
                 tab === 'files' && !capabilities.consoleSourcesRead
