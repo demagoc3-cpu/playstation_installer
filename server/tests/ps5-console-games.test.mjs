@@ -12,6 +12,7 @@ test('PS5 Games targets a concrete profile, rejects partial/stale source data an
   let sourceControls,
     controls = true,
     sourceStatus = 200,
+    sourceError,
     badPage = false,
     commands = 0,
     lose = false,
@@ -61,6 +62,7 @@ test('PS5 Games targets a concrete profile, rejects partial/stale source data an
         return {
           status: sourceStatus,
           body: {
+            error: sourceError,
             revision: 'b'.repeat(64),
             entries: [row],
             total: badPage ? 2 : 1,
@@ -337,6 +339,18 @@ test('PS5 Games targets a concrete profile, rejects partial/stale source data an
     controls = true;
     sourceStatus = 503;
     await assert.rejects(api.ps5ConsoleGames('a'), /отклонила чтение/);
+    sourceError = 'shadowmount_api_unavailable';
+    await assert.rejects(api.ps5ConsoleGames('a'), /API ShadowMount недоступен/);
+    controls = false;
+    const unavailable = await api.ps5ConsoleGames('a');
+    assert.match(unavailable.sourceMessage, /API ShadowMount недоступен/);
+    assert.match(unavailable.sourceMessage, /Процесс может быть запущен/);
+    assert.equal(unavailable.entries[0].title, 'Fallback');
+    assert.equal(unavailable.capabilities.consoleSourcesRead, false);
+    assert.equal(unavailable.entries[0].canManageSource, false);
+    assert.equal(commands, before, 'backend error display never dispatches a mutation');
+    sourceError = undefined;
+    controls = true;
     sourceStatus = 200;
     assert.throws(() => api.normalizePs5Game({ ...row, can_manage_source: undefined }), /Неполные/);
     assert.throws(() => api.normalizePs5Game({ ...row, title_id: '../bad' }), /Некорректная/);

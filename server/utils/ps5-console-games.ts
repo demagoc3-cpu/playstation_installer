@@ -122,13 +122,16 @@ export async function ps5ConsoleGames(id: unknown) {
       'X-PackageFlow-Offset': String(offset),
     });
     if (reply.status !== 200) {
+      const shadowUnavailable =
+        reply.status === 503 && reply.body?.error === 'shadowmount_api_unavailable';
       if (!capabilities.consoleGames && page === 0 && [404, 405, 410, 503].includes(reply.status)) {
         const value = await consoleCatalog(p.id);
         return {
           ...value,
           capabilities: { ...capabilities, consoleSourcesRead: false },
-          sourceMessage:
-            reply.status === 503
+          sourceMessage: shadowUnavailable
+            ? 'API ShadowMount недоступен. Процесс может быть запущен, но не отвечать. Показаны зарегистрированные игры из системной базы; сведения о папках и образах недоступны.'
+            : reply.status === 503
               ? 'Чтение папок и образов сейчас недоступно. Обновите список после восстановления связи.'
               : 'Для чтения исходных папок и образов нужна обновлённая служба PS5.',
           entries: value.entries.map((row) => ({
@@ -145,7 +148,11 @@ export async function ps5ConsoleGames(id: unknown) {
           })),
         };
       }
-      throw fail(`PS5 отклонила чтение списка игр (${reply.status}). Обновите список.`);
+      throw fail(
+        shadowUnavailable
+          ? 'API ShadowMount недоступен. Процесс может быть запущен, но не отвечать. Обновите список после восстановления API.'
+          : `PS5 отклонила чтение списка игр (${reply.status}). Обновите список.`,
+      );
     }
     const v = reply.body;
     if (
