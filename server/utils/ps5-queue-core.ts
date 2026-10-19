@@ -49,6 +49,8 @@ export interface Ps5Item {
   installDispatched?: boolean;
   serviceJobId?: string;
   cancelRequested?: boolean;
+  /** 'done': the PS5 confirmed the cancel of this transfer and dropped its partial file. */
+  partCleanup?: 'done';
   hidden?: boolean;
   queueId?: string;
   createdAt?: number;
@@ -94,6 +96,13 @@ export interface Ps5Driver {
   ): Promise<Partial<Ps5Item>>;
   cancel(item: Ps5Item): Promise<void>;
 }
+/** A cancelled transfer that may still have a partial file on the PS5 and
+ * never reached the installer: cancel it on the PS5 to free the space. */
+export const ps5PartLeft = (item: Ps5Item) =>
+  item.state === 'cancelled' &&
+  !item.installDispatched &&
+  item.partCleanup !== 'done' &&
+  (item.bytesSent > 0 || !!item.hash);
 const terminal = (item: Ps5Item) =>
   ['installed', 'failed', 'skipped', 'cancelled'].includes(item.state);
 export const ps5CanCancel = (item: Ps5Item) => !terminal(item) && !item.installDispatched;
@@ -263,7 +272,42 @@ export class Ps5QueueRunner {
       this.queue.status = 'cancelled';
     this.save();
     this.wake();
+    void this.cleanupCancelled(true);
     return this.snapshot();
+  }
+  private cleaning?: Promise<void>;
+  private cleanedAt = 0;
+  /** How often old cancelled transfers are retried when the PS5 did not answer. */
+  static cleanupRetryMs = 5 * 60 * 1000;
+  /** Ask the PS5 to drop the partial files of cancelled transfers (one at a
+   * time, never during a transfer of this queue). A refused or unanswered
+   * cancel stays pending and is tried again later; nothing is installed. */
+  cleanupCancelled(force = false) {
+    if (this.cleaning) return this.cleaning;
+    if (!force && Date.now() - this.cleanedAt < Ps5QueueRunner.cleanupRetryMs)
+      return Promise.resolve();
+    const left = [...this.queue.items, ...this.queue.history.flat()].filter(ps5PartLeft);
+    if (!left.length) return Promise.resolve();
+    this.cleanedAt = Date.now();
+    this.cleaning = (async () => {
+      for (const item of left) {
+        if (this.activeItem || !ps5PartLeft(item)) continue;
+        try {
+          await ps5QueueContext.run(this.queue.consoleId, () => this.driver.cancel(item));
+        } catch (error) {
+          // A refusal concerns only this transfer; a lost connection, all of them.
+          if (error instanceof Ps5QueueFailure || error instanceof Ps5QueueUncertain) continue;
+          return;
+        }
+        item.partCleanup = 'done';
+        this.save();
+      }
+    })()
+      .catch(() => {})
+      .finally(() => {
+        this.cleaning = undefined;
+      });
+    return this.cleaning;
   }
   confirmInstalled(queueId: string, packageId: string) {
     const item = (
@@ -370,6 +414,7 @@ export class Ps5QueueRunner {
       })
       .finally(() => {
         this.active = undefined;
+        void this.cleanupCancelled(true);
       });
   }
   async settled() {
@@ -505,6 +550,7 @@ export class Ps5QueueRunner {
             await ps5QueueContext.run(this.queue.consoleId, () => this.driver.cancel(item));
             checkpoint({
               state: 'cancelled',
+              partCleanup: 'done',
               detail: 'Передача отменена',
               completedAt: Date.now(),
             });

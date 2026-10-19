@@ -147,6 +147,8 @@ function runner(id: string) {
     );
     runners.set(profile.id, value);
   }
+  // Partial files of cancelled transfers, also from older WEB versions.
+  void value.cleanupCancelled();
   return value;
 }
 export function getPs5Queue(id: string) {

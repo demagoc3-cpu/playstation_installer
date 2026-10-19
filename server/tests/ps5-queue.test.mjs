@@ -422,6 +422,78 @@ test('durable write failure prevents dispatch and does not crash the WEB worker'
   assert.equal(q.status, 'running', 'unknown work cannot be replaced by a new queue');
 });
 
+test('removing a paused partial transfer cancels it on the PS5; dispatched ones are not touched', async () => {
+  const cancelled = [];
+  let gate;
+  const a = make({
+    async run(item, signal, save) {
+      save({ state: 'sending', progressPhase: 'transfer', hash: 'h', bytesSent: 40 });
+      await new Promise((_, reject) => {
+        gate = reject;
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      });
+    },
+    async cancel(item) {
+      cancelled.push(item.packageId);
+    },
+  });
+  a.runner.enqueue([input('partial'), input('later', 'ps5:PPSA95002')]);
+  await wait(() => a.q.items[0].bytesSent === 40);
+  await a.runner.pause(a.q.id);
+  a.runner.cancel(a.q.id, ['partial', 'later']);
+  await a.runner.cleanupCancelled(true);
+  assert.deepEqual(cancelled, ['partial'], 'only the transfer that has data on the PS5');
+  assert.equal(a.read().items[0].partCleanup, 'done');
+  assert.equal(a.read().items[1].partCleanup, undefined);
+  void gate;
+});
+
+test('old cancelled transfers are cleaned once; refusals and lost connections stay pending', async () => {
+  const q = api.ps5BlankQueue('cleanup', '192.168.1.7');
+  const old = (id, extra = {}) => ({
+    ...input(id),
+    transferId: id.padEnd(32, '0').slice(0, 32),
+    state: 'cancelled',
+    detail: 'Убрано из очереди',
+    bytesSent: 10,
+    hash: 'h',
+    ...extra,
+  });
+  q.history = [
+    [
+      old('a'),
+      old('b'),
+      old('c', { installDispatched: true }),
+      old('d', { partCleanup: 'done' }),
+      old('e', { state: 'failed' }),
+    ],
+  ];
+  const calls = [];
+  let offline = false;
+  const runner = new api.Ps5QueueRunner(q, () => {}, {
+    async run() {
+      return {};
+    },
+    async cancel(item) {
+      calls.push(item.packageId);
+      if (offline) throw new Error('timeout');
+      if (item.packageId === 'a') throw new api.Ps5QueueUncertain('install intent present');
+    },
+  });
+  await runner.cleanupCancelled(true);
+  assert.deepEqual(calls, ['a', 'b'], 'never a dispatched, already cleaned or failed item');
+  const [a, b] = q.history[0];
+  assert.equal(a.partCleanup, undefined, 'a refused cancel stays pending');
+  assert.equal(b.partCleanup, 'done');
+  calls.length = 0;
+  await runner.cleanupCancelled();
+  assert.deepEqual(calls, [], 'not retried before the retry interval');
+  offline = true;
+  await runner.cleanupCancelled(true);
+  assert.deepEqual(calls, ['a']);
+  assert.equal(a.partCleanup, undefined);
+});
+
 test('a PS5 without space (507) fails the task instead of retrying', async () => {
   const oldFetch = globalThis.fetch,
     oldError = globalThis.createError;
