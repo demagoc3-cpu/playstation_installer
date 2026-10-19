@@ -422,6 +422,135 @@ test('durable write failure prevents dispatch and does not crash the WEB worker'
   assert.equal(q.status, 'running', 'unknown work cannot be replaced by a new queue');
 });
 
+test('a PS5 without space (507) fails the task instead of retrying', async () => {
+  const oldFetch = globalThis.fetch,
+    oldError = globalThis.createError;
+  globalThis.createError = createError;
+  try {
+    const ip = '192.168.1.40';
+    let profile = api
+      .saveConsoleProfile({ name: 'full disk', platform: 'ps5', ip })
+      .consoles.find((c) => c.ip === ip);
+    profile = api
+      .saveConsoleProfile({ ...profile, firmware: '13.60' })
+      .consoles.find((c) => c.ip === ip);
+    const keys = join(process.env.PACKAGEFLOW_DATA_DIR, 'ps5-service-keys.json');
+    let saved = {};
+    try {
+      saved = JSON.parse(readFileSync(keys, 'utf8'));
+    } catch {
+      /* first key */
+    }
+    writeFileSync(keys, JSON.stringify({ ...saved, [ip]: 'a'.repeat(64) }));
+    const contents = putPs5ParamPkg(Buffer.alloc(1024 * 1024 + 19, 39)),
+      source = join(work, 'full.pkg');
+    writeFileSync(source, contents);
+    const pkg = {
+      ...input('full'),
+      id: 'full',
+      path: source,
+      libraryRoot: work,
+      size: contents.length,
+      contentType: 'PS5GD',
+      contentId: 'IV0000-PPSA95001_00-PACKAGEFLOWUI001',
+      appVersion: '01.000.001',
+      sourceModifiedAt: 1,
+      installOrder: 0,
+      icon: { offset: 0, size: 0 },
+      iconSize: 0,
+      packageDigest: '',
+    };
+    writeFileSync(
+      join(process.env.PACKAGEFLOW_DATA_DIR, 'package-library.json'),
+      JSON.stringify({ version: 2, packages: [pkg], deliveries: {} }),
+    );
+    const item = {
+      ...input('full'),
+      size: contents.length,
+      contentId: pkg.contentId,
+      appVersion: pkg.appVersion,
+      transferId: '7'.repeat(32),
+      state: 'pending',
+      detail: '',
+      bytesSent: 0,
+    };
+    let hash = '',
+      writes = 0;
+    const response = (body, status = 200) =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    const describe = () => ({
+      id: item.transferId,
+      bytesDurable: 0,
+      size: item.size,
+      blake3: hash,
+      verified: false,
+      cancelled: false,
+      batchMax: 16777216,
+    });
+    globalThis.fetch = async (url, opts) => {
+      opts = await streamedBody(opts);
+      const path = new URL(url).pathname;
+      if (path === '/health')
+        return response({
+          apiVersion: 'v1',
+          firmwareRead: true,
+          firmwareRaw: '0x13600007',
+          serviceReport: {
+            service: 'PackageFlowService-PS5',
+            platform: 'ps5',
+            consoleVerified: true,
+          },
+        });
+      if (path === '/api/v1/capabilities')
+        return response({
+          service: 'PackageFlowService-PS5',
+          capabilities: { installPs4Pkg: true, installPs5Content: true },
+        });
+      if (path === '/api/v1/system')
+        return response({ service: 'PackageFlowService-PS5', storageRead: false });
+      if (path === '/api/v1/install/readiness')
+        return response({
+          service: 'PackageFlowService-PS5',
+          schemaVersion: 1,
+          route: 'staged-pkg',
+          ready: true,
+          reason: 'ready',
+          formats: ['pkg'],
+          platforms: ['ps4', 'ps5'],
+          exactVersionReceipt: false,
+        });
+      if (path === '/api/v1/management/status')
+        return response({ protocol: 'ps5-management-v1', ready: true, catalog: true });
+      if (path === '/api/v1/console/catalog')
+        return response({ revision: 'a'.repeat(64), entries: [], next: 0, done: true });
+      if (path === '/api/v1/transfers/begin') {
+        hash = opts.headers['X-PackageFlow-Blake3'];
+        return response(describe());
+      }
+      if (path === '/api/v1/transfers/status') return response(describe());
+      if (path === '/api/v1/transfers/batch') {
+        writes++;
+        return response({ error: 'no_space' }, 507);
+      }
+      assert.fail(path);
+    };
+    await api.probeConsoleProfile(profile.id);
+    const driver = api.ps5QueueDriver(profile.id);
+    await assert.rejects(
+      driver.run(item, new AbortController().signal, (patch) => Object.assign(item, patch)),
+      (error) => error instanceof api.Ps5QueueFailure && /нет места/.test(error.message),
+    );
+    assert.equal(writes, 1, 'one rejected write, no retry inside the attempt');
+    assert.equal(item.installDispatched, undefined);
+  } finally {
+    globalThis.fetch = oldFetch;
+    globalThis.createError = oldError;
+  }
+});
+
 for (const batchMax of [0, 16777216, 33554432, 67108864, 134217728])
   test(`driver reconciles lost ${batchMax ? batchMax / 1048576 + ' MiB batch' : 'chunk'} response, preserves hash and offset, and refuses a changed source`, async () => {
     const batched = !!batchMax;

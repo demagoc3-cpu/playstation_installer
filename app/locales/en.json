@@ -2870,5 +2870,7 @@
   "Прежний запуск не подтверждён; на приставке уже работает служба {0}. Повтор не отправлялся": "The previous start is unconfirmed; service {0} is already running on the console. Nothing was sent again",
   "В режиме покоя": "Rest mode",
   "PS5 в режиме покоя. Передача продолжится после пробуждения": "PS5 is in rest mode. The transfer resumes after it wakes up",
-  "Передача остановилась без движения. Продолжаем с места, которое PS5 уже подтвердила": "The transfer stopped moving. Resuming from the point the PS5 already confirmed"
+  "Передача остановилась без движения. Продолжаем с места, которое PS5 уже подтвердила": "The transfer stopped moving. Resuming from the point the PS5 already confirmed",
+  "На PS5 нет места. Освободите место и запустите установку снова": "No space left on the PS5. Free up space and start the installation again",
+  "На PS5 нет места. Результат установки не подтверждён": "No space left on the PS5. The installation result is unconfirmed"
 }

@@ -209,6 +209,8 @@ export async function ps5ClearOwnOrphanRegistration(
   }
   throw new Ps5QueueUncertain('Снятие прежней регистрации не подтверждено. Повтор не отправлен');
 }
+export const PS5_NO_SPACE = 'На PS5 нет места. Освободите место и запустите установку снова';
+
 export function ps5QueueDriver(consoleId: string): Ps5Driver {
   const request = async (
     item: Ps5Item,
@@ -234,6 +236,14 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
     });
     if ([400, 401, 403, 413, 422].includes(r.status))
       throw new Ps5QueueFailure(`Сервис PS5 отклонил операцию (${r.status})`);
+    // 507: the service could not write (no space or quota). Retrying cannot
+    // help until space is freed, so the task ends with this error.
+    if (r.status === 507) {
+      logEvent('warn', `PS5: ${path} → HTTP 507, на приставке нет места`);
+      if (item.installDispatched)
+        throw new Ps5QueueUncertain('На PS5 нет места. Результат установки не подтверждён');
+      throw new Ps5QueueFailure(PS5_NO_SPACE);
+    }
     if (r.status >= 500) {
       const reason = typeof r.body?.error === 'string' ? r.body.error.slice(0, 80) : 'no detail';
       logEvent('warn', `PS5: ${path} → HTTP ${r.status} (${reason})`);
