@@ -27,7 +27,7 @@ const facts=computed(()=>{
 </script>
 <template>
 <article :class="compact?'console-details compact':'glass console-details'" aria-label="Console details">
- <div v-if="!compact" class="console-details-heading"><span class="console-platform">{{device.platform.toUpperCase()}}</span><div><h2>{{device.name}}</h2><p>{{device.ip}}</p></div><span class="status" :class="{online:device.online}"><i :class="{ready:device.online}"></i>{{device.online?t('В сети','Online'):t('Нет связи','Offline')}}</span></div>
+ <div v-if="!compact" class="console-details-heading"><span class="console-platform">{{device.platform.toUpperCase()}}</span><div><h2>{{device.name}}</h2><p>{{device.ip}}</p></div><span class="status" :class="{online:device.online}"><i :class="{ready:device.online}"></i>{{device.online?t('В сети','Online'):device.restMode?t('В режиме покоя','Rest mode'):t('Нет связи','Offline')}}</span></div>
  <p class="console-freshness">{{t('Последняя проверка','Last checked')}} · {{time(device.checkedAt)}}<span v-if="!device.online"> · {{t('Сведения требуют подтверждения','Details need verification')}}</span></p>
  <dl class="console-facts"><div v-for="[label,text] in facts" :key="label"><dt>{{label}}</dt><dd>{{text}}</dd></div></dl>
  <div class="console-storage"><div><span>{{t('Хранилище','Storage')}}</span><strong>{{bytes(device.freeBytes)}} <small v-if="device.totalBytes">/ {{bytes(device.totalBytes)}}</small></strong></div><progress v-if="used!==null" :value="used" max="100" :aria-label="t('Занятое место','Used space')"/><small>{{t('Свободно','Free')}}<span v-if="device.totalBytes"> · {{t('индикатор показывает занятое место','bar shows used space')}}</span></small></div>

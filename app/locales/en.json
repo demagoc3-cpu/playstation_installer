@@ -2867,5 +2867,8 @@
   "На этой PS4 идёт обновление службы. Дождитесь его окончания": "A service update is running on this PS4. Wait for it to finish",
   "Для переустановки обновите службу PS5 до сборки 029d или новее: «Сервис ▾» → «Проверить обновления»": "To reinstall, update the PS5 service to build 029d or later: “Service ▾” → “Check for updates”",
   "Очередь PS5 завершена; есть пакеты без подтверждения": "PS5 queue finished; some packages are unconfirmed",
-  "Прежний запуск не подтверждён; на приставке уже работает служба {0}. Повтор не отправлялся": "The previous start is unconfirmed; service {0} is already running on the console. Nothing was sent again"
+  "Прежний запуск не подтверждён; на приставке уже работает служба {0}. Повтор не отправлялся": "The previous start is unconfirmed; service {0} is already running on the console. Nothing was sent again",
+  "В режиме покоя": "Rest mode",
+  "PS5 в режиме покоя. Передача продолжится после пробуждения": "PS5 is in rest mode. The transfer resumes after it wakes up",
+  "Передача остановилась без движения. Продолжаем с места, которое PS5 уже подтвердила": "The transfer stopped moving. Resuming from the point the PS5 already confirmed"
 }

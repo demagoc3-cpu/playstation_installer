@@ -27,6 +27,7 @@ import type {
 } from '../../shared/types/consoles';
 import { ps5BuildQualified } from './ps5-qualified-builds';
 import { reconcileStalePs5StartJournals } from './ps5-bootstrap-journal';
+import { ps5PowerState } from './ps5-power';
 
 const profilePath = () => dataPath('console-profiles.json');
 const keyPath = () => dataPath('ps5-service-keys.json');
@@ -52,6 +53,7 @@ type StoredProfile = Omit<
   | 'servicePid'
   | 'serviceBuild'
   | 'capabilitiesDeferred'
+  | 'restMode'
 >;
 interface Store {
   version: 1;
@@ -83,6 +85,7 @@ const snapshots = new Map<
     | 'servicePid'
     | 'serviceBuild'
     | 'capabilitiesDeferred'
+    | 'restMode'
   > & { runtimeIdentity?: EmbeddedRuntime; fullCheckedAt?: number }
 >();
 
@@ -728,6 +731,11 @@ export async function readPs5PkgInstallCapabilities(consoleId: string, signal?: 
 
 /** The polling path must not run the installer's synchronous hello while data
  * occupies the PS5's single HTTP handler. Explicit preflight remains fresh. */
+/** The last probe found this PS5 asleep (rest mode). */
+export function ps5RestMode(id: string) {
+  return snapshots.get(id)?.restMode === true;
+}
+
 export function ps5TransferInProgress(id: string) {
   const path = dataPath('consoles', id, 'ps5-installation-queue.json');
   if (!existsSync(path)) return false;
@@ -1032,11 +1040,21 @@ async function runConsoleProfileProbe(
     capabilitiesDeferred,
     runtimeIdentity,
     fullCheckedAt,
+    // Kept while offline until the discovery reply below says otherwise.
+    restMode: online ? false : previous?.restMode,
   });
-  // A paired PS5 that answers on the network but not with its service: try to
-  // start the saved service through PLDMGR (backed off, never during installs).
-  if (profile.platform === 'ps5' && !online && previous?.paired && ps5AutoStart)
-    void ps5AutoStart(profile.id).catch(() => {});
+  if (profile.platform === 'ps5' && !online)
+    // Asleep or off? Rest mode is shown as such, and nothing is started on a
+    // sleeping console: the service is started again once it is awake.
+    void ps5PowerState(profile.ip).then((power) => {
+      const latestSnapshot = snapshots.get(profile.id);
+      if (latestSnapshot && !latestSnapshot.online)
+        snapshots.set(profile.id, { ...latestSnapshot, restMode: power === 'rest' });
+      // A paired PS5 that answers on the network but not with its service: try
+      // to start the saved service through PLDMGR (backed off, never during installs).
+      if (power !== 'rest' && previous?.paired && ps5AutoStart)
+        void ps5AutoStart(profile.id).catch(() => {});
+    });
   return getConsoleProfiles();
 }
 

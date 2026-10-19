@@ -278,7 +278,9 @@ async function cancelAll(id: string, resolve = false) {
               ><strong>{{ profile.name }}</strong
               ><span>{{ profile.platform.toUpperCase() }} · {{ profile.ip }}</span
               ><span class="glass-status" :class="{ online: profile.online }"
-                ><i />{{ t(profile.online ? 'В сети' : 'Нет связи') }}</span
+                ><i />{{
+                  t(profile.online ? 'В сети' : profile.restMode ? 'В режиме покоя' : 'Нет связи')
+                }}</span
               ><small
                 >{{ t('Активные:') }} {{ activityFor(profile.id)?.counts.active || 0 }} ·
                 {{ t('В очереди:') }} {{ activityFor(profile.id)?.counts.queued || 0 }} ·

@@ -309,7 +309,10 @@ async function create() {
                     ? t(ps5InstallMessage(profile.capabilities))
                     : undefined
                 "
-                >● {{ t(profile.online ? 'В сети' : 'Нет связи') }}</span
+                >●
+                {{
+                  t(profile.online ? 'В сети' : profile.restMode ? 'В режиме покоя' : 'Нет связи')
+                }}</span
               ><small>{{
                 t(
                   profile.paired

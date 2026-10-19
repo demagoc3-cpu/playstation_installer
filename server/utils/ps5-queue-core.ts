@@ -377,6 +377,9 @@ export class Ps5QueueRunner {
   }
   /** How long only-unconfirmed items keep a queue running (re-checked meanwhile). */
   static unconfirmedWindowMs = 2 * 60 * 1000;
+  /** A transfer that moves no byte this long is aborted and resumed from the
+   * offset the PS5 already confirmed (nothing is installed twice). */
+  static stallMs = 90 * 1000;
   private unconfirmedSince?: number;
   private async run() {
     while (this.queue.status === 'running') {
@@ -460,6 +463,25 @@ export class Ps5QueueRunner {
         this.save();
         this.progressSavedAt = Date.now();
       };
+      const controller = this.controller;
+      let progressMark = -1;
+      let progressAt = Date.now();
+      let stalled = false;
+      const watchdog = setInterval(
+        () => {
+          const sending = item.state === 'sending' && item.progressPhase === 'transfer';
+          const mark = item.bytesSent + (item.bytesInFlight || 0);
+          if (!sending || mark !== progressMark) {
+            progressMark = mark;
+            progressAt = Date.now();
+          } else if (Date.now() - progressAt >= Ps5QueueRunner.stallMs && !stalled) {
+            stalled = true;
+            controller.abort(new Error('Transfer stalled'));
+          }
+        },
+        Math.max(10, Math.min(5000, Ps5QueueRunner.stallMs / 4)),
+      );
+      watchdog.unref?.();
       try {
         if (item.cancelRequested) this.controller.abort();
         if (this.controller.signal.aborted) throw new Error('cancelled');
@@ -493,7 +515,18 @@ export class Ps5QueueRunner {
           checkpoint({ state: 'failed', detail: error.message, completedAt: Date.now() });
         else if (error instanceof Ps5QueueUncertain)
           checkpoint({ state: 'unconfirmed', detail: error.message });
-        else {
+        else if (stalled) {
+          logEvent(
+            'warn',
+            `PS5: передача «${item.title || item.packageId}» без движения ${Math.round(
+              Ps5QueueRunner.stallMs / 1000,
+            )} с. Продолжаем с подтверждённого места.`,
+          );
+          checkpoint({
+            detail:
+              'Передача остановилась без движения. Продолжаем с места, которое PS5 уже подтвердила',
+          });
+        } else {
           // Retried automatically; keep the cause visible in the WEB journal.
           const cause = (error as { cause?: { code?: unknown } })?.cause?.code;
           logEvent(
@@ -508,6 +541,7 @@ export class Ps5QueueRunner {
           });
         }
       }
+      clearInterval(watchdog);
       // Bytes still on the way are never progress once the attempt has ended.
       if (item.bytesInFlight) item.bytesInFlight = 0;
       this.activeItem = undefined;

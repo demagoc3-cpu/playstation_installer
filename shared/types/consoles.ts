@@ -46,6 +46,8 @@ export interface ConsoleProfile {
   servicePid?: number;
   serviceBuild?: string;
   capabilitiesDeferred?: boolean;
+  /** The PS5 answered Remote Play discovery as sleeping (rest mode). */
+  restMode?: boolean;
   henName?: string;
   henVersion?: string;
   henSdk?: string;

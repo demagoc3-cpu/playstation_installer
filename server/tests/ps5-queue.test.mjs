@@ -344,6 +344,56 @@ test('a queue with only unconfirmed results is released after the re-check windo
   }
 });
 
+test('a transfer without progress is aborted and resumed from the confirmed offset', async () => {
+  const stall = api.Ps5QueueRunner.stallMs;
+  api.Ps5QueueRunner.stallMs = 60;
+  try {
+    const attempts = [];
+    const a = make({
+      async run(item, signal, save) {
+        attempts.push(item.bytesSent);
+        save({ state: 'sending', progressPhase: 'transfer', bytesSent: item.bytesSent || 40 });
+        if (attempts.length === 1)
+          await new Promise((_, reject) =>
+            signal.addEventListener('abort', () => reject(signal.reason), { once: true }),
+          );
+        return { state: 'installed', bytesSent: 100 };
+      },
+      async cancel() {},
+    });
+    a.runner.enqueue([input('stuck')]);
+    await wait(() => a.q.items[0].state === 'installed');
+    assert.deepEqual(attempts, [0, 40], 'the second attempt starts from the saved offset');
+  } finally {
+    api.Ps5QueueRunner.stallMs = stall;
+  }
+});
+
+test('a slow but moving transfer is not aborted', async () => {
+  const stall = api.Ps5QueueRunner.stallMs;
+  api.Ps5QueueRunner.stallMs = 80;
+  try {
+    let attempts = 0;
+    const a = make({
+      async run(item, signal, save) {
+        attempts++;
+        for (let sent = 10; sent <= 100; sent += 10) {
+          save({ state: 'sending', progressPhase: 'transfer', bytesSent: sent });
+          await new Promise((r) => setTimeout(r, 30));
+          signal.throwIfAborted();
+        }
+        return { state: 'installed' };
+      },
+      async cancel() {},
+    });
+    a.runner.enqueue([input('slow')]);
+    await wait(() => a.q.items[0].state === 'installed');
+    assert.equal(attempts, 1);
+  } finally {
+    api.Ps5QueueRunner.stallMs = stall;
+  }
+});
+
 test('durable write failure prevents dispatch and does not crash the WEB worker', async () => {
   let dispatched = 0,
     durable;

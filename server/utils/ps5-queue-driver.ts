@@ -27,7 +27,7 @@ import {
 } from './console-profiles';
 import { Ps5QueueFailure, Ps5QueueUncertain, type Ps5Driver, type Ps5Item } from './ps5-queue-core';
 import { ps5InstallCapabilities, ps5PkgInstallMessage } from '../../shared/ps5-install-readiness';
-import { getConsoleProfile, ps5ServiceRequest } from './console-profiles';
+import { getConsoleProfile, ps5RestMode, ps5ServiceRequest } from './console-profiles';
 import { ps5ClearsOwnOrphans } from './ps5-qualified-builds';
 import { checkPs5InstalledPackage } from './installed-package-check';
 import { checkPs5SourceFirmware } from './ps5-installation-firmware';
@@ -352,6 +352,12 @@ export function ps5QueueDriver(consoleId: string): Ps5Driver {
       throw new Error('Cancellation not confirmed');
     },
     async run(item, signal, save) {
+      // A sleeping PS5 is not contacted; the queue resumes after it wakes up.
+      if (ps5RestMode(consoleId))
+        return {
+          ...(item.installDispatched ? {} : { state: 'waiting' as const }),
+          detail: 'PS5 в режиме покоя. Передача продолжится после пробуждения',
+        };
       const capture = (body: any, offset: number, bytes: number) => {
         const profile = ps5TransferProfile(body, offset, bytes);
         if (profile) item.transferProfile = profile;

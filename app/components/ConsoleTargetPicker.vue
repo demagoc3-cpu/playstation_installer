@@ -24,7 +24,7 @@ const current = computed(() =>
     </label>
     <span v-if="current"
       >{{ current.model || current.platform.toUpperCase() }} ·
-      {{ t(current.online ? 'В сети' : 'Нет связи') }}</span
+      {{ t(current.online ? 'В сети' : current.restMode ? 'В режиме покоя' : 'Нет связи') }}</span
     >
     <small>{{ t('Выбор общий для разделов «На консоли» и «Сохранения».') }}</small>
   </div>
