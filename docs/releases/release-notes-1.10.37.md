@@ -1,6 +1,8 @@
-# PackageFlow 1.10.36 · PS5 service 030i
+# PackageFlow 1.10.37 · PS5 service 030i
 
 Режим покоя PS5, продолжение застрявшей передачи, понятная ошибка при нехватке места и очистка временных файлов отменённых передач. Новая служба PS5 сборки 030i с отчётами о падениях.
+
+Релиз 1.10.36 был собран с более ранней версии и этих изменений не содержит. Устанавливайте 1.10.37.
 
 ## Служба PS5 030i
 
@@ -25,9 +27,9 @@
 
 | Файл | Для чего |
 | --- | --- |
-| `PackageFlowSetup-1.10.36-x64.exe` | Windows |
-| `packageflow_1.10.36-1_amd64.deb` | Linux (Debian, Ubuntu) |
-| `PackageFlow-1.10.36-x86_64.AppImage` | Linux, без установки |
+| `PackageFlowSetup-1.10.37-x64.exe` | Windows |
+| `packageflow_1.10.37-1_amd64.deb` | Linux (Debian, Ubuntu) |
+| `PackageFlow-1.10.37-x86_64.AppImage` | Linux, без установки |
 | `PackageFlowPayload-PS5_0.1.30-dev.elf`, `PackageFlowService-PS5.json` | Служба PS5 (сборка 030i) и её описание для проверки обновлений |
 | `PackageFlow-PS5_01.000.044.ffpkg` | Приложение PackageFlow для PS5 |
 | `PackageFlow-PS4_2.14.pkg` | Сервис PS4 |
