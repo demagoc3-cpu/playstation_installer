@@ -45,17 +45,19 @@ const bytes = (n: number) =>
     />
     <div class="active-install-main">
       <h3>{{ task.title }}</h3>
-      <ContentTags
-        :platform="task.platform || task.consolePlatform"
-        :formats="task.format ? [task.format] : []"
-      />
-      <p class="active-install-bytes">
-        <template v-if="task.progressPhase === 'source-check'">{{ t('Проверено') }}: </template
-        >{{
-          bytes(task.progressPhase === 'source-check' ? task.bytesChecked || 0 : task.bytesSent)
-        }}
-        / {{ bytes(task.size) }}
-      </p>
+      <div class="active-install-meta">
+        <ContentTags
+          :platform="task.platform || task.consolePlatform"
+          :formats="task.format ? [task.format] : []"
+        />
+        <p class="active-install-bytes">
+          <template v-if="task.progressPhase === 'source-check'">{{ t('Проверено') }}: </template
+          >{{
+            bytes(task.progressPhase === 'source-check' ? task.bytesChecked || 0 : task.bytesSent)
+          }}
+          / {{ bytes(task.size) }}
+        </p>
+      </div>
       <div class="active-install-progress">
         <progress
           :value="percent"
@@ -85,7 +87,9 @@ const bytes = (n: number) =>
           ><span>{{ t(stage) }}</span>
         </li>
       </ol>
-      <p>{{ t(installationTaskStateLabel(task)) }} · {{ t(task.detail) }}</p>
+      <p :title="`${t(installationTaskStateLabel(task))} · ${t(task.detail)}`">
+        {{ t(installationTaskStateLabel(task)) }} · {{ t(task.detail) }}
+      </p>
       <small
         >{{ task.transport === 'service' ? 'PackageFlowService' : 'PyLoader' }} ·
         {{ ps5 ? 'PS5' : 'PS4' }}</small
