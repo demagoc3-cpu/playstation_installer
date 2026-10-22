@@ -59,6 +59,11 @@ watch(compactView, (value) => emit('full', !value), { immediate: true });
 const nextQueued = computed(() =>
   data.value.items.filter((task) => task.category === 'queued').slice(0, 3),
 );
+// All packages of a game (base, patches, DLC) on this page, for «Отменить ветку».
+const branchOf = (task: InstallationTask) =>
+  data.value.items.filter(
+    (item) => installationTaskGroupKey(item) === installationTaskGroupKey(task),
+  );
 const gigabytes = (bytes: number) =>
   (bytes / 1024 ** 3).toLocaleString(formatLocale.value, { maximumFractionDigits: 1 });
 function openFull(finished = false) {
@@ -668,7 +673,22 @@ function go(value: number) {
     <section v-if="compactView" class="compact-queue" :aria-label="t('Следующие в очереди')">
       <p v-for="task in nextQueued" :key="task.id" class="compact-queue-row">
         <span>{{ task.title }}</span
-        ><small>{{ gigabytes(task.size) }} {{ t('ГБ') }}</small>
+        ><small>{{ gigabytes(task.size) }} {{ t('ГБ') }}</small
+        ><button
+          v-if="task.canCancel"
+          :disabled="!!pending"
+          :title="t('Убрать пакет из очереди')"
+          @click="cancel(task)"
+        >
+          × {{ t('Убрать') }}</button
+        ><button
+          v-if="branchOf(task).filter((item) => item.canCancel).length > 1"
+          :disabled="!!pending"
+          :title="t('Отменить все пакеты этой игры: базу, патчи и DLC')"
+          @click="cancelBranch(branchOf(task))"
+        >
+          {{ t('Отменить ветку') }}
+        </button>
       </p>
       <button
         v-if="data.counts.queued > nextQueued.length"
@@ -818,9 +838,20 @@ function go(value: number) {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.compact-queue-row {
+  align-items: center;
+}
+.compact-queue-row span {
+  flex: 1;
+}
 .compact-queue-row small {
   flex: none;
   color: #a6bee1;
+}
+.compact-queue-row button {
+  flex: none;
+  padding: 3px 8px;
+  font-size: 10px;
 }
 .compact-queue-more {
   align-self: flex-start;

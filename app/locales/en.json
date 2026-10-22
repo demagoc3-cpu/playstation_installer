@@ -2879,5 +2879,7 @@
   "Ещё в очереди:": "More in queue:",
   "Завершено:": "Completed:",
   "ошибки и пропуски:": "errors and skips:",
-  "Заданий нет.": "No tasks."
+  "Заданий нет.": "No tasks.",
+  "Убрать пакет из очереди": "Remove the package from the queue",
+  "Отменить все пакеты этой игры: базу, патчи и DLC": "Cancel all packages of this game: base, patches and DLC"
 }
