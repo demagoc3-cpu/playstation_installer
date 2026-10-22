@@ -6,7 +6,7 @@ import {
   type InstallationTask,
   type InstallationTasksPage,
 } from '#shared/types/tasks';
-const { t } = useAppLocale();
+const { t, formatLocale } = useAppLocale();
 interface Torrent {
   hash: string;
   name: string;
@@ -23,6 +23,8 @@ const props = defineProps<{
   queueStatus: string;
   cancelling: boolean;
   maintenance?: { id: string; title: string; state: string; message: string } | null;
+  /** Device list: active card, the next three, the rest behind a link. */
+  compact?: boolean;
 }>();
 const emit = defineEmits<{
   changed: [];
@@ -30,6 +32,7 @@ const emit = defineEmits<{
   torrent: [hash: string, action: 'pause' | 'resume' | 'delete'];
   stop: [];
   resolve: [];
+  full: [value: boolean];
 }>();
 const categories = ref<TaskCategory[]>([...TASK_CATEGORIES]);
 const labels = {
@@ -48,6 +51,24 @@ const data = ref<InstallationTasksPage>({
   unit: 'games',
 });
 const view = ref<'tree' | 'table'>('tree');
+const fullList = ref(false);
+const compactView = computed(
+  () => props.compact && !fullList.value && (props.category ?? 'all') === 'all',
+);
+watch(compactView, (value) => emit('full', !value), { immediate: true });
+const nextQueued = computed(() =>
+  data.value.items.filter((task) => task.category === 'queued').slice(0, 3),
+);
+const gigabytes = (bytes: number) =>
+  (bytes / 1024 ** 3).toLocaleString(formatLocale.value, { maximumFractionDigits: 1 });
+function openFull(finished = false) {
+  if (finished) categories.value = ['completed', 'failed'];
+  fullList.value = true;
+}
+function closeFull() {
+  categories.value = [...TASK_CATEGORIES];
+  fullList.value = false;
+}
 const showHistory = ref(false);
 const treeExpanded = reactive<Record<string, boolean>>({});
 const clearedMaintenance = ref('');
@@ -599,6 +620,7 @@ function go(value: number) {
           @click="emit('resolve')"
         >
           {{ t('Снять ожидание') }}</button
+        ><button v-if="compact && fullList" @click="closeFull">{{ t('Свернуть список') }}</button
         ><button :disabled="!!pending" @click="clearFinished">{{ t('Очистить') }}</button
         ><button @click="refresh">{{ t('Обновить') }}</button>
       </div>
@@ -643,7 +665,35 @@ function go(value: number) {
         ><button @click="torrentAction(item, 'delete')">{{ t('Убрать задачу') }}</button>
       </article>
     </section>
-    <div class="task-filters">
+    <section v-if="compactView" class="compact-queue" :aria-label="t('Следующие в очереди')">
+      <p v-for="task in nextQueued" :key="task.id" class="compact-queue-row">
+        <span>{{ task.title }}</span
+        ><small>{{ gigabytes(task.size) }} {{ t('ГБ') }}</small>
+      </p>
+      <button
+        v-if="data.counts.queued > nextQueued.length"
+        class="compact-queue-more"
+        @click="openFull()"
+      >
+        {{ t('Ещё в очереди:') }} {{ data.counts.queued - nextQueued.length }} ›</button
+      ><button
+        v-if="data.counts.completed + data.counts.failed"
+        class="compact-queue-more muted"
+        @click="openFull(true)"
+      >
+        {{ t('Завершено:') }} {{ data.counts.completed }} · {{ t('ошибки и пропуски:') }}
+        {{ data.counts.failed }} ›
+      </button>
+      <p
+        v-if="
+          !data.active.length && !nextQueued.length && !data.counts.completed && !data.counts.failed
+        "
+        class="task-empty"
+      >
+        {{ t('Заданий нет.') }}
+      </p>
+    </section>
+    <div v-if="!compactView" class="task-filters">
       <label><input v-model="showHistory" type="checkbox" /> {{ t('История попыток') }}</label>
       <div class="task-views" :aria-label="t('Вид заданий')">
         <button :aria-pressed="view === 'tree'" @click="selectView('tree')">
@@ -665,7 +715,7 @@ function go(value: number) {
         <small>{{ data.counts[category] + torrentCounts[category] }}</small></label
       >
     </div>
-    <div class="task-list" tabindex="0" :aria-label="t('Список заданий')">
+    <div v-if="!compactView" class="task-list" tabindex="0" :aria-label="t('Список заданий')">
       <template v-if="view === 'tree'">
         <GameTreeBranch
           v-for="group in taskGroups"
@@ -726,7 +776,7 @@ function go(value: number) {
         {{ t('В выбранных категориях заданий нет.') }}
       </p>
     </div>
-    <footer>
+    <footer v-if="!compactView">
       <span
         >{{ t('Снимите галочку, чтобы убрать пакет из очереди') }} ·
         {{
@@ -748,6 +798,44 @@ function go(value: number) {
   </section>
 </template>
 <style scoped>
+.compact-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.compact-queue-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid #5897e730;
+  font-size: 12px;
+}
+.compact-queue-row span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.compact-queue-row small {
+  flex: none;
+  color: #a6bee1;
+}
+.compact-queue-more {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 6px 12px;
+  border: 0;
+  background: none;
+  color: #8dddff;
+  font-size: 12px;
+  cursor: pointer;
+}
+.compact-queue-more.muted {
+  margin-top: 0;
+  color: #a6bee1;
+}
 .maintenance-line {
   display: flex;
   flex-wrap: wrap;

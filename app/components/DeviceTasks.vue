@@ -82,6 +82,7 @@ watch(
 );
 onMounted(refreshTorrentsVisibility);
 const opened = reactive<Record<string, boolean>>({});
+const fullLists = reactive<Record<string, boolean>>({});
 const category = ref<TaskCategory | 'all'>('all'),
   snapshots = reactive<Record<string, InstallationTasksPage>>({}),
   recentTasks = reactive<Record<string, InstallationTask[]>>({});
@@ -281,7 +282,10 @@ async function cancelAll(id: string, resolve = false) {
                 ><i />{{
                   t(profile.online ? 'В сети' : profile.restMode ? 'В режиме покоя' : 'Нет связи')
                 }}</span
-              ><small
+              ><DeviceCurrentTask
+                v-if="activityFor(profile.id)?.current"
+                :task="activityFor(profile.id)!.current!"
+              /><small
                 >{{ t('Активные:') }} {{ activityFor(profile.id)?.counts.active || 0 }} ·
                 {{ t('В очереди:') }} {{ activityFor(profile.id)?.counts.queued || 0 }} ·
                 {{ t('Завершённые:') }} {{ activityFor(profile.id)?.counts.completed || 0 }} ·
@@ -289,8 +293,13 @@ async function cancelAll(id: string, resolve = false) {
                 {{ activityFor(profile.id)?.counts.failed || 0 }}</small
               >
             </button>
-            <div v-if="isOpen(profile.id)" class="device-details">
+            <div
+              v-if="isOpen(profile.id)"
+              class="device-details"
+              :class="{ full: fullLists[profile.id] }"
+            >
               <InstallationTasks
+                compact
                 :console-id="profile.id"
                 :platform="profile.platform"
                 :ip="profile.ip"
@@ -303,6 +312,7 @@ async function cancelAll(id: string, resolve = false) {
                 @changed="emit('changed')"
                 @stop="cancelAll(profile.id)"
                 @resolve="cancelAll(profile.id, true)"
+                @full="fullLists[profile.id] = $event"
               />
             </div>
           </article>
@@ -477,10 +487,12 @@ p {
   font-size: 22px;
 }
 .device-details {
-  height: min(68vh, 720px);
-  min-height: 300px;
   padding: 16px;
   border-top: 1px solid var(--pf-line);
+}
+.device-details.full {
+  height: min(68vh, 720px);
+  min-height: 300px;
 }
 .device-details :deep(.task-title h1) {
   font-size: 17px;

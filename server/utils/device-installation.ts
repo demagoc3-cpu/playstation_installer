@@ -33,12 +33,15 @@ import {
 } from './installation-queue';
 import {
   getPs5Queue,
+  getPs5Tasks,
   getPs5TaskCounts,
   getPs5PendingSpaceItems,
   startPs5Queue,
 } from './ps5-installation-queue';
 import { latestInstallationAttempts } from '../../shared/latest-installation-attempts';
 import { getTaskVisibility, installationTaskHidden } from './task-visibility';
+import { getInstallationTasks } from './installation-tasks';
+import { inConsoleScope } from './console-scope';
 import { installationTaskCategory } from '../../shared/types/tasks';
 import { getLocalIp } from './ps4-installer';
 import { dataPath } from './data-path';
@@ -231,6 +234,22 @@ export async function deviceActivitiesLive(packageIds: string[] = []): Promise<D
       },
     }),
     selection = [...new Set(packageIds)].sort();
+  // The task in progress of each busy device, built like its active card.
+  for (const entry of activity) {
+    if (!['running', 'cancelling'].includes(entry.status) || !entry.counts.active) continue;
+    try {
+      const profile = getConsoleProfile(entry.consoleId);
+      const page =
+        profile.platform === 'ps5'
+          ? getPs5Tasks(profile.id, { categories: 'active', page: 1 })
+          : inConsoleScope(profile.ip, () =>
+              getInstallationTasks({ categories: 'active', page: 1, ip: profile.ip }),
+            );
+      entry.current = page.active[0];
+    } catch {
+      /* The heading then shows the counts only. */
+    }
+  }
   await Promise.all(
     activity.map(async (entry) => {
       const profile = getConsoleProfiles().consoles.find((item) => item.id === entry.consoleId);

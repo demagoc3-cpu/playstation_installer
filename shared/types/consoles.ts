@@ -1,3 +1,4 @@
+import type { InstallationTask } from './tasks';
 export type ConsolePlatform = 'ps4' | 'ps5';
 export type ContentPlatform = ConsolePlatform | 'unknown';
 export type ContentFormat = 'pkg' | 'folder' | 'ufs2' | 'exfat' | 'pfs' | 'ffpfsc' | 'unknown';
@@ -113,6 +114,8 @@ export interface DeviceActivity {
   activePackageIds: string[];
   queuedPackageIds: string[];
   installedPackageIds: string[];
+  /** The task in progress, as its active card shows it (for a collapsed device). */
+  current?: InstallationTask;
 }
 
 export interface ConsoleProfiles {
