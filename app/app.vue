@@ -887,14 +887,6 @@ function toggleTorrentSettings() {
   if (!showTorrentSettings.value) syncTorrentForm();
   showTorrentSettings.value = !showTorrentSettings.value;
 }
-function openTorrentConnectionSettings() {
-  activeSection.value = 'torrents';
-  if (!showTorrentSettings.value) toggleTorrentSettings();
-}
-function openSearchConnectionSettings() {
-  activeSection.value = 'search';
-  showSearchSettings.value = true;
-}
 function syncTorrentForm() {
   torrentSettings.baseUrl = qbit.value.baseUrl;
   torrentSettings.username = qbit.value.username;
@@ -1699,15 +1691,6 @@ onMounted(() => {
       <p class="eyebrow">PackageFlow</p>
       <h1>{{ t('Настройки') }}</h1>
       <AppUpdateSettings v-if="activeSection === 'settings'" />
-      <section class="settings-card">
-        <h2>{{ t('Подключения приставок') }}</h2>
-        <p>
-          {{ t('Сопряжение и способ установки настраиваются отдельно для каждого устройства.') }}
-        </p>
-        <button class="secondary" @click="activeSection = 'devices'">
-          {{ t('Открыть устройства') }}
-        </button>
-      </section>
       <Ps4InstallSettings v-if="activeSection === 'settings'" />
       <section v-if="!activeConsole" class="settings-card">
         <p>{{ t('Добавьте приставку и выберите её для установки.') }}</p>
@@ -1717,33 +1700,6 @@ onMounted(() => {
         :ip="activeConsole.ip"
         :name="activeConsole.name"
       />
-      <section class="settings-card">
-        <h2>{{ t('Хранилище') }}</h2>
-        <p>
-          {{
-            t(
-              'Локальные папки, SMB, NFS и WebDAV. Подключения и индексация управляются в одном разделе.',
-            )
-          }}
-        </p>
-        <button class="secondary" @click="activeSection = 'storage'">
-          {{ t('Открыть хранилище') }}
-        </button>
-      </section>
-      <section class="settings-card">
-        <h2>{{ t('Другие подключения') }}</h2>
-        <div class="actions">
-          <button class="secondary" @click="openTorrentConnectionSettings">qBittorrent</button
-          ><button class="secondary" @click="openSearchConnectionSettings">Torznab</button>
-        </div>
-        <p>
-          {{
-            t(
-              'Статус «файл полностью передан» подтверждается по HTTP-раздаче пакета. PyLoader не возвращает финальный результат установки. PackageFlowService дополнительно сообщает состояние системного задания и подтверждение установки.',
-            )
-          }}
-        </p>
-      </section>
     </section>
     <section
       v-show="activeSection === 'torrents'"

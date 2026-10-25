@@ -636,3 +636,12 @@ button.pf-close:hover:not(:disabled) {
 button.pf-close:disabled {
   opacity: 0.4;
 }
+/* Hover of glass buttons: blue, never the old grey. */
+body
+  .glass-shell
+  :is(.secondary, .tiny, .toolbar button, .controls button, .profile-actions button):hover:not(
+    :disabled
+  ) {
+  background: #28517c99;
+  border-color: #53cfff80;
+}
