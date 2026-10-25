@@ -80,6 +80,11 @@ def appimage_runtime(pins: dict) -> Path:
     rt = pins["appimageRuntime"]
     path = fetch(rt["url"], TOOLS / "appimage" / "runtime-x86_64")
     digest = sha256(path)
+    if rt.get("sha256") and digest != rt["sha256"]:
+        # A runtime cached from an earlier pin: download the pinned one once.
+        path.unlink()
+        path = fetch(rt["url"], path)
+        digest = sha256(path)
     if rt.get("sha256") is None:
         rt["sha256"] = digest
         PINS.write_text(json.dumps(pins, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
