@@ -1698,6 +1698,7 @@ onMounted(() => {
     <section v-show="activeSection === 'settings'" class="content tool-page settings-content">
       <p class="eyebrow">PackageFlow</p>
       <h1>{{ t('Настройки') }}</h1>
+      <AppUpdateSettings v-if="activeSection === 'settings'" />
       <section class="settings-card">
         <h2>{{ t('Подключения приставок') }}</h2>
         <p>

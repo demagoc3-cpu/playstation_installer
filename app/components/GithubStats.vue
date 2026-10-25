@@ -1,42 +1,13 @@
 <script setup lang="ts">
-const { t, locale } = useAppLocale();
+const { t } = useAppLocale();
 
 const repository = 'demagoc3-cpu/playstation_installer';
 const github = `https://github.com/${repository}`;
-const theme = 'style=flat&labelColor=183352&color=285885&label=';
-const badges = computed(() => [
-  {
-    id: 'stars',
-    label: '★ Звёзды',
-    title: 'Звёзды PackageFlow на GitHub',
-    href: `${github}/stargazers`,
-    image: `https://img.shields.io/github/stars/${repository}?${theme}`,
-  },
-  {
-    id: 'forks',
-    label: 'Форки',
-    title: 'Форки PackageFlow на GitHub',
-    href: `${github}/forks`,
-    image: `https://img.shields.io/github/forks/${repository}?${theme}`,
-  },
-  {
-    id: 'version',
-    label: 'Теги',
-    title: 'Последний тег WEB и все версии на GitHub',
-    href: `${github}/tags`,
-    image: `https://img.shields.io/github/v/tag/${repository}?${theme}&sort=semver&filter=v*`,
-  },
-]);
-const loaded = reactive<Record<string, boolean>>({});
-const failed = reactive<Record<string, boolean>>({});
-watch(locale, () => {
-  for (const id of Object.keys(loaded)) delete loaded[id];
-  for (const id of Object.keys(failed)) delete failed[id];
-});
 </script>
 
 <template>
   <nav class="github-stats" :aria-label="t('Проект и сообщество PackageFlow')">
+    <NotificationBell />
     <a
       class="github-project"
       :href="github"
@@ -50,28 +21,6 @@ watch(locale, () => {
         />
       </svg>
       <span>GitHub</span>
-    </a>
-    <a
-      v-for="badge in badges"
-      :key="badge.id"
-      class="github-badge"
-      :href="badge.href"
-      :title="t(badge.title)"
-      :aria-label="t(badge.title)"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      <span>{{ t(badge.label) }}</span>
-      <img
-        v-if="!failed[badge.id]"
-        v-show="loaded[badge.id]"
-        :src="badge.image"
-        :alt="t(badge.title)"
-        height="20"
-        referrerpolicy="no-referrer"
-        @load="loaded[badge.id] = true"
-        @error="failed[badge.id] = true"
-      />
     </a>
     <a
       class="community-link"
@@ -138,11 +87,6 @@ watch(locale, () => {
 }
 .github-stats svg {
   flex: none;
-}
-.github-badge img {
-  display: block;
-  height: 18px;
-  border-radius: 4px;
 }
 .forum-logo {
   display: block;
