@@ -623,10 +623,10 @@ async function chooseFolder() {
   width: min(800px, calc(100vw - 32px));
   max-height: calc(100dvh - 40px);
   padding: 0;
-  border: 1px solid #4c425d;
+  border: 1px solid var(--pf-line);
   border-radius: 16px;
-  background: #1d1b22;
-  color: #eee;
+  background: rgb(14 29 51 / 97%);
+  color: #e6efff;
   box-shadow: 0 24px 80px #0008;
   overflow: auto;
 }
@@ -651,10 +651,10 @@ async function chooseFolder() {
   margin: 0;
 }
 .storage-close {
-  border: 1px solid #484152;
+  border: 1px solid var(--pf-line);
   border-radius: 8px;
-  background: #28252f;
-  color: #eee;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
+  color: #e6efff;
   min-width: 34px;
   height: 34px;
   font-size: 24px;
@@ -685,14 +685,14 @@ async function chooseFolder() {
 .storage-heading p,
 .storage-details,
 .storage-note {
-  color: #aaa6b5;
+  color: #a6bee1;
   font-size: 13px;
   line-height: 1.6;
 }
 .storage-form,
 .storage-source {
-  border: 1px solid #393543;
-  background: #1d1b22;
+  border: 1px solid var(--pf-line);
+  background: linear-gradient(145deg, var(--pf-panel), var(--pf-glass));
   border-radius: 12px;
   padding: 22px;
   margin-bottom: 16px;
@@ -736,16 +736,16 @@ async function chooseFolder() {
 }
 input,
 select {
-  background: #28252f;
-  color: #eee;
-  border: 1px solid #484152;
+  background: #07172b99;
+  color: #e6efff;
+  border: 1px solid var(--pf-line);
   border-radius: 8px;
   padding: 10px;
   font: inherit;
 }
 input:focus,
 select:focus {
-  outline: 2px solid #9a77d1;
+  outline: 2px solid #53cfff;
 }
 .storage-actions {
   justify-content: flex-start;
@@ -758,7 +758,7 @@ select:focus {
 .storage-address {
   overflow-wrap: anywhere;
   margin: 8px 0;
-  color: #aaa6b5;
+  color: #a6bee1;
   font-size: 13px;
 }
 .storage-source h2 {
@@ -769,24 +769,24 @@ select:focus {
   font-size: 11px;
   font-weight: 400;
   margin-left: 8px;
-  border: 1px solid #484152;
+  border: 1px solid var(--pf-line);
   border-radius: 5px;
   padding: 3px 6px;
 }
 .storage-state {
-  color: #ada7b6;
+  color: #a6bee1;
   font-size: 12px;
   white-space: nowrap;
 }
 .storage-state.online {
-  color: #82c99c;
+  color: #56ddb6;
 }
 .storage-state.offline {
-  color: #ed9b91;
+  color: #ffadbd;
 }
 .storage-state.indexing,
 .storage-state.connecting {
-  color: #c4a7ff;
+  color: #8dddff;
 }
 .storage-details {
   display: flex;
@@ -795,9 +795,9 @@ select:focus {
   margin-top: 12px;
 }
 .storage-error {
-  background: #392328;
-  color: #ffb4b4;
-  border: 1px solid #683b43;
+  background: #3a14264d;
+  color: #ffadbd;
+  border: 1px solid #ba59756b;
   border-radius: 8px;
   padding: 12px;
 }
@@ -827,9 +827,9 @@ select:focus {
 <style scoped>
 .storage-table-wrap {
   overflow-x: auto;
-  border: 1px solid #393543;
+  border: 1px solid var(--pf-line);
   border-radius: 12px;
-  background: #1d1b22;
+  background: linear-gradient(145deg, var(--pf-panel), var(--pf-glass));
 }
 .storage-table {
   width: 100%;
@@ -839,14 +839,14 @@ select:focus {
   font-size: 13px;
 }
 .storage-table thead {
-  background: #25222d;
-  color: #aaa6b5;
+  background: #0b294980;
+  color: #a6bee1;
 }
 .storage-table th,
 .storage-table td {
   padding: 10px 14px;
   vertical-align: middle;
-  border-bottom: 1px solid #393543;
+  border-bottom: 1px solid var(--pf-line);
 }
 .storage-table thead th {
   font-size: 12px;
@@ -875,7 +875,7 @@ select:focus {
   border-bottom: 0;
 }
 .storage-table tbody tr:hover {
-  background: #25222d;
+  background: #12305a66;
 }
 .storage-identity {
   font-weight: 400;
@@ -883,7 +883,7 @@ select:focus {
 .storage-identity strong {
   display: block;
   font-size: 13px;
-  color: #eee;
+  color: #e6efff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -898,7 +898,7 @@ select:focus {
 }
 .storage-subline {
   display: block;
-  color: #aaa6b5;
+  color: #a6bee1;
   font-size: 11px;
   line-height: 1.4;
   margin-top: 3px;
@@ -917,7 +917,7 @@ select:focus {
 }
 .storage-state:focus-visible,
 .storage-menu-trigger:focus-visible {
-  outline: 2px solid #9a77d1;
+  outline: 2px solid #53cfff;
   outline-offset: 3px;
   border-radius: 5px;
 }
@@ -939,18 +939,18 @@ select:focus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid #484152;
+  border: 1px solid var(--pf-line);
   border-radius: 7px;
-  background: #28252f;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
   padding: 5px 10px;
-  color: #ddd;
+  color: #e6efff;
   font-size: 14px;
   cursor: pointer;
 }
 .storage-menu-trigger:hover,
 .storage-menu-trigger[aria-expanded='true'] {
-  background: #3a304b;
-  border-color: #8d72ba;
+  background: #1c83d340;
+  border-color: #53cfff99;
 }
 .storage-menu-trigger span {
   font-size: 12px;
@@ -961,11 +961,12 @@ select:focus {
   box-sizing: border-box;
   margin: 0;
   padding: 14px 16px;
-  border: 1px solid #63577f;
+  border: 1px solid #8ca7d14d;
   border-radius: 10px;
-  background: #26232e;
+  background: rgb(14 29 51 / 97%);
+  backdrop-filter: blur(18px);
   box-shadow: 0 12px 32px #000a;
-  color: #e9e5f3;
+  color: #e6efff;
   text-align: left;
   overflow: auto;
   z-index: 80;
@@ -980,7 +981,7 @@ select:focus {
   flex-direction: column;
   gap: 6px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #494056;
+  border-bottom: 1px solid var(--pf-line);
 }
 .storage-status-popover strong {
   overflow-wrap: anywhere;
@@ -990,7 +991,7 @@ select:focus {
   overflow-wrap: anywhere;
 }
 .storage-popover-note {
-  color: #aaa3bc;
+  color: #a6bee1;
 }
 .storage-menu {
   padding: 6px;
@@ -1004,7 +1005,7 @@ select:focus {
   border-radius: 6px;
   padding: 10px 12px;
   background: transparent;
-  color: #e9e5f3;
+  color: #e6efff;
   text-align: left;
   font: inherit;
   font-size: 12px;
@@ -1014,11 +1015,11 @@ select:focus {
   width: 18px;
   font-size: 17px;
   text-align: center;
-  color: #bda5e6;
+  color: #8dddff;
 }
 .storage-menu button:hover,
 .storage-menu button:focus-visible {
-  background: #3a304b;
+  background: #1c83d340;
   outline: none;
 }
 .storage-menu button:disabled {
@@ -1027,12 +1028,12 @@ select:focus {
 }
 .storage-menu .storage-menu-remove {
   margin-top: 5px;
-  border-top: 1px solid #494056;
+  border-top: 1px solid var(--pf-line);
   border-radius: 0 0 6px 6px;
-  color: #ed9b91;
+  color: #ffadbd;
 }
 .storage-menu .storage-menu-remove > span {
-  color: #ed9b91;
+  color: #ffadbd;
 }
 @media (max-width: 850px) {
   .storage-table {
