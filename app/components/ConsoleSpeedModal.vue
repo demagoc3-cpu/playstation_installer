@@ -3,7 +3,7 @@ import type { ConsoleProfile } from '#shared/types/consoles';
 import type { ConsoleSpeedJob, SpeedMode, Ps5TransferProfile } from '#shared/types/console-speed';
 const props = defineProps<{ profile: ConsoleProfile }>(),
   emit = defineEmits<{ close: [] }>();
-const { t } = useAppLocale();
+const { t, formatLocale } = useAppLocale();
 const info = ref<{
     ready: boolean;
     message: string;
@@ -215,11 +215,13 @@ onBeforeUnmount(() => {
             )
           }}
         </p>
-        <div v-if="running" class="progress" role="status">
+        <div v-if="running" class="speed-progress" role="status">
           {{ t('Выполняется') }}: {{ job?.current && t(labels[job.current])
           }}<span class="pulse"></span>
         </div>
-        <p v-if="job">{{ t('Время замера') }}: {{ new Date(job.startedAt).toLocaleString() }}</p>
+        <p v-if="job">
+          {{ t('Время замера') }}: {{ new Date(job.startedAt).toLocaleString(formatLocale) }}
+        </p>
         <div class="results-scroll">
           <table v-if="job?.results.length">
             <thead>
@@ -339,6 +341,10 @@ onBeforeUnmount(() => {
   padding: 24px;
   color: #e6efff;
   display: grid;
+  /* Rows keep their content height; the dialog scrolls instead of clipping
+   * the progress line while results grow. */
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 14px;
 }
 header,
@@ -438,7 +444,11 @@ small {
   margin-top: 6px;
   font-size: 10px;
 }
-.progress {
+/* Not ".progress": a shared thin progress-bar style uses that name. */
+.speed-progress {
+  display: flex;
+  align-items: center;
+  line-height: 1.4;
   padding: 12px;
   background: #0b294980;
   border-radius: 8px;
