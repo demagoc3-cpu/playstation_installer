@@ -180,6 +180,8 @@ const operationMethods = {
   '/api/v1/shutdown': 'POST',
   '/api/v1/update/prepare': 'POST',
   '/api/v1/update/status': 'GET',
+  // Inventory; the cleanup itself is a POST to the same path (see options.method).
+  '/api/v1/storage/cleanup': 'GET',
 } as const;
 /** Diagnostics: record every request that reaches a PS5 while it receives
  * package data from someone other than its own installation queue. */
@@ -213,9 +215,13 @@ export async function ps5OperationRequest(
   body?: Uint8Array,
   signal?: AbortSignal,
   onUpload?: (bytes: number) => void,
+  options: { method?: 'POST' } = {},
 ) {
   const profile = getConsoleProfile(consoleId),
     token = ps5Token(profile.ip);
+  // Only the cleanup route has a second method on the same path.
+  const method =
+    options.method && path === '/api/v1/storage/cleanup' ? options.method : operationMethods[path];
   if (profile.platform !== 'ps5' || !ps4ServiceIp(profile.ip) || !token)
     throw createError({ statusCode: 409, message: 'Требуется сопряжение PS5' });
   if (
@@ -229,11 +235,11 @@ export async function ps5OperationRequest(
   )
     throw new Ps5OperationValidationError('Invalid PS5 operation');
   notePs5RequestDuringTransfer(profile.id, path);
-  if (operationMethods[path] === 'POST') assertNoConsoleSpeedTest(consoleId);
+  if (method === 'POST') assertNoConsoleSpeedTest(consoleId);
   const timeout = path === '/api/v1/transfers/batch' ? 90000 : 15000;
   const upload = body && onUpload ? uploadStream(body, onUpload) : undefined;
   const response = await fetch(`http://${profile.ip}:8095${path}`, {
-    method: operationMethods[path],
+    method,
     headers: {
       ...headers,
       Authorization: `Bearer ${token}`,

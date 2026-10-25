@@ -430,360 +430,369 @@ onBeforeUnmount(() => {
       <button :class="{ active: tab === 'ready' }" @click="tab = 'ready'">
         ◈ {{ t('Готово к запуску') }}</button
       ><button :class="{ active: tab === 'files' }" @click="tab = 'files'">
-        ▤ {{ t('Файлы игр') }}
+        ▤ {{ t('Файлы игр') }}</button
+      ><button :class="{ active: tab === 'cleanup' }" @click="tab = 'cleanup'">
+        ⌫ {{ t('Очистка') }}
       </button>
     </nav>
-    <p v-if="!capabilities.consoleControl && !busy" class="notice">
-      {{
-        t('Просмотр игр доступен. Команды управления включаются после проверки службы на этой PS5.')
-      }}
-    </p>
-    <p v-if="capabilities.consoleControl && !sourceControl && !busy" class="notice">
-      {{
-        t(
-          'Запуск и остановка проверены. Изменения файлов включаются после отдельной проверки службы.',
-        )
-      }}
-      <button class="notice-action" @click="overrideDialog = true">
-        {{ t('Разрешить изменение файлов на этой PS5…') }}
-      </button>
-    </p>
-    <p v-if="capabilities.consoleSourceControlOverride && !busy" class="notice warning">
-      {{
-        t(
-          'Удаление, копирование и перемещение файлов игр включены вручную без проверки службы на этой PS5.',
-        )
-      }}
-      <button class="notice-action" :disabled="overrideSaving" @click="setSourceOverride(false)">
-        {{ t('Выключить') }}
-      </button>
-    </p>
-    <p v-if="preparing" role="status" aria-live="polite">
-      {{ t('Проверяем состояние PS5 перед запуском…') }}
-    </p>
-    <div class="controls console-toolbar">
-      <input v-model="query" type="search" :placeholder="t('Название, Title ID или путь')" /><select
-        v-model="platform"
-      >
-        <option value="all">{{ t('Все платформы') }}</option>
-        <option value="ps4">PS4</option>
-        <option value="ps5">PS5</option></select
-      ><select v-model="sort">
-        <option value="name">{{ t('По названию') }}</option>
-        <option value="recent">{{ t('Последний запуск') }}</option>
-        <option value="size">{{ t('По размеру файлов') }}</option></select
-      ><label v-if="tab === 'ready'"
-        ><input v-model="notPlayed" type="checkbox" />{{ t('Без отмеченного запуска') }}</label
-      >
-      <div class="glass-view-switch">
-        <button
-          :aria-pressed="listView === 'grid'"
-          :aria-label="t('Сетка')"
-          @click="listView = 'grid'"
-        >
-          ▦</button
-        ><button
-          :aria-pressed="listView === 'table'"
-          :aria-label="t('Таблица')"
-          @click="listView = 'table'"
-        >
-          ☷
-        </button>
-      </div>
-    </div>
-    <p v-if="activity?.running" class="notice">
-      {{ t('Сейчас запущено') }}:
-      {{ entries.find((r) => r.titleId === activity.titleId)?.title || activity.titleId }}
-    </p>
-    <p v-else-if="capabilities.consoleControl && !runtimeReady && !busy" class="notice">
-      {{ t('Запуск недоступен, пока служба не подтвердит состояние запущенной игры.') }}
-    </p>
-    <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
-    <p v-if="sourceMessage && !busy" class="notice" role="status">{{ t(sourceMessage) }}</p>
-    <p v-if="busy" role="status">{{ t('Читаем игры выбранной PS5…') }}</p>
-    <section v-if="command" class="notice" aria-live="polite">
-      <strong>{{ command.titleId }} · {{ t(labels[command.action] || command.action) }}</strong>
-      <p>
+    <template v-if="tab !== 'cleanup'">
+      <p v-if="!capabilities.consoleControl && !busy" class="notice">
         {{
           t(
-            command.state === 'unconfirmed'
-              ? 'Результат не подтверждён; команда повторно не отправляется'
-              : command.state === 'failed'
-                ? 'Команда не выполнена'
-                : command.storage
-                  ? command.storage.state === 'completed'
-                    ? 'Работа с файлами завершена'
-                    : command.storage.state === 'failed'
-                      ? 'Ошибка работы с файлами'
-                      : 'Обработка файлов на PS5'
-                  : 'Системная команда принята PS5',
+            'Просмотр игр доступен. Команды управления включаются после проверки службы на этой PS5.',
           )
         }}
       </p>
-      <p v-if="Number.isInteger(command.result?.code) && command.result.code < 0">
-        PS5 API ·
-        {{ `0x${(command.result.code >>> 0).toString(16).toUpperCase().padStart(8, '0')}` }}
+      <p v-if="capabilities.consoleControl && !sourceControl && !busy" class="notice">
+        {{
+          t(
+            'Запуск и остановка проверены. Изменения файлов включаются после отдельной проверки службы.',
+          )
+        }}
+        <button class="notice-action" @click="overrideDialog = true">
+          {{ t('Разрешить изменение файлов на этой PS5…') }}
+        </button>
       </p>
-      <progress
-        v-if="command.storage?.total_bytes"
-        :value="command.storage.processed_bytes"
-        :max="command.storage.total_bytes"
-      /><button @click="poll">{{ t('Проверить результат') }}</button>
-    </section>
-    <div class="console-layout">
-      <div class="console-library">
-        <section v-for="group in groups" :key="group.key" class="game-section">
-          <h2>
-            {{ group.title }} <small>{{ group.rows.length }}</small>
-          </h2>
-          <p v-if="!group.rows.length && !busy && !(tab === 'files' && sourceMessage)">
-            {{
-              t(
-                tab === 'files' && !capabilities.consoleSourcesRead
-                  ? sourceMessage ||
-                      'Для чтения исходных папок и образов нужна обновлённая служба PS5.'
-                  : 'Ничего не найдено.',
-              )
-            }}
-          </p>
-          <div v-if="tab === 'ready' && listView === 'grid'" class="game-grid">
-            <ConsoleGameCard
-              v-for="row in group.rows"
-              :key="row.titleId"
-              v-bind="{
-                title: row.title,
-                titleId: row.titleId,
-                platform: row.platform,
-                cover: row.cover,
-                version: row.version,
-                format: row.format,
-                sizeBytes: row.sizeBytes,
-                status: state(row),
-                selected: selected === row.titleId,
-              }"
-              @details="details(row)"
-              ><button
+      <p v-if="capabilities.consoleSourceControlOverride && !busy" class="notice warning">
+        {{
+          t(
+            'Удаление, копирование и перемещение файлов игр включены вручную без проверки службы на этой PS5.',
+          )
+        }}
+        <button class="notice-action" :disabled="overrideSaving" @click="setSourceOverride(false)">
+          {{ t('Выключить') }}
+        </button>
+      </p>
+      <p v-if="preparing" role="status" aria-live="polite">
+        {{ t('Проверяем состояние PS5 перед запуском…') }}
+      </p>
+      <div class="controls console-toolbar">
+        <input
+          v-model="query"
+          type="search"
+          :placeholder="t('Название, Title ID или путь')"
+        /><select v-model="platform">
+          <option value="all">{{ t('Все платформы') }}</option>
+          <option value="ps4">PS4</option>
+          <option value="ps5">PS5</option></select
+        ><select v-model="sort">
+          <option value="name">{{ t('По названию') }}</option>
+          <option value="recent">{{ t('Последний запуск') }}</option>
+          <option value="size">{{ t('По размеру файлов') }}</option></select
+        ><label v-if="tab === 'ready'"
+          ><input v-model="notPlayed" type="checkbox" />{{ t('Без отмеченного запуска') }}</label
+        >
+        <div class="glass-view-switch">
+          <button
+            :aria-pressed="listView === 'grid'"
+            :aria-label="t('Сетка')"
+            @click="listView = 'grid'"
+          >
+            ▦</button
+          ><button
+            :aria-pressed="listView === 'table'"
+            :aria-label="t('Таблица')"
+            @click="listView = 'table'"
+          >
+            ☷
+          </button>
+        </div>
+      </div>
+      <p v-if="activity?.running" class="notice">
+        {{ t('Сейчас запущено') }}:
+        {{ entries.find((r) => r.titleId === activity.titleId)?.title || activity.titleId }}
+      </p>
+      <p v-else-if="capabilities.consoleControl && !runtimeReady && !busy" class="notice">
+        {{ t('Запуск недоступен, пока служба не подтвердит состояние запущенной игры.') }}
+      </p>
+      <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
+      <p v-if="sourceMessage && !busy" class="notice" role="status">{{ t(sourceMessage) }}</p>
+      <p v-if="busy" role="status">{{ t('Читаем игры выбранной PS5…') }}</p>
+      <section v-if="command" class="notice" aria-live="polite">
+        <strong>{{ command.titleId }} · {{ t(labels[command.action] || command.action) }}</strong>
+        <p>
+          {{
+            t(
+              command.state === 'unconfirmed'
+                ? 'Результат не подтверждён; команда повторно не отправляется'
+                : command.state === 'failed'
+                  ? 'Команда не выполнена'
+                  : command.storage
+                    ? command.storage.state === 'completed'
+                      ? 'Работа с файлами завершена'
+                      : command.storage.state === 'failed'
+                        ? 'Ошибка работы с файлами'
+                        : 'Обработка файлов на PS5'
+                    : 'Системная команда принята PS5',
+            )
+          }}
+        </p>
+        <p v-if="Number.isInteger(command.result?.code) && command.result.code < 0">
+          PS5 API ·
+          {{ `0x${(command.result.code >>> 0).toString(16).toUpperCase().padStart(8, '0')}` }}
+        </p>
+        <progress
+          v-if="command.storage?.total_bytes"
+          :value="command.storage.processed_bytes"
+          :max="command.storage.total_bytes"
+        /><button @click="poll">{{ t('Проверить результат') }}</button>
+      </section>
+      <div class="console-layout">
+        <div class="console-library">
+          <section v-for="group in groups" :key="group.key" class="game-section">
+            <h2>
+              {{ group.title }} <small>{{ group.rows.length }}</small>
+            </h2>
+            <p v-if="!group.rows.length && !busy && !(tab === 'files' && sourceMessage)">
+              {{
+                t(
+                  tab === 'files' && !capabilities.consoleSourcesRead
+                    ? sourceMessage ||
+                        'Для чтения исходных папок и образов нужна обновлённая служба PS5.'
+                    : 'Ничего не найдено.',
+                )
+              }}
+            </p>
+            <div v-if="tab === 'ready' && listView === 'grid'" class="game-grid">
+              <ConsoleGameCard
+                v-for="row in group.rows"
+                :key="row.titleId"
+                v-bind="{
+                  title: row.title,
+                  titleId: row.titleId,
+                  platform: row.platform,
+                  cover: row.cover,
+                  version: row.version,
+                  format: row.format,
+                  sizeBytes: row.sizeBytes,
+                  status: state(row),
+                  selected: selected === row.titleId,
+                }"
+                @details="details(row)"
+                ><button
+                  class="primary"
+                  :disabled="
+                    pending ||
+                    preparing ||
+                    !capabilities.consoleControl ||
+                    !runtimeReady ||
+                    !row.installed
+                  "
+                  @click="prepare(row, isRunning(row) ? 'stop' : 'launch')"
+                >
+                  {{ isRunning(row) ? '■' : '▷' }}
+                  {{ t(isRunning(row) ? 'Стоп' : 'Запустить') }}</button
+                ><button @click="details(row)">{{ t('Сведения') }}</button
+                ><button
+                  class="danger"
+                  :disabled="pending || preparing || !sourceControl"
+                  @click="prepare(row, row.canManageSource ? 'delete' : 'uninstall')"
+                >
+                  {{ t('Удалить') }}
+                </button></ConsoleGameCard
+              >
+            </div>
+            <div
+              v-if="tab === 'files' || listView === 'table'"
+              class="glass-table-wrap glass-surface"
+            >
+              <table class="glass-table console-source-table">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>{{ t('Название') }}</th>
+                    <th>{{ t('Формат') }}</th>
+                    <th>{{ t('Размер') }}</th>
+                    <th v-if="tab === 'files'">{{ t('Путь') }}</th>
+                    <th>{{ t('Действия') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="row in group.rows"
+                    :key="row.titleId"
+                    :class="{ selected: selected === row.titleId }"
+                  >
+                    <td>
+                      <input
+                        type="radio"
+                        name="ps5-console-source"
+                        :checked="selected === row.titleId"
+                        :aria-label="`${t('Выбрать')}: ${row.title}`"
+                        @change="details(row)"
+                      />
+                    </td>
+                    <td>
+                      <button class="save-title" @click="details(row)">
+                        <GlassArtwork :title="row.title" :cover="row.cover" /><span
+                          ><strong>{{ row.title }}</strong
+                          ><small>{{ row.titleId }}</small></span
+                        >
+                      </button>
+                    </td>
+                    <td>
+                      <ContentTags
+                        :platform="row.platform"
+                        :formats="row.format ? [row.format] : []"
+                      />
+                    </td>
+                    <td class="numeric">
+                      {{ row.sizeBytes === undefined ? '—' : size(row.sizeBytes) }}
+                    </td>
+                    <td v-if="tab === 'files'" class="source-path">{{ row.path || '—' }}</td>
+                    <td>
+                      <div class="row-actions">
+                        <button
+                          v-if="tab === 'files'"
+                          :disabled="pending || preparing || !sourceControl || !row.canManageSource"
+                          @click="prepare(row, row.mounted ? 'unmount' : 'mount')"
+                        >
+                          {{ t(row.mounted ? 'Размонтировать' : 'Смонтировать') }}</button
+                        ><button
+                          v-else
+                          class="primary"
+                          :disabled="
+                            pending ||
+                            preparing ||
+                            !capabilities.consoleControl ||
+                            !runtimeReady ||
+                            !row.installed
+                          "
+                          @click="prepare(row, isRunning(row) ? 'stop' : 'launch')"
+                        >
+                          {{ t(isRunning(row) ? 'Стоп' : 'Запустить') }}</button
+                        ><button
+                          :aria-label="`${t('Подробнее')}: ${row.title}`"
+                          @click="details(row)"
+                        >
+                          ···
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+        <aside class="console-inspector">
+          <section v-if="info" class="game-info glass-surface">
+            <div class="inspector-title">
+              <GlassArtwork :title="info.title" :cover="info.cover" /><ContentTags
+                :platform="info.platform"
+                :formats="info.format ? [info.format] : []"
+              />
+            </div>
+            <header>
+              <h2>{{ info.title }}</h2>
+              <button
+                @click="
+                  info = undefined;
+                  selected = '';
+                "
+              >
+                ×
+              </button>
+            </header>
+            <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
+            <p
+              v-if="command?.titleId === info.titleId && command.state === 'failed'"
+              class="error"
+              role="alert"
+            >
+              {{ t('PS5 отклонила команду') }} ·
+              {{
+                command.result?.code === undefined
+                  ? t(command.state)
+                  : `0x${(command.result.code >>> 0).toString(16).toUpperCase()}`
+              }}
+            </p>
+            <dl>
+              <dt>Title ID</dt>
+              <dd>{{ info.titleId }}</dd>
+              <dt>{{ t('Версия') }}</dt>
+              <dd>{{ info.version || '—' }}</dd>
+              <dt>Content ID</dt>
+              <dd>{{ info.contentId || '—' }}</dd>
+              <dt>{{ t('Формат') }}</dt>
+              <dd>{{ info.format || '—' }}</dd>
+              <dt>{{ t('Исходные файлы') }}</dt>
+              <dd>{{ info.path || t('Путь не предоставлен службой') }}</dd>
+              <dt>{{ t('Размер исходных файлов') }}</dt>
+              <dd>{{ size(info.sizeBytes) }}</dd>
+              <dt>{{ t('Состояние') }}</dt>
+              <dd>{{ state(info) }}</dd>
+            </dl>
+            <div class="info-actions">
+              <button
                 class="primary"
                 :disabled="
                   pending ||
                   preparing ||
                   !capabilities.consoleControl ||
                   !runtimeReady ||
-                  !row.installed
+                  !info.installed
                 "
-                @click="prepare(row, isRunning(row) ? 'stop' : 'launch')"
+                @click="prepare(info, isRunning(info) ? 'stop' : 'launch')"
               >
-                {{ isRunning(row) ? '■' : '▷' }}
-                {{ t(isRunning(row) ? 'Стоп' : 'Запустить') }}</button
-              ><button @click="details(row)">{{ t('Сведения') }}</button
+                ▷ {{ t(isRunning(info) ? 'Стоп' : 'Запустить') }}</button
+              ><button @click="emit('saves', info.titleId)">{{ t('Сохранения') }}</button
               ><button
-                class="danger"
-                :disabled="pending || preparing || !sourceControl"
-                @click="prepare(row, row.canManageSource ? 'delete' : 'uninstall')"
-              >
-                {{ t('Удалить') }}
-              </button></ConsoleGameCard
-            >
-          </div>
-          <div
-            v-if="tab === 'files' || listView === 'table'"
-            class="glass-table-wrap glass-surface"
-          >
-            <table class="glass-table console-source-table">
-              <thead>
-                <tr>
-                  <th></th>
-                  <th>{{ t('Название') }}</th>
-                  <th>{{ t('Формат') }}</th>
-                  <th>{{ t('Размер') }}</th>
-                  <th v-if="tab === 'files'">{{ t('Путь') }}</th>
-                  <th>{{ t('Действия') }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="row in group.rows"
-                  :key="row.titleId"
-                  :class="{ selected: selected === row.titleId }"
-                >
-                  <td>
-                    <input
-                      type="radio"
-                      name="ps5-console-source"
-                      :checked="selected === row.titleId"
-                      :aria-label="`${t('Выбрать')}: ${row.title}`"
-                      @change="details(row)"
-                    />
-                  </td>
-                  <td>
-                    <button class="save-title" @click="details(row)">
-                      <GlassArtwork :title="row.title" :cover="row.cover" /><span
-                        ><strong>{{ row.title }}</strong
-                        ><small>{{ row.titleId }}</small></span
-                      >
-                    </button>
-                  </td>
-                  <td>
-                    <ContentTags
-                      :platform="row.platform"
-                      :formats="row.format ? [row.format] : []"
-                    />
-                  </td>
-                  <td class="numeric">
-                    {{ row.sizeBytes === undefined ? '—' : size(row.sizeBytes) }}
-                  </td>
-                  <td v-if="tab === 'files'" class="source-path">{{ row.path || '—' }}</td>
-                  <td>
-                    <div class="row-actions">
-                      <button
-                        v-if="tab === 'files'"
-                        :disabled="pending || preparing || !sourceControl || !row.canManageSource"
-                        @click="prepare(row, row.mounted ? 'unmount' : 'mount')"
-                      >
-                        {{ t(row.mounted ? 'Размонтировать' : 'Смонтировать') }}</button
-                      ><button
-                        v-else
-                        class="primary"
-                        :disabled="
-                          pending ||
-                          preparing ||
-                          !capabilities.consoleControl ||
-                          !runtimeReady ||
-                          !row.installed
-                        "
-                        @click="prepare(row, isRunning(row) ? 'stop' : 'launch')"
-                      >
-                        {{ t(isRunning(row) ? 'Стоп' : 'Запустить') }}</button
-                      ><button
-                        :aria-label="`${t('Подробнее')}: ${row.title}`"
-                        @click="details(row)"
-                      >
-                        ···
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-      <aside class="console-inspector">
-        <section v-if="info" class="game-info glass-surface">
-          <div class="inspector-title">
-            <GlassArtwork :title="info.title" :cover="info.cover" /><ContentTags
-              :platform="info.platform"
-              :formats="info.format ? [info.format] : []"
-            />
-          </div>
-          <header>
-            <h2>{{ info.title }}</h2>
-            <button
-              @click="
-                info = undefined;
-                selected = '';
-              "
-            >
-              ×
-            </button>
-          </header>
-          <p v-if="error" class="error" role="alert">{{ t(error) }}</p>
-          <p
-            v-if="command?.titleId === info.titleId && command.state === 'failed'"
-            class="error"
-            role="alert"
-          >
-            {{ t('PS5 отклонила команду') }} ·
-            {{
-              command.result?.code === undefined
-                ? t(command.state)
-                : `0x${(command.result.code >>> 0).toString(16).toUpperCase()}`
-            }}
-          </p>
-          <dl>
-            <dt>Title ID</dt>
-            <dd>{{ info.titleId }}</dd>
-            <dt>{{ t('Версия') }}</dt>
-            <dd>{{ info.version || '—' }}</dd>
-            <dt>Content ID</dt>
-            <dd>{{ info.contentId || '—' }}</dd>
-            <dt>{{ t('Формат') }}</dt>
-            <dd>{{ info.format || '—' }}</dd>
-            <dt>{{ t('Исходные файлы') }}</dt>
-            <dd>{{ info.path || t('Путь не предоставлен службой') }}</dd>
-            <dt>{{ t('Размер исходных файлов') }}</dt>
-            <dd>{{ size(info.sizeBytes) }}</dd>
-            <dt>{{ t('Состояние') }}</dt>
-            <dd>{{ state(info) }}</dd>
-          </dl>
-          <div class="info-actions">
-            <button
-              class="primary"
-              :disabled="
-                pending ||
-                preparing ||
-                !capabilities.consoleControl ||
-                !runtimeReady ||
-                !info.installed
-              "
-              @click="prepare(info, isRunning(info) ? 'stop' : 'launch')"
-            >
-              ▷ {{ t(isRunning(info) ? 'Стоп' : 'Запустить') }}</button
-            ><button @click="emit('saves', info.titleId)">{{ t('Сохранения') }}</button
-            ><button
-              :disabled="
-                pending ||
-                preparing ||
-                !capabilities.consoleControl ||
-                !runtimeReady ||
-                !isRunning(info)
-              "
-              @click="prepare(info, 'stop')"
-            >
-              {{ t('Остановить') }}</button
-            ><template v-if="info.canManageSource"
-              ><button
-                v-for="a in ['copy', 'move', 'unpack']"
-                :key="a"
                 :disabled="
                   pending ||
                   preparing ||
-                  !sourceControl ||
-                  (a === 'unpack' && (info.sourceType !== 'image' || !capabilities.consoleUnpack))
+                  !capabilities.consoleControl ||
+                  !runtimeReady ||
+                  !isRunning(info)
                 "
-                @click="prepare(info, a)"
+                @click="prepare(info, 'stop')"
               >
-                {{ t(labels[a]) }}</button
-              ><button
-                :disabled="pending || preparing || !sourceControl"
-                @click="prepare(info, 'uninstall')"
+                {{ t('Остановить') }}</button
+              ><template v-if="info.canManageSource"
+                ><button
+                  v-for="a in ['copy', 'move', 'unpack']"
+                  :key="a"
+                  :disabled="
+                    pending ||
+                    preparing ||
+                    !sourceControl ||
+                    (a === 'unpack' && (info.sourceType !== 'image' || !capabilities.consoleUnpack))
+                  "
+                  @click="prepare(info, a)"
+                >
+                  {{ t(labels[a]) }}</button
+                ><button
+                  :disabled="pending || preparing || !sourceControl"
+                  @click="prepare(info, 'uninstall')"
+                >
+                  {{ t('Удалить регистрацию') }}
+                </button></template
               >
-                {{ t('Удалить регистрацию') }}
-              </button></template
-            >
+            </div>
+            <p v-if="info.sourceType === 'image' && !capabilities.consoleUnpack">
+              {{
+                t(
+                  'Распаковка образов на этой PS5 ещё не подтверждена. Монтирование использует исходный образ.',
+                )
+              }}
+            </p>
+            <p v-if="info.canManageSource">
+              {{
+                t(
+                  'Удаление регистрации сохраняет исходные файлы: сканирование может вернуть игру в меню. «Удалить» удаляет и файлы игры. Сохранения остаются.',
+                )
+              }}
+            </p>
+          </section>
+          <div v-if="!info" class="glass-surface glass-empty console-inspector-empty">
+            <span class="empty-symbol" aria-hidden="true">▣</span
+            ><strong>{{ t('Выберите игру') }}</strong
+            ><span>{{ t('Здесь появятся сведения и доступные действия.') }}</span>
           </div>
-          <p v-if="info.sourceType === 'image' && !capabilities.consoleUnpack">
-            {{
-              t(
-                'Распаковка образов на этой PS5 ещё не подтверждена. Монтирование использует исходный образ.',
-              )
-            }}
-          </p>
-          <p v-if="info.canManageSource">
-            {{
-              t(
-                'Удаление регистрации сохраняет исходные файлы: сканирование может вернуть игру в меню. «Удалить» удаляет и файлы игры. Сохранения остаются.',
-              )
-            }}
-          </p>
-        </section>
-        <div v-if="!info" class="glass-surface glass-empty console-inspector-empty">
-          <span class="empty-symbol" aria-hidden="true">▣</span
-          ><strong>{{ t('Выберите игру') }}</strong
-          ><span>{{ t('Здесь появятся сведения и доступные действия.') }}</span>
-        </div>
-      </aside>
-    </div>
+        </aside>
+      </div>
+    </template>
+    <Ps5StorageCleanup v-else :console-id="consoleId" />
     <div
       v-if="overrideDialog"
       class="backdrop"

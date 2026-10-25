@@ -151,6 +151,20 @@ function runner(id: string) {
   void value.cleanupCancelled();
   return value;
 }
+/** What WEB knows about one of its own transfers (for the cleanup list). */
+export function ps5TransferRecord(id: string, transferId: string) {
+  const q = runner(id).queue;
+  const item = [...q.items, ...q.history.flat()].find((entry) => entry.transferId === transferId);
+  if (!item) return undefined;
+  return {
+    title: item.title,
+    titleId: item.titleId,
+    // A transfer of the current, unfinished queue may still be resumed.
+    open:
+      q.items.includes(item) &&
+      !['installed', 'failed', 'skipped', 'cancelled'].includes(item.state),
+  };
+}
 export function getPs5Queue(id: string) {
   const { history: _, ...snapshot } = runner(id).queue,
     q = structuredClone(snapshot);

@@ -23,6 +23,7 @@ import {
   ps5ConsoleGameCommandStatus,
   ps5ConsoleStorageStatus,
 } from '../../../utils/ps5-console-games';
+import { ps5CleanupInventory, ps5CleanupRun } from '../../../utils/ps5-storage-cleanup';
 export default defineEventHandler(async (event) => {
   assertInstallationOrigin(event, true);
   setHeader(event, 'Cache-Control', 'no-store');
@@ -41,6 +42,10 @@ export default defineEventHandler(async (event) => {
       return ps5ConsoleGameCommandStatus(body?.consoleId, body?.requestId);
     case 'game-storage-status':
       return ps5ConsoleStorageStatus(body?.consoleId, body?.requestId);
+    case 'cleanup':
+      return ps5CleanupInventory(body?.consoleId);
+    case 'cleanup-run':
+      return ps5CleanupRun(body?.consoleId, body?.ids, body?.confirmTitles);
     case 'status':
       return managementStatus(body?.consoleId);
     case 'source-control':
