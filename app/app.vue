@@ -1894,7 +1894,7 @@ onMounted(() => {
       <template v-if="activeConsole">
         <ConsoleApps
           v-if="activeSection === 'console' && consolePlatform === 'ps4'"
-          :key="activeConsole.id + activeConsole.ip"
+          :key="`ps4-console-${activeConsole.id}-${activeConsole.ip}`"
           :ip="activeConsole.ip"
           @status="consoleConnected = $event"
           @changed="refreshConsoleLibrary"
@@ -1907,7 +1907,7 @@ onMounted(() => {
         ></ConsoleApps>
         <ConsoleSaves
           v-else-if="activeSection === 'saves' && consolePlatform === 'ps4'"
-          :key="activeConsole.id + activeConsole.ip"
+          :key="`ps4-saves-${activeConsole.id}-${activeConsole.ip}`"
           :ip="activeConsole.ip"
           :focus-title-id="saveFocusTitleId"
           ><template #target
@@ -1918,7 +1918,7 @@ onMounted(() => {
         ></ConsoleSaves>
         <Ps5ConsoleApps
           v-else-if="activeSection === 'console' && consolePlatform === 'ps5'"
-          :key="activeConsole.id"
+          :key="`ps5-console-${activeConsole.id}`"
           :console-id="activeConsole.id"
           @saves="openSaves"
           ><template #target
@@ -1929,7 +1929,7 @@ onMounted(() => {
         ></Ps5ConsoleApps>
         <Ps5ConsoleSaves
           v-else-if="activeSection === 'saves' && consolePlatform === 'ps5'"
-          :key="activeConsole.id"
+          :key="`ps5-saves-${activeConsole.id}`"
           :console-id="activeConsole.id"
           :focus-title-id="saveFocusTitleId"
           ><template #target

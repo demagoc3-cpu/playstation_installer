@@ -62,7 +62,7 @@ async function inspect(value: unknown, source: unknown) {
   const declaredSize = header.readBigUInt64BE(0x430);
   // License-only packages may have a zero package size; their data section still covers the file.
   const sizeMatches =
-    declaredSize !== 0n
+    declaredSize !== BigInt(0)
       ? declaredSize === BigInt(stat.size)
       : header.readUInt32BE(0x74) === 0x1c &&
         header.readBigUInt64BE(0x20) + header.readBigUInt64BE(0x28) === BigInt(stat.size);

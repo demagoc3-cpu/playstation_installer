@@ -161,7 +161,6 @@ async function response(
  * the service has passed its hardware check there. Stored per console and
  * shown as unverified; launch control and image unpacking keep their own checks. */
 const sourceControlPath = ps5SourceControlPath;
-export { ps5SourceControlOverride };
 export function setPs5SourceControlOverride(id: unknown, enabled: unknown) {
   const p = profile(id);
   if (typeof enabled !== 'boolean') throw fail('Неверное значение переключателя');
