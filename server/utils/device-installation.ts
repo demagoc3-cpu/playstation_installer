@@ -246,6 +246,27 @@ export async function deviceActivitiesLive(packageIds: string[] = []): Promise<D
               getInstallationTasks({ categories: 'active', page: 1, ip: profile.ip }),
             );
       entry.current = page.active[0];
+      // The public profile carries the capabilities and free space last read.
+      const live = getConsoleProfiles().consoles.find((item) => item.id === profile.id);
+      if (live && installationSpaceSupported(live)) {
+        const waiting =
+          profile.platform === 'ps5'
+            ? getPs5PendingSpaceItems(profile.id)
+            : deviceQueue(profile.id)
+                .items.filter(
+                  (item) => !['installed', 'failed', 'skipped', 'cancelled'].includes(item.state),
+                )
+                .map((item) => ({ size: item.size || 0, format: 'pkg' as const }));
+        const waitingBytes = waiting.reduce((sum, item) => sum + item.size, 0);
+        entry.space = {
+          waitingBytes,
+          requiredBytes:
+            profile.platform === 'ps5'
+              ? requiredPs5InstallSpace(waiting, live.capabilities)
+              : requiredInstallSpace(waitingBytes),
+          freeBytes: live.freeBytes,
+        };
+      }
     } catch {
       /* The heading then shows the counts only. */
     }

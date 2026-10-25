@@ -146,6 +146,14 @@ function updateSnapshot(id: string, page: InstallationTasksPage) {
 }
 
 const activityFor = (id: string) => props.activity.find((item) => item.consoleId === id);
+const { formatLocale } = useAppLocale();
+const gib = (bytes: number) =>
+  `${(bytes / 1024 ** 3).toLocaleString(formatLocale.value, { maximumFractionDigits: 1 })} ${t('ГБ')}`;
+/** Clearly short of space: the same estimate the install review uses. */
+function spaceShort(id: string) {
+  const space = activityFor(id)?.space;
+  return !!space && space.freeBytes !== undefined && space.requiredBytes > space.freeBytes;
+}
 const shown = computed(() =>
   props.profiles.consoles
     .filter(
@@ -291,6 +299,20 @@ async function cancelAll(id: string, resolve = false) {
                 {{ t('Завершённые:') }} {{ activityFor(profile.id)?.counts.completed || 0 }} ·
                 {{ t('Ошибки и пропуски:') }}
                 {{ activityFor(profile.id)?.counts.failed || 0 }}</small
+              ><small
+                v-if="activityFor(profile.id)?.space"
+                class="device-space"
+                :class="{ short: spaceShort(profile.id) }"
+                :title="
+                  t('Оценка, как в окне установки. Каждая установка проверяет место на PS5 сама.')
+                "
+                >{{ t('Ждёт установки:') }} {{ gib(activityFor(profile.id)!.space!.waitingBytes) }}
+                <template v-if="activityFor(profile.id)!.space!.freeBytes !== undefined"
+                  >· {{ t('свободно') }}
+                  {{ gib(activityFor(profile.id)!.space!.freeBytes!) }}</template
+                ><template v-if="spaceShort(profile.id)">
+                  · {{ t('может не поместиться') }}</template
+                ></small
               >
             </button>
             <div
@@ -478,6 +500,13 @@ p {
 .device-heading i {
   font-style: normal;
   color: #777;
+}
+.device-heading small.device-space {
+  margin-left: 0;
+  flex-basis: 100%;
+}
+.device-heading small.device-space.short {
+  color: #ffb36b;
 }
 .device-heading .online {
   color: #8fd0a6;

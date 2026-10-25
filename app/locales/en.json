@@ -2881,5 +2881,9 @@
   "ошибки и пропуски:": "errors and skips:",
   "Заданий нет.": "No tasks.",
   "Убрать пакет из очереди": "Remove the package from the queue",
-  "Отменить все пакеты этой игры: базу, патчи и DLC": "Cancel all packages of this game: base, patches and DLC"
+  "Отменить все пакеты этой игры: базу, патчи и DLC": "Cancel all packages of this game: base, patches and DLC",
+  "Ждёт установки:": "Waiting to install:",
+  "свободно": "free",
+  "может не поместиться": "may not fit",
+  "Оценка, как в окне установки. Каждая установка проверяет место на PS5 сама.": "An estimate, as in the installation window. Each install checks the space on the console itself."
 }

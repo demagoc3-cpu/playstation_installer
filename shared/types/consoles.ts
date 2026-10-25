@@ -116,6 +116,9 @@ export interface DeviceActivity {
   installedPackageIds: string[];
   /** The task in progress, as its active card shows it (for a collapsed device). */
   current?: InstallationTask;
+  /** Unfinished packages of the running queue and the space they need, estimated
+   * like the install review; an estimate, each install checks space itself. */
+  space?: { waitingBytes: number; requiredBytes: number; freeBytes?: number };
 }
 
 export interface ConsoleProfiles {

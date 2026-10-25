@@ -85,6 +85,9 @@ test('device activity carries the task in progress for a collapsed device headin
     assert.equal(entry.current.size, 1000);
     assert.equal(entry.current.state, 'sending');
     assert.equal(entry.current.transferId, undefined, 'internal ids stay private');
+    // Both unfinished packages wait; a PKG needs room for two copies.
+    assert.equal(entry.space?.waitingBytes, 2000);
+    assert.equal(entry.space.requiredBytes, 4000);
   } finally {
     globalThis.fetch = previousFetch;
     globalThis.createError = previousError;
