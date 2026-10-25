@@ -399,7 +399,7 @@ h1 {
 p {
   margin: 5px 0;
   font-size: 12px;
-  color: #a9a4b3;
+  color: #a6bee1;
 }
 .controls,
 .toolbar,
@@ -427,9 +427,9 @@ footer {
   white-space: pre-wrap;
 }
 .install-bar {
-  border: 1px solid #3b3941;
-  background: #1e1d22;
-  border-radius: 8px;
+  border: 1px solid var(--pf-line);
+  background: linear-gradient(145deg, var(--pf-panel), var(--pf-glass));
+  border-radius: 12px;
   padding: 10px;
   font-size: 12px;
   flex-wrap: wrap;
@@ -439,22 +439,23 @@ footer {
 }
 input:not([type='checkbox']) {
   min-width: 0;
-  border: 1px solid #4d4858;
-  border-radius: 8px;
-  background: #18171d;
-  color: #eee;
+  border: 1px solid var(--pf-line);
+  border-radius: 9px;
+  background: #07172b99;
+  color: #e6efff;
   padding: 9px;
   font-size: 12px;
 }
 input {
-  accent-color: #a786df;
+  accent-color: #37c9fb;
 }
+/* Glass buttons like the rest of PackageFlow; «Скачать список» is a link. */
 button,
 a {
-  color: #e9e8ef;
-  background: #28272d;
-  border: 1px solid #3b3941;
-  border-radius: 8px;
+  color: #e6efff;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
+  border: 1px solid var(--pf-line);
+  border-radius: 9px;
   padding: 9px 12px;
   font-size: 11px;
   text-decoration: none;
@@ -462,6 +463,10 @@ a {
 }
 button:disabled {
   opacity: 0.4;
+}
+button:hover:not(:disabled),
+a:hover {
+  border-color: #53cfff99;
 }
 .preset-scroll {
   flex: 1;
@@ -472,7 +477,7 @@ button:disabled {
   align-content: start;
   gap: 0;
   padding-right: 6px;
-  scrollbar-color: #736b85 #19191c;
+  scrollbar-color: #3070b6 #07172b;
 }
 .preset-grid {
   display: flex;
@@ -486,11 +491,24 @@ button:disabled {
   flex: none;
   display: flex;
   flex-direction: column;
-  border: 1px solid #333139;
-  background: #19191c;
+  border: 1px solid var(--pf-line);
+  background: linear-gradient(145deg, var(--pf-panel), var(--pf-glass));
+  box-shadow:
+    0 14px 42px #00081820,
+    inset 0 1px 0 #ffffff08;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 16px;
   min-width: 0;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.preset-grid > .preset-card:hover {
+  border-color: #53cfff80;
+  box-shadow:
+    0 14px 42px #00081830,
+    0 0 18px #22bfff26,
+    inset 0 1px 0 #ffffff0d;
 }
 .preset-art {
   position: relative;
@@ -500,8 +518,9 @@ button:disabled {
   flex-shrink: 0;
   overflow: hidden;
   border: 0;
+  border-bottom: 1px solid var(--pf-line);
   border-radius: 0;
-  background: radial-gradient(ellipse at 50% 95%, #3a3942, transparent 70%), #1e1d22;
+  background: radial-gradient(ellipse at 50% 100%, #1c83d355, transparent 70%), #0b294980;
 }
 .fan-cover {
   position: absolute;
@@ -511,12 +530,12 @@ button:disabled {
   height: 108px;
   display: grid;
   place-items: center;
-  border: 2px solid #514e5c;
+  border: 2px solid #5e85b9;
   border-radius: 7px;
-  background: #35343c;
-  color: #d9d4e8;
+  background: #122e58;
+  color: #a5dfff;
   font-size: 28px;
-  box-shadow: 0 5px 14px #0008;
+  box-shadow: 0 6px 16px #00081899;
   transform: rotate(var(--angle));
   transform-origin: 50% 100%;
   z-index: var(--depth);
@@ -542,15 +561,16 @@ button:disabled {
   border: 0;
   background: transparent;
   font-weight: 800;
+  color: #fff;
 }
 .preset-info > span,
 .preset-info > small {
   font-size: 11px;
-  color: #a9a4b3;
+  color: #a6bee1;
 }
 .preset-description {
   font-size: 12px;
-  color: #a9a4b3;
+  color: #a6bee1;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -560,26 +580,38 @@ button:disabled {
 .preset-install {
   width: 100%;
   margin-top: auto;
-  background: #28272d;
-  border-color: #4c4858;
+  padding: 10px 12px;
+  color: #fff;
+  background: linear-gradient(115deg, #159dce, #7561ed);
+  border-color: #93caff6e;
+  box-shadow:
+    0 4px 18px #267ed826,
+    inset 0 1px 0 #ffffff26;
+}
+.preset-install:hover:not(:disabled) {
+  background: linear-gradient(115deg, #22b7e5, #8572ff);
+}
+.preset-install:disabled {
+  opacity: 0.35;
+  box-shadow: none;
 }
 .preset-art:hover {
-  background-color: #26252d;
+  background-color: #0e3260a0;
 }
 .preset-symbol {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  color: #aaa7b1;
+  color: #8dddff;
   font-size: 48px;
 }
 .missing {
-  color: #e78a80 !important;
+  color: #ffadbd !important;
 }
 footer {
   justify-content: center;
   font-size: 12px;
-  color: #a9a4b3;
+  color: #a6bee1;
 }
 </style>
