@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
@@ -19,6 +21,18 @@ export default defineNuxtConfig({
         btc: '17jXaJmM4jki1gwQmzo4ep9U4Sb6iiZXWG',
         usdtTrc20: 'TRMH7kJxydeBxjbyu2FRmraoDzkx6mRa9v',
       },
+    },
+  },
+  hooks: {
+    // Development only: answer expected API refusals before Nitro's dev handler,
+    // whose stack mapping leaks memory (see server/error/dev-api-errors.ts).
+    'nitro:config'(config) {
+      if (!config.dev) return;
+      const handlers = config.errorHandler ? [config.errorHandler].flat() : [];
+      config.errorHandler = [
+        fileURLToPath(new URL('./server/error/dev-api-errors', import.meta.url)),
+        ...handlers,
+      ];
     },
   },
   nitro: {
