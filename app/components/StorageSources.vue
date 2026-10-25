@@ -333,7 +333,7 @@ async function chooseFolder() {
           </h2>
           <button
             type="button"
-            class="storage-close"
+            class="pf-close storage-close"
             :disabled="saving"
             :aria-label="t('Закрыть')"
             @click="close()"

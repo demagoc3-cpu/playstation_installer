@@ -275,7 +275,9 @@ onBeforeUnmount(() => {
             {{ t('Проверка наличия с каждой приставки') }}
           </p>
         </div>
-        <button :disabled="busy" :aria-label="t('Закрыть')" @click="emit('close')">×</button>
+        <button class="pf-close" :disabled="busy" :aria-label="t('Закрыть')" @click="emit('close')">
+          ×
+        </button>
       </header>
       <div class="device-toolbar">
         <input v-model="query" :placeholder="t('Имя или IP устройства')" /><select v-model="filter">
@@ -490,7 +492,7 @@ onBeforeUnmount(() => {
               }}
             </p>
           </div>
-          <button @click="panel = ''" :aria-label="t('Закрыть')">×</button>
+          <button class="pf-close" @click="panel = ''" :aria-label="t('Закрыть')">×</button>
         </header>
         <div class="device-table">
           <table>

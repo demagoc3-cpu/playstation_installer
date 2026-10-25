@@ -225,6 +225,12 @@ async function create() {
     draft.ip = '';
   }
 }
+/** PS5: open the console's payload manager page (PLDMGR, port 8084) in a new
+ * tab and make it the active console, as «Открыть» did before. */
+function openPs5(profile: { id: string; ip: string }) {
+  window.open(`http://${profile.ip}:8084/`, '_blank', 'noopener');
+  if (props.profiles.activeId !== profile.id) void request('active', { id: profile.id });
+}
 </script>
 
 <template>
@@ -333,6 +339,15 @@ async function create() {
             <td>
               <div class="profile-actions row-actions">
                 <button
+                  v-if="profile.platform === 'ps5'"
+                  class="primary"
+                  :disabled="pending"
+                  :title="`http://${profile.ip}:8084`"
+                  @click="openPs5(profile)"
+                >
+                  {{ t('Открыть') }}</button
+                ><button
+                  v-else
                   :class="{ primary: profiles.activeId !== profile.id }"
                   :disabled="pending || profiles.activeId === profile.id"
                   @click="request('active', { id: profile.id })"
@@ -483,7 +498,7 @@ h2 {
 }
 p {
   font-size: 12px;
-  color: #a7a2b1;
+  color: #a6bee1;
   margin: 6px 0;
 }
 .profile-toolbar > input {
@@ -507,16 +522,16 @@ table {
 th,
 td {
   padding: 12px;
-  border-bottom: 1px solid #333139;
+  border-bottom: 1px solid var(--pf-line);
 }
 th {
-  color: #9691a0;
+  color: #a6bee1;
   font-size: 11px;
 }
 small {
   display: block;
   font-size: 10px;
-  color: #95909f;
+  color: #a6bee1;
   margin-top: 6px;
 }
 .selected {
@@ -531,15 +546,15 @@ td:last-child {
   white-space: nowrap;
 }
 .online {
-  color: #87d0a2;
+  color: #56ddb6;
 }
 button,
 input:not([type='checkbox']),
 select {
-  border: 1px solid #454052;
-  border-radius: 8px;
-  background: #27262d;
-  color: #e9e6ef;
+  border: 1px solid var(--pf-line);
+  border-radius: 9px;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
+  color: #e6efff;
   padding: 9px 12px;
   font-size: 12px;
 }
@@ -551,16 +566,21 @@ button:disabled {
   cursor: default;
 }
 button.primary {
-  background: #7754ad;
-  border-color: #a786df;
+  color: #fff;
+  background: linear-gradient(115deg, #159dce, #7561ed);
+  border-color: #93caff6e;
 }
 input {
-  accent-color: #a786df;
+  accent-color: #37c9fb;
+}
+input:not([type='checkbox']),
+select {
+  background: #07172b99;
 }
 .profile-modal {
   position: fixed;
   inset: 0;
-  background: #000b;
+  background: #020813ba;
   z-index: 250;
   display: grid;
   place-items: center;
@@ -570,8 +590,8 @@ input {
   width: min(420px, 100%);
   max-height: 90vh;
   overflow: auto;
-  background: #1d1d21;
-  border: 1px solid #454052;
+  background: rgb(14 29 51 / 97%);
+  border: 1px solid var(--pf-line);
   border-radius: 14px;
   padding: 24px;
   display: grid;
@@ -594,7 +614,7 @@ input {
 }
 .profile-actions .danger {
   margin-right: auto;
-  border-color: #8b3a4a;
-  color: #ffb3c0;
+  border-color: #ba59756b;
+  color: #ffadbd;
 }
 </style>

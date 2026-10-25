@@ -99,7 +99,7 @@ onBeforeUnmount(() => {
         </div>
         <button
           ref="closeButton"
-          class="close-button"
+          class="pf-close close-button"
           type="button"
           :aria-label="t('Закрыть')"
           @click="emit('close')"

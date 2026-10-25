@@ -57,7 +57,7 @@ onMounted(load);
     >
       <header>
         <h2>{{ t('Добавить в пресет') }}</h2>
-        <button @click="emit('close')" :aria-label="t('Закрыть')">×</button>
+        <button class="pf-close" @click="emit('close')" :aria-label="t('Закрыть')">×</button>
       </header>
       <p>{{ t('Выбрано файлов:') }} {{ packageIds.length }}</p>
       <form
@@ -117,7 +117,7 @@ onMounted(load);
   position: fixed;
   inset: 0;
   z-index: 30;
-  background: #07060bba;
+  background: #020813ba;
   display: grid;
   place-items: center;
   padding: 25px;
@@ -127,11 +127,11 @@ onMounted(load);
   max-width: 100%;
   max-height: 90vh;
   overflow: auto;
-  border: 1px solid #655077;
+  border: 1px solid var(--pf-line);
   border-radius: 18px;
   padding: 22px;
-  background: #211b2c;
-  color: #eee6fa;
+  background: rgb(14 29 51 / 97%);
+  color: #e6efff;
 }
 header,
 footer,
@@ -149,23 +149,23 @@ h2 {
   margin: 0;
 }
 p {
-  color: #b2a2c5;
+  color: #a6bee1;
   font-size: 12px;
 }
 input:not([type]) {
   min-width: 0;
   flex: 1;
-  border: 1px solid #584768;
+  border: 1px solid var(--pf-line);
   border-radius: 8px;
-  background: #16111d;
-  color: #eee6fa;
+  background: #07172b99;
+  color: #e6efff;
   padding: 10px;
 }
 button {
-  border: 1px solid #645178;
+  border: 1px solid var(--pf-line);
   border-radius: 8px;
   padding: 9px 12px;
-  background: #493260;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
   color: inherit;
   font-size: 12px;
 }
@@ -173,7 +173,7 @@ button:disabled {
   opacity: 0.4;
 }
 input {
-  accent-color: #a986e3;
+  accent-color: #37c9fb;
 }
 .preset-options {
   margin: 15px 0;
@@ -184,13 +184,13 @@ input {
   display: flex;
   gap: 12px;
   padding: 12px;
-  border-bottom: 1px solid #3e304d;
+  border-bottom: 1px solid var(--pf-line);
   cursor: pointer;
 }
 .preset-options small {
   display: block;
   margin-top: 4px;
-  color: #b3a0c6;
+  color: #a6bee1;
   font-size: 11px;
 }
 nav {

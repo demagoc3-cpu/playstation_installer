@@ -595,3 +595,44 @@ body .glass-shell .workspace-artwork {
     background-attachment: scroll;
   }
 }
+/* Modal close buttons: the same square button everywhere (also in dialogs
+ * teleported out of the shell), with a cross drawn by CSS so it is centred
+ * exactly; the × glyph sits off-centre in our fonts. A utility class, so it
+ * wins over component button styles. */
+button.pf-close {
+  position: relative !important;
+  flex: none !important;
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  padding: 0 !important;
+  border: 1px solid var(--pf-line) !important;
+  border-radius: 9px !important;
+  background: linear-gradient(145deg, #29426475, #142b4b9e) !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  cursor: pointer;
+}
+button.pf-close::before,
+button.pf-close::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: #e6efff;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+button.pf-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+button.pf-close:hover:not(:disabled) {
+  border-color: #53cfff99 !important;
+  background: #1c83d340 !important;
+}
+button.pf-close:disabled {
+  opacity: 0.4;
+}

@@ -161,7 +161,9 @@ onBeforeUnmount(() => {
         @focusin="cancelHide"
         @focusout="hideLater"
       >
-        <button class="pf-preview-close" :aria-label="t('Закрыть')" @click="dismiss">×</button>
+        <button class="pf-close pf-preview-close" :aria-label="t('Закрыть')" @click="dismiss">
+          ×
+        </button>
         <header class="pf-preview-header">
           <img v-if="cover" :src="cover" alt="" decoding="async" />
           <div v-else class="pf-preview-placeholder">{{ title.charAt(0) }}</div>

@@ -140,7 +140,14 @@ onBeforeUnmount(() => {
             <h2>{{ t('Тесты скорости') }} · {{ profile.name }}</h2>
             <p>WEB ↔ {{ profile.ip }} · {{ profile.platform.toUpperCase() }}</p>
           </div>
-          <button :disabled="running" @click="emit('close')">×</button>
+          <button
+            class="pf-close"
+            :disabled="running"
+            :aria-label="t('Закрыть')"
+            @click="emit('close')"
+          >
+            ×
+          </button>
         </header>
         <p>
           {{
@@ -317,7 +324,7 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 310;
-  background: #000b;
+  background: #020813ba;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -326,11 +333,11 @@ onBeforeUnmount(() => {
   width: min(850px, 100%);
   max-height: 90vh;
   overflow: auto;
-  background: #1d1d23;
-  border: 1px solid #494154;
+  background: rgb(14 29 51 / 97%);
+  border: 1px solid var(--pf-line);
   border-radius: 16px;
   padding: 24px;
-  color: #eee9f6;
+  color: #e6efff;
   display: grid;
   gap: 14px;
 }
@@ -347,12 +354,12 @@ h2 {
 }
 p {
   margin: 0;
-  color: #aaa1b8;
+  color: #a6bee1;
   font-size: 12px;
   line-height: 1.6;
 }
 fieldset {
-  border: 1px solid #494154;
+  border: 1px solid var(--pf-line);
   border-radius: 10px;
   display: flex;
   gap: 16px;
@@ -369,15 +376,20 @@ label {
   font-size: 12px;
 }
 input {
-  accent-color: #a887de;
+  accent-color: #37c9fb;
 }
 button,
 select {
-  border: 1px solid #4f455f;
-  border-radius: 8px;
-  background: #302936;
-  color: #eee9f6;
+  border: 1px solid var(--pf-line);
+  border-radius: 9px;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
+  color: #e6efff;
   padding: 9px 13px;
+  font: inherit;
+  font-size: 12px;
+}
+select {
+  background: #07172b99;
 }
 button {
   cursor: pointer;
@@ -387,14 +399,16 @@ button:disabled {
   cursor: default;
 }
 .primary {
-  background: #7851aa;
+  color: #fff;
+  background: linear-gradient(115deg, #159dce, #7561ed);
+  border-color: #93caff6e;
 }
 .notice {
   color: #f0be8b;
 }
 .queue-notice {
   padding: 12px;
-  background: #2e2638;
+  background: #0b294980;
   border-radius: 8px;
   display: flex;
   gap: 14px;
@@ -413,20 +427,20 @@ table {
 th,
 td {
   padding: 12px;
-  border-bottom: 1px solid #3c3545;
+  border-bottom: 1px solid var(--pf-line);
 }
 th {
-  color: #aaa1b8;
+  color: #a6bee1;
 }
 small {
   display: block;
-  color: #aaa1b8;
+  color: #a6bee1;
   margin-top: 6px;
   font-size: 10px;
 }
 .progress {
   padding: 12px;
-  background: #30243f;
+  background: #0b294980;
   border-radius: 8px;
   font-size: 13px;
 }
@@ -434,7 +448,7 @@ small {
   display: inline-block;
   width: 8px;
   height: 8px;
-  background: #b995ee;
+  background: #37c9fb;
   border-radius: 50%;
   margin-left: 12px;
   animation: pulse 1s infinite;

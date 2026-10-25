@@ -766,6 +766,7 @@ watch(
         <h2>{{ t('История операций') }}</h2>
         <button
           type="button"
+          class="pf-close"
           @click="showHistory = false"
           :aria-label="t('Закрыть историю операций')"
         >

@@ -220,16 +220,16 @@ const operation = computed(() =>
   display: grid;
   place-items: center;
   padding: 20px;
-  background: #000b;
+  background: #020813ba;
 }
 .service-dialog {
   width: min(620px, 100%);
   max-height: 90vh;
   overflow: auto;
   padding: 24px;
-  border: 1px solid #454052;
+  border: 1px solid var(--pf-line);
   border-radius: 14px;
-  background: #1d1d21;
+  background: rgb(14 29 51 / 97%);
   display: grid;
   gap: 16px;
 }
@@ -247,10 +247,10 @@ const operation = computed(() =>
   gap: 10px;
 }
 button {
-  border: 1px solid #454052;
-  border-radius: 8px;
-  background: #27262d;
-  color: #e9e6ef;
+  border: 1px solid var(--pf-line);
+  border-radius: 9px;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
+  color: #e6efff;
   padding: 9px 12px;
   font-size: 12px;
   cursor: pointer;
@@ -273,7 +273,7 @@ button:disabled {
   font-size: 12px;
 }
 .service-facts dt {
-  color: #9691a0;
+  color: #a6bee1;
 }
 .service-facts dd {
   margin: 0;
@@ -282,11 +282,11 @@ button:disabled {
 .good,
 .service-ok,
 .completed {
-  color: #87d0a2;
+  color: #56ddb6;
 }
 .failed,
 .service-warning {
-  color: #f2a7be;
+  color: #ffadbd;
 }
 .service-confirm {
   display: grid;
@@ -305,7 +305,7 @@ button:disabled {
   overflow: auto;
   font-size: 11px;
   white-space: pre-wrap;
-  background: #0006;
+  background: #07172b99;
   padding: 10px;
   border-radius: 8px;
 }

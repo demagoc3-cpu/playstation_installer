@@ -469,7 +469,13 @@ onBeforeUnmount(() => {
           </p>
           <h2 id="release-title">{{ selected.displayTitle }}</h2>
         </div>
-        <button type="button" class="close" :aria-label="t('Закрыть')" autofocus @click="close">
+        <button
+          type="button"
+          class="pf-close close"
+          :aria-label="t('Закрыть')"
+          autofocus
+          @click="close"
+        >
           ×
         </button>
       </div>

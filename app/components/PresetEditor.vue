@@ -46,7 +46,13 @@ onMounted(() => nameInput.value?.focus());
       >
         <header>
           <h2>{{ t(preset ? 'Редактировать пресет' : 'Создать пресет') }}</h2>
-          <button type="button" :disabled="busy" :aria-label="t('Закрыть')" @click="emit('close')">
+          <button
+            class="pf-close"
+            type="button"
+            :disabled="busy"
+            :aria-label="t('Закрыть')"
+            @click="emit('close')"
+          >
             ×
           </button>
         </header>
@@ -86,15 +92,16 @@ onMounted(() => nameInput.value?.focus());
   display: grid;
   place-items: center;
   padding: 24px;
-  background: #050509bb;
+  background: #020813ba;
 }
 .preset-dialog {
   width: 480px;
   max-width: 100%;
   max-height: 90vh;
   overflow: auto;
-  background: #1e1d22;
-  border: 1px solid #4c4858;
+  background: rgb(14 29 51 / 97%);
+  color: #e6efff;
+  border: 1px solid var(--pf-line);
   border-radius: 16px;
   padding: 24px;
   display: grid;
@@ -115,35 +122,41 @@ label {
   display: grid;
   gap: 8px;
   font-size: 12px;
-  color: #b8b4c0;
+  color: #a6bee1;
 }
 input,
 textarea {
   width: 100%;
-  background: #151518;
-  border: 1px solid #4c4858;
-  border-radius: 8px;
+  background: #07172b99;
+  border: 1px solid var(--pf-line);
+  border-radius: 9px;
   padding: 10px;
-  color: #eee;
+  color: #e6efff;
   font: inherit;
 }
 textarea {
   resize: vertical;
 }
 button {
-  border: 1px solid #4c4858;
-  border-radius: 8px;
+  border: 1px solid var(--pf-line);
+  border-radius: 9px;
   padding: 9px 14px;
-  background: #28272d;
-  color: #eee;
+  background: linear-gradient(145deg, #29426475, #142b4b9e);
+  color: #e6efff;
   cursor: pointer;
   font-size: 12px;
 }
 footer {
   justify-content: flex-end;
 }
+/* Teleported outside the shell: the shared primary style does not reach here. */
+button.primary {
+  color: #fff;
+  background: linear-gradient(115deg, #159dce, #7561ed);
+  border-color: #93caff6e;
+}
 p {
   font-size: 12px;
-  color: #e7a79f;
+  color: #ffadbd;
 }
 </style>
