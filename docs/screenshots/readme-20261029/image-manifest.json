@@ -1,0 +1,50 @@
+[
+  {
+    "file": "ps5-native-preview.png",
+    "dimensions": [1920, 1080],
+    "bytes": 2320428,
+    "sha256": "610aee118feac83b0e6cefee10b92044f04c5a49c73bd19c41b9a75bde7597ab"
+  },
+  {
+    "file": "ps5-console-table-ru.jpg",
+    "dimensions": [1265, 1180],
+    "bytes": 158839,
+    "sha256": "137c0b5c5d41ca3eaba617946ff33be9657658365d39898bfbb9fd92e98e5c78"
+  },
+  {
+    "file": "library-ru.jpg",
+    "dimensions": [1280, 720],
+    "bytes": 100121,
+    "sha256": "9cd0279951dc410ecaa58e02fb7585a2b3c36015d61525b9fcadaba74389ea51"
+  },
+  {
+    "file": "windows-preview.png",
+    "dimensions": [1280, 800],
+    "bytes": 672413,
+    "sha256": "34cc4f37fe2da20e10f9b9641c36520309cc626ad13a6cecfac2b7f04452b2db"
+  },
+  {
+    "file": "library-en.jpg",
+    "dimensions": [1280, 720],
+    "bytes": 96376,
+    "sha256": "68f8bea7694eba1afa7e7c733dd23a38ca85894ca3215057bdc1065253cd1e6d"
+  },
+  {
+    "file": "tasks-ru.jpg",
+    "dimensions": [1265, 898],
+    "bytes": 131115,
+    "sha256": "22c5ea4c2ad44ea8aa0b4ed056d56ed5d2dd6e5f4fefeb05cf4820c9f93dc6b8"
+  },
+  {
+    "file": "presets-ru.jpg",
+    "dimensions": [1280, 720],
+    "bytes": 117640,
+    "sha256": "08db2c94d3c0163a54ef9ef51454577d073d9b8a9ac5836db3f0f8da37da8b75"
+  },
+  {
+    "file": "ps5-console-ru.jpg",
+    "dimensions": [1265, 1517],
+    "bytes": 241576,
+    "sha256": "a83e00c151f841c8888bb6a0c733b2a97d4a318f0d94595321f107c0852af220"
+  }
+]

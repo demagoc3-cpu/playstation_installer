@@ -1,0 +1,17 @@
+{
+  "generatedAt": "2026-10-29",
+  "generator": "built-in image_gen",
+  "reference": "docs/assets/packageflow-ps4-features-2026-10.png",
+  "assets": [
+    {
+      "path": "docs/assets/readme-hero-ru.png",
+      "prompt": "Use case: ads-marketing / infographic-diagram.\nAsset: a polished evergreen GitHub README hero banner for PackageFlow, in Russian. A wide landscape banner around 2400×1000 (2.4:1). Use the local reference only for the exact PF logo, PackageFlow brand spelling and dark navy/cyan/violet visual identity. This banner describes the modern PS4 AND PS5 product, replace all old PS4-only content and previous layout.\nArt direction: premium dark navy glass, subtle blue background gradients and geometric light ribbons, restrained cyan/violet outlines, spacious editorial typography, very legible at GitHub width, no noisy game art. Left 50% large recognizable white PF monogram in its rounded violet/blue/cyan square and exact “PackageFlow” wordmark, then strong Russian headline. Right 50% a clean schematic: PC and NAS as sources connect to one elegant WEB browser panel, then branch to a black PS4 Slim and white PS5 silhouette. The browser is an abstract schematic with tasteful unlabelled tiles, not a fake app screenshot. Make it clear data comes from PC/NAS into WEB and then to the consoles. No claims that games run directly from NAS.\nExact text, only these words:\n“PackageFlow”\n“Ваша библиотека. Ваши приставки.”\n“Установка игр и управление по сети”\nSource node: “ПК / NAS”\nServer node: “WEB”\nConsole labels: “PS4” and “PS5”\nBottom four equal icon-and-text items: “Библиотека” / “Задания” / “Файлы” / “Сохранения”\nSmall final platform line: “Windows • Linux • Docker / NAS • RU / EN”\nUse readable Cyrillic, comfortable padding, straight-on layout. No version numbers, firmware versions, measurements, speed claims, fake statuses, watermarks, giant controllers or unrelated mascots. Do not reproduce old PS4 feature cards or GoldHEN-only headline. All labels fit without clipping. This is a schematic brand banner, not evidence of a running console or a screenshot."
+    },
+    {
+      "path": "docs/assets/readme-hero-en.png",
+      "prompt": "Use case: text-localization.\nMake the ENGLISH localization of this exact PackageFlow GitHub README hero banner. Preserve its composition, exact PF brand monogram, PackageFlow wordmark, dark navy glass materials, cyan/violet lighting, computer+NAS → WEB → PS4/PS5 schematic, all platform icons, margins and all console illustrations. Change only Russian copy to the English copy below; adjust font size slightly where necessary so it fits comfortably and remains very legible. Output the same wide aspect ratio.\nReplace:\n“Ваша библиотека. Ваши приставки.” with “Your library. Your consoles.”\n“Установка игр и управление по сети” with “Network installation and console management”\n“ПК / NAS” with “PC / NAS”\n“Библиотека” with “Library”\n“Задания” with “Tasks”\n“Файлы” with “Files”\n“Сохранения” with “Saves”\nKeep “PackageFlow”, “WEB”, “PS4”, “PS5”, “Windows”, “Linux”, “Docker / NAS”, “RU / EN” exactly as shown. No extra text or version numbers, no new details, no fake screenshots. This is a brand schematic, not actual running hardware.",
+      "reference": "docs/assets/readme-hero-ru.png"
+    }
+  ],
+  "purpose": "Evergreen bilingual README banners. Schematics only, not UI screenshots or hardware verification."
+}
